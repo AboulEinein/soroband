@@ -128,29 +128,34 @@ struct PopoverContent: Equatable {
         let totals = Dictionary(uniqueKeysWithValues: today.networks.map { ($0.network, $0.interfaces) })
         var networks = registry.map { network in
             let bytes = totals[network.id] ?? .zero
-            let subtitle: Subtitle? = if network.id == networkID {
-                .connected
-            } else if bytes.total > 0 {
-                nil
-            } else if let lastUsed = network.lastUsed {
-                .lastUsed(Date(timeIntervalSince1970: TimeInterval(lastUsed)))
-            } else {
-                .neverUsed
-            }
+            let subtitle: Subtitle? =
+                if network.id == networkID {
+                    .connected
+                } else if bytes.total > 0 {
+                    nil
+                } else if let lastUsed = network.lastUsed {
+                    .lastUsed(Date(timeIntervalSince1970: TimeInterval(lastUsed)))
+                } else {
+                    .neverUsed
+                }
             return Row(
                 id: "network-\(network.id)", title: network.name, subtitle: subtitle,
                 icon: .network(network.kind, slot: slots[network.id]), bytes: bytes,
                 segments: [Segment(slot: slots[network.id], bytes: bytes.total)])
         }
         if let unknown = totals[0], unknown.total > 0 {
-            networks.append(Row(
-                id: "network-0", title: unknownNetworkName, subtitle: networkID == 0 ? .connected : nil,
-                icon: .network(nil, slot: nil), bytes: unknown, segments: [Segment(slot: nil, bytes: unknown.total)]))
+            networks.append(
+                Row(
+                    id: "network-0", title: unknownNetworkName, subtitle: networkID == 0 ? .connected : nil,
+                    icon: .network(nil, slot: nil), bytes: unknown, segments: [Segment(slot: nil, bytes: unknown.total)]
+                ))
         }
         // Stable for equal totals: registry order.
         networks = networks.enumerated()
-            .sorted { $0.element.bytes.total != $1.element.bytes.total
-                ? $0.element.bytes.total > $1.element.bytes.total : $0.offset < $1.offset }
+            .sorted {
+                $0.element.bytes.total != $1.element.bytes.total
+                    ? $0.element.bytes.total > $1.element.bytes.total : $0.offset < $1.offset
+            }
             .map(\.element)
 
         return PopoverContent(

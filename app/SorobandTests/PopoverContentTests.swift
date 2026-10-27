@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Soroband
 
 /// The popover's rows from a day worked out by hand: Home (Wi‑Fi, first seen) and iPhone
@@ -58,7 +59,8 @@ struct PopoverContentTests {
         // Safari's iPhone bytes are not on Home.
         #expect(content.apps[0].bytes == ByteCounts(rx: 400, tx: 20))
         #expect(content.apps[0].segments == [.init(slot: 0, bytes: 420)])
-        #expect(content.apps.map(\.icon) == [.file("/Applications/Safari.app"), .tool, .file("/Applications/Mail.app")])
+        #expect(
+            content.apps.map(\.icon) == [.file("/Applications/Safari.app"), .tool, .file("/Applications/Mail.app")])
     }
 
     @Test func overheadIsTheRawGapBetweenTheInterfacesAndTheApps() {
@@ -127,9 +129,10 @@ struct PopoverContentTests {
         // Used today: no subtitle needed.
         #expect(networks[1].subtitle == nil)
         #expect(networks[2].subtitle == .lastUsed(Date(timeIntervalSince1970: 1_792_900_000)))
-        #expect(networks.map(\.icon) == [
-            .network(.wifi, slot: 0), .network(.hotspot, slot: 1), .network(.wifi, slot: 2),
-        ])
+        #expect(
+            networks.map(\.icon) == [
+                .network(.wifi, slot: 0), .network(.hotspot, slot: 1), .network(.wifi, slot: 2),
+            ])
         #expect(content().networksScale == 640)
     }
 

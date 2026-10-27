@@ -43,13 +43,14 @@ struct NetworkIdentity: Equatable {
     ///   adapter stay apart.
     /// - A path macOS marks expensive is a hotspot.
     static func identify(_ observation: NetworkObservation) -> Result {
-        let kind: NetworkKind = if observation.isExpensive || observation.medium == .cellular {
-            .hotspot
-        } else if observation.medium == .wifi {
-            .wifi
-        } else {
-            .ethernet
-        }
+        let kind: NetworkKind =
+            if observation.isExpensive || observation.medium == .cellular {
+                .hotspot
+            } else if observation.medium == .wifi {
+                .wifi
+            } else {
+                .ethernet
+            }
         switch observation.medium {
         case .wifi:
             if let ssid = observation.ssid, !ssid.isEmpty {
