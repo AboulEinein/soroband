@@ -2,6 +2,7 @@
 
 #[cfg(debug_assertions)]
 mod debug;
+mod live;
 
 use std::process::ExitCode;
 
@@ -9,6 +10,7 @@ const USAGE: &str = "\
 Usage: soroband <command>
 
 Commands:
+  live                 Internet bytes per app, live (see soroband live --help)
   version              Print the version of the soroband command and its core
   help                 Print this help";
 
@@ -29,6 +31,11 @@ fn main() -> ExitCode {
             print_usage();
             ExitCode::SUCCESS
         }
+        ["live", "--help" | "-h"] => {
+            println!("{}", live::USAGE);
+            ExitCode::SUCCESS
+        }
+        ["live", rest @ ..] => live::run(rest),
         #[cfg(debug_assertions)]
         ["debug", rest @ ..] => debug::run(rest),
         _ => {

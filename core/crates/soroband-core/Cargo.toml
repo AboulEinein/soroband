@@ -13,3 +13,6 @@ crate-type = ["staticlib", "rlib"]
 
 [lints]
 workspace = true
+
+[dependencies]
+libc = "0.2"

@@ -4,11 +4,12 @@
 #
 # Usage: scripts/verify/budget.sh <minutes> [pid]
 #   pid: defaults to the only running process named Soroband
+#   MEMORY_BUDGET_MB: memory budget in MB (default 25; the engine alone, `soroband live`, has 5)
 set -euo pipefail
 zmodload zsh/datetime  # EPOCHREALTIME
 
 cpu_budget=0.1   # percent of one core
-memory_budget=25 # MB, phys_footprint
+memory_budget=${MEMORY_BUDGET_MB:-25} # MB, phys_footprint
 
 minutes=${1:?usage: budget.sh <minutes> [pid]}
 pid=${2:-}

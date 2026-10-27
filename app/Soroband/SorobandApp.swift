@@ -20,6 +20,7 @@ struct SorobandApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Core.startEngine()
         #if DEBUG
         DebugCommands.start()
         #endif
