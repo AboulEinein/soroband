@@ -37,7 +37,8 @@ struct MenuBarDisplay: Equatable {
         }
         if status.state == .starting { return MenuBarDisplay(symbol: symbol, text: nil) }
         return switch mode {
-        case .todayNetwork: MenuBarDisplay(symbol: symbol, text: Format.menuBarBytes(status.todayNetworkInterfaces.total))
+        case .todayNetwork:
+            MenuBarDisplay(symbol: symbol, text: Format.menuBarBytes(status.todayNetworkInterfaces.total))
         case .todayAll: MenuBarDisplay(symbol: symbol, text: Format.menuBarBytes(status.todayInterfaces.total))
         case .speed:
             MenuBarDisplay(
@@ -73,8 +74,8 @@ struct MenuBarDisplay: Equatable {
     /// Seconds to wait before showing `new` in place of `old`, drawn at `lastRedraw`.
     static func redrawDelay(from old: Drawn?, to new: Drawn, lastRedraw: Date, now: Date) -> TimeInterval {
         guard let old, old.display != new.display, old.mode == new.mode, old.network == new.network,
-              old.display.symbol == new.display.symbol, old.display.text != nil,
-              let oldTotal = old.total, let newTotal = new.total, newTotal >= oldTotal
+            old.display.symbol == new.display.symbol, old.display.text != nil,
+            let oldTotal = old.total, let newTotal = new.total, newTotal >= oldTotal
         else { return 0 }
         return max(0, totalRedrawInterval - now.timeIntervalSince(lastRedraw))
     }

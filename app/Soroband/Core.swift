@@ -232,12 +232,13 @@ struct EngineStatus: Equatable {
     }
 
     fileprivate init(_ status: SorobandEngineStatus) {
-        state = switch status.state {
-        case UInt32(SOROBAND_ENGINE_PER_APP): .perApp
-        case UInt32(SOROBAND_ENGINE_INTERFACE_ONLY): .interfaceOnly
-        case UInt32(SOROBAND_ENGINE_FAILED): .failed
-        default: .starting
-        }
+        state =
+            switch status.state {
+            case UInt32(SOROBAND_ENGINE_PER_APP): .perApp
+            case UInt32(SOROBAND_ENGINE_INTERFACE_ONLY): .interfaceOnly
+            case UInt32(SOROBAND_ENGINE_FAILED): .failed
+            default: .starting
+            }
         flows = Int(status.flows)
         apps = Int(status.apps)
         appBytes = Bytes(rx: status.app_rx, tx: status.app_tx)
@@ -250,10 +251,11 @@ struct EngineStatus: Equatable {
         todayApps = Bytes(rx: status.today_app_rx, tx: status.today_app_tx)
         todayInterfaces = Bytes(rx: status.today_interface_rx, tx: status.today_interface_tx)
         speed = Bytes(rx: status.speed_rx, tx: status.speed_tx)
-        check = switch status.check {
-        case UInt32(SOROBAND_CHECK_DEGRADED): .degraded
-        case UInt32(SOROBAND_CHECK_OVERCOUNT): .overcount
-        default: .ok
-        }
+        check =
+            switch status.check {
+            case UInt32(SOROBAND_CHECK_DEGRADED): .degraded
+            case UInt32(SOROBAND_CHECK_OVERCOUNT): .overcount
+            default: .ok
+            }
     }
 }
