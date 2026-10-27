@@ -1,6 +1,6 @@
 # Review
 
-Every pull request goes through this loop, and so does any other work that needs a second opinion (a design change, a migration plan, a release checklist).
+Every pull request goes through this loop, and so does any other work that needs a second opinion (a design change, a migration plan, a release checklist). A pull request then gets a CodeRabbit review (below).
 
 ## Blind reviewer
 
@@ -22,18 +22,42 @@ Resolve each earlier review thread you confirm as handled; reply on any you do n
 
 ## Rounds
 
-1. **Plan the rounds before round 1** and write the number in the PR description: 1 for a small fix, 2 for a typical change, 3 for a milestone or a risky change. The plan is a budget for judgment, not a stop: what ends the loop is below.
-2. **Each round:**
+1. **Open the pull request as a draft** (`gh pr create --draft`). CodeRabbit skips drafts, so it does not review each round's commits.
+2. **Plan the rounds before round 1** and write the number in the PR description: 1 for a small fix, 2 for a typical change, 3 for a milestone or a risky change. The plan is a budget for judgment, not a stop: what ends the loop is below.
+3. **Each round:**
    - Push all commits first; nothing is pushed while the review runs. If the branch moves mid-review, the skill keeps its review as a draft instead of posting it.
    - Run the blind review.
    - Confirm the review is posted: `gh api repos/AboulEinein/soroband/pulls/<number>/reviews` lists it with a state other than `PENDING`. A draft or missing review means the round did not happen; run it again.
    - Answer every finding in its PR thread, either with the fix (the commit) or with evidence for why it should stay as it is.
-3. **No fix leaves the loop unreviewed.** A PR is never handed over with commits that no reviewer has seen.
-4. **After each round, judge whether another one adds value.** The session lead judges, and may consult an advisor agent (below) on the question. In an unattended run the conductor checks that judgment after the session stops (see [`plan.md`](plan.md#unattended-runs)).
+4. **No fix leaves the loop unreviewed.** A PR is never handed over with commits that no reviewer has seen.
+5. **After each round, judge whether another one adds value.** The session lead judges, and may consult an advisor agent (below) on the question. In an unattended run the conductor checks that judgment after the session stops (see [`plan.md`](plan.md#unattended-runs)).
    - **Run another round** after a round whose fixes change behavior or a documented rule, as long as the findings shrink: from round 2 on, fewer or less severe than the last round's, and of a different kind. This holds past the planned number.
    - **Review the last fixes directly** when they are comments or wording only, with no change to behavior or to a documented rule. Someone other than the implementer reads the diff: a fresh agent the lead spawns with the diff and the findings it answers. The reviewer posts its verdict as a PR comment naming the commit, resolves each thread it confirms as handled and replies on any it does not, and the handover links to the comment. A full round on such a diff adds nothing.
    - **Reassess** (below) when a fixed finding comes back, when findings repeat in kind, or when they stop shrinking.
-5. **The loop ends** when a round finds nothing to act on, or a direct review of its fixes finds nothing to act on.
+6. **The loop ends** when a round finds nothing to act on, or a direct review of its fixes finds nothing to act on.
+
+## CodeRabbit
+
+CodeRabbit reviews each pull request once the blind loop has ended. Its `CodeRabbit` check is required to merge into `main`; it passes when the review is done, whatever the review found. The `main` ruleset also requires every review thread to be resolved, so no finding is left unanswered.
+
+1. **Mark the pull request ready:** `gh pr ready <number>`. CodeRabbit starts a full review.
+2. **Wait for the `CodeRabbit` check to finish:** `gh pr checks <number> --required --watch`.
+3. **Judge every finding,** including the nitpicks CodeRabbit lists in its review body:
+   - **Valid:** fix it, and reply on its thread naming the commit.
+   - **Not valid:** reply with the evidence and resolve the thread.
+4. **Fixes are reviewed too.** CodeRabbit reviews each new commit on its own. That is enough for a fix to comments or wording. A fix that changes behavior or a documented rule also gets a blind round, or a direct review if it qualifies (see Rounds).
+5. **Record every finding** in [`coderabbit-findings.md`](coderabbit-findings.md), valid or not, with why the blind loop missed each valid one.
+
+### Learning from the findings
+
+The findings show what the blind loop misses. When a valid finding repeats a category and a miss cause already in the log, it is a pattern; turn it into a rule where the miss happened, and name the rule in the follow-up column of every row it covers:
+
+- **The reviewer did not check for it:** a line in a `## Checklist` section of this file, and a line in the brief above telling the reviewer to go through that checklist. Add both with the first pattern.
+- **The implementer keeps making it:** a rule in `AGENTS.md`, or in the doc that covers the area (`verification.md` for tests, `design.md` for architecture).
+- **A tool can find it:** a lint or CI check, which beats a written rule.
+- **It applies to any project, not just Soroband:** a proposal to the user for the `pr-review` skill, which lives outside this repository.
+
+Read the log for patterns when a milestone ends, before updating the handover.
 
 ## Reassess instead of another round
 
