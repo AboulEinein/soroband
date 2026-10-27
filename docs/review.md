@@ -17,12 +17,12 @@ Brief for a pull request, used word for word:
 ```text
 Review PR #<number> in AboulEinein/soroband with the pr-review skill, using --no-story --submit.
 The PR implements milestone <ID>. Its requirements are in docs/plan.md under <ID>, and the evidence it must show is in docs/verification.md under <ID>.
-Resolve each earlier review thread you confirm as handled; reply on any you do not, saying what is still missing.
+Resolve each earlier blind-review thread you confirm as handled; reply on any you do not, saying what is still missing. Leave CodeRabbit's threads alone.
 ```
 
 ## Rounds
 
-1. **Open the pull request as a draft** (`gh pr create --draft`). CodeRabbit skips drafts, so it does not review each round's commits.
+1. **Open the pull request as a draft** (`gh pr create --draft`). CodeRabbit skips drafts (`.coderabbit.yaml`), so it does not review each round's commits.
 2. **Plan the rounds before round 1** and write the number in the PR description: 1 for a small fix, 2 for a typical change, 3 for a milestone or a risky change. The plan is a budget for judgment, not a stop: what ends the loop is below.
 3. **Each round:**
    - Push all commits first; nothing is pushed while the review runs. If the branch moves mid-review, the skill keeps its review as a draft instead of posting it.
@@ -34,30 +34,34 @@ Resolve each earlier review thread you confirm as handled; reply on any you do n
    - **Run another round** after a round whose fixes change behavior or a documented rule, as long as the findings shrink: from round 2 on, fewer or less severe than the last round's, and of a different kind. This holds past the planned number.
    - **Review the last fixes directly** when they are comments or wording only, with no change to behavior or to a documented rule. Someone other than the implementer reads the diff: a fresh agent the lead spawns with the diff and the findings it answers. The reviewer posts its verdict as a PR comment naming the commit, resolves each thread it confirms as handled and replies on any it does not, and the handover links to the comment. A full round on such a diff adds nothing.
    - **Reassess** (below) when a fixed finding comes back, when findings repeat in kind, or when they stop shrinking.
-6. **The loop ends** when a round finds nothing to act on, or a direct review of its fixes finds nothing to act on.
+6. **The blind loop ends** when a round finds nothing to act on, or a direct review of its fixes finds nothing to act on. CodeRabbit's review follows (below).
 
 ## CodeRabbit
 
-CodeRabbit reviews each pull request once the blind loop has ended. Its `CodeRabbit` check is required to merge into `main`; it passes when the review is done, whatever the review found. The `main` ruleset also requires every review thread to be resolved, so no finding is left unanswered.
+CodeRabbit reviews each pull request, whatever its base, once the blind loop has ended (`.coderabbit.yaml`). Its `CodeRabbit` check is required to merge into `main`; it passes when the review is done, whatever the review found. The `main` ruleset also requires every review thread to be resolved, so no finding is left unanswered.
 
 1. **Mark the pull request ready:** `gh pr ready <number>`. CodeRabbit starts a full review.
-2. **Wait for the review to finish.** On the draft, the `CodeRabbit` check was left `SKIPPED`, which `gh pr checks --watch` counts as done, so wait for it to pass instead:
+2. **Wait for the review to pass.** The `CodeRabbit` check left on the draft reads `SKIPPED`, which `gh pr checks --watch` counts as done, so poll until it reads `SUCCESS`, for at most 30 minutes:
    ```sh
-   until gh pr checks <number> --json name,state --jq '.[] | select(.name == "CodeRabbit") | .state' | grep -qx SUCCESS; do sleep 30; done
+   for i in {1..60}; do
+     [[ $(gh pr checks <number> --json name,state --jq '.[] | select(.name == "CodeRabbit") | .state') == SUCCESS ]] && break
+     sleep 30
+   done
    ```
+   If it never reads `SUCCESS`, read CodeRabbit's latest comment on the pull request. Unless it says how to go on (a rate limit to wait out, a command to post), stop as `blocked (review: CodeRabbit did not review)`.
 3. **Judge every finding:**
    - **Valid:** fix it, and reply on its thread naming the commit.
-   - **Valid, but left as it is:** reply with the reason. This needs the same grounds as accepting a finding in a reassessment (below).
+   - **Valid, but left as it is:** only when fixing it would contradict a decision recorded in `design.md`, `plan.md` or the handover, or when it is outside the pull request's scope and becomes a follow-up in the handover. The reply quotes the decision or names the follow-up.
    - **Not valid:** reply with the evidence.
    - **Findings without a thread** (the nitpicks and the comments outside the diff that CodeRabbit lists in its review body) get one PR comment listing each with its verdict and the fix commit or the evidence.
 4. **Fixes are reviewed too.** The pull request stays ready, so CodeRabbit reviews each new commit on its own, and its new findings go through step 3. That is enough for a fix to comments or wording. A fix that changes behavior or a documented rule also gets a blind round, or a direct review if it qualifies (see Rounds).
 5. **Resolve each thread** once its finding is handled: a valid one after the review of its fix (CodeRabbit's, or the blind round's) raises nothing about it, the others after the reply. The session lead resolves CodeRabbit's threads, because CodeRabbit is not briefed to check replies.
 6. **Record every finding** in [`coderabbit-findings.md`](coderabbit-findings.md), valid or not, with why the blind loop missed each valid one.
-7. **The CodeRabbit review ends** when CodeRabbit's review of the last commit raises nothing to act on and every thread is resolved. Only then has the review loop ended.
+7. **CodeRabbit's review ends** when its review of the last commit raises nothing to act on and every thread is resolved. Only then has the review ended.
 
 ### Learning from the findings
 
-The findings show what the blind loop misses. When a valid finding repeats a category and a miss cause already in the log, it is a pattern; turn it into a rule where the miss happened, and name the rule in the follow-up column of every row it covers:
+The findings show what the blind loop misses. When a valid finding repeats a category and a miss cause already in the log, it is a pattern (for `after the loop`, the pattern is in how fixes are made after the loop, not in the blind review); turn it into a rule where the miss happened, and name the rule in the follow-up column of every row it covers:
 
 - **The reviewer did not check for it:** a line in a `## Checklist` section of this file, and a line in the brief above telling the reviewer to go through that checklist. Add both with the first pattern.
 - **The implementer keeps making it:** a rule in `AGENTS.md`, or in the doc that covers the area (`verification.md` for tests, `design.md` for architecture).
