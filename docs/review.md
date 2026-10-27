@@ -41,12 +41,19 @@ Resolve each earlier review thread you confirm as handled; reply on any you do n
 CodeRabbit reviews each pull request once the blind loop has ended. Its `CodeRabbit` check is required to merge into `main`; it passes when the review is done, whatever the review found. The `main` ruleset also requires every review thread to be resolved, so no finding is left unanswered.
 
 1. **Mark the pull request ready:** `gh pr ready <number>`. CodeRabbit starts a full review.
-2. **Wait for the `CodeRabbit` check to finish:** `gh pr checks <number> --required --watch`.
-3. **Judge every finding,** including the nitpicks CodeRabbit lists in its review body:
+2. **Wait for the review to finish.** On the draft, the `CodeRabbit` check was left `SKIPPED`, which `gh pr checks --watch` counts as done, so wait for it to pass instead:
+   ```sh
+   until gh pr checks <number> --json name,state --jq '.[] | select(.name == "CodeRabbit") | .state' | grep -qx SUCCESS; do sleep 30; done
+   ```
+3. **Judge every finding:**
    - **Valid:** fix it, and reply on its thread naming the commit.
-   - **Not valid:** reply with the evidence and resolve the thread.
-4. **Fixes are reviewed too.** CodeRabbit reviews each new commit on its own. That is enough for a fix to comments or wording. A fix that changes behavior or a documented rule also gets a blind round, or a direct review if it qualifies (see Rounds).
-5. **Record every finding** in [`coderabbit-findings.md`](coderabbit-findings.md), valid or not, with why the blind loop missed each valid one.
+   - **Valid, but left as it is:** reply with the reason. This needs the same grounds as accepting a finding in a reassessment (below).
+   - **Not valid:** reply with the evidence.
+   - **Findings without a thread** (the nitpicks and the comments outside the diff that CodeRabbit lists in its review body) get one PR comment listing each with its verdict and the fix commit or the evidence.
+4. **Fixes are reviewed too.** The pull request stays ready, so CodeRabbit reviews each new commit on its own, and its new findings go through step 3. That is enough for a fix to comments or wording. A fix that changes behavior or a documented rule also gets a blind round, or a direct review if it qualifies (see Rounds).
+5. **Resolve each thread** once its finding is handled: a valid one after the review of its fix (CodeRabbit's, or the blind round's) raises nothing about it, the others after the reply. The session lead resolves CodeRabbit's threads, because CodeRabbit is not briefed to check replies.
+6. **Record every finding** in [`coderabbit-findings.md`](coderabbit-findings.md), valid or not, with why the blind loop missed each valid one.
+7. **The CodeRabbit review ends** when CodeRabbit's review of the last commit raises nothing to act on and every thread is resolved. Only then has the review loop ended.
 
 ### Learning from the findings
 
