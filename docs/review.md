@@ -9,7 +9,7 @@ The reviewer judges the work against the requirements, never against the impleme
 - **A fresh agent every round.** Never the implementer, never a continuation of an earlier reviewer.
 - **The brief carries only the work and its requirements:** the PR, the milestone ID, and where its requirements and evidence rules live. The implementer's reasoning, worries, history of attempts and suggested focus areas stay out of it.
 - **Pull requests use the `pr-review` skill with `--no-story --submit`.** Requirements come from `docs/plan.md`, not a task tracker. `--submit` publishes the review with its inline comments on the PR; without it the review stays an unsubmitted draft. Because the PR author and the reviewer share one GitHub account, GitHub accepts the review only as a comment, not "request changes"; the skill handles that. The posted review is the record across rounds, and from round 2 the skill's re-review mode checks every earlier finding.
-- **The reviewer resolves what it verifies.** Each earlier review thread it confirms as handled (fixed, or answered with evidence it accepts) it resolves on the PR. Threads it does not confirm stay open, with a reply saying what is still missing. Open threads are then exactly the findings still to act on.
+- **The reviewer resolves what it verifies.** Each earlier blind-review thread it confirms as handled (fixed, or answered with evidence it accepts) it resolves on the PR. Threads it does not confirm stay open, with a reply saying what is still missing. Open threads are then exactly the findings still to act on.
 - **Other work:** the reviewer gets the file paths and the question, with the same limits on the brief.
 
 Brief for a pull request, used word for word:
@@ -38,23 +38,23 @@ Resolve each earlier blind-review thread you confirm as handled; reply on any yo
 
 ## CodeRabbit
 
-CodeRabbit reviews each pull request, whatever its base, once the blind loop has ended (`.coderabbit.yaml`). Its `CodeRabbit` check is required to merge into `main`; it passes when the review is done, whatever the review found. The `main` ruleset also requires every review thread to be resolved, so no finding is left unanswered.
+CodeRabbit reviews each pull request, whatever its base, once the blind loop has ended. It reads `.coderabbit.yaml` from the pull request's head branch, so a branch made before that file existed gets no review until it has it. The `CodeRabbit` check is required to merge into `main`, but it passes when a review is done, whatever the review found, and GitHub also lets a skipped check through; this flow is what makes sure the review happens. The `main` ruleset requires every review thread to be resolved, so no finding with a thread is left unanswered.
 
 1. **Mark the pull request ready:** `gh pr ready <number>`. CodeRabbit starts a full review.
-2. **Wait for the review to pass.** The `CodeRabbit` check left on the draft reads `SKIPPED`, which `gh pr checks --watch` counts as done, so poll until it reads `SUCCESS`, for at most 30 minutes:
-   ```sh
+2. **Wait for the review to pass.** The `CodeRabbit` check left on the draft reads `SKIPPED`, which `gh pr checks --watch` counts as done, so poll until it reads `SUCCESS`, for at most 30 minutes. A review takes about 10 minutes, so run the loop in the background (in Claude Code, `run_in_background`) and wait for it to exit:
+   ```zsh
    for i in {1..60}; do
-     [[ $(gh pr checks <number> --json name,state --jq '.[] | select(.name == "CodeRabbit") | .state') == SUCCESS ]] && break
+     [[ $(gh pr checks <number> --json name,state --jq '.[] | select(.name == "CodeRabbit") | .state') == SUCCESS ]] && exit 0
      sleep 30
-   done
+   done; exit 1
    ```
-   If it never reads `SUCCESS`, read CodeRabbit's latest comment on the pull request. Unless it says how to go on (a rate limit to wait out, a command to post), stop as `blocked (review: CodeRabbit did not review)`.
+   If it still reads `SKIPPED` after 2 minutes, post `@coderabbitai review` on the pull request once. If it never reads `SUCCESS`, read CodeRabbit's latest comment on the pull request. Unless it says how to go on (a rate limit to wait out, a command to post), stop as `blocked (review: CodeRabbit did not review)`.
 3. **Judge every finding:**
    - **Valid:** fix it, and reply on its thread naming the commit.
    - **Valid, but left as it is:** only when fixing it would contradict a decision recorded in `design.md`, `plan.md` or the handover, or when it is outside the pull request's scope and becomes a follow-up in the handover. The reply quotes the decision or names the follow-up.
    - **Not valid:** reply with the evidence.
-   - **Findings without a thread** (the nitpicks and the comments outside the diff that CodeRabbit lists in its review body) get one PR comment listing each with its verdict and the fix commit or the evidence.
-4. **Fixes are reviewed too.** The pull request stays ready, so CodeRabbit reviews each new commit on its own, and its new findings go through step 3. That is enough for a fix to comments or wording. A fix that changes behavior or a documented rule also gets a blind round, or a direct review if it qualifies (see Rounds).
+   - **Findings without a thread** (the nitpicks and the comments outside the diff that CodeRabbit lists in its review body, and the warnings of its pre-merge checks in its summary comment) get one PR comment listing each with its verdict and the fix commit or the evidence.
+4. **Fixes are reviewed too.** The pull request stays ready, so CodeRabbit reviews each new commit on its own; wait for that review as in step 2, then take its new findings through step 3. That is enough for a fix to comments or wording. A fix that changes behavior or a documented rule also gets a blind round, or a direct review if it qualifies (see Rounds).
 5. **Resolve each thread** once its finding is handled: a valid one after the review of its fix (CodeRabbit's, or the blind round's) raises nothing about it, the others after the reply. The session lead resolves CodeRabbit's threads, because CodeRabbit is not briefed to check replies.
 6. **Record every finding** in [`coderabbit-findings.md`](coderabbit-findings.md), valid or not, with why the blind loop missed each valid one.
 7. **CodeRabbit's review ends** when its review of the last commit raises nothing to act on and every thread is resolved. Only then has the review ended.
@@ -68,7 +68,7 @@ The findings show what the blind loop misses. When a valid finding repeats a cat
 - **A tool can find it:** a lint or CI check, which beats a written rule.
 - **It applies to any project, not just Soroband:** a proposal to the user for the `pr-review` skill, which lives outside this repository.
 
-Read the log for patterns when a milestone ends, before updating the handover.
+Read the log for patterns when a milestone ends, before updating the handover, and again once parallel milestones have both merged. Rows are only ever appended, so a merge conflict in the log keeps both sides.
 
 ## Reassess instead of another round
 

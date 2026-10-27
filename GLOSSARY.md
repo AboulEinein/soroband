@@ -232,6 +232,12 @@ One blind review of a PR, posted on it.
 **Round cap**:
 The most rounds a PR gets, set before round 1, never above 3.
 
+**Blind loop**:
+The rounds of blind review a PR gets while it is a draft; CodeRabbit reviews after it ends.
+
+**Miss cause**:
+Why the blind loop missed a valid CodeRabbit finding, one of a fixed set in `docs/coderabbit-findings.md`.
+
 **Blind reviewer**:
 A fresh agent each round that sees only the PR and its requirements.
 
