@@ -151,6 +151,88 @@ fn bytes_polled_before_a_network_change_stay_on_the_old_network() {
     );
 }
 
+/// Today's apps as the popover lists them: (network, app name, bytes).
+fn today_apps(service: &Service<Replay>) -> Vec<(i64, String, Bytes)> {
+    service
+        .today_apps()
+        .map(|(network, app, bytes)| (network, app.name.clone(), bytes))
+        .collect()
+}
+
+#[test]
+fn todays_apps_are_kept_per_network_across_a_switch_and_a_restart() {
+    let f = Fixture::new("today-apps");
+    let t = MIDNIGHT + 10 * H;
+    let mut first = f.service(session(&[(1_000, 0, 1_100), (1_000, 500, 1_650)]), t);
+    first.apply(&Command::Network(f.home), t).unwrap();
+    // Home: Mail 1,000.
+    tick(&mut first, t + 5);
+    first.apply(&Command::Network(f.phone), t + 6).unwrap();
+    // iPhone: Safari 500.
+    tick(&mut first, t + 10);
+    assert_eq!(
+        today_apps(&first),
+        [
+            (f.home, "Mail".into(), rx(1_000)),
+            (f.phone, "Safari".into(), rx(500)),
+        ]
+    );
+    // What the last poll booked to the current network, for the live speed.
+    assert_eq!(first.last_booked().interfaces, rx(550));
+    first.apply(&Command::Stop, t + 11).unwrap();
+
+    // The next run reads them back and adds to them: Mail 300 more on Home.
+    let mut second = f.service(session(&[(300, 0, 400)]), t + 60);
+    second.apply(&Command::Network(f.home), t + 60).unwrap();
+    tick(&mut second, t + 65);
+    assert_eq!(
+        today_apps(&second),
+        [
+            (f.home, "Mail".into(), rx(1_300)),
+            (f.phone, "Safari".into(), rx(500)),
+        ]
+    );
+}
+
+#[test]
+fn todays_apps_start_again_at_the_reset_hour() {
+    let f = Fixture::new("today-apps-reset");
+    let mut service = f.service(session(&[(1_000, 0, 0), (1_000, 70, 0)]), MIDNIGHT + H);
+    service
+        .apply(&Command::Network(f.home), MIDNIGHT + H)
+        .unwrap();
+    // Mail at 02:00, Safari at 05:00; a 04:00 reset leaves Safari alone.
+    tick(&mut service, MIDNIGHT + 2 * H);
+    tick(&mut service, MIDNIGHT + 5 * H);
+    f.set_reset_hour("4");
+    service
+        .apply(&Command::ReloadSettings, MIDNIGHT + 5 * H)
+        .unwrap();
+    assert_eq!(today_apps(&service), [(f.home, "Safari".into(), rx(70))]);
+}
+
+#[test]
+fn apps_far_below_the_interfaces_for_twenty_minutes_degrade_the_self_check() {
+    use soroband_core::check::{Verdict, WINDOW};
+    let f = Fixture::new("self-check");
+    let t = MIDNIGHT + 10 * H;
+    // Each window: en0 10 MB more, Mail only 0.5 MB more, a 95% gap.
+    let mut service = f.service(
+        session(&[
+            (500_000, 0, 10_000_000),
+            (1_000_000, 0, 20_000_000),
+            (1_500_000, 0, 30_000_000),
+        ]),
+        t,
+    );
+    service.apply(&Command::Network(f.home), t).unwrap();
+    tick(&mut service, t + 5);
+    tick(&mut service, t + 5 + WINDOW);
+    assert_eq!(service.check(), Verdict::Ok, "one failing window");
+    tick(&mut service, t + 5 + 2 * WINDOW);
+    assert_eq!(service.check(), Verdict::Degraded);
+}
+
 #[test]
 fn bytes_are_written_once_a_minute() {
     let f = Fixture::new("minute");

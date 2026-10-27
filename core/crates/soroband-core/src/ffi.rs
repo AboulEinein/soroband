@@ -1,15 +1,18 @@
 //! C API for the app. `scripts/build-core.sh` turns this module into `soroband_core.h` with cbindgen.
 
+use crate::check::Verdict;
 use crate::day;
-use crate::meter::{Engine, Mode, SystemHost, Waker};
+use crate::meter::{Bytes, Engine, Mode, SystemHost, Waker};
 use crate::service::{self, Command, Service};
-use crate::settings;
+use crate::settings::{self, Settings};
 use crate::store::{NetworkKind, Store};
-use std::ffi::{CStr, c_char};
+use serde_json::{Value, json};
+use std::ffi::{CStr, CString, c_char};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, Once, OnceLock, PoisonError};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// The core's version as a NUL-terminated UTF-8 string.
 ///
@@ -27,6 +30,13 @@ pub const SOROBAND_ENGINE_PER_APP: u32 = 1;
 pub const SOROBAND_ENGINE_INTERFACE_ONLY: u32 = 2;
 /// Stopped by an error from the system.
 pub const SOROBAND_ENGINE_FAILED: u32 = 3;
+
+/// The self-check's verdict, for [`SorobandEngineStatus::check`]: nothing wrong seen.
+pub const SOROBAND_CHECK_OK: u32 = 0;
+/// Two 10-minute windows in a row with at least 10 MB credited too little to apps.
+pub const SOROBAND_CHECK_DEGRADED: u32 = 1;
+/// Apps summed to more than crossed the interfaces.
+pub const SOROBAND_CHECK_OVERCOUNT: u32 = 2;
 
 /// The engine's health and totals since it started.
 #[repr(C)]
@@ -60,6 +70,11 @@ pub struct SorobandEngineStatus {
     pub today_app_tx: u64,
     pub today_interface_rx: u64,
     pub today_interface_tx: u64,
+    /// Bytes per second across the interfaces between the last two polls.
+    pub speed_rx: u64,
+    pub speed_tx: u64,
+    /// One of the `SOROBAND_CHECK_*` constants ([`crate::check`]).
+    pub check: u32,
 }
 
 static STATUS: Mutex<SorobandEngineStatus> = Mutex::new(SorobandEngineStatus {
@@ -81,13 +96,25 @@ static STATUS: Mutex<SorobandEngineStatus> = Mutex::new(SorobandEngineStatus {
     today_app_tx: 0,
     today_interface_rx: 0,
     today_interface_tx: 0,
+    speed_rx: 0,
+    speed_tx: 0,
+    check: SOROBAND_CHECK_OK,
 });
 static START: Once = Once::new();
 static RUNNING: OnceLock<Running> = OnceLock::new();
+/// Set while the popover is open ([`soroband_engine_live`]).
+static LIVE: AtomicBool = AtomicBool::new(false);
+/// Today's networks and apps as JSON, published after each poll while [`LIVE`] is set.
+static TODAY: Mutex<String> = Mutex::new(String::new());
+static ON_POLL: Mutex<Option<extern "C" fn()>> = Mutex::new(None);
+
+/// Seconds between polls while the popover is open, for its live speed.
+const LIVE_INTERVAL: Duration = Duration::from_secs(1);
 
 /// What the app's calls share with the engine thread.
 struct Running {
     store: Arc<Mutex<Store>>,
+    settings_path: PathBuf,
     commands: Mutex<Vec<Command>>,
     /// Set once the engine has started; a command sent before then waits for the first poll.
     waker: Mutex<Option<Waker>>,
@@ -98,6 +125,10 @@ struct Running {
 impl Running {
     fn send(&self, command: Command) {
         lock(&self.commands).push(command);
+        self.wake();
+    }
+
+    fn wake(&self) {
         if let Some(waker) = &*lock(&self.waker) {
             waker.wake();
         }
@@ -131,27 +162,28 @@ pub unsafe extern "C" fn soroband_engine_start(
     );
     START.call_once(|| match open_store(&data_dir) {
         Ok(store) => {
+            let settings_path = data_dir.join(settings::FILE_NAME);
             let running = RUNNING.get_or_init(|| Running {
                 store: Arc::new(Mutex::new(store)),
+                settings_path: settings_path.clone(),
                 commands: Mutex::new(Vec::new()),
                 waker: Mutex::new(None),
                 stopped: Mutex::new(false),
                 stopped_changed: Condvar::new(),
             });
-            let settings_path = data_dir.join(settings::FILE_NAME);
             let spawned = thread::Builder::new()
                 .name("soroband-meter".into())
                 .stack_size(256 * 1024)
                 .spawn(move || {
                     if let Err(error) = meter(interval, running, settings_path) {
                         eprintln!("soroband: meter engine stopped: {error}");
-                        lock(&STATUS).state = SOROBAND_ENGINE_FAILED;
+                        fail();
                     }
                     *lock(&running.stopped) = true;
                     running.stopped_changed.notify_all();
                 });
             if spawned.is_err() {
-                lock(&STATUS).state = SOROBAND_ENGINE_FAILED;
+                fail();
             }
         }
         Err(error) => {
@@ -159,7 +191,7 @@ pub unsafe extern "C" fn soroband_engine_start(
                 "soroband: cannot open the usage database in {}: {error}",
                 data_dir.display()
             );
-            lock(&STATUS).state = SOROBAND_ENGINE_FAILED;
+            fail();
         }
     });
     RUNNING.get().is_some()
@@ -284,6 +316,162 @@ pub extern "C" fn soroband_settings_reload() {
     }
 }
 
+/// While `live` is true (the popover is open) the engine polls every second, for the live speed,
+/// and publishes today's networks and apps for [`soroband_today_json`]; it polls at once when it
+/// turns on. While false it polls at the interval it started with and publishes no lists.
+#[unsafe(no_mangle)]
+pub extern "C" fn soroband_engine_live(live: bool) {
+    {
+        // Under the lock, so a poll publishing at this moment sees the change before it stores.
+        let mut today = lock(&TODAY);
+        LIVE.store(live, Ordering::Relaxed);
+        if !live {
+            today.clear();
+        }
+    }
+    if let Some(running) = RUNNING.get() {
+        running.wake();
+    }
+}
+
+/// Calls `callback` on the engine's thread after each poll's status is published, and once when
+/// the engine stops on an error; `None` stops the calls. The callback must return quickly, for
+/// example by scheduling work elsewhere.
+#[unsafe(no_mangle)]
+pub extern "C" fn soroband_engine_on_poll(callback: Option<extern "C" fn()>) {
+    *lock(&ON_POLL) = callback;
+}
+
+/// Today's usage as of the last poll, as JSON:
+///
+/// ```json
+/// {"networks": [{"network": 1, "apps": {"rx": 0, "tx": 0}, "interfaces": {"rx": 0, "tx": 0}}],
+///  "apps": [{"network": 1, "id": "/Applications/Safari.app", "name": "Safari", "rx": 0, "tx": 0}]}
+/// ```
+///
+/// `networks` holds each network that carried bytes today, `apps` each app on each network.
+/// Empty lists unless [`soroband_engine_live`] is on and a poll has run since.
+///
+/// The caller owns the string and frees it with [`soroband_string_free`].
+#[unsafe(no_mangle)]
+pub extern "C" fn soroband_today_json() -> *mut c_char {
+    let today = lock(&TODAY);
+    owned_c_string(if today.is_empty() {
+        r#"{"networks":[],"apps":[]}"#
+    } else {
+        &today
+    })
+}
+
+/// Every network in the registry as a JSON array of
+/// `{"id", "key", "name", "kind", "last_used": Unix time of the last hour it carried bytes, or null}`,
+/// in the order they were first seen. Reads the database; null when the engine was not started or
+/// the read fails.
+///
+/// The caller owns the string and frees it with [`soroband_string_free`].
+#[unsafe(no_mangle)]
+pub extern "C" fn soroband_networks_json() -> *mut c_char {
+    let Some(running) = RUNNING.get() else {
+        return std::ptr::null_mut();
+    };
+    let store = lock(&running.store);
+    let read = store.networks().and_then(|n| Ok((n, store.last_used()?)));
+    drop(store);
+    match read {
+        Ok((networks, last_used)) => owned_c_string(&networks_json(&networks, &last_used)),
+        Err(error) => {
+            eprintln!("soroband: cannot read the networks: {error}");
+            std::ptr::null_mut()
+        }
+    }
+}
+
+fn networks_json(
+    networks: &[crate::store::Network],
+    last_used: &std::collections::BTreeMap<i64, i64>,
+) -> String {
+    Value::Array(
+        networks
+            .iter()
+            .map(|n| {
+                json!({
+                    "id": n.id,
+                    "key": n.key,
+                    "name": n.name,
+                    "kind": n.kind.as_str(),
+                    "last_used": last_used.get(&n.id),
+                })
+            })
+            .collect(),
+    )
+    .to_string()
+}
+
+/// The value of setting `key` as `soroband config get` prints it (`4`, `speed`), or null for an
+/// unknown key or when the engine was not started. An unreadable settings file gives the default.
+///
+/// The caller owns the string and frees it with [`soroband_string_free`].
+///
+/// # Safety
+/// `key` must be a valid NUL-terminated string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn soroband_setting_get(key: *const c_char) -> *mut c_char {
+    let Some(running) = RUNNING.get() else {
+        return std::ptr::null_mut();
+    };
+    // SAFETY: the caller passes a valid NUL-terminated string.
+    let key = unsafe { text(key) };
+    let settings = Settings::load(&running.settings_path).unwrap_or_default();
+    match settings.get(&key) {
+        Ok(current) => owned_c_string(&settings::plain(&current.value)),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+/// Sets `key` to `value` as `soroband config set` would, saves the settings file and applies it.
+/// Returns false, saving nothing, for an unknown key, a value outside its type or range, an
+/// unreadable settings file, or when the engine was not started.
+///
+/// # Safety
+/// `key` and `value` must be valid NUL-terminated strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn soroband_setting_set(key: *const c_char, value: *const c_char) -> bool {
+    let Some(running) = RUNNING.get() else {
+        return false;
+    };
+    // SAFETY: the caller passes valid NUL-terminated strings.
+    let (key, value) = unsafe { (text(key), text(value)) };
+    let path = &running.settings_path;
+    let saved = Settings::load(path).and_then(|mut settings| {
+        settings.set(&key, &value)?;
+        Ok(settings.save(path)?)
+    });
+    if let Err(error) = saved {
+        eprintln!("soroband: cannot set {key} to {value:?}: {error}");
+        return false;
+    }
+    running.send(Command::ReloadSettings);
+    true
+}
+
+/// Frees a string returned by this API. Null does nothing.
+///
+/// # Safety
+/// `string` must be null or a string from this API not yet freed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn soroband_string_free(string: *mut c_char) {
+    if !string.is_null() {
+        // SAFETY: the string came from `CString::into_raw` in `owned_c_string`.
+        drop(unsafe { CString::from_raw(string) });
+    }
+}
+
+/// JSON text has no NUL bytes; any other text is cut at its first.
+fn owned_c_string(text: &str) -> *mut c_char {
+    let text = text.split('\0').next().unwrap_or_default();
+    CString::new(text).unwrap_or_default().into_raw()
+}
+
 impl SorobandNetwork {
     fn new(id: i64, name: &str, kind: NetworkKind) -> Self {
         let mut network = Self {
@@ -340,6 +528,8 @@ fn meter(
         day::local_offset,
         day::now(),
     )?;
+    let mut speed = Bytes::default();
+    let mut last_poll = Instant::now();
     loop {
         // Commands sent during the last tick cut its wait short, so the tick has already polled:
         // what moved before a network change is booked to the previous network.
@@ -354,8 +544,26 @@ fn meter(
             }
             outlive_database_errors(applied.map(drop))?;
         }
-        publish(&service);
-        outlive_database_errors(service.tick(interval, day::now()))?;
+        publish(&service, speed);
+        let wait = if LIVE.load(Ordering::Relaxed) {
+            LIVE_INTERVAL.min(interval)
+        } else {
+            interval
+        };
+        outlive_database_errors(service.tick(wait, day::now()))?;
+        let polled = Instant::now();
+        speed = per_second(service.last_booked().interfaces, polled - last_poll);
+        last_poll = polled;
+    }
+}
+
+/// `bytes` moved over `elapsed`, as bytes per second.
+fn per_second(bytes: Bytes, elapsed: Duration) -> Bytes {
+    let millis = elapsed.as_millis().max(1);
+    let rate = |b: u64| u64::try_from(u128::from(b) * 1000 / millis).unwrap_or(u64::MAX);
+    Bytes {
+        rx: rate(bytes.rx),
+        tx: rate(bytes.tx),
     }
 }
 
@@ -372,7 +580,7 @@ fn outlive_database_errors(result: Result<(), service::Error>) -> Result<(), ser
     }
 }
 
-fn publish(service: &Service<SystemHost>) {
+fn publish(service: &Service<SystemHost>, speed: Bytes) {
     let snapshot = service.engine().snapshot();
     let total = snapshot.apps_total();
     let today = service.today();
@@ -398,13 +606,71 @@ fn publish(service: &Service<SystemHost>) {
         today_app_tx: today.all.apps.tx,
         today_interface_rx: today.all.interfaces.rx,
         today_interface_tx: today.all.interfaces.tx,
+        speed_rx: speed.rx,
+        speed_tx: speed.tx,
+        check: match service.check() {
+            Verdict::Ok => SOROBAND_CHECK_OK,
+            Verdict::Degraded => SOROBAND_CHECK_DEGRADED,
+            Verdict::Overcount => SOROBAND_CHECK_OVERCOUNT,
+        },
     };
+    if LIVE.load(Ordering::Relaxed) {
+        let json = today_json(service);
+        let mut today = lock(&TODAY);
+        // The popover may have closed while the lists were built: keep nothing then.
+        if LIVE.load(Ordering::Relaxed) {
+            *today = json;
+        }
+    }
+    notify();
+}
+
+/// Marks the engine stopped and tells the app, which otherwise waits for a poll that never comes.
+fn fail() {
+    lock(&STATUS).state = SOROBAND_ENGINE_FAILED;
+    notify();
+}
+
+/// Calls the app's [`soroband_engine_on_poll`] callback, if any.
+fn notify() {
+    let callback = *lock(&ON_POLL);
+    if let Some(callback) = callback {
+        callback();
+    }
+}
+
+fn today_json(service: &Service<SystemHost>) -> String {
+    let bytes = |b: Bytes| json!({ "rx": b.rx, "tx": b.tx });
+    let networks: Vec<Value> = service
+        .today_networks()
+        .map(|total| {
+            json!({
+                "network": total.network,
+                "apps": bytes(total.apps),
+                "interfaces": bytes(total.interfaces),
+            })
+        })
+        .collect();
+    let apps: Vec<Value> = service
+        .today_apps()
+        .map(|(network, app, b)| {
+            json!({
+                "network": network,
+                "id": app.id,
+                "name": app.name,
+                "rx": b.rx,
+                "tx": b.tx,
+            })
+        })
+        .collect();
+    json!({ "networks": networks, "apps": apps }).to_string()
 }
 
 #[cfg(test)]
 mod tests {
     use super::soroband_core_version;
     use std::ffi::CStr;
+    use std::time::{Duration, Instant};
 
     /// The workspace version, read from `core/Cargo.toml` rather than from the compiled crate.
     fn workspace_version() -> String {
@@ -421,32 +687,124 @@ mod tests {
             .expect("version in [workspace.package]")
     }
 
+    fn wait_for(what: &str, done: &dyn Fn() -> bool) {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !done() {
+            assert!(Instant::now() < deadline, "timed out waiting for {what}");
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    }
+
+    /// Takes a string from the API, freeing it.
+    fn take(string: *mut std::ffi::c_char) -> Option<String> {
+        if string.is_null() {
+            return None;
+        }
+        // SAFETY: a NUL-terminated string from the API, freed once below.
+        let text = unsafe { CStr::from_ptr(string) }
+            .to_str()
+            .unwrap()
+            .to_owned();
+        // SAFETY: as above.
+        unsafe { super::soroband_string_free(string) };
+        Some(text)
+    }
+
+    fn json(string: *mut std::ffi::c_char) -> serde_json::Value {
+        serde_json::from_str(&take(string).expect("a string")).unwrap()
+    }
+
+    /// Part of the C API test below, with the engine running and the reset hour at 7.
+    fn app_settings_take_the_same_checks_as_config_set() {
+        use super::{soroband_engine_status, soroband_setting_get, soroband_setting_set};
+        // SAFETY: valid strings.
+        let setting = |key: &CStr| take(unsafe { soroband_setting_get(key.as_ptr()) });
+        // SAFETY: valid strings.
+        let set = |key: &CStr, value: &CStr| unsafe {
+            soroband_setting_set(key.as_ptr(), value.as_ptr())
+        };
+        assert_eq!(setting(c"menu_bar").as_deref(), Some("today_network"));
+        assert!(set(c"menu_bar", c"speed"));
+        assert_eq!(setting(c"menu_bar").as_deref(), Some("speed"));
+        assert!(!set(c"menu_bar", c"rainbow"));
+        assert!(!set(c"reset_hour", c"24"));
+        assert_eq!(setting(c"menu_bar").as_deref(), Some("speed"));
+        assert_eq!(setting(c"reset_hour").as_deref(), Some("7"));
+        assert_eq!(setting(c"no_such_setting"), None);
+        // Applied without the notification `soroband config set` posts.
+        assert!(set(c"reset_hour", c"0"));
+        wait_for("the reset hour set by the app", &|| {
+            soroband_engine_status().reset_hour == 0
+        });
+    }
+
+    /// Part of the C API test below, in live mode after a 200,000-byte download on network `cafe`,
+    /// with "Office 4th floor" (a hotspot) seen before it.
+    fn popover_lists_come_from_the_engine(cafe: i64, per_app: bool) {
+        use super::{soroband_engine_live, soroband_networks_json, soroband_today_json};
+        let today = json(soroband_today_json());
+        let cafe_total = today["networks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|n| n["network"] == cafe)
+            .expect("Cafe carried bytes today")
+            .clone();
+        assert!(
+            cafe_total["interfaces"]["rx"].as_u64().unwrap() >= 200_000,
+            "{today}"
+        );
+        let apps_on_cafe: u64 = today["apps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|a| a["network"] == cafe)
+            .map(|a| a["rx"].as_u64().unwrap())
+            .sum();
+        if per_app {
+            assert!(apps_on_cafe >= 200_000, "{today}");
+            assert_eq!(cafe_total["apps"]["rx"].as_u64(), Some(apps_on_cafe));
+        }
+        // Closing the popover stops publishing the lists.
+        soroband_engine_live(false);
+        assert_eq!(
+            take(soroband_today_json()).as_deref(),
+            Some(r#"{"networks":[],"apps":[]}"#)
+        );
+        let networks = json(soroband_networks_json());
+        assert_eq!(networks[0]["name"], "Office 4th floor");
+        assert_eq!(networks[0]["kind"], "hotspot");
+        assert_eq!(networks[1]["key"], "wifi:Cafe");
+    }
+
     /// The whole C API in one test, because the engine is started once per process.
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn engine_run_through_the_c_api_books_to_the_network_the_app_names() {
         use super::{
             DATABASE_FILE, SOROBAND_ENGINE_INTERFACE_ONLY, SOROBAND_ENGINE_PER_APP,
-            SOROBAND_ENGINE_STARTING, SorobandNetwork, soroband_engine_start,
-            soroband_engine_status, soroband_engine_stop, soroband_network_changed,
-            soroband_network_unidentified, soroband_network_update, soroband_settings_reload,
+            SOROBAND_ENGINE_STARTING, SorobandNetwork, soroband_engine_live,
+            soroband_engine_on_poll, soroband_engine_start, soroband_engine_status,
+            soroband_engine_stop, soroband_network_changed, soroband_network_unidentified,
+            soroband_network_update, soroband_settings_reload,
         };
         use crate::store::{NetworkKind, Store};
         use std::ffi::CString;
-        use std::time::{Duration, Instant};
+
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static POLLS: AtomicUsize = AtomicUsize::new(0);
+        extern "C" fn polled() {
+            POLLS.fetch_add(1, Ordering::Relaxed);
+        }
 
         let dir = std::env::temp_dir().join(format!("soroband-ffi-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let dir_c = CString::new(dir.to_str().unwrap()).unwrap();
+        soroband_engine_on_poll(Some(polled));
+        // A 5 s interval, which live mode shortens to 1 s.
         // SAFETY: a valid NUL-terminated path.
-        assert!(unsafe { soroband_engine_start(1, dir_c.as_ptr()) });
+        assert!(unsafe { soroband_engine_start(5, dir_c.as_ptr()) });
 
-        let wait_for = |what: &str, done: &dyn Fn() -> bool| {
-            let deadline = Instant::now() + Duration::from_secs(10);
-            while !done() {
-                assert!(Instant::now() < deadline, "timed out waiting for {what}");
-                std::thread::sleep(Duration::from_millis(50));
-            }
-        };
         wait_for("the first poll", &|| {
             soroband_engine_status().state != SOROBAND_ENGINE_STARTING
         });
@@ -459,6 +817,13 @@ mod tests {
             _ => panic!("the engine did not finish a poll: {status:?}"),
         }
         assert_eq!(status.network_id, 0, "no network named yet");
+        assert!(POLLS.load(Ordering::Relaxed) >= 1, "the poll callback ran");
+        // The poll ran once at the start; live mode polls again every second from now on.
+        soroband_engine_live(true);
+        let before = POLLS.load(Ordering::Relaxed);
+        wait_for("three live polls", &|| {
+            POLLS.load(Ordering::Relaxed) >= before + 3
+        });
 
         let changed = |key: &str, name: &str, kind: &str| {
             let (key, name, kind) = (
@@ -508,6 +873,7 @@ mod tests {
         wait_for("the reset hour", &|| {
             soroband_engine_status().reset_hour == 7
         });
+        app_settings_take_the_same_checks_as_config_set();
 
         // Traffic of its own, so the polls book interface bytes on Cafe that no network change
         // has written yet, on any Mac.
@@ -523,7 +889,12 @@ mod tests {
         assert!(download.success(), "the download failed: {download}");
         std::thread::sleep(Duration::from_millis(1_500));
         let booked = soroband_engine_status();
+        popover_lists_come_from_the_engine(cafe, booked.state == SOROBAND_ENGINE_PER_APP);
         soroband_engine_stop(5_000);
+        // The list reads when each network was last used from the database, which now holds
+        // Cafe's download.
+        let networks = json(super::soroband_networks_json());
+        assert!(networks[1]["last_used"].is_i64(), "{networks}");
         let store = Store::open_read_only(&dir.join(DATABASE_FILE)).unwrap();
         let networks = store.networks().unwrap();
         assert_eq!(networks.len(), 2);
@@ -547,6 +918,51 @@ mod tests {
         assert!(outlive_database_errors(Err(database)).is_ok());
         let socket = Error::Io(std::io::Error::other("socket closed"));
         assert!(outlive_database_errors(Err(socket)).is_err());
+    }
+
+    #[test]
+    fn speed_is_bytes_over_the_time_between_polls() {
+        use super::per_second;
+        use crate::meter::Bytes;
+        let bytes = Bytes {
+            rx: 3_000_000,
+            tx: 50_000,
+        };
+        // 3 MB in 1.5 s is 2 MB/s.
+        assert_eq!(
+            per_second(bytes, Duration::from_millis(1_500)),
+            Bytes {
+                rx: 2_000_000,
+                tx: 33_333
+            }
+        );
+        // A poll right after another does not divide by zero.
+        assert_eq!(per_second(bytes, Duration::ZERO).rx, 3_000_000_000);
+    }
+
+    #[test]
+    fn networks_list_carries_when_each_was_last_used() {
+        use super::networks_json;
+        use crate::store::{Network, NetworkKind};
+        let network = |id, name: &str| Network {
+            id,
+            key: format!("wifi:{name}"),
+            name: name.into(),
+            kind: NetworkKind::Wifi,
+        };
+        let last_used = [(1, 7200)].into_iter().collect();
+        let json: serde_json::Value = serde_json::from_str(&networks_json(
+            &[network(1, "Home"), network(2, "Cafe")],
+            &last_used,
+        ))
+        .unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!([
+                {"id": 1, "key": "wifi:Home", "name": "Home", "kind": "wifi", "last_used": 7200},
+                {"id": 2, "key": "wifi:Cafe", "name": "Cafe", "kind": "wifi", "last_used": null},
+            ])
+        );
     }
 
     #[test]

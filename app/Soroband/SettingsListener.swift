@@ -15,6 +15,7 @@ enum SettingsListener {
     static func start() {
         notify_register_dispatch(notification, &token, .main) { _ in
             Core.reloadSettings()
+            MainActor.assumeIsolated { Usage.shared.reloadSettings() }
         }
     }
 }

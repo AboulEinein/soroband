@@ -46,7 +46,7 @@ jobs:
       - run: >
           xcodebuild -project app/Soroband.xcodeproj -scheme Soroband
           -derivedDataPath build/DerivedData -destination "platform=macOS,arch=$(uname -m)"
-          test -only-testing:SorobandTests/CoreBridgeTests
+          test -skip-testing:SorobandTests/SnapshotTests
       - run: >
           xcodebuild -project app/Soroband.xcodeproj -scheme Soroband -configuration Release
           -derivedDataPath build/DerivedData -destination generic/platform=macOS

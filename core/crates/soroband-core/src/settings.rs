@@ -18,29 +18,72 @@ pub const FILE_NAME: &str = "settings.json";
 
 /// Key of the hour of the day, local time, at which the daily counter resets.
 pub const RESET_HOUR: &str = "reset_hour";
+/// Key of what the menu bar item shows.
+pub const MENU_BAR: &str = "menu_bar";
+
+/// The values of [`MENU_BAR`].
+pub const MENU_BAR_OPTIONS: &[&str] = &["today_network", "today_all", "speed", "icon"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
     /// A whole number from `min` to `max`, inclusive.
-    Integer { min: i64, max: i64 },
+    Integer { min: i64, max: i64, default: i64 },
+    /// One of a fixed set of words.
+    Choice {
+        options: &'static [&'static str],
+        default: &'static str,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Setting {
     pub key: &'static str,
     pub kind: Kind,
-    pub default: i64,
     pub description: &'static str,
 }
 
+impl Setting {
+    #[must_use]
+    pub fn default_value(&self) -> Value {
+        match self.kind {
+            Kind::Integer { default, .. } => Value::from(default),
+            Kind::Choice { default, .. } => Value::from(default),
+        }
+    }
+}
+
 /// Every setting.
-pub const SCHEMA: &[Setting] = &[Setting {
-    key: RESET_HOUR,
-    kind: Kind::Integer { min: 0, max: 23 },
-    default: 0,
-    description: "Hour of the day (0-23, local time) when the daily counter starts again. \
-                  History is not affected.",
-}];
+pub const SCHEMA: &[Setting] = &[
+    Setting {
+        key: RESET_HOUR,
+        kind: Kind::Integer {
+            min: 0,
+            max: 23,
+            default: 0,
+        },
+        description: "Hour of the day (0-23, local time) when the daily counter starts again. \
+                      History is not affected.",
+    },
+    Setting {
+        key: MENU_BAR,
+        kind: Kind::Choice {
+            options: MENU_BAR_OPTIONS,
+            default: "today_network",
+        },
+        description: "What the menu bar item shows next to the network icon: today_network \
+                      (today on the current network), today_all (today on all networks), \
+                      speed (live download and upload speed) or icon (the icon alone).",
+    },
+];
+
+/// A value as `soroband config get` prints it and `soroband config set` takes it: words without
+/// JSON quotes (`speed`), numbers as they are (`4`).
+#[must_use]
+pub fn plain(value: &Value) -> String {
+    value
+        .as_str()
+        .map_or_else(|| value.to_string(), str::to_owned)
+}
 
 #[must_use]
 pub fn setting(key: &str) -> Option<&'static Setting> {
@@ -84,7 +127,7 @@ impl From<io::Error> for Error {
 /// A setting's current value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Current {
-    pub value: i64,
+    pub value: Value,
     /// True when the file does not set the key, or sets it to a value that does not fit.
     pub is_default: bool,
     /// Why the stored value was not used, when it does not fit the schema.
@@ -129,7 +172,7 @@ impl Settings {
         let setting = setting(key).ok_or_else(|| Error::UnknownKey(key.into()))?;
         Ok(match self.values.get(key) {
             None => Current {
-                value: setting.default,
+                value: setting.default_value(),
                 is_default: true,
                 problem: None,
             },
@@ -140,7 +183,7 @@ impl Settings {
                     problem: None,
                 },
                 Err(reason) => Current {
-                    value: setting.default,
+                    value: setting.default_value(),
                     is_default: true,
                     problem: Some(format!("stored value {stored} ignored: {reason}")),
                 },
@@ -161,6 +204,7 @@ impl Settings {
                         reason: format!("{text:?} is not a whole number"),
                     })?
             }
+            Kind::Choice { .. } => Value::from(text.trim()),
         };
         check(setting, &value).map_err(|reason| Error::InvalidValue {
             key: key.into(),
@@ -175,29 +219,34 @@ impl Settings {
     pub fn reset_hour(&self) -> u8 {
         self.get(RESET_HOUR)
             .ok()
-            .and_then(|current| u8::try_from(current.value).ok())
+            .and_then(|current| current.value.as_u64())
+            .and_then(|hour| u8::try_from(hour).ok())
             .unwrap_or(0)
     }
 }
 
-fn check(setting: &Setting, value: &Value) -> Result<i64, String> {
+fn check(setting: &Setting, value: &Value) -> Result<Value, String> {
     match setting.kind {
-        Kind::Integer { min, max } => {
+        Kind::Integer { min, max, .. } => {
             let number = value
                 .as_i64()
                 .ok_or_else(|| format!("{value} is not a whole number"))?;
             if (min..=max).contains(&number) {
-                Ok(number)
+                Ok(Value::from(number))
             } else {
                 Err(format!("{number} is outside {min}-{max}"))
             }
         }
+        Kind::Choice { options, .. } => match value.as_str() {
+            Some(word) if options.contains(&word) => Ok(Value::from(word)),
+            _ => Err(format!("{value} is not one of {}", options.join(", "))),
+        },
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Error, RESET_HOUR, Settings};
+    use super::{Error, MENU_BAR, RESET_HOUR, Settings};
     use std::path::PathBuf;
 
     fn temp_file(name: &str) -> PathBuf {
@@ -318,5 +367,50 @@ mod tests {
                 "{text:?} loaded"
             );
         }
+    }
+
+    #[test]
+    fn menu_bar_shows_today_on_the_current_network_unless_set() {
+        let mut settings = Settings::default();
+        assert_eq!(settings.get(MENU_BAR).unwrap().value, "today_network");
+        for option in ["today_all", "speed", "icon", "today_network"] {
+            settings.set(MENU_BAR, option).unwrap();
+            assert_eq!(settings.get(MENU_BAR).unwrap().value, option);
+        }
+    }
+
+    #[test]
+    fn menu_bar_accepts_only_its_options() {
+        let mut settings = Settings::default();
+        settings.set(MENU_BAR, "speed").unwrap();
+        for bad in ["Speed", "today", "", "4"] {
+            let error = settings.set(MENU_BAR, bad).unwrap_err().to_string();
+            assert!(
+                error.contains("today_network, today_all, speed, icon"),
+                "{bad:?}: {error}"
+            );
+        }
+        assert_eq!(
+            settings.get(MENU_BAR).unwrap().value,
+            "speed",
+            "a refused value changes nothing"
+        );
+    }
+
+    #[test]
+    fn stored_menu_bar_value_from_a_hand_edit_falls_back_to_the_default() {
+        let path = temp_file("menu-bar-hand-edit");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, r#"{"menu_bar": "rainbow"}"#).unwrap();
+        let settings = Settings::load(&path).unwrap();
+        assert_eq!(settings.get(MENU_BAR).unwrap().value, "today_network");
+        let current = settings.get(MENU_BAR).unwrap();
+        assert!(current.is_default);
+        assert!(
+            current
+                .problem
+                .unwrap()
+                .contains("\"rainbow\" is not one of")
+        );
     }
 }

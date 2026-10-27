@@ -2,6 +2,7 @@
 //!
 //! The app links this crate as a static library and calls the C API in [`ffi`].
 
+pub mod check;
 pub mod day;
 pub mod ffi;
 pub mod ledger;

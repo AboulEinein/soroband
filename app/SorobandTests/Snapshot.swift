@@ -13,10 +13,13 @@ enum Snapshot {
     /// Channel values may differ by this much before a pixel counts as changed.
     static let channelTolerance = 2
 
-    static func verify(_ view: some View, named name: String, sourceLocation: SourceLocation = #_sourceLocation) throws {
-        let renderer = ImageRenderer(content: view)
-        renderer.scale = 2
-        let image = try #require(renderer.cgImage, "could not render \(name)", sourceLocation: sourceLocation)
+    /// Renders `view` in dark mode at its fitting size, or at `size`, hosted in a window as the
+    /// app shows it: `ImageRenderer` leaves out AppKit-backed controls such as switches and
+    /// segmented pickers.
+    static func verify(
+        _ view: some View, named name: String, size: CGSize? = nil, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws {
+        let image = try #require(render(view, size: size), "could not render \(name)", sourceLocation: sourceLocation)
         let baseline = baselines.appending(path: "\(name).png")
 
         if ProcessInfo.processInfo.environment["SOROBAND_RECORD_SNAPSHOTS"] == "1" {
@@ -36,6 +39,25 @@ enum Snapshot {
             try png(image).write(to: actual)
             Issue.record("\(name): \(changed) pixels differ from the baseline; actual image at \(actual.path)", sourceLocation: sourceLocation)
         }
+    }
+
+    static func render(_ view: some View, size: CGSize?) -> CGImage? {
+        let host = NSHostingView(rootView: view.environment(\.colorScheme, .dark))
+        let window = NSWindow(
+            contentRect: CGRect(origin: .zero, size: size ?? host.fittingSize),
+            styleMask: [.borderless], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.backgroundColor = .windowBackgroundColor
+        window.contentView = host
+        host.layoutSubtreeIfNeeded()
+        // The first layout can change the fitting height (text that wraps), so fit once more.
+        if size == nil {
+            window.setContentSize(host.fittingSize)
+            host.layoutSubtreeIfNeeded()
+        }
+        guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return nil }
+        host.cacheDisplay(in: host.bounds, to: bitmap)
+        return bitmap.cgImage
     }
 
     /// Number of pixels that differ by more than `channelTolerance`, or every pixel when the sizes differ.

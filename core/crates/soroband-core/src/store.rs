@@ -314,6 +314,43 @@ impl Store {
             })?
             .collect()
     }
+
+    /// Bytes per network and app over the hours from `since` on, in network order and largest
+    /// first within a network.
+    pub fn app_network_totals(&self, since: i64) -> Result<Vec<(i64, App, Bytes)>> {
+        let mut statement = self.conn.prepare(
+            "SELECT usage.network, apps.key, apps.name, SUM(usage.rx), SUM(usage.tx)
+             FROM usage JOIN apps ON apps.id = usage.app
+             WHERE usage.hour >= ?1
+             GROUP BY usage.network, usage.app
+             ORDER BY usage.network, SUM(usage.rx) + SUM(usage.tx) DESC, apps.name",
+        )?;
+        statement
+            .query_map([since], |row| {
+                Ok((
+                    row.get(0)?,
+                    App {
+                        id: row.get(1)?,
+                        name: row.get(2)?,
+                    },
+                    Bytes {
+                        rx: u64_from_sql(row.get(3)?),
+                        tx: u64_from_sql(row.get(4)?),
+                    },
+                ))
+            })?
+            .collect()
+    }
+
+    /// The last hour each network carried bytes, by network id.
+    pub fn last_used(&self) -> Result<BTreeMap<i64, i64>> {
+        let mut statement = self
+            .conn
+            .prepare("SELECT network, MAX(hour) FROM interface_usage GROUP BY network")?;
+        statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect()
+    }
 }
 
 fn newer_schema(version: i64) -> Error {
@@ -584,5 +621,51 @@ mod tests {
             .pragma_query_value(None, "journal_mode", |row| row.get(0))
             .unwrap();
         assert_eq!(mode, "wal");
+    }
+
+    #[test]
+    fn app_totals_per_network_split_one_app_across_networks() {
+        let mut store = Store::open(&temp_db("per-network")).unwrap();
+        store
+            .add(
+                &[
+                    usage(3600, 1, "Safari", 100, 10),
+                    usage(3600, 2, "Safari", 40, 0),
+                    usage(3600, 1, "Mail", 300, 0),
+                    // Before `since`: left out.
+                    usage(0, 1, "Mail", 9, 9),
+                    usage(7200, 1, "Safari", 5, 0),
+                ],
+                &[],
+            )
+            .unwrap();
+        assert_eq!(
+            store.app_network_totals(3600).unwrap(),
+            [
+                (1, app("Mail"), Bytes { rx: 300, tx: 0 }),
+                (1, app("Safari"), Bytes { rx: 105, tx: 10 }),
+                (2, app("Safari"), Bytes { rx: 40, tx: 0 }),
+            ]
+        );
+    }
+
+    #[test]
+    fn last_used_is_the_latest_hour_with_bytes_on_each_network() {
+        let mut store = Store::open(&temp_db("last-used")).unwrap();
+        let interface = |hour, network| InterfaceUsage {
+            hour,
+            network,
+            bytes: Bytes { rx: 1, tx: 0 },
+        };
+        store
+            .add(
+                &[],
+                &[interface(3600, 1), interface(10_800, 1), interface(7200, 2)],
+            )
+            .unwrap();
+        let last = store.last_used().unwrap();
+        assert_eq!(last.get(&1), Some(&10_800));
+        assert_eq!(last.get(&2), Some(&7200));
+        assert_eq!(last.get(&3), None, "never used");
     }
 }

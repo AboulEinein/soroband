@@ -278,6 +278,42 @@ fn config_set_refuses_a_bad_value_and_leaves_the_file_alone() {
 }
 
 #[test]
+fn config_set_menu_bar_takes_a_word_from_its_options() {
+    let _serial = NOTIFICATIONS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let dir = data_dir("config-menu-bar");
+    let described = json_of(&soroband(&dir, &["config", "get", "menu_bar", "--json"]));
+    assert_eq!(described["type"], "choice");
+    assert_eq!(
+        described["options"],
+        json!(["today_network", "today_all", "speed", "icon"])
+    );
+    assert_eq!(described["value"], "today_network");
+
+    let listener = Listener::new("io.github.abouleinein.soroband.debug.settings-changed");
+    let set = soroband(&dir, &["config", "set", "menu_bar", "speed"]);
+    assert!(set.status.success(), "{set:?}");
+    assert_eq!(String::from_utf8(set.stdout).unwrap(), "menu_bar = speed\n");
+    assert!(listener.posted(), "the app was not notified");
+    // Printed as typed, without JSON quotes, so scripts can compare it.
+    let get = soroband(&dir, &["config", "get", "menu_bar"]);
+    assert_eq!(String::from_utf8(get.stdout).unwrap(), "speed\n");
+    let saved = std::fs::read_to_string(dir.join("settings.json")).unwrap();
+    assert_eq!(
+        serde_json::from_str::<Value>(&saved).unwrap(),
+        json!({ "menu_bar": "speed" })
+    );
+
+    let bad = soroband(&dir, &["config", "set", "menu_bar", "rainbow"]);
+    assert_eq!(bad.status.code(), Some(2));
+    assert_eq!(
+        soroband(&dir, &["config", "get", "menu_bar"]).stdout,
+        b"speed\n"
+    );
+}
+
+#[test]
 fn config_list_shows_every_setting_with_its_schema() {
     let dir = data_dir("config-list");
     let list = json_of(&soroband(&dir, &["config", "list", "--json"]));

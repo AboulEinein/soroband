@@ -14,7 +14,14 @@ final class NetworkMonitor {
     /// The network bytes are booked to, as the registry stores it; nil while usage is booked to no
     /// network (id 0): before the first network is identified, while waiting for a router, or
     /// after the registry failed to record a network.
-    private(set) var current: Network?
+    private(set) var current: Network? {
+        didSet {
+            if current?.id != oldValue?.id { connectedSince = current == nil ? nil : .now }
+            Usage.shared.onChange?()
+        }
+    }
+    /// When the Mac joined `current`, as seen by this run of the app.
+    private(set) var connectedSince: Date?
     /// Debug builds can pretend to be on another network (`soroband-debug://simulate-network`).
     var simulated: NetworkIdentity? {
         didSet { identify() }

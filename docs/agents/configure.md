@@ -12,7 +12,7 @@ soroband config get reset_hour --json # the value with its schema
 soroband config set reset_hour 4      # prints "reset_hour = 4"
 ```
 
-`soroband config list --json` is the authority on which settings exist. Each entry has `key`, `type` (`integer`), `min`, `max`, `default`, `value`, `is_default`, `description`, and `problem` when the file holds a value Soroband cannot use (it then uses the default and says why).
+`soroband config list --json` is the authority on which settings exist. Each entry has `key`, `type`, `default`, `value`, `is_default`, `description`, and `problem` when the file holds a value Soroband cannot use (it then uses the default and says why). An `integer` setting also has `min` and `max`; a `choice` setting has `options`, the words it accepts.
 
 Exit status: 0 on success; 2 for an unknown key or a value outside the setting's type or range (nothing is saved); 1 when the settings file cannot be read or written. An unreadable `settings.json` is never overwritten: the command reports it, and you should show the user the error and ask before deleting or fixing the file.
 
@@ -21,6 +21,9 @@ Exit status: 0 on success; 2 for an unknown key or a value outside the setting's
 | Key | Type | Default | Effect |
 | --- | --- | --- | --- |
 | `reset_hour` | integer 0–23 | 0 | Hour of the day, local time, when "today" starts again. History is not affected: changing it only moves the start of today. |
+| `menu_bar` | choice: `today_network`, `today_all`, `speed`, `icon` | `today_network` | What the menu bar item shows next to the network icon: today on the current network, today on all networks, the live download and upload speed, or the icon alone. |
+
+The app's Settings window changes the same settings, with the same checks. Launch at login is not a setting here: macOS keeps it (System Settings › General › Login Items), and the app's Settings window turns it on and off.
 
 ## Checking usage
 

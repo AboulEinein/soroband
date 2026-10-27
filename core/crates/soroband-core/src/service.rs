@@ -4,14 +4,16 @@
 //! Writes happen once a minute, when the network changes, when the day starts again and on
 //! [`Command::Stop`]. "Today" starts at the reset hour from the settings ([`crate::day`]); its
 //! totals are read from the store when the service starts or the day or reset hour changes, then
-//! kept up to date from each booking, so showing them never reads the database.
+//! kept up to date from each booking, so showing them never reads the database. Each booking also
+//! feeds the engine's self-check ([`crate::check`]).
 
 // The errors are the engine's and the store's own ([`Error`]) and pass through unchanged.
 #![allow(clippy::missing_errors_doc)]
 
+use crate::check::{SelfCheck, Verdict};
 use crate::day::day_start;
-use crate::ledger::Ledger;
-use crate::meter::{Engine, Host};
+use crate::ledger::{Booked, Ledger};
+use crate::meter::{App, Bytes, Engine, Host, Mode};
 use crate::settings::Settings;
 use crate::store::{self, NetworkTotal, Store};
 use std::collections::BTreeMap;
@@ -88,6 +90,10 @@ pub struct Service<H: Host> {
     zone: fn(i64) -> i64,
     day_start: i64,
     today: BTreeMap<i64, NetworkTotal>,
+    /// Today's bytes per (network, app).
+    today_apps: BTreeMap<(i64, App), Bytes>,
+    last_booked: Booked,
+    check: SelfCheck,
     last_write: i64,
 }
 
@@ -110,6 +116,9 @@ impl<H: Host> Service<H> {
             zone,
             day_start: 0,
             today: BTreeMap::new(),
+            today_apps: BTreeMap::new(),
+            last_booked: Booked::default(),
+            check: SelfCheck::default(),
             last_write: now,
         };
         service.reset_hour = service.load_reset_hour();
@@ -126,11 +135,21 @@ impl<H: Host> Service<H> {
     /// writes when a minute has passed or a new day started.
     pub fn tick(&mut self, interval: Duration, now: i64) -> Result<(), Error> {
         self.engine.tick(interval)?;
-        let booked = self.ledger.book(&self.engine.snapshot(), now);
-        let total = self.today.entry(self.ledger.network()).or_default();
-        total.network = self.ledger.network();
+        let snapshot = self.engine.snapshot();
+        let booked = self.ledger.book(&snapshot, now);
+        let network = self.ledger.network();
+        let total = self.today.entry(network).or_default();
+        total.network = network;
         total.apps += booked.apps;
         total.interfaces += booked.interfaces;
+        for (app, bytes) in &booked.by_app {
+            *self.today_apps.entry((network, app.clone())).or_default() += *bytes;
+        }
+        // On interface totals alone no app is credited, so there is no gap to judge.
+        if snapshot.mode == Mode::PerApp {
+            self.check.observe(booked.apps, booked.interfaces, now);
+        }
+        self.last_booked = booked;
         if day_start(now, self.reset_hour, self.zone) != self.day_start {
             self.write(now)?;
             self.read_today(now)?;
@@ -206,17 +225,44 @@ impl<H: Host> Service<H> {
         }
     }
 
+    /// Today's totals on each network that carried bytes, in network order.
+    pub fn today_networks(&self) -> impl Iterator<Item = &NetworkTotal> {
+        self.today.values()
+    }
+
+    /// Today's bytes per app on each network, in network order.
+    pub fn today_apps(&self) -> impl Iterator<Item = (i64, &App, Bytes)> {
+        self.today_apps
+            .iter()
+            .map(|((network, app), bytes)| (*network, app, *bytes))
+    }
+
+    /// What the last poll booked to the current network.
+    #[must_use]
+    pub fn last_booked(&self) -> &Booked {
+        &self.last_booked
+    }
+
+    /// The self-check's verdict on the bytes booked so far.
+    #[must_use]
+    pub fn check(&self) -> Verdict {
+        self.check.verdict()
+    }
+
     /// Reads today's totals from the store; call with nothing booked but unwritten.
     fn read_today(&mut self, now: i64) -> Result<(), Error> {
         // The start is kept only once the read succeeds, so a failed read is retried next tick.
         let start = day_start(now, self.reset_hour, self.zone);
-        let totals = self
-            .store
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .network_totals(start)?;
+        let store = self.store.lock().unwrap_or_else(PoisonError::into_inner);
+        let totals = store.network_totals(start)?;
+        let apps = store.app_network_totals(start)?;
+        drop(store);
         self.day_start = start;
         self.today = totals.into_iter().map(|t| (t.network, t)).collect();
+        self.today_apps = apps
+            .into_iter()
+            .map(|(network, app, bytes)| ((network, app), bytes))
+            .collect();
         Ok(())
     }
 

@@ -22,10 +22,12 @@ pub struct Ledger {
 }
 
 /// What one booking added for the current network.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Booked {
     pub apps: Bytes,
     pub interfaces: Bytes,
+    /// The apps that moved, with what each added.
+    pub by_app: Vec<(App, Bytes)>,
 }
 
 impl Ledger {
@@ -65,6 +67,7 @@ impl Ledger {
                     .entry((hour, self.network, app.clone()))
                     .or_default() += delta;
                 booked.apps += delta;
+                booked.by_app.push((app.clone(), delta));
             }
         }
         let delta = Bytes {
@@ -184,6 +187,7 @@ mod tests {
             Booked {
                 apps: Bytes { rx: 30, tx: 0 },
                 interfaces: Bytes { rx: 40, tx: 5 },
+                by_app: vec![(app("Mail"), Bytes { rx: 30, tx: 0 })],
             }
         );
         let (apps, interfaces) = ledger.take();
