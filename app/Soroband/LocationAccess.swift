@@ -1,0 +1,55 @@
+import CoreLocation
+import SwiftUI
+
+/// The Location permission, which macOS requires before it reveals the Wi‑Fi network name.
+@MainActor
+@Observable
+final class LocationAccess: NSObject, CLLocationManagerDelegate {
+    static let shared = LocationAccess()
+
+    private let manager = CLLocationManager()
+    private(set) var status: CLAuthorizationStatus
+
+    override init() {
+        status = manager.authorizationStatus
+        super.init()
+        manager.delegate = self
+    }
+
+    func request() {
+        manager.requestWhenInUseAuthorization()
+    }
+
+    /// The status as a stable name for `soroband debug state`.
+    var statusName: String {
+        switch status {
+        case .notDetermined: "notDetermined"
+        case .restricted: "restricted"
+        case .denied: "denied"
+        case .authorizedAlways, .authorizedWhenInUse: "authorized"
+        @unknown default: "unknown"
+        }
+    }
+
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        MainActor.assumeIsolated { self.status = status }
+    }
+}
+
+struct LocationMenuItem: View {
+    let location: LocationAccess
+
+    var body: some View {
+        switch location.status {
+        case .notDetermined:
+            Button("Allow Location Access…") { location.request() }
+        case .authorizedAlways, .authorizedWhenInUse:
+            Button("Location Access: Allowed") {}.disabled(true)
+        default:
+            Button("Location Access: Off. Open Settings…") {
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices")!)
+            }
+        }
+    }
+}
