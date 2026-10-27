@@ -1,8 +1,12 @@
 //! The `soroband` command.
 
+mod config;
+mod data;
 #[cfg(debug_assertions)]
 mod debug;
 mod live;
+mod text;
+mod usage;
 
 use std::process::ExitCode;
 
@@ -10,6 +14,9 @@ const USAGE: &str = "\
 Usage: soroband <command>
 
 Commands:
+  today                Today's usage per network (see soroband today --help)
+  apps                 Today's usage per app, on one network or all (see soroband apps --help)
+  config               List, read and change settings (see soroband config --help)
   live                 Internet bytes per app, live (see soroband live --help)
   version              Print the version of the soroband command and its core
   help                 Print this help";
@@ -31,6 +38,21 @@ fn main() -> ExitCode {
             print_usage();
             ExitCode::SUCCESS
         }
+        ["today", "--help" | "-h"] => {
+            println!("{}", usage::TODAY_USAGE);
+            ExitCode::SUCCESS
+        }
+        ["today", rest @ ..] => usage::today(rest),
+        ["apps", "--help" | "-h"] => {
+            println!("{}", usage::APPS_USAGE);
+            ExitCode::SUCCESS
+        }
+        ["apps", rest @ ..] => usage::apps(rest),
+        ["config", "--help" | "-h"] | ["config"] => {
+            println!("{}", config::USAGE);
+            ExitCode::SUCCESS
+        }
+        ["config", rest @ ..] => config::run(rest),
         ["live", "--help" | "-h"] => {
             println!("{}", live::USAGE);
             ExitCode::SUCCESS

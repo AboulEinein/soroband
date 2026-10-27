@@ -28,8 +28,42 @@ enum DebugCommands {
         switch url.host() {
         case "quit": NSApp.terminate(nil)
         case "capture-status-item": captureStatusItem()
+        case "simulate-network": simulateNetwork(url)
+        case "update-network": updateNetwork(url)
         default: NSLog("soroband-debug: unknown command %@", url.absoluteString)
         }
+    }
+
+    /// `simulate-network?id=office&kind=hotspot` books usage to a made-up network named `id`
+    /// (kind `wifi` unless given); `simulate-network` alone goes back to the real network.
+    private static func simulateNetwork(_ url: URL) {
+        let query = queryItems(url)
+        guard let id = query["id"], !id.isEmpty else {
+            NetworkMonitor.shared.simulated = nil
+            return
+        }
+        guard let kind = NetworkKind(rawValue: query["kind"] ?? "wifi") else {
+            NSLog("soroband-debug: unknown network kind in %@", url.absoluteString)
+            return
+        }
+        NetworkMonitor.shared.simulated = NetworkIdentity(key: "simulated:\(id)", name: id, kind: kind)
+    }
+
+    /// `update-network?name=Desk&kind=ethernet` renames the current network and sets its kind, as
+    /// the Networks settings will.
+    private static func updateNetwork(_ url: URL) {
+        let query = queryItems(url)
+        guard let current = NetworkMonitor.shared.current else { return }
+        guard let kind = NetworkKind(rawValue: query["kind"] ?? current.kind.rawValue) else {
+            NSLog("soroband-debug: unknown network kind in %@", url.absoluteString)
+            return
+        }
+        NetworkMonitor.shared.updateCurrent(name: query["name"] ?? current.name, kind: kind)
+    }
+
+    private static func queryItems(_ url: URL) -> [String: String] {
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        return Dictionary(items.map { ($0.name, $0.value ?? "") }, uniquingKeysWith: { _, last in last })
     }
 
     /// Renders the menu bar item to `statusItemFile`. The item may sit behind the notch on a
@@ -99,6 +133,31 @@ struct DebugState: Encodable {
 
     struct Bytes: Encodable {
         let received, sent: UInt64
+
+        init(_ bytes: EngineStatus.Bytes) {
+            received = bytes.received
+            sent = bytes.sent
+        }
+    }
+
+    struct Network: Encodable {
+        let id: Int64
+        let key: String
+        let name: String
+        let kind: NetworkKind
+        let simulated: Bool
+    }
+
+    struct Today: Encodable {
+        /// ISO 8601, local time zone.
+        let start: String
+        let resetHour: Int
+        /// The network the core books to; matches `network.id` once the switch is done.
+        let networkID: Int64
+        let networkApps: Bytes
+        let networkInterfaces: Bytes
+        let allApps: Bytes
+        let allInterfaces: Bytes
     }
 
     let pid: Int32
@@ -107,6 +166,9 @@ struct DebugState: Encodable {
     let menuBarText: String
     let location: String
     let engine: Engine
+    let network: Network?
+    let today: Today
+    let dataDirectory: String
     let windows: [Window]
 
     @MainActor
@@ -121,9 +183,21 @@ struct DebugState: Encodable {
             location: LocationAccess.shared.statusName,
             engine: Engine(
                 state: engine.state, flows: engine.flows, apps: engine.apps,
-                appBytes: Bytes(received: engine.appBytes.received, sent: engine.appBytes.sent),
-                interfaceBytes: Bytes(
-                    received: engine.interfaceBytes.received, sent: engine.interfaceBytes.sent)),
+                appBytes: Bytes(engine.appBytes), interfaceBytes: Bytes(engine.interfaceBytes)),
+            network: NetworkMonitor.shared.current.map { network in
+                Network(
+                    id: network.id, key: network.key, name: network.name, kind: network.kind,
+                    simulated: NetworkMonitor.shared.simulated != nil)
+            },
+            today: Today(
+                start: Date.ISO8601FormatStyle(timeZone: .current).format(engine.todayStart),
+                resetHour: engine.resetHour,
+                networkID: engine.networkID,
+                networkApps: Bytes(engine.todayNetworkApps),
+                networkInterfaces: Bytes(engine.todayNetworkInterfaces),
+                allApps: Bytes(engine.todayApps),
+                allInterfaces: Bytes(engine.todayInterfaces)),
+            dataDirectory: Core.dataDirectory.path,
             windows: NSApp.windows.map { window in
                 let frame = window.frame
                 return Window(

@@ -33,7 +33,11 @@ final class LocationAccess: NSObject, CLLocationManagerDelegate {
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
-        MainActor.assumeIsolated { self.status = status }
+        MainActor.assumeIsolated {
+            self.status = status
+            // With the permission the Wi‑Fi name becomes readable.
+            NetworkMonitor.shared.refresh()
+        }
     }
 }
 

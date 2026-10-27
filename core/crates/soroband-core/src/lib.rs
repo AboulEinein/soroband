@@ -2,8 +2,13 @@
 //!
 //! The app links this crate as a static library and calls the C API in [`ffi`].
 
+pub mod day;
 pub mod ffi;
+pub mod ledger;
 pub mod meter;
+pub mod service;
+pub mod settings;
+pub mod store;
 
 /// Version of the core, from the workspace `Cargo.toml`.
 #[must_use]

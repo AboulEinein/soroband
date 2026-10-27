@@ -164,6 +164,10 @@ impl<H: Host, W: Write> Host for Recorder<H, W> {
         self.host.send(message)
     }
 
+    fn set_wakeable(&mut self, wakeable: bool) {
+        self.host.set_wakeable(wakeable);
+    }
+
     fn recv(&mut self, buf: &mut [u8], deadline: Instant) -> io::Result<Option<usize>> {
         let n = self.host.recv(buf, deadline)?;
         let event = match n {

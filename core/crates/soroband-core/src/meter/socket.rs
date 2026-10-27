@@ -6,6 +6,7 @@ use super::process;
 use std::io;
 use std::mem::size_of;
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+use std::sync::Arc;
 use std::time::Instant;
 
 const CTLIOCGINFO: libc::c_ulong = 0xC064_4E03;
@@ -42,6 +43,24 @@ struct SockaddrCtl {
 pub struct SystemHost {
     socket: OwnedFd,
     macos_major: u32,
+    /// Read end of the pipe a [`Waker`] writes to.
+    wakeup: Option<OwnedFd>,
+    /// Whether `recv` returns on a wakeup now ([`Host::set_wakeable`]); a wakeup that arrives
+    /// while it is false waits in the pipe.
+    wakeable: bool,
+}
+
+/// Cuts short a [`SystemHost`]'s wait in `recv`, from any thread.
+#[derive(Debug, Clone)]
+pub struct Waker(Arc<OwnedFd>);
+
+impl Waker {
+    /// Makes the host's current or next `recv` return as if its deadline had passed.
+    pub fn wake(&self) {
+        let byte = 1u8;
+        // SAFETY: writes one byte from a valid buffer. A full pipe (EAGAIN) already holds a wakeup.
+        unsafe { libc::write(self.0.as_raw_fd(), (&raw const byte).cast(), 1) };
+    }
 }
 
 impl SystemHost {
@@ -91,7 +110,40 @@ impl SystemHost {
         Ok(Self {
             socket,
             macos_major: macos_major()?,
+            wakeup: None,
+            wakeable: false,
         })
+    }
+
+    /// A [`Waker`] for this host. While the engine waits between polls, a wakeup makes `recv`
+    /// return `None` once the socket has no datagram waiting, so the tick polls at once instead
+    /// of at the end of its interval.
+    pub fn waker(&mut self) -> io::Result<Waker> {
+        let mut fds = [0; 2];
+        // SAFETY: `fds` has room for the two descriptors pipe(2) returns.
+        if unsafe { libc::pipe(fds.as_mut_ptr()) } < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        // SAFETY: pipe(2) returned two new descriptors that nothing else owns.
+        let (read, write) = unsafe { (OwnedFd::from_raw_fd(fds[0]), OwnedFd::from_raw_fd(fds[1])) };
+        for fd in [&read, &write] {
+            // SAFETY: fcntl on a descriptor this function owns.
+            unsafe {
+                let flags = libc::fcntl(fd.as_raw_fd(), libc::F_GETFL);
+                libc::fcntl(fd.as_raw_fd(), libc::F_SETFL, flags | libc::O_NONBLOCK);
+                libc::fcntl(fd.as_raw_fd(), libc::F_SETFD, libc::FD_CLOEXEC);
+            }
+        }
+        self.wakeup = Some(read);
+        Ok(Waker(Arc::new(write)))
+    }
+
+    /// Empties the wakeup pipe.
+    fn drain_wakeups(&self) {
+        let Some(wakeup) = &self.wakeup else { return };
+        let mut buf = [0u8; 64];
+        // SAFETY: `buf` is writable for its length; the descriptor is non-blocking.
+        while unsafe { libc::read(wakeup.as_raw_fd(), buf.as_mut_ptr().cast(), buf.len()) } > 0 {}
     }
 }
 
@@ -123,14 +175,17 @@ impl Host for SystemHost {
             if left.is_zero() {
                 return Ok(None);
             }
-            let mut pfd = libc::pollfd {
-                fd: self.socket.as_raw_fd(),
+            let mut pfds = [self.socket.as_raw_fd(), -1].map(|fd| libc::pollfd {
+                fd,
                 events: libc::POLLIN,
                 revents: 0,
-            };
+            });
+            if let Some(wakeup) = self.wakeup.as_ref().filter(|_| self.wakeable) {
+                pfds[1].fd = wakeup.as_raw_fd();
+            }
             let millis = i32::try_from(left.as_millis().max(1)).unwrap_or(i32::MAX);
-            // SAFETY: one valid pollfd.
-            let ready = unsafe { libc::poll(&raw mut pfd, 1, millis) };
+            // SAFETY: two valid pollfds; poll(2) ignores the one with a negative descriptor.
+            let ready = unsafe { libc::poll(pfds.as_mut_ptr(), 2, millis) };
             if ready < 0 {
                 let error = io::Error::last_os_error();
                 if error.kind() == io::ErrorKind::Interrupted {
@@ -139,6 +194,11 @@ impl Host for SystemHost {
                 return Err(error);
             }
             if ready == 0 {
+                return Ok(None);
+            }
+            if pfds[0].revents == 0 {
+                // Only the wakeup pipe is ready.
+                self.drain_wakeups();
                 return Ok(None);
             }
             // SAFETY: `buf` is writable for its length.
@@ -160,6 +220,10 @@ impl Host for SystemHost {
             }
             return Ok(usize::try_from(n).ok());
         }
+    }
+
+    fn set_wakeable(&mut self, wakeable: bool) {
+        self.wakeable = wakeable;
     }
 
     fn executable_path(&mut self, pid: u32) -> Option<String> {

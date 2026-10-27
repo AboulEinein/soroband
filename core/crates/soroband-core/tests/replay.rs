@@ -23,7 +23,9 @@
 
 mod common;
 
-use common::{MAIL, MAIL_PATH, SAFARI, SAFARI_PATH, mail, pack, removed, success, tcp_update};
+use common::{
+    MAIL, MAIL_PATH, POLL, SAFARI, datagram, en0, mail, removed, start, success, tcp_update,
+};
 use soroband_core::meter::ntstat;
 use soroband_core::meter::process::SERVICES;
 use soroband_core::meter::record::{self, Event, Replay};
@@ -196,47 +198,6 @@ fn unknown_macos_version_counts_interface_totals_only() {
 }
 
 // Synthetic sessions.
-
-const EN0: &str = "en0";
-
-/// Messages packed into one datagram, each on an 8-byte boundary.
-fn datagram(messages: &[Vec<u8>]) -> Event {
-    Event::Recv(pack(messages))
-}
-
-fn en0(rx: u64, tx: u64) -> Event {
-    Event::Interfaces(vec![soroband_core::meter::interfaces::InterfaceCounter {
-        name: EN0.into(),
-        rx,
-        tx,
-    }])
-}
-
-const POLL: u64 = 1 << 32;
-
-/// Subscriptions, then the kernel's first updates, then the baseline poll.
-fn start(first_updates: &[Vec<u8>], baseline_reply: &[Vec<u8>]) -> Vec<Event> {
-    let mut events = vec![Event::MacosMajor(27)];
-    events.extend(ntstat::PROVIDERS.map(|p| Event::Send(ntstat::add_all_sources(p))));
-    events.push(Event::Process {
-        pid: MAIL,
-        path: Some(MAIL_PATH.into()),
-    });
-    events.push(Event::Process {
-        pid: SAFARI,
-        path: Some(SAFARI_PATH.into()),
-    });
-    if !first_updates.is_empty() {
-        events.push(datagram(first_updates));
-    }
-    events.push(Event::Timeout);
-    events.push(Event::Send(ntstat::poll_all(POLL)));
-    let mut reply = baseline_reply.to_vec();
-    reply.push(success(POLL, false));
-    events.push(datagram(&reply));
-    events.push(en0(1_000_000, 1_000_000));
-    events
-}
 
 #[test]
 fn only_bytes_after_the_baseline_are_booked() {

@@ -4,6 +4,7 @@
 
 use soroband_core::meter::App;
 use soroband_core::meter::ntstat::{self, MSG_ERROR, MSG_SRC_REMOVED, MSG_SRC_UPDATE, MSG_SUCCESS};
+use soroband_core::meter::record::Event;
 
 pub const MAIL: u32 = 501;
 pub const SAFARI: u32 = 502;
@@ -83,4 +84,45 @@ pub fn safari() -> App {
         id: "/Applications/Safari.app".into(),
         name: "Safari".into(),
     }
+}
+
+pub const EN0: &str = "en0";
+
+/// Messages packed into one datagram, each on an 8-byte boundary.
+pub fn datagram(messages: &[Vec<u8>]) -> Event {
+    Event::Recv(pack(messages))
+}
+
+pub fn en0(rx: u64, tx: u64) -> Event {
+    Event::Interfaces(vec![soroband_core::meter::interfaces::InterfaceCounter {
+        name: EN0.into(),
+        rx,
+        tx,
+    }])
+}
+
+pub const POLL: u64 = 1 << 32;
+
+/// Subscriptions, then the kernel's first updates, then the baseline poll.
+pub fn start(first_updates: &[Vec<u8>], baseline_reply: &[Vec<u8>]) -> Vec<Event> {
+    let mut events = vec![Event::MacosMajor(27)];
+    events.extend(ntstat::PROVIDERS.map(|p| Event::Send(ntstat::add_all_sources(p))));
+    events.push(Event::Process {
+        pid: MAIL,
+        path: Some(MAIL_PATH.into()),
+    });
+    events.push(Event::Process {
+        pid: SAFARI,
+        path: Some(SAFARI_PATH.into()),
+    });
+    if !first_updates.is_empty() {
+        events.push(datagram(first_updates));
+    }
+    events.push(Event::Timeout);
+    events.push(Event::Send(ntstat::poll_all(POLL)));
+    let mut reply = baseline_reply.to_vec();
+    reply.push(success(POLL, false));
+    events.push(datagram(&reply));
+    events.push(en0(1_000_000, 1_000_000));
+    events
 }
