@@ -21,6 +21,8 @@ jobs:
         working-directory: core
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - run: rustup toolchain install stable --profile minimal -c rustfmt,clippy && rustup default stable
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
@@ -35,6 +37,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - run: rustup toolchain install stable --profile minimal -t aarch64-apple-darwin,x86_64-apple-darwin && rustup default stable
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
@@ -42,6 +46,7 @@ jobs:
           cache-directories: core/target/tools
       - run: xcodebuild -version
       - run: xcrun swift-format lint --strict --recursive app
+      - run: scripts/verify/install-guard.sh
       - run: scripts/build-core.sh
       # Snapshot tests stay local: their rendering depends on the runner's macOS and fonts.
       - run: >

@@ -115,4 +115,17 @@ struct MenuBarDisplayTests {
         #expect(Format.bytes(420_300_000) == "420.3 MB")
         #expect(Format.speed(1_500_000) == "1.5 MB/s")
     }
+
+    /// A Debug build runs beside the installed app, so its item must not look like the installed
+    /// one: an orange icon instead of the menu bar's template, and its own name for VoiceOver.
+    @Test func aDebugBuildsItemStandsApartFromTheInstalledApps() throws {
+        #expect(MenuBarDisplay.isDebugBuild, "tests run on the Debug build")
+        let display = MenuBarDisplay(symbol: "wifi", text: "1.1 GB")
+        let installed = try #require(display.image(debug: false))
+        let debug = try #require(display.image(debug: true))
+        #expect(installed.isTemplate)
+        #expect(!debug.isTemplate)
+        #expect(display.accessibilityLabel(debug: false) == "Soroband, 1.1 GB")
+        #expect(display.accessibilityLabel(debug: true) == "Soroband Debug, 1.1 GB")
+    }
 }
