@@ -141,7 +141,8 @@ Planned rounds: 1.
 | direct | Haiku | 3 unrated | `fix regression`: the retarget sentence claimed GitHub retargets on deletion, contradicting `plan.md`'s stacked-branches rule. `first look`: two backlog lines off by one. [Comment](https://github.com/AboulEinein/soroband/pull/16#issuecomment-6477198246). |
 | direct | Haiku | 1 unrated | Asked the docs to say which merged branches get deleted; declined because no step depends on it. [Comment](https://github.com/AboulEinein/soroband/pull/16#issuecomment-6477226820). |
 | CodeRabbit | CodeRabbit | 1 Minor | `first look`: round 1's row rated the Discussion finding `Discussion`, which the table does not define, the same slip as #14. |
+| CodeRabbit | CodeRabbit | 1 Minor | `fix regression`: the severity list written for the previous finding left out the pr-review skill's `Minor`. |
 
-**Retro.** Planned 1 round; it took 1 blind round and 3 direct reviews, because each fix to a factual claim (a path, a line, what GitHub does) was written from memory and the next reviewer checked it against the repository or GitHub. Writing down state that lives in another system needs the same check at writing time. CodeRabbit found the severity slip #14 already had, so the retro table now lists its severities.
+**Retro.** Planned 1 round; it took 1 blind round and 3 direct reviews, because each fix to a factual claim (a path, a line, what GitHub does) was written from memory and the next reviewer checked it against the repository or GitHub. Writing down state that lives in another system needs the same check at writing time. CodeRabbit found the severity slip #14 already had, so the retro table now lists its severities; the first version of that list was written without reading the skill's scale and needed one more fix.
 
 Changes it led to: `review-retros.md` names the severity values.
