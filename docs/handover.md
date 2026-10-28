@@ -19,7 +19,7 @@ The state of the project for whoever picks it up next. Read this file, then the 
 3. Run the M3 hand checklist (below) and start the daily-use week; note issues as follow-ups in the ledger.
 4. After the week, merge #3 to #6 in order, marking each milestone `done` in the ledger once its checklist has passed. M5 can then start in its own worktree.
 5. Run the M4 hand checklist (below) and merge #13 after #10.
-6. M5 (Dynamic Island moments) can start from `m4-history`, since M4 is blocked only on its hand checklist. It needs the two M5 rows of Open decisions first, and runs the review experiment in its section of `plan.md`.
+6. M5 (Dynamic Island moments) can start from `m4-history`, since M4 is blocked only on its hand checklist. It runs the review experiment in its section of `plan.md`.
 
 ### M4 hand checklist
 
@@ -70,7 +70,8 @@ The state of the project for whoever picks it up next. Read this file, then the 
 | 2026-10-26 | Dynamic Island shows moments only, each switchable; a master switch turns it off for a plain menu bar app. Style is seamless (default) or keep menu bar clear. |
 | 2026-10-26 | Data caps and alerts are deferred past v0.1.0. |
 | 2026-10-28 | M4's "back under 30 MB after closing" is met by History's own process, which leaves nothing in the menu bar app. The menu bar app's memory after the popover and Settings is M6 (Memory and performance), before the release. |
-| 2026-10-28 | M5's review compares the blind reviewer with CodeRabbit on the same commits, the blind reviewer's reports saved to disk instead of posted (`plan.md`, M5). |
+| 2026-10-28 | The island is off on a fresh install, so the first run is a plain menu bar app; turned on, its default style is seamless. |
+| 2026-10-28 | M5's round 1 compares the blind reviewer with CodeRabbit on the same commit, the blind report saved outside the repository instead of posted (`plan.md`, M5). |
 | 2026-10-26 | Bundle identifier `io.github.abouleinein.soroband`. Minimum macOS 14 (Sonoma). |
 | 2026-10-26 | No paid Apple Developer Program, so builds are ad-hoc signed and never notarized. Building from source on the user's Mac avoids Gatekeeper entirely, because a local build carries no quarantine flag. Homebrew casks are ruled out: since 2026-09-01 Homebrew no longer supports casks that fail Gatekeeper checks. |
 | 2026-10-27 | License: MIT. |
@@ -112,8 +113,6 @@ The state of the project for whoever picks it up next. Read this file, then the 
 | --- | --- | --- |
 | Homebrew tap with a formula that builds from source | Decide at M7, after the DMG and install script exist | M7 |
 | macOS 14–26 support: those versions run on interface totals until their descriptor sizes are recorded | Record a session on each supported version before M7 (the CI runner is macOS 26 and already exercises the fallback) | M7 |
-| Default island style | Seamless | M5 |
-| Island on or off by default | Off, so the first run is a plain menu bar app | M5 |
 
 ## Follow-ups
 
