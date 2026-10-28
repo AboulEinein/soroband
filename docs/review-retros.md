@@ -109,3 +109,22 @@ Planned rounds: 3. Ran: 4 blind rounds (the first stopped by a pause), 1 direct 
 Changes it led to: the rule for records commits below. The two CodeRabbit rows match earlier `correctness` rows on their miss causes (`not checked` and `after the loop`, both #10), but for unrelated reasons (a doc loop's end condition there, a chart key here), so no rule. Candidate rule, if a later fix after the loop regresses again: before pushing such a fix, test the next case beyond the one reported (here, a suffix that collides).
 
 After the user's decisions, a records commit added M6 and M5's review experiment to `plan.md`, and CodeRabbit found 3 places that state the same requirements and were not changed with it. With the earlier records finding and #10's, `docs drift` after the loop is now a pattern in how records commits are made, so `review.md`'s CodeRabbit step 7 now has records commits change every place that states a requirement.
+
+## [#14](https://github.com/AboulEinein/soroband/pull/14) fix(app): tell a Debug build apart and guard the installed app (2026-10-28)
+
+Planned rounds: 1. Ran: 3 blind rounds, 1 direct review, 3 CodeRabbit reviews with an outcome.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Sonnet | 1 Low | `first look`: nothing failed if the install guard was removed or moved below the replacement. |
+| 2 | Sonnet | none | Confirmed `install-guard.sh` and resolved the thread. |
+| CodeRabbit | CodeRabbit | 2 Minor | `fix regression`: `verification.md` claimed `install-guard.sh` checks the terminal answers, which it did not. `first look`: two concurrent installs could both pass the replace check. |
+| 3 | Sonnet | 1 Low, 1 Discussion | `first look`: the guard tells a terminal from a pipe, not the user from an agent; the CI and handover fixes for #3's and #10's threads were not named in the PR body. |
+| CodeRabbit | CodeRabbit | none | Reviewed the lock, the terminal checks and the CI change. |
+| direct | Haiku | none | Checked 333db49 (the install guide's wording) and the PR body. [Comment](https://github.com/AboulEinein/soroband/pull/14#issuecomment-6467389983). |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 3 and a direct review because the fix for round 1's finding was a new check, which needs its own round, and CodeRabbit then found that check's claim was wider than what it ran, a `fix regression` from describing the intended check instead of the one written. Its race finding was a case no blind round looked for: two runs of a script at once. Before merging the stack, 4 CodeRabbit threads left open on #3 and #10 surfaced through the `main` ruleset's thread rule; their fixes ride in this PR, which merges last.
+
+Changes it led to: none. The `fix regression` repeats #13's origin, but for a different reason (a doc's claim here, a name collision there).
+
