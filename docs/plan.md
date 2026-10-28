@@ -169,7 +169,7 @@ A session stops in exactly one of two states, and never starts the next mileston
 - **In review.** Every exit criterion is checked with evidence in an open PR, CI is green, and the review in [`review.md`](review.md), the blind loop and then CodeRabbit's review, has ended with nothing left to act on. The ledger says `in review`.
 - **Blocked.** The work needs a person (a permission prompt, a real hotspot, a decision), the same problem has failed three fixes, the work outgrows the milestone, or a review reassessment needs a decision (see [`review.md`](review.md#reassess-instead-of-another-round)), or CodeRabbit did not review (see [`review.md`](review.md#coderabbit)). The ledger says `blocked (<reason>)` and the handover lists exactly what is needed.
 
-In both cases, update **Current state** and **Next action** in the handover, and add any new gotcha, before the final report. The user merges the PR; the next session marks the milestone `done` after checking the merge.
+In both cases, update **Current state** and **Next action** in the handover, and add any new gotcha, before the final report. The user merges the PR; the next session marks the milestone `done` after checking the merge, or, for a milestone with a hand checklist, once the user has run it.
 
 ### Session prompt
 

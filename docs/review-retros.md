@@ -129,3 +129,11 @@ Planned rounds: 1. Ran: 3 blind rounds, 1 direct review, 4 CodeRabbit reviews wi
 
 Changes it led to: none. The `fix regression` repeats #13's origin, but for a different reason (a doc's claim here, a name collision there).
 
+
+## [#16](https://github.com/AboulEinein/soroband/pull/16) docs: record the merged stack and the CodeRabbit backlog (2026-10-28)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Sonnet | 3 Medium, 2 Low, 1 Discussion | `first look`: the backlog missed #6's outside-diff finding on the `run-app.sh` gotcha, three backlog paths named the wrong crate or directory, "merged branches are not deleted" was false for most of the stack, and the stopping rule still marked a merged milestone `done` without its hand checklist. |
