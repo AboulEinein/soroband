@@ -62,7 +62,7 @@ CodeRabbit reviews each pull request, whatever its base, once the blind loop has
 6. **Note each CodeRabbit review and finding** as you go, outside the branch: every review and its findings, and why the blind loop missed each valid one. Every commit CodeRabbit reviews gets reviewed and waited for, so nothing is committed for the records until step 7.
 7. **Commit the records once,** when CodeRabbit has nothing left to act on: every finding in [`coderabbit-findings.md`](coderabbit-findings.md), valid or not, and in the pull request's entry in [`review-retros.md`](review-retros.md) a row for each CodeRabbit review and the retro: what ran, why the review took the rounds it did, and what to change so the next pull request needs fewer. Push it and wait for CodeRabbit's review of it as in step 2. That review gets no row of its own; if it raises a finding, handle it through steps 3 to 5 and fold it into the records in the fix's commit.
 8. **CodeRabbit's review ends** when its review of the last commit raises nothing to act on and every thread is resolved. Only then has the review ended.
-9. **A session that stops blocked** before the review ends commits the retro with what ran so far and why it stopped; the session that resumes the pull request updates it.
+9. **A session that stops blocked** before the review ends commits every record noted so far (step 6) with the retro: what ran, and why it stopped. The session that resumes the pull request updates them.
 
 ### Learning from reviews
 
