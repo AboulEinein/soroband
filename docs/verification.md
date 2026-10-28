@@ -26,7 +26,7 @@ An agent drives and observes the real app without a mouse. The pieces below are 
 | Tool | What it does |
 | --- | --- |
 | `scripts/verify/run-app.sh` | Builds Debug, launches the app, waits until it reports ready, prints the PID. |
-| Debug URL scheme `soroband-debug://` (Debug builds only) | `open-popover`, `open-history?range=month`, `open-settings?tab=island`, `fire-moment?kind=dataHog`, `simulate-network?id=office`. Trigger with `open "soroband-debug://open-popover"`. |
+| Debug URL scheme `soroband-debug://` (Debug builds only) | `open-popover`, `open-history?range=month`, `open-settings?tab=island`, `fire-moment?kind=dataHog`, `simulate-network?id=office`. Trigger with `open -g -a <this build's Soroband.app> "soroband-debug://open-popover"`; never leave out `-g` (see the handover's Gotchas). |
 | `soroband debug state --json` | What the running app shows: current network, menu bar text, open windows with their window numbers, island state, engine health. |
 | `screencapture -x -o -l <windowNumber> out.png` | Captures one window; window numbers come from `soroband debug state`. Menu bar and notch: `screencapture -x -R <rect>`. Read every capture and compare it with `docs/mockups/`. |
 | `scripts/verify/snapshots.sh` | Renders each view with fixed fake data to PNG and diffs against `tests/snapshots/`. A changed baseline is accepted only after looking at it; the PR says what changed and why. |

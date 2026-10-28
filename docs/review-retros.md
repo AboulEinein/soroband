@@ -71,3 +71,17 @@ Planned rounds: 1. Ran: 1 blind round, 1 CodeRabbit review.
 **Retro.** One round, as planned. The only finding was whitespace from the edit itself; fixing it needed no further round, and CodeRabbit raised nothing. The reviewer also noted that `docs/handover.md` still says the project started "without the earlier development history" in a dated decision-log row; the owner decides whether to reword it.
 
 Changes it led to: none.
+
+## [#12](https://github.com/AboulEinein/soroband/pull/12) docs(verify): send debug URLs with open -g so agents never take focus (2026-10-28)
+
+Planned rounds: 1. Ran: 2 blind rounds, 1 CodeRabbit review.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Medium, 1 Low | `first look`: the capture-status-item gotcha still sent its URL without `-g`; the decision said every `open` of the app passes `-g`, but `scripts/install.sh` opens the installed app in front. |
+| 2 | Opus | none | |
+| CodeRabbit | CodeRabbit | 1 Minor (not valid) | `first look`: #12's entry had no retro yet, which belongs in the final records commit. |
+
+**Retro.** Two rounds instead of one, because round 1's fixes narrowed a documented rule (the decision now covers Debug builds only), which `review.md` sends to another round; round 2 found nothing. Round 1's Medium was a third `open` of a debug URL without `-g` that the first pass over the docs missed: the change was made by searching for the instructions already known to be wrong, not for every `open` in the docs. Before the first round, the change also dropped two code changes (debug commands that skip `NSApp.activate()`, a test host that cannot be activated) once running the real app showed neither was needed.
+
+Changes it led to: none. CodeRabbit flagged an entry without its retro for the second PR in a row (#10, #12); if it does again, tell it in `.coderabbit.yaml` that an entry is completed by the final records commit.
