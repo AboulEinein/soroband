@@ -20,14 +20,6 @@ struct SorobandApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var terminateSignal: DispatchSourceSignal?
-    // `xcodebuild test` launches the app as its test host.
-    private let isTestHost = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-
-    func applicationWillFinishLaunching(_ notification: Notification) {
-        // The test runner launches the host as the active app, which takes keyboard focus from
-        // whatever the user is typing in while an agent runs the tests.
-        if isTestHost { NSApp.setActivationPolicy(.prohibited) }
-    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if !Core.startEngine() {
@@ -42,8 +34,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         terminateSignal = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
         terminateSignal?.setEventHandler { NSApp.terminate(nil) }
         terminateSignal?.resume()
-        // The first run is the user's, not the test host's.
-        if !isTestHost {
+        // `xcodebuild test` launches the app as its test host; the first run is the user's.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
             Onboarding.showIfNeeded()
         }
         #if DEBUG
