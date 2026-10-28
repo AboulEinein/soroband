@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Soroband
 
 /// The History window's ranges and numbers, from a month worked out by hand in Berlin, whose
@@ -40,10 +41,11 @@ struct HistoryContentTests {
         #expect(query.previous == DateInterval(start: Self.september1, duration: 14.5 * 86_400))
         #expect(query.step == .day)
         #expect(query.network == 2)
-        #expect(query.json == """
-            {"start": 1790805600, "end": 1793487600, "step": "day", "previous_start": 1788213600, \
-            "previous_end": 1789466400, "network": 2}
-            """)
+        #expect(
+            query.json == """
+                {"start": 1790805600, "end": 1793487600, "step": "day", "previous_start": 1788213600, \
+                "previous_end": 1789466400, "network": 2}
+                """)
     }
 
     @Test func aFinishedMonthComparesWithNoneOfItsOwnDays() {
@@ -235,7 +237,8 @@ struct HistoryContentTests {
         let registry = [
             RegisteredNetwork(id: 1, key: "wifi:a", name: "Home", kind: .wifi, lastUsed: nil),
             RegisteredNetwork(id: 2, key: "wifi:b", name: "Home", kind: .wifi, lastUsed: nil),
-            RegisteredNetwork(id: 3, key: "wifi:c", name: PopoverContent.unknownNetworkName, kind: .wifi, lastUsed: nil),
+            RegisteredNetwork(
+                id: 3, key: "wifi:c", name: PopoverContent.unknownNetworkName, kind: .wifi, lastUsed: nil),
         ]
         let styles = HistoryContent.networkStyles(registry: registry)
         #expect(styles[1]?.label == "Home")

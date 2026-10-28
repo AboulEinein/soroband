@@ -1,7 +1,7 @@
 import AppKit
-import os
 import SwiftUI
 import UniformTypeIdentifiers
+import os
 
 /// The History window, the only window of the History process (`HistoryOptions`), which quits
 /// when it closes.
@@ -72,7 +72,8 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
     /// in a process cost about 65 ms of the click's wait (measured on Month and Year).
     func warmUp() {
         let now = Date.now
-        let query = HistoryQuery.make(range: .week, anchor: now, network: nil, firstHour: nil, now: now, calendar: .current)
+        let query = HistoryQuery.make(
+            range: .week, anchor: now, network: nil, firstHour: nil, now: now, calendar: .current)
         let hour = Int64(query.interval.start.timeIntervalSince1970)
         let data = HistoryData(
             firstHour: hour, interfaces: ByteCounts(rx: 2, tx: 1), previous: 1,
@@ -82,8 +83,10 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
             busiestDay: .init(firstHour: hour, bytes: 3), heatmap: [.init(weekday: 0, hour: 0, bytes: 3)])
         let content = HistoryContent.make(
             range: .week, query: query, data: data, registry: [], now: now, calendar: .current)
-        let host = NSHostingView(rootView: HistoryDetail(
-            content: content, expandedApp: .constant(nil), hoverDate: .constant(nil), showsAllApps: .constant(false)))
+        let host = NSHostingView(
+            rootView: HistoryDetail(
+                content: content, expandedApp: .constant(nil), hoverDate: .constant(nil), showsAllApps: .constant(false)
+            ))
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 780, height: 880), styleMask: [.borderless], backing: .buffered,
             defer: false)

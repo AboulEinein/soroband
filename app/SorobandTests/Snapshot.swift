@@ -37,7 +37,9 @@ enum Snapshot {
             try FileManager.default.createDirectory(at: failures, withIntermediateDirectories: true)
             let actual = failures.appending(path: "\(name).png")
             try png(image).write(to: actual)
-            Issue.record("\(name): \(changed) pixels differ from the baseline; actual image at \(actual.path)", sourceLocation: sourceLocation)
+            Issue.record(
+                "\(name): \(changed) pixels differ from the baseline; actual image at \(actual.path)",
+                sourceLocation: sourceLocation)
         }
     }
 

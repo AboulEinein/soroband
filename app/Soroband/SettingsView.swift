@@ -20,7 +20,8 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         if window == nil {
             Usage.shared.reloadRegistry()
             LaunchAtLogin.shared.refresh()
-            let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(selection: selection)))
+            let window = NSWindow(
+                contentViewController: NSHostingController(rootView: SettingsView(selection: selection)))
             window.title = "Soroband Settings"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
@@ -55,9 +56,10 @@ struct SettingsView: View {
             NetworkSettings(
                 networks: usage.registry, location: LocationAccess.shared.status,
                 requestLocation: { LocationAccess.shared.request() },
-                save: { usage.updateNetwork(id: $0, name: $1, kind: $2) })
-                .tabItem { Label("Networks", systemImage: "wifi") }
-                .tag(Tab.networks)
+                save: { usage.updateNetwork(id: $0, name: $1, kind: $2) }
+            )
+            .tabItem { Label("Networks", systemImage: "wifi") }
+            .tag(Tab.networks)
         }
         .frame(width: 560, height: 380)
     }
@@ -69,14 +71,19 @@ struct GeneralSettings: View {
 
     var body: some View {
         Form {
-            Picker("Menu bar shows", selection: Binding(get: { usage.menuBarMode }, set: { usage.setMenuBarMode($0) })) {
+            Picker("Menu bar shows", selection: Binding(get: { usage.menuBarMode }, set: { usage.setMenuBarMode($0) }))
+            {
                 ForEach(MenuBarMode.allCases) { Text($0.label).tag($0) }
             }
             if usage.menuBarMode == .speed {
-                Text("Live speed changes the menu bar at every count, every 5 seconds, which uses more energy than a daily total.")
-                    .font(.caption).foregroundStyle(.secondary)
+                Text(
+                    "Live speed changes the menu bar at every count, every 5 seconds, which uses more energy than a daily total."
+                )
+                .font(.caption).foregroundStyle(.secondary)
             }
-            Picker("Daily counter resets at", selection: Binding(get: { usage.resetHour }, set: { usage.setResetHour($0) })) {
+            Picker(
+                "Daily counter resets at", selection: Binding(get: { usage.resetHour }, set: { usage.setResetHour($0) })
+            ) {
                 ForEach(0..<24, id: \.self) { hour in
                     Text(Self.hourLabel(hour)).tag(hour)
                 }
@@ -86,7 +93,8 @@ struct GeneralSettings: View {
             VStack(alignment: .leading, spacing: 4) {
                 // Closures, not method references: Swift 6.3 (Xcode 26) crashes compiling a main-actor
                 // method passed where a plain function is expected.
-                Toggle("Launch at login", isOn: Binding(get: { launchAtLogin.state.isOn }, set: { launchAtLogin.set($0) }))
+                Toggle(
+                    "Launch at login", isOn: Binding(get: { launchAtLogin.state.isOn }, set: { launchAtLogin.set($0) }))
                 if let note = launchAtLogin.state.note {
                     HStack {
                         Text(note).font(.caption).foregroundStyle(.secondary)
@@ -179,7 +187,9 @@ struct LocationRow: View {
                 Text("Allowed").foregroundStyle(.secondary)
             default:
                 Button("Open Location Settings…") {
-                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices")!)
+                    NSWorkspace.shared.open(
+                        URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices")!
+                    )
                 }
             }
         } label: {

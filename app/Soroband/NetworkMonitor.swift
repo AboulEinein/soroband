@@ -125,7 +125,7 @@ final class NetworkMonitor {
 
     private static func router(on interface: String) -> String? {
         guard let store = SCDynamicStoreCreate(nil, "Soroband" as CFString, nil, nil),
-              let keys = SCDynamicStoreCopyKeyList(store, "State:/Network/Service/[^/]+/IPv4" as CFString) as? [String]
+            let keys = SCDynamicStoreCopyKeyList(store, "State:/Network/Service/[^/]+/IPv4" as CFString) as? [String]
         else { return nil }
         let services = keys.compactMap { SCDynamicStoreCopyValue(store, $0 as CFString) as? [String: Any] }
         return routerAddress(on: interface, in: services)

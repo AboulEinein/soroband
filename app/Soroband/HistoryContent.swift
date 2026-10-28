@@ -79,11 +79,12 @@ struct HistoryQuery: Equatable {
         let previous = calendar.date(byAdding: period, value: -1, to: interval.start).map {
             DateInterval(start: $0, end: min($0.addingTimeInterval(max(0, elapsed)), interval.start))
         }
-        let step: HistoryStep = switch range {
-        case .day: .hour
-        case .year: .month
-        case .week, .month, .all: .day
-        }
+        let step: HistoryStep =
+            switch range {
+            case .day: .hour
+            case .year: .month
+            case .week, .month, .all: .day
+            }
         return HistoryQuery(interval: interval, previous: previous, network: network, step: step)
     }
 
@@ -348,7 +349,8 @@ struct HistoryContent: Equatable {
             var low: UInt64 = 0
             var rows: [(network: NetworkStyle, bytes: UInt64)] = []
             for (network, bytes) in perNetwork.sorted(by: { order($0.key) < order($1.key) }) where bytes > 0 {
-                bars.append(BarSegment(start: start, network: style(network), bytes: bytes, low: low, high: low + bytes))
+                bars.append(
+                    BarSegment(start: start, network: style(network), bytes: bytes, low: low, high: low + bytes))
                 rows.append((style(network), bytes))
                 low += bytes
             }
@@ -369,9 +371,10 @@ struct HistoryContent: Equatable {
             credited.tx += share.tx
             let bytes = ByteCounts(rx: share.rx, tx: share.tx)
             if apps.last?.id != share.id {
-                apps.append(AppRow(
-                    id: share.id, title: share.name, icon: PopoverContent.icon(forApp: share.id), bytes: .zero,
-                    share: 0, segments: [], networks: []))
+                apps.append(
+                    AppRow(
+                        id: share.id, title: share.name, icon: PopoverContent.icon(forApp: share.id), bytes: .zero,
+                        share: 0, segments: [], networks: []))
             }
             apps[apps.count - 1].bytes.rx += share.rx
             apps[apps.count - 1].bytes.tx += share.tx
@@ -391,7 +394,9 @@ struct HistoryContent: Equatable {
             networks: [])
 
         let shares = data.networks.filter { $0.interfaces.total > 0 }.map {
-            ShareRow(network: style($0.network), bytes: $0.interfaces.total, share: share($0.interfaces.total, of: total.total))
+            ShareRow(
+                network: style($0.network), bytes: $0.interfaces.total,
+                share: share($0.interfaces.total, of: total.total))
         }
 
         let component = query.step.component
@@ -430,18 +435,23 @@ struct HistoryContent: Equatable {
         // No network's name is taken first, so a network named like it gets a suffix; a suffixed
         // label skips any label already used, including another network's real name.
         var used: Set<String> = [PopoverContent.unknownNetworkName]
-        return Dictionary(uniqueKeysWithValues: registry.enumerated().map { index, network in
-            var label = network.name
-            var count = 1
-            while used.contains(label) {
-                count += 1
-                label = "\(network.name) (\(count))"
-            }
-            used.insert(label)
-            return (network.id, NetworkStyle(
-                id: network.id, name: network.name, kind: network.kind, slot: NetworkColor.slot(forIndex: index),
-                label: label))
-        })
+        return Dictionary(
+            uniqueKeysWithValues: registry.enumerated().map { index, network in
+                var label = network.name
+                var count = 1
+                while used.contains(label) {
+                    count += 1
+                    label = "\(network.name) (\(count))"
+                }
+                used.insert(label)
+                return (
+                    network.id,
+                    NetworkStyle(
+                        id: network.id, name: network.name, kind: network.kind,
+                        slot: NetworkColor.slot(forIndex: index),
+                        label: label)
+                )
+            })
     }
 
     /// The start of the hour, day or month a bar covers, from its first stored hour. The core

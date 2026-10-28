@@ -5,7 +5,8 @@ import SwiftUI
 /// `docs/mockups/popover.png`.
 struct PopoverView: View {
     enum Tab: String, CaseIterable {
-        case apps = "Apps", networks = "Networks"
+        case apps = "Apps"
+        case networks = "Networks"
     }
 
     let content: PopoverContent
@@ -99,7 +100,9 @@ struct PopoverView: View {
                 UsageRow(row: row, scale: content.appsScale)
             }
             UsageRow(row: content.overhead, scale: content.appsScale)
-                .help("Bytes that crossed the network but no app's connections carry: packet headers, acknowledgements and system traffic.")
+                .help(
+                    "Bytes that crossed the network but no app's connections carry: packet headers, acknowledgements and system traffic."
+                )
             if content.hiddenApps > 0 {
                 Text("+ \(content.hiddenApps) more in History")
                     .font(.caption).foregroundStyle(.secondary)

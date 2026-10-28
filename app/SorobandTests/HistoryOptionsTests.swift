@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Soroband
 
 /// The options the menu bar app hands the History process, as arguments at launch or as a line
@@ -34,7 +35,8 @@ struct HistoryOptionsTests {
     @Test func anAppIDWithSpacesStaysOneValue() {
         let options = HistoryOptions(expandedApp: "/Applications/Some App.app")
         let line = options.arguments.joined(separator: HistoryOptions.separator)
-        #expect(HistoryOptions(arguments: line.components(separatedBy: HistoryOptions.separator))?.expandedApp
-            == "/Applications/Some App.app")
+        #expect(
+            HistoryOptions(arguments: line.components(separatedBy: HistoryOptions.separator))?.expandedApp
+                == "/Applications/Some App.app")
     }
 }

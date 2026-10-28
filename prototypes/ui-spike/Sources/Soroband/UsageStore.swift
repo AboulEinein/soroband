@@ -99,10 +99,10 @@ final class UsageStore {
 
     private static let mockApps: [(id: String, name: String, symbol: String, tint: Color, mbPerHour: Double, upShare: Double, chance: Double)] = [
         ("com.apple.Safari", "Safari", "safari", .blue, 70, 0.06, 0.9),
-        ("org.example.huddle", "Huddle", "video", .cyan, 180, 0.45, 0.25),
-        ("org.example.tempo", "Tempo", "music.note", .green, 45, 0.02, 0.5),
-        ("org.example.relay", "Relay", "number", .purple, 18, 0.15, 0.95),
-        ("org.example.quill", "Quill", "sparkle", .orange, 12, 0.3, 0.7),
+        ("us.zoom.xos", "Zoom", "video", .cyan, 180, 0.45, 0.25),
+        ("com.spotify.client", "Spotify", "music.note", .green, 45, 0.02, 0.5),
+        ("com.tinyspeck.slackmacgap", "Slack", "number", .purple, 18, 0.15, 0.95),
+        ("com.anthropic.claudefordesktop", "Claude", "sparkle", .orange, 12, 0.3, 0.7),
         ("com.apple.dt.Xcode", "Xcode", "hammer", .blue, 60, 0.02, 0.15),
         ("com.apple.bird", "iCloud Drive", "icloud", .teal, 30, 0.5, 0.4),
         ("com.apple.mail", "Mail", "envelope", .blue, 6, 0.2, 0.9),
