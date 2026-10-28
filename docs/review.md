@@ -23,13 +23,14 @@ Resolve each earlier blind-review thread you confirm as handled; reply on any yo
 ## Rounds
 
 1. **Open the pull request as a draft** (`gh pr create --draft`). CodeRabbit skips drafts (`.coderabbit.yaml`), so it does not review each round's commits.
-2. **Plan the rounds before round 1** and write the number in the PR description: 1 for a small fix, 2 for a typical change, 3 for a milestone or a risky change. The plan is a budget for judgment, not a stop: what ends the loop is below.
+2. **Plan the rounds before round 1** and write the number in the PR description: 1 for a small fix, 2 for a typical change, 3 for a milestone or a risky change. The plan is a budget for judgment, not a stop: what ends the loop is below. Start the pull request's entry in [`review-retros.md`](review-retros.md) with its heading and planned rounds.
 3. **Each round:**
    - Push all commits first; nothing is pushed while the review runs. If the branch moves mid-review, the skill keeps its review as a draft instead of posting it.
    - Run the blind review.
    - Confirm the review is posted: `gh api repos/AboulEinein/soroband/pulls/<number>/reviews` lists it with a state other than `PENDING`. A draft or missing review means the round did not happen; run it again.
    - Answer every finding in its PR thread, either with the fix (the commit) or with evidence for why it should stay as it is.
-4. **No fix leaves the loop unreviewed.** A PR is never handed over with commits that no reviewer has seen.
+   - Add the round to the pull request's entry in [`review-retros.md`](review-retros.md): the reviewer's model, its findings by severity, and the origin of each finding. A direct review (step 5) gets a row the same way.
+4. **No fix leaves the loop unreviewed.** A PR is never handed over with commits that no reviewer has seen. A commit that only adds to `review-retros.md` or `coderabbit-findings.md` is a record, not a fix: it needs no blind round. Once the pull request is ready, records wait for the final commit (CodeRabbit step 6).
 5. **After each round, judge whether another one adds value.** The session lead judges, and may consult an advisor agent (below) on the question. In an unattended run the conductor checks that judgment after the session stops (see [`plan.md`](plan.md#unattended-runs)).
    - **Run another round** after a round whose fixes change behavior or a documented rule, as long as the findings shrink: from round 2 on, fewer or less severe than the last round's, and of a different kind. This holds past the planned number.
    - **Review the last fixes directly** when they are comments or wording only, with no change to behavior or to a documented rule. Someone other than the implementer reads the diff: a fresh agent the lead spawns with the diff and the findings it answers. The reviewer posts its verdict as a PR comment naming the commit, resolves each thread it confirms as handled and replies on any it does not, and the handover links to the comment. A full round on such a diff adds nothing.
@@ -57,20 +58,24 @@ CodeRabbit reviews each pull request, whatever its base, once the blind loop has
    - **Not valid:** reply with the evidence.
    - **Findings without a thread** (the nitpicks and the comments outside the diff that CodeRabbit lists in its review body, and the warnings of its pre-merge checks in its summary comment) get one PR comment listing each with its verdict and the fix commit or the evidence.
 4. **Fixes are reviewed too.** The pull request stays ready, so CodeRabbit reviews each new commit on its own; wait for that review as in step 2, then take its new findings through step 3. That is enough for a fix to comments or wording. A fix that changes behavior or a documented rule also gets a blind round, or a direct review if it qualifies (see Rounds).
-5. **Resolve each thread** once its finding is handled: a valid one after the review of its fix (CodeRabbit's, or the blind round's) raises nothing about it, the others after the reply. The session lead resolves CodeRabbit's threads, because CodeRabbit is not briefed to check replies.
-6. **Record every finding** in [`coderabbit-findings.md`](coderabbit-findings.md), valid or not, with why the blind loop missed each valid one.
-7. **CodeRabbit's review ends** when its review of the last commit raises nothing to act on and every thread is resolved. Only then has the review ended.
+5. **Resolve each thread** once its finding is handled: a valid one after the review of its fix (CodeRabbit's, or the blind round's) raises nothing about it, the others after the reply. CodeRabbit often resolves its own thread when it reviews the fix; the session lead resolves any it leaves open.
+6. **Note each review and finding** as you go, outside the branch: CodeRabbit's reviews, and any blind round or direct review run after the pull request is ready, with their findings and why the blind loop missed each valid CodeRabbit finding. Every commit CodeRabbit reviews gets reviewed and waited for, so nothing is committed for the records until step 7.
+7. **Commit the records once,** when CodeRabbit has nothing left to act on: every finding in [`coderabbit-findings.md`](coderabbit-findings.md), valid or not, and in the pull request's entry in [`review-retros.md`](review-retros.md) a row for each review noted in step 6 and the retro: what ran, why the review took the rounds it did, and what to change so the next pull request needs fewer. The same commit carries the ledger and handover updates the session makes before it stops. Push it and wait for CodeRabbit's review of it as in step 2. A review of a records commit that raises nothing gets no row. If it raises a finding, handle it through steps 3 to 5, then record the finding and that review's row in one more records commit: the fix's commit if there is a fix, otherwise a commit of the records alone. That commit is handled the same way, so the review ends once a records commit draws no finding.
+8. **CodeRabbit's review ends** when its review of the last commit raises nothing to act on and every thread is resolved. Only then has the review ended.
+9. **A session that stops blocked** before the review ends commits every record noted so far (step 6) with the retro (what ran, and why it stopped) and its ledger and handover updates. The session that resumes the pull request updates them.
 
-### Learning from the findings
+### Learning from reviews
 
-The findings show what the blind loop misses. When a valid finding repeats a category and a miss cause already in the log, it is a pattern (for `after the loop`, the pattern is in how fixes are made after the loop, not in the blind review); turn it into a rule where the miss happened, and name the rule in the follow-up column of every row it covers:
+Two logs record how reviews go: [`coderabbit-findings.md`](coderabbit-findings.md) shows what the blind loop misses, and [`review-retros.md`](review-retros.md) shows why a pull request needed the rounds it did. In the findings log, when a valid finding repeats a category and a miss cause already in the log, it is a pattern (for `after the loop`, the pattern is in how fixes are made after the loop, not in the blind review); turn it into a rule where the miss happened, and name the rule in the follow-up column of every row it covers:
 
 - **The reviewer did not check for it:** a line in a `## Checklist` section of this file, and a line in the brief above telling the reviewer to go through that checklist. Add both with the first pattern.
 - **The implementer keeps making it:** a rule in `AGENTS.md`, or in the doc that covers the area (`verification.md` for tests, `design.md` for architecture).
 - **A tool can find it:** a lint or CI check, which beats a written rule.
 - **It applies to any project, not just Soroband:** a proposal to the user for the `pr-review` skill, which lives outside this repository.
 
-Read the log for patterns when a milestone ends, before updating the handover, and again once parallel milestones have both merged. Rows are only ever appended, so a merge conflict in the log keeps both sides.
+In the retros, when a retro gives the same origin and the same reason for it as an earlier pull request's retro, it is a pattern too, and turns into a rule the same way: `fix regression` points at how fixes are made, `missed earlier` at the reviewer brief or the checklist, `new evidence` at checking real behavior before the first round, `unclear requirement` at `plan.md`.
+
+Read both logs for patterns when a milestone ends, before updating the handover, and again once parallel milestones have both merged. Rows and entries for other pull requests are only ever appended, so a merge conflict in a log keeps both sides; a pull request's own entry is extended until its review ends, as when a blocked session's records are completed.
 
 ## Reassess instead of another round
 
