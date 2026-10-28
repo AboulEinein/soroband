@@ -10,6 +10,7 @@ The state of the project for whoever picks it up next. Read this file, then the 
 - M2 (network identity and storage): simulated switches (`scripts/verify/networks.sh`, 6 of 6 runs), the restart check and `config set` on the running app pass, and growth is measured at 27.9 KB a day. Budget: Debug app 0.059% CPU and 19.0 MB over 10 minutes. Its hand checklist (below) has not been run.
 - M3 (menu bar and popover): the menu bar item (network icon and today's total, or today on all networks, live speed, icon only, through the `menu_bar` setting), the popover (network card, Apps and Networks tabs, "Other / overhead", footer), Settings (General and Networks), launch at login through `SMAppService`, the first-run Location window, and the engine self-check in `core/crates/soroband-core/src/check.rs`. The menu bar item and popover are AppKit (`NSStatusItem`, `NSPopover`) hosting SwiftUI, so Debug builds open them on command (`open-popover`, `open-settings`). Budget: Debug app 0.096% CPU and 21.0 MB over 10 minutes with the popover closed, on a busy network; 0.055% in icon-only mode. Its hand checklist and the daily-use week (exit criterion 2) need the user.
 - The app is named Soroband, with the bundle identifier `io.github.abouleinein.soroband` (Debug: `.debug`), data in `~/Library/Application Support/Soroband`, and the `soroband` command.
+
 ## Next action
 
 1. Run the M0 hand checklist (below). If item 3 fails, the signing approach needs rework.
