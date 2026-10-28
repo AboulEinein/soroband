@@ -11,7 +11,7 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | M1 | Meter engine | 1 | in review | [#4](https://github.com/AboulEinein/soroband/pull/4) |
 | M2 | Network identity and storage | 1 | blocked (hand checklist: Location, real hotspot switch, Wi‑Fi without its name) | [#5](https://github.com/AboulEinein/soroband/pull/5) |
 | M3 | Menu bar and popover (first dogfood build) | 1 | blocked (hand checklist and daily-use week) | [#6](https://github.com/AboulEinein/soroband/pull/6) |
-| M4 | History window | 2 | planned | – |
+| M4 | History window | 2 | in review | [#13](https://github.com/AboulEinein/soroband/pull/13) |
 | M5 | Dynamic Island moments | 2 | planned | – |
 | M6 | Release v0.1.0 | 3 | planned | – |
 

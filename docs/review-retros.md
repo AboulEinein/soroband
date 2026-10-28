@@ -88,10 +88,19 @@ Changes it led to: none. CodeRabbit flagged an entry without its retro for the s
 
 ## [#13](https://github.com/AboulEinein/soroband/pull/13) feat(history): M4 History window (2026-10-28)
 
-Planned rounds: 3.
+Planned rounds: 3. Ran: 4 blind rounds (the first stopped by a pause), 1 direct review, 3 CodeRabbit reviews.
 
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | 1 (stopped) | Sonnet | 2 Medium | `first look`: a finished month's comparison span ran into the month shown; All Time after a network switch started at the previous network's first hour. Stopped by the user's pause after it posted these two; its summary was never written. |
 | 1 | Sonnet | none | Confirmed both fixes of the stopped review and resolved their threads. Noted outside the diff: the 30 MB criterion read literally, and the ledger and handover still to update. |
 | direct | Haiku | none | Checked 0864ba6 (the test fixture split for CI's compiler): the same 168 heatmap cells in the same order. [Comment](https://github.com/AboulEinein/soroband/pull/13#issuecomment-6463010429). |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: the chart keyed networks by name, so same-named networks shared a color. |
+| 2 | Sonnet | 1 Low | `fix regression`: the " (2)" suffix from the CodeRabbit fix could equal another network's real name. |
+| CodeRabbit | CodeRabbit | 1 Minor (thread reply) | `fix regression`: the same suffix collision as round 2, already fixed in 25ffc64. |
+| 3 | Sonnet | none | |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 3 rounds; the blind loop ran 2 (the stopped first review and round 1, then a direct review of a test-only fix), and CodeRabbit's single finding brought 2 more. The approach itself changed before any review: History began in the menu bar app's process, measurement showed AppKit, SwiftUI and Charts kept 13–40 MB after the window closed, and the user chose a separate History process; the opening-time work (standby, warm-up, daily sums) followed from measuring it. That evidence came from running the real app before round 1, so no round had to find it. The blind rounds then found two Medium edge cases in date and state logic (a finished month's comparison span, All Time after a network switch), both `first look`. CodeRabbit found what no round checked: a chart keyed by a user-editable name. Its fix introduced a suffix collision that round 2 and CodeRabbit both caught, a `fix regression` from writing the fix for the reported case only.
+
+Changes it led to: none. The two CodeRabbit rows match earlier `correctness` rows on their miss causes (`not checked` and `after the loop`, both #10), but for unrelated reasons (a doc loop's end condition there, a chart key here), so no rule. Candidate rule, if a later fix after the loop regresses again: before pushing such a fix, test the next case beyond the one reported (here, a suffix that collides).

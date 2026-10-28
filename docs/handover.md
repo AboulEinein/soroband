@@ -2,13 +2,14 @@
 
 The state of the project for whoever picks it up next. Read this file, then the ledger in [`plan.md`](plan.md), before starting work. At the end of a session, update **Current state**, **Next action** and the ledger.
 
-## Current state (2026-10-27)
+## Current state (2026-10-28)
 
 - M0–M3 are in stacked pull requests: [#3](https://github.com/AboulEinein/soroband/pull/3) (`m0-foundation`, against `main`), [#4](https://github.com/AboulEinein/soroband/pull/4) (`m1-meter-engine`), [#5](https://github.com/AboulEinein/soroband/pull/5) (`m2-networks-storage`) and [#6](https://github.com/AboulEinein/soroband/pull/6) (`m3-menubar-popover`), each against the previous milestone's branch. Each pull request is one commit and its description summarizes its review. Each milestone's review loop ended with nothing left to act on, and CI was green.
 - M0 (repository foundation): the Rust workspace, the universal XCFramework bridge, the menu bar app showing "Soroband <core version>", the build, install and verification scripts, the agent install guide and CI. Its hand checklist (below) has not been run.
 - M1 (meter engine): the engine counts internet bytes per app from the kernel statistics socket; `soroband live` shows it; the app starts it at launch and reports it in `soroband debug state`. Under the network-quality cutoff, 3 judged `traffic.sh` runs passed, all at +0.16% attribution and −6.7% to −7.3% reconciliation; one lossy run over the cutoff reached +1.15%, because the kernel's duplicate counter misses some re-received bytes. Budget: engine 0.033% and 1.8 MB, Debug app 0.096% and 23.0 MB over 10 minutes. The replay fixtures are anonymized (see Decisions).
 - M2 (network identity and storage): simulated switches (`scripts/verify/networks.sh`, 6 of 6 runs), the restart check and `config set` on the running app pass, and growth is measured at 27.9 KB a day. Budget: Debug app 0.059% CPU and 19.0 MB over 10 minutes. Its hand checklist (below) has not been run.
 - M3 (menu bar and popover): the menu bar item (network icon and today's total, or today on all networks, live speed, icon only, through the `menu_bar` setting), the popover (network card, Apps and Networks tabs, "Other / overhead", footer), Settings (General and Networks), launch at login through `SMAppService`, the first-run Location window, and the engine self-check in `core/crates/soroband-core/src/check.rs`. The menu bar item and popover are AppKit (`NSStatusItem`, `NSPopover`) hosting SwiftUI, so Debug builds open them on command (`open-popover`, `open-settings`). Budget: Debug app 0.096% CPU and 21.0 MB over 10 minutes with the popover closed, on a busy network; 0.055% in icon-only mode. Its hand checklist and the daily-use week (exit criterion 2) need the user.
+- M4 (History window) is in [#13](https://github.com/AboulEinein/soroband/pull/13) (`m4-history`, against `docs/review-retros`, #10). History runs in its own process (a second instance started with `--history`, `app/Soroband/HistoryProcess.swift`), which the popover starts in standby; every number is aggregated in SQL (`core/crates/soroband-core/src/history.rs`), long ranges read daily sums (`usage_day`, schema version 2); CSV export. On a synthetic year (Debug build): 199–244 ms from the click to the window drawn on every range; the History process 50–56 MB while open, its standby 22 MB; the menu bar app keeps nothing of History after it closes. Budget: Debug app 0.074% CPU and 18.0 MB over 10 minutes. The blind loop and CodeRabbit's review ended with nothing left to act on (`docs/review-retros.md`). Its hand checklist (below) and the 30 MB reading (Next action 5) need the user.
 - The app is named Soroband, with the bundle identifier `io.github.abouleinein.soroband` (Debug: `.debug`), data in `~/Library/Application Support/Soroband`, and the `soroband` command.
 
 ## Next action
@@ -16,7 +17,15 @@ The state of the project for whoever picks it up next. Read this file, then the 
 1. Run the M0 hand checklist (below). If item 3 fails, the signing approach needs rework.
 2. Run the M2 hand checklist (below).
 3. Run the M3 hand checklist (below) and start the daily-use week; note issues as follow-ups in the ledger.
-4. After the week, merge #3 to #6 in order, marking each milestone `done` in the ledger once its checklist has passed. M4 and M5 can then start as two sessions in separate worktrees.
+4. After the week, merge #3 to #6 in order, marking each milestone `done` in the ledger once its checklist has passed. M5 can then start in its own worktree.
+5. Decide whether M4's "back under 30 MB after closing" is met: History leaves nothing in the menu bar app, but the app sits at 37–38 MB after the popover has opened once (18 MB fresh), which is M3's residue (Follow-ups, "Memory after a window closes"). Then run the M4 hand checklist (below) and merge #13 after #10.
+
+### M4 hand checklist
+
+1. **History from the popover.** Click the menu bar item, then History…: the History window opens in front, on this month, and takes the keyboard (agents can only open it in the background).
+2. **Ranges and networks by hand.** Click Day, Week, Month, Year, All Time, previous, Today and next; pick a network in the sidebar and All Networks again; hover a bar (tooltip) and a heatmap cell (its value in the card's header); click an app to see its network split.
+3. **Export CSV.** Click the export button, save, and open the file: one line per hour, network and app of the range shown.
+4. **It goes away.** Close the window: no second Soroband process is left (`pgrep -fl Soroband`). Open the popover and close it without clicking History…: no second process either.
 
 ### M0 hand checklist
 
@@ -67,6 +76,9 @@ The state of the project for whoever picks it up next. Read this file, then the 
 | 2026-10-28 | CodeRabbit reviews each PR once the blind loop has ended: PRs open as drafts, which it skips, and are marked ready afterwards. `.coderabbit.yaml` makes it review stacked PRs (any base) and never pause; its docstring-coverage check is off. Every finding goes into `docs/coderabbit-findings.md` with why the blind loop missed it, and a repeated miss becomes a rule (`docs/review.md`). |
 | 2026-10-28 | Every PR records each review (reviewer model, findings, the origin of each) and a retro on why it took the rounds it did in `docs/review-retros.md`; an origin that recurs across PRs for the same reason becomes a rule, read at each milestone's end with the CodeRabbit log. |
 | 2026-10-28 | Agents driving a Debug build never bring Soroband to the front, because the user works on this Mac while they run it: every `open` of a Debug build or a `soroband-debug://` URL passes `-g`. `scripts/install.sh` opens the installed app in front, because the user asked for it. |
+| 2026-10-28 | History runs in its own process, which quits when its window closes: AppKit, SwiftUI and Charts kept 13–40 MB in the menu bar app's process after the window closed (freed but fragmented; no API returns it). The popover starts it in standby so History opens without a launch to wait for (the user chose this over keeping History in the app and revising the criterion). |
+| 2026-10-28 | The usage database keeps daily sums (`usage_day`, schema version 2) beside the hourly buckets, so a long History range reads whole UTC days from it: a year's apps read went from 125 ms to 23 ms, at about 3 KB a day more on disk. A build from before it refuses a version 2 database. |
+| 2026-10-28 | History's days, weeks and months follow the calendar (local midnight), not the reset hour; a stored hour belongs to the local day, hour and weekday of its middle. History opens on this month from the popover. |
 | 2026-10-27 | `scripts/install.sh` signs with a self-signed "Soroband Local Signing" identity kept in its own keychain (`~/Library/Keychains/soroband-signing.keychain-db`, random password stored in the login keychain), not in the login keychain itself: letting `codesign` use a key without a prompt needs `security set-key-partition-list`, which needs the keychain's password. `--adhoc` keeps the ad hoc route for the Location check. |
 | 2026-10-27 | Universal builds need rustup (the `x86_64-apple-darwin` standard library); `scripts/build.sh --host` and `scripts/install.sh` build for this Mac only and work with Homebrew's `rust`. |
 | 2026-10-27 | Debug builds use the bundle identifier `io.github.abouleinein.soroband.debug`, so a Debug build and the installed Release run side by side. |
@@ -118,6 +130,9 @@ Small items for a later nits pass.
 - **Test host shares the Debug database.** `xcodebuild test` launches the Debug app as its test host, which starts the engine on `~/Library/Application Support/Soroband Debug` like the running Debug app, so both book the same traffic while tests run and the Debug totals run high. A test host could use its own data directory.
 - **Version-named tools.** An executable named by its version (a command-line tool installed as `~/.local/share/<tool>/versions/1.4.3`) shows in the popover as "1.4.3" with a generic icon. The core could name such a tool by its parent directory.
 - **Segmented control width.** The popover's Apps/Networks control keeps its natural width on macOS 27 instead of the mockup's full width.
+- **Memory after a window closes.** The menu bar app does not return to its launch footprint after any SwiftUI window: 18 MB fresh, 36 MB after Settings has opened and closed, 37–45 MB after the popover (M4 measurement). M3's 21.0 MB was measured before the popover first opened. History moved to its own process for this reason; the popover cannot. Options: the 25 MB budget measured as it was, or the popover and Settings drawn with less SwiftUI.
+- **History is up to a minute behind.** It reads what the engine has written (once a minute), so it can trail the popover by a minute's usage.
+- **Snapshot colors follow the main display.** `scripts/verify/snapshots.sh` renders in a window on the main display, so a different main display (the external U28E590 instead of the built-in one) changes every baseline's colors slightly. Run snapshots on the display the baselines were recorded on, or pin the render to sRGB.
 - **App CPU headroom.** M3's Debug app measured 0.096% of the 0.1% budget on a busy network, 0.055% in icon-only mode. Live speed mode is over budget by design (it redraws every 5 s) and was not measured.
 
 ## Gotchas
@@ -159,6 +174,9 @@ Things learned the hard way that no file or config will tell you.
 - A copy of `/usr/bin/curl` outside `/usr/bin` does not run, so `traffic.sh` identifies `/usr/bin/curl` and fails if another curl runs at the same time (other agents on this Mac use curl).
 
 **Working on this Mac**
+- `NSWorkspace.openApplication` with `createsNewApplicationInstance` drops the arguments of a second instance of the same app; `HistoryProcess` starts it with `Process` instead. A History process started with `open` gets `/dev/null` as standard input and quits at once (it quits when its input closes); start it from the app, or with a pipe held open.
+- A second instance of a menu bar (`LSUIElement`) app takes activation at launch, which closes the first instance's transient popover. The standby History process sets `.prohibited` until it shows its window.
+- `open -g <app> "soroband-debug://…"` hands the URL to the app as a document, which the app ignores; the URL needs `open -g -a <app> "soroband-debug://…"`.
 - On macOS 27 status items have no window of their own: `MenuBarAgent` draws the whole menu bar, and an `NSStatusBarWindow`'s `windowNumber` (for example `4294967296`) is not a CGWindowID, so `screencapture -l` cannot capture one item. Use `screencapture -R` with the `rect` from `soroband debug state --json`, or `open -g -a <this build's Soroband.app> "soroband-debug://capture-status-item"` when the item is hidden.
 - `NSImageRep.draw(in:)` composites with `.copy`; drawing a transparent bitmap over a fill needs `draw(in:from:operation: .sourceOver …)`.
 - On macOS 27 every change of a status item's title redraws a "replicant" copy of the item for each display (`-[NSStatusItem _updateReplicants]`, an `NSView` cache-display each): about 18 ms of the main thread on a four-display Mac. Budget the menu bar text's change rate, not just its poll rate.
