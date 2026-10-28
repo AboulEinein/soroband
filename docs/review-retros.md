@@ -53,6 +53,7 @@ Planned rounds: 2. Ran: 5 blind rounds, 2 direct reviews, 3 CodeRabbit reviews w
 | direct | Haiku | none | |
 | CodeRabbit | CodeRabbit | 1 Major | `fix regression`: the opening line asked a row for every review after ready, including the clean records-commit review the rules exempt. |
 | CodeRabbit | CodeRabbit | 2 Minor | `fix regression`: the opening line, which restated `review.md`'s timing, missed the further records commit and the blocked commit's contents. |
+| CodeRabbit | CodeRabbit | 1 Minor | `fix regression`: two new log rows put a doc fix in the Follow-up column. |
 
 **Retro.** Planned 2 rounds; ran 5 blind rounds, 2 direct reviews and 3 CodeRabbit reviews with findings. One cause behind almost all of it: the rules had to say when the review's own records are committed, and every record is a commit that CodeRabbit reviews. Rounds 1 to 3 each moved the end of the review and created the next finding (`fix regression` in rounds 2, 3, 4 and 5 and the last CodeRabbit review), until the reassessment after round 3 put all records into one final commit. After that the findings were wording around the new rule. CodeRabbit added what the blind rounds did not trace: the path of a finding with no fix, and its own habit of resolving its threads.
 
