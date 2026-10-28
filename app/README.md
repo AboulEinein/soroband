@@ -11,9 +11,9 @@ The SwiftUI menu bar app (`LSUIElement`, no Dock icon). It links the Rust core f
 
 Debug builds use the bundle identifier `io.github.abouleinein.soroband.debug`, so they run next to an installed Release build.
 
-The History window runs in a second process of the same app, started with `--history` by the menu bar app (`Soroband/HistoryProcess.swift`); it quits when its window closes. A Debug build started with `SOROBAND_DATA_DIR` set (`open --env SOROBAND_DATA_DIR=<dir> <app>`) uses that data directory, and so does its History process.
+The History window runs in a second process of the same app, started with `--history` by the menu bar app (`Soroband/HistoryProcess.swift`); it quits when its window closes. A Debug build started with `SOROBAND_DATA_DIR` set (`open -g --env SOROBAND_DATA_DIR=<dir> -a <app>`) uses that data directory, and so does its History process.
 
-Debug URL commands (`open "soroband-debug://<command>"`):
+Debug URL commands (`open -g -a <this build's Soroband.app> "soroband-debug://<command>"`):
 
 | Command | Effect |
 | --- | --- |
@@ -31,7 +31,7 @@ Debug URL commands (`open "soroband-debug://<command>"`):
 | `simulate-network?id=office&kind=hotspot` | Books usage to a made-up network named `office` (`kind` is `wifi`, `ethernet` or `hotspot`; default `wifi`), as if the Mac had joined it. `simulate-network` alone goes back to the real network. |
 | `update-network?name=Desk&kind=ethernet` | Renames the current network and sets its kind, as a user would. |
 
-Debug builds of other worktrees also handle `soroband-debug://`, and `open "soroband-debug://…"` may launch one of them. Send the URL to this build: `open -g -a "$PWD/build/DerivedData/Build/Products/Debug/Soroband.app" "soroband-debug://…"`. To capture the popover or Settings with `screencapture`, leave out `-g`: macOS does not let an app sent to the background bring itself forward, and a window behind others is not drawn.
+Debug builds of other worktrees also handle `soroband-debug://`, and `open "soroband-debug://…"` may launch one of them. Send the URL to this build: `open -g -a "$PWD/build/DerivedData/Build/Products/Debug/Soroband.app" "soroband-debug://…"`. Always pass `-g`: without it macOS brings Soroband to the front and it takes the keyboard from whatever the user is typing in. With `-g` the popover and windows still open and `screencapture -l` captures them.
 
 The app keeps its usage database (`usage.sqlite`) and `settings.json` in `~/Library/Application Support/Soroband`; Debug builds use `Soroband Debug` next to it.
 

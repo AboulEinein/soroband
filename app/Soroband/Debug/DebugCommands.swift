@@ -4,7 +4,8 @@ import notify
 
 /// Lets an agent drive and observe a Debug build without a mouse.
 ///
-/// - `open "soroband-debug://<command>"` runs a command (see `handle`).
+/// - `open -g -a <this build's Soroband.app> "soroband-debug://<command>"` runs a command (see
+///   `handle`); without `-g` macOS brings the app to the front, taking the user's keyboard.
 /// - `soroband debug state --json` posts `dumpStateNotification`; the app answers by writing its
 ///   state to `stateFile`. `soroband debug history --json` does the same with the History
 ///   process (`dumpHistoryNotification`, `historyFile`). The names must match
