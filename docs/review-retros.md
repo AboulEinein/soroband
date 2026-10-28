@@ -88,7 +88,7 @@ Changes it led to: none. CodeRabbit flagged an entry without its retro for the s
 
 ## [#13](https://github.com/AboulEinein/soroband/pull/13) feat(history): M4 History window (2026-10-28)
 
-Planned rounds: 3. Ran: 4 blind rounds (the first stopped by a pause), 1 direct review, 5 CodeRabbit reviews with an outcome.
+Planned rounds: 3. Ran: 4 blind rounds (the first stopped by a pause), 1 direct review, 6 CodeRabbit reviews with an outcome.
 
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
@@ -102,6 +102,7 @@ Planned rounds: 3. Ran: 4 blind rounds (the first stopped by a pause), 1 direct 
 | CodeRabbit | CodeRabbit | none | |
 | CodeRabbit | CodeRabbit | 1 Minor | `first look`: the records commit set M4 `in review`, though `plan.md` makes a milestone waiting on a decision and a hand checklist `blocked`. |
 | CodeRabbit | CodeRabbit | 3 Minor | `first look`: the records commits for the user's decisions (M4's memory criterion accepted, M6 added, M5's review experiment) changed requirements in `plan.md` without the session prompt and `verification.md` rows that state them. |
+| CodeRabbit | CodeRabbit | 1 Minor | `fix regression`: the new records-commit rule listed three documents for every change, though not every rule is stated in all three. |
 
 **Retro.** Planned 3 rounds; the blind loop ran 2 (the stopped first review and round 1, then a direct review of a test-only fix), and CodeRabbit's single finding brought 2 more. The approach itself changed before any review: History began in the menu bar app's process, measurement showed AppKit, SwiftUI and Charts kept 13–40 MB after the window closed, and the user chose a separate History process; the opening-time work (standby, warm-up, daily sums) followed from measuring it. That evidence came from running the real app before round 1, so no round had to find it. The blind rounds then found two Medium edge cases in date and state logic (a finished month's comparison span, All Time after a network switch), both `first look`. CodeRabbit found what no round checked: a chart keyed by a user-editable name. Its fix introduced a suffix collision that round 2 and CodeRabbit both caught, a `fix regression` from writing the fix for the reported case only.
 
