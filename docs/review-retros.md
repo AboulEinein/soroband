@@ -71,3 +71,10 @@ Planned rounds: 1. Ran: 1 blind round, 1 CodeRabbit review.
 **Retro.** One round, as planned. The only finding was whitespace from the edit itself; fixing it needed no further round, and CodeRabbit raised nothing. The reviewer also noted that `docs/handover.md` still says the project started "without the earlier development history" in a dated decision-log row; the owner decides whether to reword it.
 
 Changes it led to: none.
+
+## [#13](https://github.com/AboulEinein/soroband/pull/13) feat(history): M4 History window (2026-10-28)
+
+Planned rounds: 3.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
