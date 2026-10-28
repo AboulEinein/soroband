@@ -1,0 +1,20 @@
+[package]
+name = "soroband-cli"
+description = "The soroband command: live usage, queries and settings."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "soroband"
+path = "src/main.rs"
+
+[dependencies]
+soroband-core = { path = "../soroband-core" }
+serde_json = "1.0"
+
+[lints]
+workspace = true
