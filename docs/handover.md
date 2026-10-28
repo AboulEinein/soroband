@@ -133,10 +133,10 @@ Small items for a later nits pass.
   Deferred while merging the stack (from #4, #5, #6, #8):
   - Major: `core/crates/soroband-core/src/meter/socket.rs:62` (#5), a wake after the engine thread has exited writes to a closed pipe and `SIGPIPE` kills the app; keep the read end in `Waker` or set `F_SETNOSIGPIPE`.
   - Major: `scripts/verify/traffic.sh:39` (#4), other curls are counted with the test download.
-  - Minor: `core/crates/soroband-cli/src/live.rs:86` and `:89` (#4), the elapsed timer starts before the baseline, and the last tick is not bounded by the remaining time.
+  - Minor: `core/crates/soroband-cli/src/live.rs:86` and `:90` (#4), the elapsed timer starts before the baseline, and the last tick is not bounded by the remaining time.
   - Minor: `scripts/verify/traffic.sh:31` (#4), curl has no deadline.
   - Minor: `docs/verification.md:52` (#4), the engine's 5 MB memory check is missing.
-  - Minor: `core/crates/soroband-cli/src/usage.rs:58` and `:229` (#5), totals show after a settings read error, and a numeric network ID is matched as a name.
+  - Minor: `core/crates/soroband-cli/src/usage.rs:58` and `:228` (#5), totals show after a settings read error, and a numeric network ID is matched as a name.
   - Minor: `app/Soroband/SettingsView.swift:23` (#6), the launch-at-login toggle is not refreshed when Settings regains focus.
   - Minor: `CONTRIBUTING.md:47` (#8), document the recursive lint command.
 
@@ -214,7 +214,7 @@ Things learned the hard way that no file or config will tell you.
 - Streaming `nettop` (`-L 0`) costs more than a full CPU core; keep it out of any measurement path.
 
 **GitHub**
-- The `main` ruleset requires the Core, App and CodeRabbit checks, an up-to-date branch and resolved threads. The repository does not delete a merged branch (`delete_branch_on_merge` is off), and GitHub retargets a PR stacked on a branch only when that branch is deleted, so retarget a stacked PR to `main` by hand before merging it.
+- The `main` ruleset requires the Core, App and CodeRabbit checks, an up-to-date branch and resolved threads. A PR stacked on a merged branch keeps that branch as its base; check the base before merging and retarget it with `gh pr edit <n> --base main`.
 - GitHub opens no PR between branches without a common commit, so CodeRabbit reviews the whole project through an empty commit as the base branch and, as the head, a commit with `main`'s tree whose parent is that empty commit (#15). CodeRabbit's included allowance is 10 reviews an hour.
 - Force-pushing is refused for agents on this Mac; bring a branch up to date by merging `main` into it.
 

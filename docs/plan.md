@@ -157,7 +157,7 @@ Estimated sessions: M0 1, M1 1–2, M2 1, M3 1–2, M4 1, M5 2, M6 1, M7 1, so a
 
 Milestones can run overnight as a chain, one fresh thread per milestone, started by a conductor thread that writes no code.
 
-- **Stacked branches.** Nothing is merged without the user, so each milestone branches from the previous milestone's branch and opens its PR against it: `m<n>-<name>` from the branch of milestone n−1, the first from `main`. The user merges them in order; GitHub retargets each PR to `main` as its base merges.
+- **Stacked branches.** Nothing is merged without the user, so each milestone branches from the previous milestone's branch and opens its PR against it: `m<n>-<name>` from the branch of milestone n−1, the first from `main`. The user merges them in order, retargeting each PR to `main` (`gh pr edit <n> --base main`) once its base has merged.
 - **When the chain continues.** The next milestone starts only if the previous one ended `in review`, or `blocked` solely on a hand-run checklist (a permission prompt, a real hotspot, the daily-use week). Anything else stops the chain: a decision needed, repeated failures, red CI.
 - **The conductor checks the review judgment.** Each milestone thread runs its own review loop as [`review.md`](review.md#rounds) describes, then CodeRabbit's review ([`review.md`](review.md#coderabbit)). When a thread stops, the conductor checks its review record against that loop and may send work back to the same thread. It asks the user only when the way forward needs a decision.
 - **Hand-run checklists** collect in each PR and in the handover; the user runs them in the morning, in milestone order.
