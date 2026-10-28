@@ -11,3 +11,9 @@ Columns:
 | Date | PR | Finding | Category | Verdict | Missed because | Follow-up |
 | --- | --- | --- | --- | --- | --- | --- |
 | 2026-10-28 | [#9](https://github.com/AboulEinein/soroband/pull/9#discussion_r4396375602) | The wait loop reads only the `CodeRabbit` state, and by default (`fail_commit_status: false`) a review that errors still reports `SUCCESS`. | build and CI | valid | not checked | – |
+| 2026-10-28 | [#10](https://github.com/AboulEinein/soroband/pull/10#discussion_r4396705957) | `review-retros.md`'s opening line left out the blocked session's early records commit. | docs drift | valid | not checked | – |
+| 2026-10-28 | [#10](https://github.com/AboulEinein/soroband/pull/10#discussion_r4396705959) | A `not valid` or `accepted` finding on the final records commit had no fix commit to be recorded in. | correctness | valid | not checked | – |
+| 2026-10-28 | [#10](https://github.com/AboulEinein/soroband/pull/10#discussion_r4396705964) | "Entries are only ever appended" conflicted with a resumed session completing its entry. | docs drift | valid | not checked | – |
+| 2026-10-28 | [#10](https://github.com/AboulEinein/soroband/pull/10) | Review body: #10's entry had no retro yet. The retro belongs in the final records commit, which had not been made. | docs drift | not valid | – | – |
+| 2026-10-28 | [#10](https://github.com/AboulEinein/soroband/pull/10) | Review body: #9's entry counted unposted reviews as rounds, which `review.md` says did not happen. | docs drift | valid | not checked | – |
+| 2026-10-28 | [#10](https://github.com/AboulEinein/soroband/pull/10#discussion_r4396769973) | `review-retros.md` asked a row for every review after ready, including a clean records-commit review, so the review could never end. | correctness | valid | after the loop | – |
