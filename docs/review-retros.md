@@ -59,6 +59,19 @@ Planned rounds: 2. Ran: 5 blind rounds, 2 direct reviews, 3 CodeRabbit reviews w
 
 Changes it led to: the records rule itself (one final records commit); step 5 now says CodeRabbit may resolve its own threads; and `review-retros.md`'s opening line points to `review.md` instead of restating it, after three CodeRabbit findings in a row came from that restatement drifting. Candidate rule, if a later retro repeats `fix regression` for the same reason: before writing a rule that ends a loop, trace each path through it, including a finding with no fix, in the PR description, so round 1 reviews the trace.
 
+## [#11](https://github.com/AboulEinein/soroband/pull/11) docs(handover): drop references to the earlier repository and app name (2026-10-28)
+
+Planned rounds: 1. Ran: 1 blind round, 1 CodeRabbit review.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Sonnet | 1 Low | `first look`: the edit deleted the blank line before `## Next action`. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** One round, as planned. The only finding was whitespace from the edit itself; fixing it needed no further round, and CodeRabbit raised nothing. The reviewer also noted that `docs/handover.md` still says the project started "without the earlier development history" in a dated decision-log row; the owner decides whether to reword it.
+
+Changes it led to: none.
+
 ## [#12](https://github.com/AboulEinein/soroband/pull/12) docs(verify): send debug URLs with open -g so agents never take focus (2026-10-28)
 
 Planned rounds: 1.
