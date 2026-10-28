@@ -5,6 +5,7 @@
 pub mod check;
 pub mod day;
 pub mod ffi;
+pub mod history;
 pub mod ledger;
 pub mod meter;
 pub mod service;

@@ -117,6 +117,97 @@ struct SnapshotTests {
         try Snapshot.verify(view, named: "onboarding")
     }
 
+    /// October 2026 up to the 28th on four networks, shaped like `docs/mockups/history.png`.
+    static let historyRegistry = [
+        RegisteredNetwork(id: 1, key: "wifi:Home-5G", name: "Home-5G", kind: .wifi, lastUsed: nil),
+        RegisteredNetwork(id: 2, key: "wifi:Office", name: "Office Wi-Fi", kind: .wifi, lastUsed: nil),
+        RegisteredNetwork(id: 3, key: "wifi:iPhone", name: "iPhone Hotspot", kind: .hotspot, lastUsed: nil),
+        RegisteredNetwork(id: 4, key: "ethernet:desk", name: "Desk Dock", kind: .ethernet, lastUsed: nil),
+    ]
+
+    static let october: HistoryData = {
+        let calendar = Calendar.current
+        let start = calendar.date(from: DateComponents(year: 2026, month: 10, day: 1))!
+        var bars: [HistoryData.Bar] = []
+        var perNetwork: [Int64: UInt64] = [:]
+        var busiest: HistoryData.Day?
+        for day in 0..<27 {
+            let date = calendar.date(byAdding: .day, value: day, to: start)!
+            let firstHour = Int64(date.timeIntervalSince1970) + 9 * 3600
+            // Home every day; the office on weekdays; the phone and the dock now and then.
+            var today: [(Int64, UInt64)] = [(1, UInt64(900 + (day * 37) % 700) * 1_000_000)]
+            if calendar.component(.weekday, from: date) % 7 > 1 {
+                today.append((2, UInt64(800 + (day * 53) % 600) * 1_000_000))
+            }
+            if day % 6 == 2 { today.append((3, 400_000_000)) }
+            if day % 5 == 0 { today.append((4, 700_000_000)) }
+            for (network, bytes) in today {
+                bars.append(.init(firstHour: firstHour, network: network, rx: bytes * 4 / 5, tx: bytes / 5))
+                perNetwork[network, default: 0] += bytes
+            }
+            let total = today.reduce(0) { $0 + $1.1 }
+            if total > busiest?.bytes ?? 0 { busiest = .init(firstHour: firstHour, bytes: total) }
+        }
+        let all = perNetwork.values.reduce(0, +)
+        let apps: [(String, String, UInt64)] = [
+            ("/Applications/Safari.app", "Safari", 34), ("process:huddle", "huddle", 22),
+            ("/System/Applications/Music.app", "Music", 11), ("/System/Applications/Messages.app", "Messages", 9),
+            ("/System/Applications/Mail.app", "Mail", 6), ("macOS & Services", "macOS & Services", 5),
+            ("process:git", "git", 3),
+        ]
+        var shares: [HistoryData.AppShare] = []
+        for (id, name, percent) in apps {
+            for network in [Int64(1), 2, 3, 4] {
+                let bytes = (perNetwork[network] ?? 0) * percent / 100
+                shares.append(.init(network: network, id: id, name: name, rx: bytes * 4 / 5, tx: bytes / 5))
+            }
+        }
+        var heatmap: [HistoryData.Cell] = []
+        for weekday in 0..<7 {
+            for hour in 0..<24 {
+                // Quiet nights, then busier hours that vary by weekday.
+                let megabytes: Int = hour < 7 ? 5 : 60 + (weekday * 7 + hour * 13) % 90
+                heatmap.append(HistoryData.Cell(weekday: weekday, hour: hour, bytes: UInt64(megabytes) * 1_000_000))
+            }
+        }
+        return HistoryData(
+            firstHour: Int64(start.timeIntervalSince1970), interfaces: ByteCounts(rx: all * 4 / 5, tx: all / 5),
+            previous: all * 97 / 100, bars: bars,
+            networks: perNetwork.sorted { $0.value > $1.value }.map {
+                .init(network: $0.key, interfaces: ByteCounts(rx: $0.value * 4 / 5, tx: $0.value / 5), apps: .zero)
+            },
+            apps: shares, busiestDay: busiest, heatmap: heatmap)
+    }()
+
+    func history(_ range: HistoryRange, network: Int64? = nil, expandedApp: String? = nil, hover: Date? = nil)
+        -> some View
+    {
+        let calendar = Calendar.current
+        let now = calendar.date(from: DateComponents(year: 2026, month: 10, day: 28))!
+        let anchor = calendar.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 9))!
+        let query = HistoryQuery.make(
+            range: range, anchor: anchor, network: network, firstHour: nil, now: now, calendar: calendar)
+        let content = HistoryContent.make(
+            range: range, query: query, data: Self.october, registry: Self.historyRegistry, now: now, calendar: calendar
+        )
+        return HistoryDetail(
+            content: content, expandedApp: .constant(expandedApp), hoverDate: .constant(hover),
+            showsAllApps: .constant(false)
+        )
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    @Test func historyMonth() throws {
+        try Snapshot.verify(history(.month), named: "history-month", size: CGSize(width: 780, height: 1180))
+    }
+
+    @Test func historyMonthWithAnAppOpenAndADayHovered() throws {
+        let hover = Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 19, hour: 12))
+        try Snapshot.verify(
+            history(.month, expandedApp: "process:huddle", hover: hover), named: "history-month-expanded",
+            size: CGSize(width: 780, height: 1180))
+    }
+
     @Test func comparisonFindsAChangedPixel() throws {
         // Guards the comparison itself: without it, every snapshot test would pass.
         let one = try #require(ImageRenderer(content: Color.black.frame(width: 4, height: 4)).cgImage)

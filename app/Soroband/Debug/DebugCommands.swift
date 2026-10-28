@@ -7,7 +7,9 @@ import notify
 /// - `open -g -a <this build's Soroband.app> "soroband-debug://<command>"` runs a command (see
 ///   `handle`); without `-g` macOS brings the app to the front, taking the user's keyboard.
 /// - `soroband debug state --json` posts `dumpStateNotification`; the app answers by writing its
-///   state to `stateFile`. Both names must match `core/crates/soroband-cli/src/debug.rs`.
+///   state to `stateFile`. `soroband debug history --json` does the same with the History
+///   process (`dumpHistoryNotification`, `historyFile`). The names must match
+///   `core/crates/soroband-cli/src/debug.rs`.
 @MainActor
 enum DebugCommands {
     static let dumpStateNotification = "io.github.abouleinein.soroband.debug.dump-state"
@@ -16,12 +18,28 @@ enum DebugCommands {
     static let stateFile = directory.appending(path: "state.json")
     static let statusItemFile = directory.appending(path: "status-item.png")
     static let windowFile = directory.appending(path: "window.png")
+    static let historyCSVFile = directory.appending(path: "history.csv")
+    static let dumpHistoryNotification = "io.github.abouleinein.soroband.debug.dump-history"
+    static let historyFile = directory.appending(path: "history.json")
+    /// The menu bar app tells the History process to export what it shows.
+    static let exportHistoryNotification = "io.github.abouleinein.soroband.debug.export-history"
 
     private static var token: Int32 = 0
+    private static var exportToken: Int32 = 0
 
     static func start() {
         notify_register_dispatch(dumpStateNotification, &token, .main) { _ in
             MainActor.assumeIsolated { writeState() }
+        }
+    }
+
+    /// The History process answers `soroband debug history --json` and `export-history`.
+    static func startHistory() {
+        notify_register_dispatch(dumpHistoryNotification, &token, .main) { _ in
+            MainActor.assumeIsolated { write(HistoryState.current(), to: historyFile) }
+        }
+        notify_register_dispatch(exportHistoryNotification, &exportToken, .main) { _ in
+            MainActor.assumeIsolated { exportHistory() }
         }
     }
 
@@ -33,6 +51,9 @@ enum DebugCommands {
         case "close-popover": MenuBarController.shared.closePopover()
         case "open-settings": openSettings(url)
         case "close-settings": SettingsWindow.shared.window?.close()
+        case "open-history": openHistory(url)
+        case "close-history": HistoryProcess.close()
+        case "export-history": notify_post(exportHistoryNotification)
         case "open-onboarding": OnboardingWindow.shared.show()
         case "capture-status-item": captureStatusItem()
         case "capture-window": captureWindow(url)
@@ -78,6 +99,45 @@ enum DebugCommands {
             return
         }
         MenuBarController.shared.showPopover(tab: tab, allNetworks: query["all"] == "1")
+    }
+
+    /// `open-history?range=year&network=2&date=2026-10-15&app=<app id>&hover=2026-10-18T09:00`
+    /// opens History in a new History process (Month, every network, today unless given) and, for
+    /// captures, expands an app and holds the chart's hover on a time. A History already open is
+    /// replaced.
+    private static func openHistory(_ url: URL) {
+        let query = queryItems(url)
+        guard let range = HistoryRange(rawValue: query["range"] ?? "month") else {
+            NSLog("soroband-debug: unknown history range in %@", url.absoluteString)
+            return
+        }
+        HistoryProcess.open(
+            HistoryOptions(
+                range: range, date: query["date"].flatMap(localDate), network: query["network"].flatMap(Int64.init),
+                current: NetworkMonitor.shared.current?.id, expandedApp: query["app"],
+                hover: query["hover"].flatMap(localDate)),
+            replacing: true)
+    }
+
+    /// `2026-10-15` or `2026-10-15T09:00`, in the local time zone.
+    private static func localDate(_ text: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = text.contains("T") ? "yyyy-MM-dd'T'HH:mm" : "yyyy-MM-dd"
+        return formatter.date(from: text)
+    }
+
+    /// Exports what History shows to `historyCSVFile`, as its Export button does to the file the
+    /// user picks. The output path is fixed for the same reason as `statusItemFile`'s.
+    private static func exportHistory() {
+        guard let query = HistoryWindow.shared.model?.query else {
+            NSLog("soroband-debug: export-history needs the History window open")
+            return
+        }
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try? FileManager.default.removeItem(at: historyCSVFile)
+        let rows = Core.exportCSV(query, to: historyCSVFile)
+        NSLog("soroband-debug: exported %d rows to %@", rows ?? -1, historyCSVFile.path)
     }
 
     /// `open-settings?tab=networks` opens Settings on a tab (`general` unless given).
@@ -145,12 +205,15 @@ enum DebugCommands {
     }
 
     static func writeState() {
-        let state = DebugState.current()
+        write(DebugState.current(), to: stateFile)
+    }
+
+    private static func write(_ state: some Encodable, to file: URL) {
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            try encoder.encode(state).write(to: stateFile, options: .atomic)
+            try encoder.encode(state).write(to: file, options: .atomic)
         } catch {
             NSLog("soroband-debug: cannot write state: %@", String(describing: error))
         }
@@ -231,6 +294,8 @@ struct DebugState: Encodable {
     let popoverShown: Bool
     /// The open Settings tab; nil while Settings is closed.
     let settingsTab: String?
+    /// The History process, while it runs (`soroband debug history --json` asks it).
+    let historyProcess: Int32?
     let launchAtLogin: LaunchAtLoginState
     let location: String
     let engine: Engine
@@ -254,6 +319,7 @@ struct DebugState: Encodable {
                 text: MenuBarController.shared.display?.text),
             popoverShown: MenuBarController.shared.isPopoverShown,
             settingsTab: SettingsWindow.shared.window == nil ? nil : SettingsWindow.shared.tab.rawValue,
+            historyProcess: HistoryProcess.processIdentifier,
             launchAtLogin: LaunchAtLoginState(
                 isOn: LaunchAtLogin.shared.state.isOn, note: LaunchAtLogin.shared.state.note),
             location: LocationAccess.shared.statusName,
@@ -276,17 +342,63 @@ struct DebugState: Encodable {
                 allInterfaces: Bytes(engine.todayInterfaces),
                 speed: Bytes(engine.speed)),
             dataDirectory: Core.dataDirectory.path,
-            windows: NSApp.windows.map { window in
-                let frame = window.frame
-                return Window(
-                    number: window.windowNumber,
-                    kind: String(describing: type(of: window)),
-                    title: window.title,
-                    visible: window.isVisible,
-                    rect: Rect(
-                        x: frame.minX, y: mainDisplayHeight - frame.maxY,
-                        width: frame.width, height: frame.height))
-            })
+            windows: windows())
+    }
+
+    /// Every window of this process, in `screencapture -R` coordinates.
+    @MainActor
+    static func windows() -> [Window] {
+        let mainDisplayHeight = NSScreen.screens.first?.frame.maxY ?? 0
+        return NSApp.windows.map { window in
+            let frame = window.frame
+            return Window(
+                number: window.windowNumber,
+                kind: String(describing: type(of: window)),
+                title: window.title,
+                visible: window.isVisible,
+                rect: Rect(
+                    x: frame.minX, y: mainDisplayHeight - frame.maxY,
+                    width: frame.width, height: frame.height))
+        }
+    }
+}
+
+/// What the History process shows, as printed by `soroband debug history --json`.
+struct HistoryState: Encodable {
+    let pid: Int32
+    let range: String
+    /// nil for every network.
+    let network: Int64?
+    /// ISO 8601, local time zone.
+    let start: String
+    let end: String
+    let step: String
+    let total: DebugState.Bytes
+    /// Bars with bytes, and apps listed.
+    let bars: Int
+    let apps: Int
+    let expandedApp: String?
+    /// From the click in the menu bar app to a drawn window with its data.
+    let openMilliseconds: Double?
+    let windows: [DebugState.Window]
+
+    @MainActor
+    static func current() -> HistoryState {
+        let model = HistoryWindow.shared.model
+        let iso = Date.ISO8601FormatStyle(timeZone: .current)
+        return HistoryState(
+            pid: ProcessInfo.processInfo.processIdentifier,
+            range: model?.range.rawValue ?? "",
+            network: model?.network,
+            start: model.map { iso.format($0.content.interval.start) } ?? "",
+            end: model.map { iso.format($0.content.interval.end) } ?? "",
+            step: model?.query.step.rawValue ?? "",
+            total: DebugState.Bytes(model?.content.total ?? .zero),
+            bars: Set(model?.content.bars.map(\.start) ?? []).count,
+            apps: model?.content.apps.count ?? 0,
+            expandedApp: model?.expandedApp,
+            openMilliseconds: HistoryWindow.shared.openDuration.map { $0 * 1000 },
+            windows: DebugState.windows())
     }
 }
 #endif

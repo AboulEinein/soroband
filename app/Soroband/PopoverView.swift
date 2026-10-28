@@ -12,6 +12,7 @@ struct PopoverView: View {
     let content: PopoverContent
     @Binding var tab: Tab
     @Binding var allNetworks: Bool
+    var openHistory: () -> Void = {}
     var openSettings: () -> Void = {}
     var quit: () -> Void = {}
 
@@ -103,7 +104,7 @@ struct PopoverView: View {
                     "Bytes that crossed the network but no app's connections carry: packet headers, acknowledgements and system traffic."
                 )
             if content.hiddenApps > 0 {
-                Text("+ \(content.hiddenApps) more \(content.hiddenApps == 1 ? "app" : "apps")")
+                Text("+ \(content.hiddenApps) more in History")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -147,6 +148,7 @@ struct PopoverView: View {
                     .font(.caption.weight(.semibold)).monospacedDigit()
             }
             Spacer()
+            Button("History…", action: openHistory)
             Button(action: openSettings) { Image(systemName: "gearshape") }
                 .help("Settings")
             Button(action: quit) { Image(systemName: "power") }
@@ -255,7 +257,7 @@ struct SegmentedBar: View {
     }
 }
 
-private struct RowIcon: View {
+struct RowIcon: View {
     let icon: PopoverContent.Icon
 
     var body: some View {

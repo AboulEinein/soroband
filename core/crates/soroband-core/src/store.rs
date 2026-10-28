@@ -6,6 +6,8 @@
 //!   identified it by (Wi‑Fi name, gateway MAC), and a name and kind the user can change.
 //! - `apps`: one row per app identity ([`App::id`]) with its display name.
 //! - `usage`: internet bytes per (hour, network, app), summed from the meter.
+//! - `usage_day`: the same bytes per (UTC day, network, app), written with `usage`, so a long
+//!   History range reads one row per day instead of 24 ([`crate::history`]).
 //! - `interface_usage`: bytes that crossed the interfaces per (hour, network), for the
 //!   reconciliation and for Macs whose engine runs on interface totals only.
 //!
@@ -24,7 +26,7 @@ use std::path::Path;
 pub use rusqlite::Error;
 pub type Result<T> = rusqlite::Result<T>;
 
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 const SCHEMA: &str = "
     CREATE TABLE networks (
         id INTEGER PRIMARY KEY,
@@ -45,6 +47,14 @@ const SCHEMA: &str = "
         tx INTEGER NOT NULL,
         PRIMARY KEY (hour, network, app)
     ) WITHOUT ROWID;
+    CREATE TABLE usage_day (
+        day INTEGER NOT NULL,
+        network INTEGER NOT NULL,
+        app INTEGER NOT NULL,
+        rx INTEGER NOT NULL,
+        tx INTEGER NOT NULL,
+        PRIMARY KEY (day, network, app)
+    ) WITHOUT ROWID;
     CREATE TABLE interface_usage (
         hour INTEGER NOT NULL,
         network INTEGER NOT NULL,
@@ -53,6 +63,24 @@ const SCHEMA: &str = "
         PRIMARY KEY (hour, network)
     ) WITHOUT ROWID;
 ";
+
+/// From version 1: adds `usage_day`, summed from the hours already stored.
+const DAY_ROLLUP: &str = "
+    CREATE TABLE usage_day (
+        day INTEGER NOT NULL,
+        network INTEGER NOT NULL,
+        app INTEGER NOT NULL,
+        rx INTEGER NOT NULL,
+        tx INTEGER NOT NULL,
+        PRIMARY KEY (day, network, app)
+    ) WITHOUT ROWID;
+    INSERT INTO usage_day (day, network, app, rx, tx)
+        SELECT hour - hour % 86400, network, app, SUM(rx), SUM(tx) FROM usage
+        GROUP BY hour - hour % 86400, network, app;
+";
+
+/// Seconds in a UTC day, the unit of `usage_day`.
+pub const DAY: i64 = 86_400;
 
 /// What kind of network it is. The app picks one when it first sees a network; the user can
 /// change it.
@@ -141,6 +169,11 @@ impl Store {
                     "BEGIN; {SCHEMA} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
                 ))?;
             }
+            1 => {
+                conn.execute_batch(&format!(
+                    "BEGIN; {DAY_ROLLUP} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
+                ))?;
+            }
             SCHEMA_VERSION => {}
             _ => return Err(newer_schema(version)),
         }
@@ -158,7 +191,10 @@ impl Store {
         )?;
         conn.busy_timeout(std::time::Duration::from_secs(2))?;
         let version: i64 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
-        if version != SCHEMA_VERSION {
+        if version < SCHEMA_VERSION {
+            return Err(older_schema(version));
+        }
+        if version > SCHEMA_VERSION {
             return Err(newer_schema(version));
         }
         Ok(Self {
@@ -224,6 +260,11 @@ impl Store {
                  ON CONFLICT (hour, network, app) DO UPDATE
                  SET rx = rx + excluded.rx, tx = tx + excluded.tx",
             )?;
+            let mut day_row = tx.prepare(
+                "INSERT INTO usage_day (day, network, app, rx, tx) VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT (day, network, app) DO UPDATE
+                 SET rx = rx + excluded.rx, tx = tx + excluded.tx",
+            )?;
             for row in apps {
                 let app = if let Some(&id) = self.app_ids.get(&row.app.id) {
                     id
@@ -235,6 +276,13 @@ impl Store {
                 };
                 usage_row.execute(params![
                     row.hour,
+                    row.network,
+                    app,
+                    sql_bytes(row.bytes.rx),
+                    sql_bytes(row.bytes.tx)
+                ])?;
+                day_row.execute(params![
+                    row.hour.div_euclid(DAY) * DAY,
                     row.network,
                     app,
                     sql_bytes(row.bytes.rx),
@@ -342,6 +390,10 @@ impl Store {
             .collect()
     }
 
+    pub(crate) fn connection(&self) -> &Connection {
+        &self.conn
+    }
+
     /// The last hour each network carried bytes, by network id.
     pub fn last_used(&self) -> Result<BTreeMap<i64, i64>> {
         let mut statement = self
@@ -358,6 +410,15 @@ fn newer_schema(version: i64) -> Error {
         rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_MISMATCH),
         Some(format!(
             "the database has schema version {version}; this Soroband reads version {SCHEMA_VERSION}"
+        )),
+    )
+}
+
+fn older_schema(version: i64) -> Error {
+    Error::SqliteFailure(
+        rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_MISMATCH),
+        Some(format!(
+            "the database has schema version {version}; open the Soroband app once to update it to version {SCHEMA_VERSION}"
         )),
     )
 }
@@ -605,10 +666,10 @@ mod tests {
         let path = temp_db("newer");
         drop(Store::open(&path).unwrap());
         let conn = rusqlite::Connection::open(&path).unwrap();
-        conn.pragma_update(None, "user_version", 2).unwrap();
+        conn.pragma_update(None, "user_version", 3).unwrap();
         drop(conn);
         let error = Store::open(&path).unwrap_err().to_string();
-        assert!(error.contains("schema version 2"), "{error}");
+        assert!(error.contains("schema version 3"), "{error}");
         assert!(Store::open_read_only(&path).is_err());
     }
 
@@ -667,5 +728,55 @@ mod tests {
         assert_eq!(last.get(&1), Some(&10_800));
         assert_eq!(last.get(&2), Some(&7200));
         assert_eq!(last.get(&3), None, "never used");
+    }
+
+    #[test]
+    fn a_version_1_database_gains_its_daily_sums() {
+        let path = temp_db("migrate");
+        {
+            // Version 1: everything but `usage_day`.
+            let conn = rusqlite::Connection::open(&path).unwrap();
+            let v1: String = super::SCHEMA
+                .split("CREATE TABLE")
+                .filter(|t| !t.trim_start().starts_with("usage_day"))
+                .collect::<Vec<_>>()
+                .join("CREATE TABLE");
+            conn.execute_batch(&format!("{v1} PRAGMA user_version = 1;"))
+                .unwrap();
+            conn.execute_batch(
+                "INSERT INTO apps (id, key, name) VALUES (1, '/Applications/Mail.app', 'Mail');
+                 INSERT INTO usage VALUES (3600, 1, 1, 10, 1), (7200, 1, 1, 20, 2),
+                                          (90000, 1, 1, 5, 0), (3600, 2, 1, 7, 7);",
+            )
+            .unwrap();
+        }
+        assert!(
+            Store::open_read_only(&path)
+                .unwrap_err()
+                .to_string()
+                .contains("open the Soroband app once"),
+            "the command waits for the app to update it"
+        );
+        let mut store = Store::open(&path).unwrap();
+        let days = |store: &Store| -> Vec<(i64, i64, i64, i64)> {
+            let mut statement = store
+                .conn
+                .prepare("SELECT day, network, rx, tx FROM usage_day ORDER BY day, network")
+                .unwrap();
+            statement
+                .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))
+                .unwrap()
+                .collect::<rusqlite::Result<_>>()
+                .unwrap()
+        };
+        // 1 January 1970: 30 + 3 on network 1, 7 + 7 on network 2; 2 January: 5.
+        assert_eq!(
+            days(&store),
+            [(0, 1, 30, 3), (0, 2, 7, 7), (86_400, 1, 5, 0)]
+        );
+        // New hours add to their day.
+        store.add(&[usage(10_800, 1, "Mail", 100, 0)], &[]).unwrap();
+        assert_eq!(days(&store)[0], (0, 1, 130, 3));
+        assert!(Store::open_read_only(&path).is_ok());
     }
 }

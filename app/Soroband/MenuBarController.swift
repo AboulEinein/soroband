@@ -80,9 +80,17 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     func showPopover(tab: PopoverView.Tab = .apps, allNetworks: Bool = false) {
         guard !popover.isShown, let button = item?.button else { return }
         Usage.shared.isLive = true
+        HistoryProcess.prepare()
         popover.contentViewController = NSHostingController(
             rootView: LivePopover(
                 tab: tab, allNetworks: allNetworks,
+                openHistory: { [weak self] network in
+                    // Before the close, which dismisses an unused standby process.
+                    HistoryProcess.open(
+                        HistoryOptions(
+                            range: .month, network: network, current: NetworkMonitor.shared.current?.id))
+                    self?.popover.performClose(nil)
+                },
                 openSettings: { [weak self] in
                     self?.popover.performClose(nil)
                     SettingsWindow.shared.show()
@@ -108,6 +116,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         popover.contentViewController = nil
         AppIcons.clear()
         Usage.shared.isLive = false
+        HistoryProcess.dismissStandby()
     }
 
     /// The status item's view, for `soroband-debug://capture-status-item`.
@@ -120,6 +129,8 @@ private struct LivePopover: View {
     var monitor = NetworkMonitor.shared
     @State var tab: PopoverView.Tab
     @State var allNetworks: Bool
+    /// Opens History on this month, on `network` or on every network when nil.
+    let openHistory: (_ network: Int64?) -> Void
     let openSettings: () -> Void
     let quit: () -> Void
 
@@ -128,7 +139,9 @@ private struct LivePopover: View {
             content: PopoverContent.make(
                 status: usage.status, today: usage.today, registry: usage.registry,
                 current: monitor.current, connectedSince: monitor.connectedSince, allNetworks: allNetworks),
-            tab: $tab, allNetworks: $allNetworks, openSettings: openSettings, quit: quit
+            tab: $tab, allNetworks: $allNetworks,
+            openHistory: { openHistory(allNetworks || tab == .networks ? nil : monitor.current?.id) },
+            openSettings: openSettings, quit: quit
         )
         .onChange(of: monitor.current) { usage.reloadRegistry() }
     }
