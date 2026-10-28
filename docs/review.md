@@ -38,17 +38,19 @@ Resolve each earlier blind-review thread you confirm as handled; reply on any yo
 
 ## CodeRabbit
 
-CodeRabbit reviews each pull request, whatever its base, once the blind loop has ended. It reads `.coderabbit.yaml` from the pull request's head branch, so a branch made before that file existed gets no review until it has it. The `CodeRabbit` check is required to merge into `main`, but it passes when a review is done, whatever the review found, and GitHub also lets a skipped check through; this flow is what makes sure the review happens. The `main` ruleset requires every review thread to be resolved, so no finding with a thread is left unanswered.
+CodeRabbit reviews each pull request, whatever its base, once the blind loop has ended. It reads `.coderabbit.yaml` from the pull request's head branch, so a branch made before that file existed, with a base other than `main`, gets no review until it has it. The `CodeRabbit` check is required to merge into `main`, but it passes when a review is done, whatever the review found, and GitHub also lets a skipped check through; this flow is what makes sure the review happens. The `main` ruleset requires every review thread to be resolved, so no finding with a thread is left unanswered.
 
 1. **Mark the pull request ready:** `gh pr ready <number>`. CodeRabbit starts a full review.
-2. **Wait for the review to pass.** The `CodeRabbit` check left on the draft reads `SKIPPED`, which `gh pr checks --watch` counts as done, so poll until it reads `SUCCESS`, for at most 30 minutes. A review takes about 10 minutes, so run the loop in the background (in Claude Code, `run_in_background`) and wait for it to exit:
+2. **Wait for the review to pass.** `gh pr checks` reports the checks of the pull request's latest commit. The `CodeRabbit` check left on the draft reads `SKIPPED`, which `gh pr checks --watch` counts as done, so poll until it reads `SUCCESS`, for at most 30 minutes. If it still reads `SKIPPED`, or is missing, after 2 minutes, the loop asks CodeRabbit once with `@coderabbitai review`. A review takes about 10 minutes, so run the loop in the background (in Claude Code, `run_in_background`) and wait for it to exit:
    ```zsh
    for i in {1..60}; do
-     [[ $(gh pr checks <number> --json name,state --jq '.[] | select(.name == "CodeRabbit") | .state') == SUCCESS ]] && exit 0
+     state=$(gh pr checks <number> --json name,state --jq '.[] | select(.name == "CodeRabbit") | .state')
+     [[ $state == SUCCESS ]] && exit 0
+     (( i == 4 )) && [[ -z $state || $state == SKIPPED ]] && gh pr comment <number> --body '@coderabbitai review'
      sleep 30
    done; exit 1
    ```
-   If it still reads `SKIPPED` after 2 minutes, post `@coderabbitai review` on the pull request once. If it never reads `SUCCESS`, read CodeRabbit's latest comment on the pull request. Unless it says how to go on (a rate limit to wait out, a command to post), stop as `blocked (review: CodeRabbit did not review)`.
+   If it exits 1, read CodeRabbit's latest comment on the pull request. Unless it says how to go on (a rate limit to wait out, a command to post), stop as `blocked (review: CodeRabbit did not review)`.
 3. **Judge every finding:**
    - **Valid:** fix it, and reply on its thread naming the commit.
    - **Valid, but left as it is:** only when fixing it would contradict a decision recorded in `design.md`, `plan.md` or the handover, or when it is outside the pull request's scope and becomes a follow-up in the handover. The reply quotes the decision or names the follow-up.
@@ -74,7 +76,7 @@ Read the log for patterns when a milestone ends, before updating the handover, a
 
 The approach is in question, not the last fix, when a fixed finding comes back, when rounds keep turning up problems of the same kind, or when the findings stop shrinking.
 
-1. **Stop fixing.** No further fixes until the way forward is chosen; a round that only reviews fixes already pushed is allowed (step 5).
+1. **Stop fixing.** No further fixes until the way forward is chosen; a round that only reviews fixes already pushed is allowed (step 5 below).
 2. **Get an independent second opinion** unless the root cause is already plain, in which case the retrospective says why none was sought. Spawn an advisor agent, preferably on a different model from the implementer, briefed with the PR, its requirements, and the open findings with links to their review threads, but not the implementer's reasoning. It judges the root cause for itself, may propose a different approach, and may implement it on a local branch in its own worktree. It does not push or comment on the PR. The lead reviews what it returns before adopting any of it.
 3. **Write a retrospective** as a PR comment, and link it from the handover:
    - each open finding and the rounds it appeared in;

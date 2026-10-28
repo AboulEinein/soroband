@@ -234,7 +234,7 @@ The rounds a PR expects, written in its description before round 1; a budget for
 _Avoid_: round cap
 
 **Blind loop**:
-The rounds of blind review a PR gets while it is a draft; CodeRabbit reviews after it ends.
+The blind review rounds of a PR, run while it is a draft and again for fixes that change behavior after CodeRabbit's review. CodeRabbit reviews once it first ends.
 
 **Miss cause**:
 Why the blind loop missed a valid CodeRabbit finding, one of a fixed set in `docs/coderabbit-findings.md`.
