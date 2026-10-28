@@ -69,6 +69,7 @@ The state of the project for whoever picks it up next. Read this file, then the 
 | 2026-10-26 | Rust core (`soroband-core`) linked into a SwiftUI app as one process; the same core powers a `soroband` CLI. |
 | 2026-10-26 | Dynamic Island shows moments only, each switchable; a master switch turns it off for a plain menu bar app. Style is seamless (default) or keep menu bar clear. |
 | 2026-10-26 | Data caps and alerts are deferred past v0.1.0. |
+| 2026-10-28 | The installed app is the user's daily copy and runs beside agents' Debug builds. A Debug build's menu bar icon is orange and VoiceOver calls it "Soroband Debug"; `scripts/install.sh` replaces an installed app only after a yes in a terminal, or with `--replace` when the user asked for the update. |
 | 2026-10-28 | M4's "back under 30 MB after closing" is met by History's own process, which leaves nothing in the menu bar app. The menu bar app's memory after the popover and Settings is M6 (Memory and performance), before the release. |
 | 2026-10-28 | The island is off on a fresh install, so the first run is a plain menu bar app; turned on, its default style is seamless. |
 | 2026-10-28 | M5's round 1 compares the blind reviewer with CodeRabbit on the same commit, the blind report saved outside the repository instead of posted (`plan.md`, M5). |

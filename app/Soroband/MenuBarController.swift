@@ -59,11 +59,9 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         pendingRedraw = nil
         lastRedraw = .now
         drawn = new
-        let image = NSImage(systemSymbolName: display.symbol, accessibilityDescription: nil)
-        image?.isTemplate = true
-        button.image = image
+        button.image = display.image()
         button.title = display.text.map { " \($0)" } ?? ""
-        button.setAccessibilityLabel(display.accessibilityLabel)
+        button.setAccessibilityLabel(display.accessibilityLabel())
     }
 
     @objc func togglePopover() {

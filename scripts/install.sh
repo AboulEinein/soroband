@@ -2,11 +2,13 @@
 # Builds a Release of Soroband for this Mac, signs it, installs Soroband.app into /Applications and
 # the soroband command into ~/.local/bin, and launches the app. Run it again to update.
 #
-# Usage: scripts/install.sh [--adhoc]
+# Usage: scripts/install.sh [--adhoc] [--replace]
 #   By default the app is signed with "Soroband Local Signing", a self-signed certificate this
 #   script creates once in its own keychain. The signature then stays the same across builds,
 #   so macOS keeps the app's Location permission after an update.
 #   --adhoc: sign ad hoc instead; the signature changes with every build.
+#   --replace: replace an installed Soroband without a terminal to confirm in. The installed app
+#   is the user's own copy, so an agent passes this only when the user asked for the update.
 set -euo pipefail
 
 root=${0:A:h:h}
@@ -17,6 +19,23 @@ keychain=$HOME/Library/Keychains/soroband-signing.keychain-db
 keychain_service="Soroband signing keychain"
 
 fail() { print -u2 "install.sh: $1"; exit 1; }
+
+adhoc=0 replace=0
+for arg in "$@"; do
+  case $arg in
+    --adhoc) adhoc=1 ;;
+    --replace) replace=1 ;;
+    *) fail "unknown option $arg; usage: scripts/install.sh [--adhoc] [--replace]" ;;
+  esac
+done
+
+# The installed app is the user's own copy, often running while agents develop in a worktree.
+# Replacing it is confirmed in a terminal, or asked for with --replace.
+if [[ -e $app ]] && (( ! replace )); then
+  [[ -t 0 ]] || fail "$app is already installed, and replacing it quits the running copy. Run this in a terminal to confirm, or pass --replace if the user asked for the update."
+  read -q "?Replace the installed $app (it quits if running)? [y/N] " || { print; fail "nothing was changed."; }
+  print
+fi
 
 # Requirements.
 (( ${$(sw_vers -productVersion)%%.*} >= 14 )) || fail "Soroband needs macOS 14 or later."
@@ -79,7 +98,7 @@ CNF
     fail "could not create the \"$identity\" identity in $keychain"
 }
 
-if [[ ${1:-} == --adhoc ]]; then
+if (( adhoc )); then
   codesign --force --sign - $built
   codesign --force --sign - $cli
 else

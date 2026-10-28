@@ -79,8 +79,30 @@ struct MenuBarDisplay: Equatable {
         return max(0, totalRedrawInterval - now.timeIntervalSince(lastRedraw))
     }
 
+    /// Whether this is a Debug build, which runs beside the installed app.
+    static let isDebugBuild: Bool = {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }()
+
+    /// The icon as the menu bar draws it. A Debug build's icon is orange, so its item is never
+    /// taken for the installed app's.
+    func image(debug: Bool = isDebugBuild) -> NSImage? {
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        guard debug else {
+            image?.isTemplate = true
+            return image
+        }
+        let orange = image?.withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [.systemOrange]))
+        orange?.isTemplate = false
+        return orange
+    }
+
     /// Read by VoiceOver.
-    var accessibilityLabel: String {
-        ["Soroband", text].compactMap { $0 }.joined(separator: ", ")
+    func accessibilityLabel(debug: Bool = isDebugBuild) -> String {
+        [debug ? "Soroband Debug" : "Soroband", text].compactMap { $0 }.joined(separator: ", ")
     }
 }
