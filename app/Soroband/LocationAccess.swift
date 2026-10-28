@@ -54,8 +54,12 @@ final class LocationAccess: NSObject, CLLocationManagerDelegate {
         let status = manager.authorizationStatus
         MainActor.assumeIsolated {
             self.status = status
-            // With the permission the Wi‑Fi name becomes readable.
-            NetworkMonitor.shared.refreshUntilNamed()
+            // With the permission the Wi‑Fi name becomes readable, in a few seconds.
+            if self.isAllowed {
+                NetworkMonitor.shared.refreshUntilNamed()
+            } else {
+                NetworkMonitor.shared.refresh()
+            }
         }
     }
 }

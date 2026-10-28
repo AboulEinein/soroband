@@ -55,7 +55,7 @@ struct SettingsView: View {
                 .tag(Tab.general)
             NetworkSettings(
                 networks: usage.registry, location: LocationAccess.shared.status,
-                requestLocation: { LocationAccess.shared.request() },
+                allowLocation: { LocationAccess.shared.allow() },
                 save: { usage.updateNetwork(id: $0, name: $1, kind: $2) }
             )
             .tabItem { Label("Networks", systemImage: "wifi") }
@@ -127,7 +127,7 @@ struct GeneralSettings: View {
 struct NetworkSettings: View {
     let networks: [RegisteredNetwork]
     let location: CLAuthorizationStatus
-    let requestLocation: () -> Void
+    let allowLocation: () -> Void
     let save: (_ id: Int64, _ name: String, _ kind: NetworkKind) -> Void
 
     var body: some View {
@@ -146,7 +146,7 @@ struct NetworkSettings: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section {
-                LocationRow(status: location, request: requestLocation)
+                LocationRow(status: location, allow: allowLocation)
             }
         }
         .formStyle(.grouped)
@@ -183,21 +183,18 @@ private struct NetworkEditor: View {
 /// The Location permission, which names Wi‑Fi networks.
 struct LocationRow: View {
     let status: CLAuthorizationStatus
-    let request: () -> Void
+    /// `LocationAccess.allow`: asks macOS, or opens System Settings once the user has answered.
+    let allow: () -> Void
 
     var body: some View {
         LabeledContent {
             switch status {
             case .notDetermined:
-                Button("Allow Location Access…", action: request)
+                Button("Allow Location Access…", action: allow)
             case .authorizedAlways, .authorizedWhenInUse:
                 Text("Allowed").foregroundStyle(.secondary)
             default:
-                Button("Open Location Settings…") {
-                    NSWorkspace.shared.open(
-                        URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices")!
-                    )
-                }
+                Button("Open Location Settings…", action: allow)
             }
         } label: {
             Text("Wi‑Fi names")

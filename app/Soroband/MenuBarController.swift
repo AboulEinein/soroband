@@ -146,5 +146,9 @@ private struct LivePopover: View {
             openSettings: openSettings, quit: quit
         )
         .onChange(of: monitor.current) { usage.reloadRegistry() }
+        .onAppear {
+            // macOS may reveal the Wi‑Fi name later than `refreshUntilNamed` looked for it.
+            if location.isAllowed, monitor.current?.key.hasPrefix("wifi-router:") == true { monitor.refresh() }
+        }
     }
 }
