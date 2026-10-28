@@ -1,4 +1,5 @@
 import Testing
+
 @testable import Soroband
 
 struct NetworkIdentityTests {
@@ -66,7 +67,8 @@ struct NetworkIdentityTests {
 
     @Test func networksThatNeedNoRouterNeverWait() throws {
         #expect(try network(wifi(ssid: "Home", router: nil)).key == "wifi:Home")
-        let cellular = NetworkObservation(medium: .cellular, interface: "pdp_ip0", isExpensive: true, ssid: nil, router: nil)
+        let cellular = NetworkObservation(
+            medium: .cellular, interface: "pdp_ip0", isExpensive: true, ssid: nil, router: nil)
         #expect(try network(cellular).kind == .hotspot)
     }
 
