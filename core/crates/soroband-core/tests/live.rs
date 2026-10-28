@@ -46,3 +46,55 @@ fn engine_tracks_this_macs_flows() {
         );
     }
 }
+
+#[test]
+fn waker_cuts_the_wait_for_the_next_poll_short() {
+    let mut engine = Engine::start(SystemHost::connect().unwrap()).expect("start");
+    let waker = engine.host_mut().waker().expect("waker");
+    let started = std::time::Instant::now();
+    let thread = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(200));
+        waker.wake();
+    });
+    // Without the wakeup this tick would wait 30 s before polling.
+    engine.tick(Duration::from_secs(30)).expect("tick");
+    thread.join().unwrap();
+    assert!(
+        started.elapsed() < Duration::from_secs(5),
+        "the tick took {:?}",
+        started.elapsed()
+    );
+}
+
+#[test]
+fn wakeup_waits_while_the_engine_is_not_between_polls() {
+    // No subscription, so the socket stays silent and only the deadline or a wakeup ends `recv`.
+    let mut host = SystemHost::connect().unwrap();
+    let waker = host.waker().unwrap();
+    let mut buf = vec![0; 1024];
+    waker.wake();
+    // During a poll's reply the wakeup must not end the wait.
+    let started = std::time::Instant::now();
+    let got = host
+        .recv(&mut buf, started + Duration::from_millis(500))
+        .unwrap();
+    assert_eq!(got, None);
+    assert!(
+        started.elapsed() >= Duration::from_millis(450),
+        "{:?}",
+        started.elapsed()
+    );
+    // Between polls the waiting wakeup ends the wait at once.
+    host.set_wakeable(true);
+    let started = std::time::Instant::now();
+    assert_eq!(
+        host.recv(&mut buf, started + Duration::from_secs(5))
+            .unwrap(),
+        None
+    );
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "{:?}",
+        started.elapsed()
+    );
+}

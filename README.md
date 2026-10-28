@@ -53,7 +53,7 @@ Everything in Settings is also available from the terminal, so you or an agent c
 
 ```sh
 soroband config list                     # every setting with its value and description
-soroband config set island.enabled true
+soroband config set reset_hour 4         # the daily counter starts at 04:00
 soroband today --json                    # usage queries print JSON for scripts and agents
 ```
 

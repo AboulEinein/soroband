@@ -9,7 +9,7 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | P0 | Research and prototypes | 0 | done | – |
 | M0 | Repository foundation | 1 | blocked (hand checklist: Location across a rebuild, menu bar item on screen) | [#3](https://github.com/AboulEinein/soroband/pull/3) |
 | M1 | Meter engine | 1 | in review | [#4](https://github.com/AboulEinein/soroband/pull/4) |
-| M2 | Network identity and storage | 1 | planned | – |
+| M2 | Network identity and storage | 1 | in review | [#5](https://github.com/AboulEinein/soroband/pull/5) |
 | M3 | Menu bar and popover (first dogfood build) | 1 | planned | – |
 | M4 | History window | 2 | planned | – |
 | M5 | Dynamic Island moments | 2 | planned | – |

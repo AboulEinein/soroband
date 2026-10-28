@@ -19,11 +19,26 @@ struct SorobandApp: App {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var terminateSignal: DispatchSourceSignal?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        Core.startEngine()
+        if !Core.startEngine() {
+            NSLog("Soroband: the usage database in %@ cannot be opened; nothing is recorded", Core.dataDirectory.path)
+        }
+        NetworkMonitor.shared.start()
+        SettingsListener.start()
+        // `kill` quits like the Quit item, so the last minute of usage is written.
+        signal(SIGTERM, SIG_IGN)
+        terminateSignal = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        terminateSignal?.setEventHandler { NSApp.terminate(nil) }
+        terminateSignal?.resume()
         #if DEBUG
         DebugCommands.start()
         #endif
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        Core.stopEngine()
     }
 
     #if DEBUG

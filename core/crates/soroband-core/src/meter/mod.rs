@@ -15,7 +15,7 @@ pub mod record;
 mod socket;
 
 pub use process::App;
-pub use socket::SystemHost;
+pub use socket::{SystemHost, Waker};
 
 use interfaces::{InterfaceCounter, InterfaceTotals};
 use ntstat::{Message, UpdateError};
@@ -64,6 +64,10 @@ pub trait Host {
     fn recv(&mut self, buf: &mut [u8], deadline: Instant) -> io::Result<Option<usize>>;
     fn executable_path(&mut self, pid: u32) -> Option<String>;
     fn interface_counters(&mut self) -> io::Result<Vec<InterfaceCounter>>;
+    /// Whether a wakeup may cut `recv` short ([`SystemHost::waker`]). [`Engine::tick`] allows it
+    /// only while it waits between polls, so a wakeup never ends a poll's reply early. Hosts
+    /// without wakeups ignore it.
+    fn set_wakeable(&mut self, _wakeable: bool) {}
 }
 
 /// How long the engine waits for the subscriptions' first updates, and for a poll's reply.
@@ -251,7 +255,10 @@ impl<H: Host> Engine<H> {
     /// Receives for `interval` (closed flows send their final update unasked), then polls every
     /// flow, books what moved and reads the interface counters.
     pub fn tick(&mut self, interval: Duration) -> io::Result<()> {
-        self.receive(None, interval)?;
+        self.host.set_wakeable(true);
+        let waited = self.receive(None, interval);
+        self.host.set_wakeable(false);
+        waited?;
         // An incomplete poll loses nothing: every flow already has its baseline, and the next
         // poll books what this one missed.
         self.poll()?;

@@ -25,11 +25,12 @@ Hotspot Meter keeps a record per network, can start tracking on its own when a h
 
 ## How it works
 
-1. **Network identity.** `NWPathMonitor` reports interface changes and `isExpensive` (set for iPhone Personal Hotspot). Wi‑Fi name from CoreWLAN `CWWiFiClient` (needs Location permission). Ethernet identified by gateway MAC so "Desk Dock" and "Office LAN" stay separate. Hotspot = expensive path, or a Wi‑Fi/USB interface the user marks as hotspot. Users can rename any network and fix its type. All event-driven: nothing polls while the network is stable.
+1. **Network identity.** `NWPathMonitor` reports interface changes and `isExpensive` (set for iPhone Personal Hotspot); the first physical interface of the path (Wi‑Fi, wired, cellular) carries the traffic, after any VPN tunnel. Wi‑Fi is known by its name from CoreWLAN `CWWiFiClient` (needs Location permission), or by its router's hardware address while the name is hidden. Ethernet is known by the router's hardware address, so "Desk Dock" and "Office LAN" stay separate. Until the router of such a network is resolved, its usage is booked to no network ("Unknown network", id 0) rather than to a key two networks would share; the app looks again every second, then every 30 s, until the path changes. The router's address comes from the IPv4 state macOS publishes per network service (`ARPResolvedHardwareAddress` under `State:/Network/Service/<id>/IPv4` in the System Configuration dynamic store): the kernel's ARP table is hidden from apps outside the system on macOS 27. Hotspot = expensive path, or a network the user marks as hotspot. The registry lives in the core's database: each network has a stable id, the key it was identified by, and a name and kind the user can change; a known network keeps its edits. Event-driven: nothing polls while an identified network is stable; only a network still waiting for its router (one without IPv4, for example) is looked at again every 30 s.
 2. **Per-app counting: our own meter engine.** A small Rust core talks straight to the kernel's network statistics control socket (`com.apple.network.statistics`, protocol in XNU's open source `bsd/net/ntstat.h`). No `nettop`, no private framework. See "Meter engine" below.
 3. **Ground truth.** The interface MIB's 64-bit byte counters (`net.link.generic`, `IFDATA_GENERAL`) give the true total per network. `getifaddrs` and the routing socket's `NET_RT_IFLIST2` are not usable: on macOS 27 an unprivileged process gets counters wrapped to 32 bits and rounded to whole kilobytes. Any gap between that and the app sum shows as "Other", so totals always match what the network saw.
-4. **Storage.** SQLite (system `libsqlite3`, no ORM), WAL mode. One row per (hour, network, app) with bytes down/up, primary key on those three columns. Kept forever: a year of heavy use is a few MB.
-5. **Daily reset.** The menu bar counter covers "today" from a configurable reset hour (default midnight). Nothing is deleted at reset.
+4. **Storage.** SQLite (system `libsqlite3`, no ORM), WAL mode, `usage.sqlite` in `~/Library/Application Support/Soroband` (Debug builds: `Soroband Debug`). One row per (hour, network, app) with bytes down/up, primary key on those three columns, app names in their own table; interface bytes per (hour, network) for the reconciliation and for Macs on interface totals only. Hours are UTC hour starts. Each poll's new bytes go to the hour the poll ran in, on the network current then; the in-memory bucket is written once a minute, on a network change, at the start of a new day and on quit. Kept forever. Measured with `cargo run --release --example db-growth`: 29–32 bytes a row, 27.9 KB a day (10.2 MB a year) with 40 apps an hour on 2 networks, 11.6 KB a day (4.2 MB a year) with 15 apps an hour on one.
+5. **Daily reset.** The menu bar counter covers "today" from a configurable reset hour (default midnight, local time). Nothing is deleted at reset. Today's start is rounded down to a whole UTC hour so it falls on a bucket boundary; in a time zone with a half-hour offset, today starts 30 minutes before the reset hour.
+6. **Settings.** The core owns one schema (key, type, default, description) and stores values in `settings.json` next to the database. `soroband config set` validates and saves a value, then posts the Darwin notification `<bundle id>.settings-changed`; the app tells the core to reread the file, so changes apply without a restart.
 
 ## Meter engine
 
@@ -63,7 +64,7 @@ Risks and how the design handles them:
 - **Idle-flow baseline.** The kernel can skip unchanged flows (`NOZERODELTAS`, `SUPPRESS_BORING_POLL`), but then a flow idle at startup later reports its whole lifetime. Seen in the probe: one Chrome connection added 22.7 MB that never crossed the interface. The engine polls every flow; at ~150 flows this costs 0.058% CPU.
 - **Domains.** The kernel has a per-flow domain extension, but it returned nothing to an unprivileged client. Per-domain usage is out unless we add DNS correlation later.
 
-Shape: Rust crate `soroband-core` (socket client, aggregation, SQLite) exposed through a small C API to the SwiftUI app, in one process. The same crate gives a `soroband` CLI (`soroband today`, `soroband apps --network Office`, `soroband config`), installed next to the app.
+Shape: Rust crate `soroband-core` (socket client, aggregation, SQLite, settings) exposed through a small C API to the SwiftUI app, in one process. A network change from the app wakes the engine thread through a pipe, so it polls at once and books what moved so far to the previous network before switching. The same crate gives a `soroband` CLI (`soroband today`, `soroband apps --network Office`, `soroband config`), installed next to the app.
 
 ## Performance budget
 
@@ -82,7 +83,7 @@ How the app stays inside the budget:
 - **Menu bar label:** redraws only when the displayed string changes; at most every 5 s.
 - **Popover:** reads today's in-memory aggregates, never SQLite. While it is open the query interval drops to 1 s for live speed, and returns to 5 s when it closes.
 - **History window:** created on open and released on close. Queries aggregate in SQL (`GROUP BY` on the indexed columns), returning at most a few hundred rows per chart. No raw rows load into memory.
-- **Dependencies:** Apple frameworks in the app; `libc` and `rusqlite` (system SQLite) in the engine.
+- **Dependencies:** Apple frameworks in the app; `libc`, `rusqlite` (system SQLite) and `serde_json` (the settings file) in the core.
 - **App icons:** loaded lazily, small size only, cached by bundle ID.
 
 The spike does none of this (it holds 60 days of fake rows in memory and rescans them every second), which is why it measures 71 MB. It is for the look, not the footprint.

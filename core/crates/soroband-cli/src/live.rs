@@ -1,5 +1,6 @@
 //! `soroband live`: internet bytes per app since the command started, printed every interval.
 
+use crate::text::{printable, size};
 use soroband_core::meter::record::Recorder;
 use soroband_core::meter::{Bytes, Engine, Host, Mode, Snapshot, SystemHost};
 use std::fmt::Write as _;
@@ -129,24 +130,6 @@ fn table(s: &Snapshot, elapsed: Duration) -> String {
     text
 }
 
-/// `name` with control characters replaced, so a process name cannot drive the terminal.
-fn printable(name: &str) -> String {
-    name.chars()
-        .map(|c| if c.is_control() { '\u{FFFD}' } else { c })
-        .collect()
-}
-
-fn size(bytes: u64) -> String {
-    #[allow(clippy::cast_precision_loss)]
-    let b = bytes as f64;
-    match bytes {
-        0..1_000 => format!("{bytes} B"),
-        1_000..1_000_000 => format!("{:.1} KB", b / 1e3),
-        1_000_000..1_000_000_000 => format!("{:.2} MB", b / 1e6),
-        _ => format!("{:.2} GB", b / 1e9),
-    }
-}
-
 /// One line: `{"elapsed": s, "mode": "per_app" | "interface_only", "reason"?, "apps": [{"id",
 /// "name", "rx", "tx", "rx_duplicate"}], "total", "interfaces", "local": {"rx", "tx"}, "flows"}`.
 fn json(s: &Snapshot, elapsed: Duration) -> String {
@@ -253,14 +236,6 @@ mod tests {
         };
         let line = json(&snapshot, Duration::from_secs(5));
         assert!(line.contains(r#""mode":"interface_only","reason":"TCP descriptor of 344 bytes is not known for macOS 26""#), "{line}");
-    }
-
-    #[test]
-    fn table_replaces_control_characters_in_names() {
-        assert_eq!(
-            printable("evil\u{1b}]0;title\u{7}\u{9b}2J"),
-            "evil\u{FFFD}]0;title\u{FFFD}\u{FFFD}2J"
-        );
     }
 
     #[test]
