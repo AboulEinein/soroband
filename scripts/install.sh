@@ -29,6 +29,14 @@ for arg in "$@"; do
   esac
 done
 
+# One install at a time, held until the script exits: two runs started while no app is installed
+# would both pass the check below, and the second would replace the first's install unasked.
+zmodload zsh/system
+mkdir -p $HOME/Library/Caches
+lock=$HOME/Library/Caches/soroband-install.lock
+: >> $lock
+zsystem flock -t 0 $lock || fail "another scripts/install.sh is running; wait for it to finish."
+
 # The installed app is the user's own copy, often running while agents develop in a worktree.
 # Replacing it is confirmed in a terminal, or asked for with --replace.
 if [[ -e $app ]] && (( ! replace )); then

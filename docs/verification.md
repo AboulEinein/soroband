@@ -34,7 +34,7 @@ An agent drives and observes the real app without a mouse. The pieces below are 
 | `scripts/verify/networks.sh` | With the Debug app running, switches it to a simulated Wi‑Fi network and a simulated hotspot with a known `curl` download on each, and checks with `soroband apps --network` that each network holds its own download. |
 | `scripts/verify/traffic.sh` | Downloads a known size (20 MB from `speed.cloudflare.com`) and checks the attribution in `soroband live --json` or `soroband today --json`. |
 | `scripts/verify/budget.sh <minutes>` | Samples the running app's CPU (`ps`) and memory footprint (`footprint`); exits non-zero over budget. |
-| `scripts/verify/install-guard.sh` | Runs a copy of `scripts/install.sh` against a fake installed app and checks it stops before building unless it gets `--replace` or a yes in a terminal. Runs in CI. |
+| `scripts/verify/install-guard.sh` | Runs a copy of `scripts/install.sh` against a fake installed app and checks it stops before building with no terminal, with a no typed in a terminal (through `script`), and while another install holds the lock, and goes on with a yes or `--replace`. Runs in CI. |
 
 ## What needs a person
 
