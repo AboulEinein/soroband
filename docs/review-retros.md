@@ -5,7 +5,7 @@ One entry per pull request. Which rows it gets and when each part is committed i
 Each entry has:
 - **A heading:** the pull request, its title and the date it opened.
 - **Planned rounds** and what ran: blind rounds, direct reviews, CodeRabbit reviews.
-- **A table, one row per review:** the review (blind round number, `direct`, or `CodeRabbit`), the reviewer's model, the findings by severity (`Critical`, `High`, `Medium`, `Low`, or `unrated` for a finding without one of these, such as the pr-review skill's `Discussion`; CodeRabbit's own `Major`, `Minor` and `Trivial` stay as given), and the origin of each finding.
+- **A table, one row per review:** the review (blind round number, `direct`, or `CodeRabbit`), the reviewer's model, the findings by severity (the pr-review skill's `Critical`, `High`, `Medium`, `Low` and `Minor`, or `unrated` for a finding without one, such as its `Discussion`; CodeRabbit's `Major`, `Minor` and `Trivial` as given), and the origin of each finding.
 - **Retro:** why the review took the rounds it did, what the extra rounds caught that earlier ones did not, and the changes it led to (a rule, a check, a doc), or "none".
 
 Origins, most specific first; use the first that fits:
