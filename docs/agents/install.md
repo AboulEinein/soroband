@@ -35,7 +35,7 @@ It takes a few minutes on the first run. It:
 
 The script ends with `Soroband <version> is installed and running (pid <pid>)`. If it fails, read the error: each requirement failure names its fix. Do not work around a failure by editing the script.
 
-To update an existing install, run `scripts/install.sh --replace`, and only when the user asked for the update: it quits and replaces the user's running copy. Without `--replace`, the script stops before building when Soroband is already installed and there is no terminal to confirm in.
+To update an existing install, run `scripts/install.sh --replace`, and only when the user asked for the update: it quits and replaces the user's running copy. Without `--replace`, the script stops before building when Soroband is already installed and there is no terminal to confirm in; in a terminal it asks first, and only the user answers that question. The script cannot tell the user from an agent, so the user's request is what allows `--replace` or a typed yes.
 
 ## 4. Verify
 
