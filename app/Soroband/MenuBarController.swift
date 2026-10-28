@@ -81,19 +81,21 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         guard !popover.isShown, let button = item?.button else { return }
         Usage.shared.isLive = true
         HistoryProcess.prepare()
-        popover.contentViewController = NSHostingController(rootView: LivePopover(
-            tab: tab, allNetworks: allNetworks,
-            openHistory: { [weak self] network in
-                // Before the close, which dismisses an unused standby process.
-                HistoryProcess.open(HistoryOptions(
-                    range: .month, network: network, current: NetworkMonitor.shared.current?.id))
-                self?.popover.performClose(nil)
-            },
-            openSettings: { [weak self] in
-                self?.popover.performClose(nil)
-                SettingsWindow.shared.show()
-            },
-            quit: { NSApp.terminate(nil) }))
+        popover.contentViewController = NSHostingController(
+            rootView: LivePopover(
+                tab: tab, allNetworks: allNetworks,
+                openHistory: { [weak self] network in
+                    // Before the close, which dismisses an unused standby process.
+                    HistoryProcess.open(
+                        HistoryOptions(
+                            range: .month, network: network, current: NetworkMonitor.shared.current?.id))
+                    self?.popover.performClose(nil)
+                },
+                openSettings: { [weak self] in
+                    self?.popover.performClose(nil)
+                    SettingsWindow.shared.show()
+                },
+                quit: { NSApp.terminate(nil) }))
         // A menu bar app is never frontmost by itself; the popover takes keys and clicks only once
         // the app is active.
         NSApp.activate()
@@ -139,7 +141,8 @@ private struct LivePopover: View {
                 current: monitor.current, connectedSince: monitor.connectedSince, allNetworks: allNetworks),
             tab: $tab, allNetworks: $allNetworks,
             openHistory: { openHistory(allNetworks || tab == .networks ? nil : monitor.current?.id) },
-            openSettings: openSettings, quit: quit)
-            .onChange(of: monitor.current) { usage.reloadRegistry() }
+            openSettings: openSettings, quit: quit
+        )
+        .onChange(of: monitor.current) { usage.reloadRegistry() }
     }
 }

@@ -10,7 +10,7 @@ enum Snapshot {
             let windows = [
                 ("popover", show(PopoverView().environment(store).environment(island), size: nil, at: CGPoint(x: 40, y: 200), titled: false)),
                 ("history", show(HistoryView().environment(store), size: CGSize(width: 1100, height: 900), at: CGPoint(x: 440, y: 60), titled: true)),
-                ("history-expanded", show(HistoryView(expandedApp: "org.example.huddle", hoverDate: .now.addingTimeInterval(-9 * 86_400)).environment(store), size: CGSize(width: 1100, height: 1000), at: CGPoint(x: 600, y: 0), titled: true)),
+                ("history-expanded", show(HistoryView(expandedApp: "us.zoom.xos", hoverDate: .now.addingTimeInterval(-9 * 86_400)).environment(store), size: CGSize(width: 1100, height: 1000), at: CGPoint(x: 600, y: 0), titled: true)),
                 ("settings", show(SettingsView().environment(store).environment(island), size: CGSize(width: 560, height: 380), at: CGPoint(x: 40, y: 900), titled: true)),
                 ("settings-island", show(SettingsView(tab: "island").environment(store).environment(island), size: CGSize(width: 560, height: 640), at: CGPoint(x: 80, y: 300), titled: true)),
                 ("island-moments", show(momentGallery(), size: CGSize(width: 1000, height: 12 * 170), at: CGPoint(x: 300, y: 0), titled: false)),
