@@ -155,11 +155,12 @@ struct SnapshotTests {
                 shares.append(.init(network: network, id: id, name: name, rx: bytes * 4 / 5, tx: bytes / 5))
             }
         }
-        let heatmap = (0..<7).flatMap { weekday in
-            (0..<24).map { hour in
-                HistoryData.Cell(
-                    weekday: weekday, hour: hour,
-                    bytes: hour < 7 ? 5_000_000 : UInt64(60 + (weekday * 7 + hour * 13) % 90) * 1_000_000)
+        var heatmap: [HistoryData.Cell] = []
+        for weekday in 0..<7 {
+            for hour in 0..<24 {
+                // Quiet nights, then busier hours that vary by weekday.
+                let megabytes: Int = hour < 7 ? 5 : 60 + (weekday * 7 + hour * 13) % 90
+                heatmap.append(HistoryData.Cell(weekday: weekday, hour: hour, bytes: UInt64(megabytes) * 1_000_000))
             }
         }
         return HistoryData(
