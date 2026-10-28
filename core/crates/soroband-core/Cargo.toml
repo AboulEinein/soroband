@@ -1,0 +1,20 @@
+[package]
+name = "soroband-core"
+description = "Soroband meter engine and storage, linked into the app as a static library."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+libc = "0.2"
+rusqlite = { version = "0.40", default-features = false, features = ["functions"] }
+serde_json = "1.0"

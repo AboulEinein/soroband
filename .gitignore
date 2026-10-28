@@ -1,0 +1,7 @@
+.build/
+.swiftpm/
+.DS_Store
+target/
+build/
+.claude/worktrees/
+.claude/settings.local.json

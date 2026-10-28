@@ -1,0 +1,38 @@
+# app
+
+The SwiftUI menu bar app (`LSUIElement`, no Dock icon). It links the Rust core from `core/` as `build/SorobandCore.xcframework`, which `scripts/build-core.sh` produces; build the core before opening `Soroband.xcodeproj` in Xcode.
+
+| Path | Contents |
+| --- | --- |
+| `Soroband/` | App sources. The groups are synchronized with the folders, so new files need no project edit. |
+| `Soroband/Debug/` | Debug-only commands for agents: the `soroband-debug://` URL scheme and the answers to `soroband debug state --json` and `soroband debug history --json`. |
+| `SorobandTests/` | Swift Testing: the bridge to the core, network identity, the menu bar, popover and History view models, the History process's options, launch at login, onboarding, and snapshot tests against `tests/snapshots/`. |
+| `Config/Debug-Info.plist` | Info.plist keys for Debug builds only (the `soroband-debug` URL scheme). |
+
+Debug builds use the bundle identifier `io.github.abouleinein.soroband.debug`, so they run next to an installed Release build.
+
+The History window runs in a second process of the same app, started with `--history` by the menu bar app (`Soroband/HistoryProcess.swift`); it quits when its window closes. A Debug build started with `SOROBAND_DATA_DIR` set (`open -g --env SOROBAND_DATA_DIR=<dir> -a <app>`) uses that data directory, and so does its History process.
+
+Debug URL commands (`open -g -a <this build's Soroband.app> "soroband-debug://<command>"`):
+
+| Command | Effect |
+| --- | --- |
+| `quit` | Quits the Debug app. |
+| `open-popover?tab=networks&all=1` | Opens the popover on a tab (`apps` unless given); `all=1` turns on the Apps tab's All networks toggle. |
+| `close-popover` | Closes the popover. |
+| `open-settings?tab=networks` | Opens Settings on a tab (`general` unless given). |
+| `close-settings` | Closes Settings. |
+| `open-history?range=year&network=2&date=2026-10-15&app=<app id>&hover=2026-10-18T09:00` | Opens History in a new History process, replacing an open one: `range` is `day`, `week`, `month` (default), `year` or `all`; `network` an id (every network unless given); `date` a day in the period; `app` and `hover` expand an app and hold the chart's hover, for captures. Opening the popover first starts the standby process a click would use. |
+| `close-history` | Quits the History process. |
+| `export-history` | The History process exports what it shows to `history.csv` in `~/Library/Caches/io.github.abouleinein.soroband.debug`. |
+| `open-onboarding` | Opens the first-run window that asks for the Location permission. |
+| `capture-status-item` | Renders the menu bar item to `~/Library/Caches/io.github.abouleinein.soroband.debug/status-item.png`, for when the item is hidden behind the notch. |
+| `capture-window?number=<n>` | Renders window `n` (a number from `soroband debug state`) as the app draws it to `window.png` in the same directory, for a window `screencapture` cannot see. |
+| `simulate-network?id=office&kind=hotspot` | Books usage to a made-up network named `office` (`kind` is `wifi`, `ethernet` or `hotspot`; default `wifi`), as if the Mac had joined it. `simulate-network` alone goes back to the real network. |
+| `update-network?name=Desk&kind=ethernet` | Renames the current network and sets its kind, as a user would. |
+
+Debug builds of other worktrees also handle `soroband-debug://`, and `open "soroband-debug://…"` may launch one of them. Send the URL to this build: `open -g -a "$PWD/build/DerivedData/Build/Products/Debug/Soroband.app" "soroband-debug://…"`. Always pass `-g`: without it macOS brings Soroband to the front and it takes the keyboard from whatever the user is typing in. With `-g` the popover and windows still open and `screencapture -l` captures them.
+
+The app keeps its usage database (`usage.sqlite`) and `settings.json` in `~/Library/Application Support/Soroband`; Debug builds use `Soroband Debug` next to it.
+
+The design it implements is in [`docs/design.md`](../docs/design.md) and [`prototypes/ui-spike`](../prototypes/ui-spike); how to run and observe it is in [`docs/verification.md`](../docs/verification.md#running-the-app).
