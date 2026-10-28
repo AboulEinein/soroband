@@ -1,8 +1,10 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 # CodeRabbit reviews a pull request once it is marked ready, against any base, so
-# stacked milestone PRs are reviewed too, and never pauses on a long PR. CodeRabbit reads
+# stacked milestone PRs are reviewed too, never pauses on a long PR, and fails its
+# status when a review errors instead of passing it. CodeRabbit reads
 # this file from the PR's head branch. docs/review.md describes the flow.
 reviews:
+  fail_commit_status: true
   auto_review:
     enabled: true
     drafts: false
