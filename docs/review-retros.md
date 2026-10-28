@@ -5,7 +5,7 @@ One entry per pull request. Which rows it gets and when each part is committed i
 Each entry has:
 - **A heading:** the pull request, its title and the date it opened.
 - **Planned rounds** and what ran: blind rounds, direct reviews, CodeRabbit reviews.
-- **A table, one row per review:** the review (blind round number, `direct`, or `CodeRabbit`), the reviewer's model, the findings by severity (`unrated` where the reviewer gave none), and the origin of each finding.
+- **A table, one row per review:** the review (blind round number, `direct`, or `CodeRabbit`), the reviewer's model, the findings by severity (the pr-review skill's `Critical`, `High`, `Medium`, `Low` and `Minor`, or `unrated` for a finding without one, such as its `Discussion`; CodeRabbit's `Major`, `Minor` and `Trivial` as given), and the origin of each finding.
 - **Retro:** why the review took the rounds it did, what the extra rounds caught that earlier ones did not, and the changes it led to (a rule, a check, a doc), or "none".
 
 Origins, most specific first; use the first that fits:
@@ -129,3 +129,22 @@ Planned rounds: 1. Ran: 3 blind rounds, 1 direct review, 4 CodeRabbit reviews wi
 
 Changes it led to: none. The `fix regression` repeats #13's origin, but for a different reason (a doc's claim here, a name collision there).
 
+
+## [#16](https://github.com/AboulEinein/soroband/pull/16) docs: record the merged stack and the CodeRabbit backlog (2026-10-28)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Sonnet | 3 Medium, 2 Low, 1 unrated | `first look`: the backlog missed #6's outside-diff finding on the `run-app.sh` gotcha, three backlog paths named the wrong crate or directory, "merged branches are not deleted" was false for most of the stack, and the stopping rule still marked a merged milestone `done` without its hand checklist. |
+| direct | Haiku | 3 unrated | `fix regression`: a sentence lost its separator, and the new branch sentence was still false. `first look`: the `SIGPIPE` line was off by one. [Comment](https://github.com/AboulEinein/soroband/pull/16#issuecomment-6477159137). |
+| direct | Haiku | 3 unrated | `fix regression`: the retarget sentence claimed GitHub retargets on deletion, contradicting `plan.md`'s stacked-branches rule. `first look`: two backlog lines off by one. [Comment](https://github.com/AboulEinein/soroband/pull/16#issuecomment-6477198246). |
+| direct | Haiku | 1 unrated | Asked the docs to say which merged branches get deleted; declined because no step depends on it. [Comment](https://github.com/AboulEinein/soroband/pull/16#issuecomment-6477226820). |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: round 1's row rated the Discussion finding `Discussion`, which the table does not define, the same slip as #14. |
+| CodeRabbit | CodeRabbit | 1 Minor | `fix regression`: the severity list written for the previous finding left out the pr-review skill's `Minor`. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: `plan.md`'s stacked-branches rule did not allow a milestone to start from `main` once its predecessor had merged, as the handover tells M5 to. |
+| CodeRabbit | CodeRabbit | 1 Minor | `fix regression`: the retarget rule written for round 1's finding retargeted after the merge, not before. |
+
+**Retro.** Planned 1 round; it took 1 blind round and 3 direct reviews, because each fix to a factual claim (a path, a line, what GitHub does) was written from memory and the next reviewer checked it against the repository or GitHub. Writing down state that lives in another system needs the same check at writing time. CodeRabbit found the severity slip #14 already had, so the retro table now lists its severities; the first version of that list was written without reading the skill's scale and needed one more fix. Its last finding is review step 7's rule (a change to a requirement changes every document that states it) missed again: the blind round checked the handover against GitHub, not against `plan.md`.
+
+Changes it led to: `review-retros.md` names the severity values.

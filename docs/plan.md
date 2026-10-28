@@ -8,7 +8,7 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | --- | --- | --- | --- | --- |
 | P0 | Research and prototypes | 0 | done | – |
 | M0 | Repository foundation | 1 | blocked (hand checklist: menu bar item on screen, Location across a rebuild) | [#3](https://github.com/AboulEinein/soroband/pull/3) |
-| M1 | Meter engine | 1 | in review | [#4](https://github.com/AboulEinein/soroband/pull/4) |
+| M1 | Meter engine | 1 | done | [#4](https://github.com/AboulEinein/soroband/pull/4) |
 | M2 | Network identity and storage | 1 | blocked (hand checklist: Location, real hotspot switch, Wi‑Fi without its name) | [#5](https://github.com/AboulEinein/soroband/pull/5) |
 | M3 | Menu bar and popover (first dogfood build) | 1 | blocked (hand checklist and daily-use week) | [#6](https://github.com/AboulEinein/soroband/pull/6) |
 | M4 | History window | 2 | blocked (hand checklist) | [#13](https://github.com/AboulEinein/soroband/pull/13) |
@@ -16,7 +16,7 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | M6 | Memory and performance | 3 | planned | – |
 | M7 | Release v0.1.0 | 3 | planned | – |
 
-M0–M3 are stacked pull requests, each against the previous milestone's branch, merged in order once their checklists pass. The checklists are in [`handover.md`](handover.md#next-action).
+M0–M4 are merged to `main`. A milestone with a hand checklist stays `blocked` until the user has run it; the checklists are in [`handover.md`](handover.md#next-action).
 
 Statuses: `planned`, `in progress`, `in review`, `done`, `blocked (<reason>)`.
 
@@ -157,7 +157,7 @@ Estimated sessions: M0 1, M1 1–2, M2 1, M3 1–2, M4 1, M5 2, M6 1, M7 1, so a
 
 Milestones can run overnight as a chain, one fresh thread per milestone, started by a conductor thread that writes no code.
 
-- **Stacked branches.** Nothing is merged without the user, so each milestone branches from the previous milestone's branch and opens its PR against it: `m<n>-<name>` from the branch of milestone n−1, the first from `main`. The user merges them in order; GitHub retargets each PR to `main` as its base merges.
+- **Stacked branches.** Nothing is merged without the user, so each milestone branches from the previous milestone's branch and opens its PR against it: `m<n>-<name>` from the branch of milestone n−1, or from `main` once that milestone has merged; the first from `main`. The user merges them in order; before merging a PR, the next PR is retargeted to `main` (`gh pr edit <n> --base main`), so deleting the merged branch cannot close it.
 - **When the chain continues.** The next milestone starts only if the previous one ended `in review`, or `blocked` solely on a hand-run checklist (a permission prompt, a real hotspot, the daily-use week). Anything else stops the chain: a decision needed, repeated failures, red CI.
 - **The conductor checks the review judgment.** Each milestone thread runs its own review loop as [`review.md`](review.md#rounds) describes, then CodeRabbit's review ([`review.md`](review.md#coderabbit)). When a thread stops, the conductor checks its review record against that loop and may send work back to the same thread. It asks the user only when the way forward needs a decision.
 - **Hand-run checklists** collect in each PR and in the handover; the user runs them in the morning, in milestone order.
@@ -169,7 +169,7 @@ A session stops in exactly one of two states, and never starts the next mileston
 - **In review.** Every exit criterion is checked with evidence in an open PR, CI is green, and the review in [`review.md`](review.md), the blind loop and then CodeRabbit's review, has ended with nothing left to act on. The ledger says `in review`.
 - **Blocked.** The work needs a person (a permission prompt, a real hotspot, a decision), the same problem has failed three fixes, the work outgrows the milestone, or a review reassessment needs a decision (see [`review.md`](review.md#reassess-instead-of-another-round)), or CodeRabbit did not review (see [`review.md`](review.md#coderabbit)). The ledger says `blocked (<reason>)` and the handover lists exactly what is needed.
 
-In both cases, update **Current state** and **Next action** in the handover, and add any new gotcha, before the final report. The user merges the PR; the next session marks the milestone `done` after checking the merge.
+In both cases, update **Current state** and **Next action** in the handover, and add any new gotcha, before the final report. The user merges the PR; the next session marks the milestone `done` after checking the merge, or, for a milestone with a hand checklist, once the user has run it.
 
 ### Session prompt
 
