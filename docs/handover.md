@@ -65,6 +65,7 @@ The state of the project for whoever picks it up next. Read this file, then the 
 | 2026-10-27 | Releases also ship an ad-hoc signed `Soroband.dmg` on GitHub. Without notarization, the first launch needs one Open Anyway approval in System Settings (or an agent clears the quarantine flag with the user's consent). |
 | 2026-10-27 | Reviews: a fresh blind reviewer per round using the `pr-review` skill. No PR is handed over with fixes no reviewer has seen; whether another round adds value is judged, not capped, and a reassessment brings in an independent advisor agent unless the root cause is already plain (`docs/review.md`). This overrides the round caps in the user's global instructions, and their rule to stop and ask when a fixed finding returns: that case goes to the reassessment, which asks the user only when the way forward needs a decision. |
 | 2026-10-28 | CodeRabbit reviews each PR once the blind loop has ended: PRs open as drafts, which it skips, and are marked ready afterwards. `.coderabbit.yaml` makes it review stacked PRs (any base) and never pause; its docstring-coverage check is off. Every finding goes into `docs/coderabbit-findings.md` with why the blind loop missed it, and a repeated miss becomes a rule (`docs/review.md`). |
+| 2026-10-28 | Every PR records each review round (reviewer model, findings, the origin of each) and a retro on why it took the rounds it did in `docs/review-retros.md`; an origin that recurs across PRs becomes a rule, read at each milestone's end with the CodeRabbit log. |
 | 2026-10-27 | `scripts/install.sh` signs with a self-signed "Soroband Local Signing" identity kept in its own keychain (`~/Library/Keychains/soroband-signing.keychain-db`, random password stored in the login keychain), not in the login keychain itself: letting `codesign` use a key without a prompt needs `security set-key-partition-list`, which needs the keychain's password. `--adhoc` keeps the ad hoc route for the Location check. |
 | 2026-10-27 | Universal builds need rustup (the `x86_64-apple-darwin` standard library); `scripts/build.sh --host` and `scripts/install.sh` build for this Mac only and work with Homebrew's `rust`. |
 | 2026-10-27 | Debug builds use the bundle identifier `io.github.abouleinein.soroband.debug`, so a Debug build and the installed Release run side by side. |
@@ -173,6 +174,7 @@ Things learned the hard way that no file or config will tell you.
 - `docs/plan.md`: milestones, exit criteria, ledger, stopping rules, session prompt.
 - `docs/review.md`: the review loop, the blind reviewer brief, when to run another round, and the reassessment with an advisor agent.
 - `docs/coderabbit-findings.md`: every CodeRabbit finding, and why the blind loop missed the valid ones.
+- `docs/review-retros.md`: each PR's review rounds, what each found, and its retro.
 - `docs/verification.md`: test rules, the tools for running and observing the app, per-milestone evidence.
 - `docs/mockups/`: rendered UI prototype screens.
 - `prototypes/`: throwaway code that settled the design; see its section in design.md.

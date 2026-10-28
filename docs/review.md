@@ -29,6 +29,7 @@ Resolve each earlier blind-review thread you confirm as handled; reply on any yo
    - Run the blind review.
    - Confirm the review is posted: `gh api repos/AboulEinein/soroband/pulls/<number>/reviews` lists it with a state other than `PENDING`. A draft or missing review means the round did not happen; run it again.
    - Answer every finding in its PR thread, either with the fix (the commit) or with evidence for why it should stay as it is.
+   - Add the round to the pull request's entry in [`review-retros.md`](review-retros.md): the reviewer's model, its findings by severity, and the origin of each finding.
 4. **No fix leaves the loop unreviewed.** A PR is never handed over with commits that no reviewer has seen.
 5. **After each round, judge whether another one adds value.** The session lead judges, and may consult an advisor agent (below) on the question. In an unattended run the conductor checks that judgment after the session stops (see [`plan.md`](plan.md#unattended-runs)).
    - **Run another round** after a round whose fixes change behavior or a documented rule, as long as the findings shrink: from round 2 on, fewer or less severe than the last round's, and of a different kind. This holds past the planned number.
@@ -60,17 +61,20 @@ CodeRabbit reviews each pull request, whatever its base, once the blind loop has
 5. **Resolve each thread** once its finding is handled: a valid one after the review of its fix (CodeRabbit's, or the blind round's) raises nothing about it, the others after the reply. The session lead resolves CodeRabbit's threads, because CodeRabbit is not briefed to check replies.
 6. **Record every finding** in [`coderabbit-findings.md`](coderabbit-findings.md), valid or not, with why the blind loop missed each valid one.
 7. **CodeRabbit's review ends** when its review of the last commit raises nothing to act on and every thread is resolved. Only then has the review ended.
+8. **Write the retro** in the pull request's entry in [`review-retros.md`](review-retros.md), before the session stops: why the review took the rounds it did, and what to change so the next pull request needs fewer.
 
-### Learning from the findings
+### Learning from reviews
 
-The findings show what the blind loop misses. When a valid finding repeats a category and a miss cause already in the log, it is a pattern (for `after the loop`, the pattern is in how fixes are made after the loop, not in the blind review); turn it into a rule where the miss happened, and name the rule in the follow-up column of every row it covers:
+Two logs record how reviews go: [`coderabbit-findings.md`](coderabbit-findings.md) shows what the blind loop misses, and [`review-retros.md`](review-retros.md) shows why a pull request needed the rounds it did. In the findings log, when a valid finding repeats a category and a miss cause already in the log, it is a pattern (for `after the loop`, the pattern is in how fixes are made after the loop, not in the blind review); turn it into a rule where the miss happened, and name the rule in the follow-up column of every row it covers:
 
 - **The reviewer did not check for it:** a line in a `## Checklist` section of this file, and a line in the brief above telling the reviewer to go through that checklist. Add both with the first pattern.
 - **The implementer keeps making it:** a rule in `AGENTS.md`, or in the doc that covers the area (`verification.md` for tests, `design.md` for architecture).
 - **A tool can find it:** a lint or CI check, which beats a written rule.
 - **It applies to any project, not just Soroband:** a proposal to the user for the `pr-review` skill, which lives outside this repository.
 
-Read the log for patterns when a milestone ends, before updating the handover, and again once parallel milestones have both merged. Rows are only ever appended, so a merge conflict in the log keeps both sides.
+In the retros, an origin that keeps coming back across pull requests is a pattern too, and turns into a rule the same way: `fix regression` points at how fixes are made, `missed earlier` at the reviewer brief or the checklist, `new evidence` at checking real behavior before the first round, `unclear requirement` at `plan.md`.
+
+Read both logs for patterns when a milestone ends, before updating the handover, and again once parallel milestones have both merged. Entries are only ever appended, so a merge conflict in a log keeps both sides.
 
 ## Reassess instead of another round
 
