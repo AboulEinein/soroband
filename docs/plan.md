@@ -142,15 +142,15 @@ Milestones can run overnight as a chain, one fresh thread per milestone, started
 
 - **Stacked branches.** Nothing is merged without the user, so each milestone branches from the previous milestone's branch and opens its PR against it: `m<n>-<name>` from the branch of milestone n−1, the first from `main`. The user merges them in order; GitHub retargets each PR to `main` as its base merges.
 - **When the chain continues.** The next milestone starts only if the previous one ended `in review`, or `blocked` solely on a hand-run checklist (a permission prompt, a real hotspot, the daily-use week). Anything else stops the chain: a decision needed, repeated failures, red CI.
-- **The conductor checks the review judgment.** Each milestone thread runs its own review loop as [`review.md`](review.md#rounds) describes. When a thread stops, the conductor checks its review record against that loop and may send work back to the same thread. It asks the user only when the way forward needs a decision.
+- **The conductor checks the review judgment.** Each milestone thread runs its own review loop as [`review.md`](review.md#rounds) describes, then CodeRabbit's review ([`review.md`](review.md#coderabbit)). When a thread stops, the conductor checks its review record against that loop and may send work back to the same thread. It asks the user only when the way forward needs a decision.
 - **Hand-run checklists** collect in each PR and in the handover; the user runs them in the morning, in milestone order.
 
 ### When a session stops
 
 A session stops in exactly one of two states, and never starts the next milestone.
 
-- **In review.** Every exit criterion is checked with evidence in an open PR, CI is green, and the review loop in [`review.md`](review.md) has ended with nothing left to act on. The ledger says `in review`.
-- **Blocked.** The work needs a person (a permission prompt, a real hotspot, a decision), the same problem has failed three fixes, the work outgrows the milestone, or a review reassessment needs a decision (see [`review.md`](review.md#reassess-instead-of-another-round)). The ledger says `blocked (<reason>)` and the handover lists exactly what is needed.
+- **In review.** Every exit criterion is checked with evidence in an open PR, CI is green, and the review in [`review.md`](review.md), the blind loop and then CodeRabbit's review, has ended with nothing left to act on. The ledger says `in review`.
+- **Blocked.** The work needs a person (a permission prompt, a real hotspot, a decision), the same problem has failed three fixes, the work outgrows the milestone, or a review reassessment needs a decision (see [`review.md`](review.md#reassess-instead-of-another-round)), or CodeRabbit did not review (see [`review.md`](review.md#coderabbit)). The ledger says `blocked (<reason>)` and the handover lists exactly what is needed.
 
 In both cases, update **Current state** and **Next action** in the handover, and add any new gotcha, before the final report. The user merges the PR; the next session marks the milestone `done` after checking the merge.
 
@@ -165,7 +165,7 @@ Before anything else, read AGENTS.md, docs/handover.md, docs/plan.md, docs/verif
 
 Deliver everything listed for the milestone in plan.md. Verify it the way verification.md describes for this milestone: tests that go red when the behavior breaks, then build and run the real app and capture evidence. Nothing counts as done on reasoning alone.
 
-Open the PR and run the review loop in review.md: state the planned rounds, use a fresh blind reviewer with the pr-review skill (--no-story --submit, so its comments are posted on the PR) each round, never stop with fixes no reviewer has seen, and reassess with an advisor agent as review.md describes. Stop as plan.md's "When a session stops" says: in review, or blocked. Update the ledger and the handover before you stop.
+Open the PR as a draft and run the review loop in review.md: state the planned rounds, use a fresh blind reviewer with the pr-review skill (--no-story --submit, so its comments are posted on the PR) each round, never stop with fixes no reviewer has seen, and reassess with an advisor agent as review.md describes. When the blind loop ends, mark the PR ready and handle CodeRabbit's review as review.md describes, logging every finding in docs/coderabbit-findings.md. Stop as plan.md's "When a session stops" says: in review, or blocked. Update the ledger and the handover before you stop.
 
 Report: the PR link, each exit criterion with its evidence, any checklist I need to run by hand, and anything blocked with what you need from me.
 ```
