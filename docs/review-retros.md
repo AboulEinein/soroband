@@ -62,3 +62,7 @@ Changes it led to: the records rule itself (one final records commit); step 5 no
 ## [#12](https://github.com/AboulEinein/soroband/pull/12) docs(verify): send debug URLs with open -g so agents never take focus (2026-10-28)
 
 Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Medium, 1 Low | `first look`: the capture-status-item gotcha still sent its URL without `-g`; the decision said every `open` of the app passes `-g`, but `scripts/install.sh` opens the installed app in front. |
