@@ -41,16 +41,16 @@ Resolve each earlier blind-review thread you confirm as handled; reply on any yo
 CodeRabbit reviews each pull request, whatever its base, once the blind loop has ended. It reads `.coderabbit.yaml` from the pull request's head branch, so a branch made before that file existed, with a base other than `main`, gets no review until it has it. The `CodeRabbit` check is required to merge into `main`, but it passes when a review is done, whatever the review found, and GitHub also lets a skipped check through; this flow is what makes sure the review happens. The `main` ruleset requires every review thread to be resolved, so no finding with a thread is left unanswered.
 
 1. **Mark the pull request ready:** `gh pr ready <number>`. CodeRabbit starts a full review.
-2. **Wait for the review to pass.** `gh pr checks` reports the checks of the pull request's latest commit. The `CodeRabbit` check left on the draft reads `SKIPPED`, which `gh pr checks --watch` counts as done, so poll until it reads `SUCCESS`, for at most 30 minutes. If it still reads `SKIPPED`, or is missing, after 2 minutes, the loop asks CodeRabbit once with `@coderabbitai review`. A review takes about 10 minutes, so run the loop in the background (in Claude Code, `run_in_background`) and wait for it to exit:
+2. **Wait for the review to pass.** `gh pr checks` reports the checks of the pull request's latest commit. The `CodeRabbit` check left on the draft reads `SKIPPED`, which `gh pr checks --watch` counts as done, so poll until it reads `SUCCESS`, for at most 28 minutes. If it still reads `SKIPPED`, or is missing, after 2 minutes, the loop asks CodeRabbit once with `@coderabbitai review`. A review takes about 10 minutes, so run the loop in the background (in Claude Code, `run_in_background`) and wait for it to exit:
    ```zsh
-   for i in {1..60}; do
-     state=$(gh pr checks <number> --json name,state --jq '.[] | select(.name == "CodeRabbit") | .state')
+   for i in {1..56}; do
+     state=$(gh pr checks <number> --json name,state --jq 'map(select(.name == "CodeRabbit")) | last | .state // ""')
      [[ $state == SUCCESS ]] && exit 0
-     (( i == 4 )) && [[ -z $state || $state == SKIPPED ]] && gh pr comment <number> --body '@coderabbitai review'
+     (( i == 5 )) && [[ -z $state || $state == SKIPPED ]] && gh pr comment <number> --body '@coderabbitai review'
      sleep 30
    done; exit 1
    ```
-   If it exits 1, read CodeRabbit's latest comment on the pull request. Unless it says how to go on (a rate limit to wait out, a command to post), stop as `blocked (review: CodeRabbit did not review)`.
+   If it does not exit 0, read CodeRabbit's latest comment on the pull request. Unless it says how to go on (a rate limit to wait out, a command to post), stop as `blocked (review: CodeRabbit did not review)`.
 3. **Judge every finding:**
    - **Valid:** fix it, and reply on its thread naming the commit.
    - **Valid, but left as it is:** only when fixing it would contradict a decision recorded in `design.md`, `plan.md` or the handover, or when it is outside the pull request's scope and becomes a follow-up in the handover. The reply quotes the decision or names the follow-up.
