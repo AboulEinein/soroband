@@ -35,3 +35,11 @@ Planned rounds: 1. Ran: 5 blind rounds, 1 direct review, 2 CodeRabbit reviews. T
 - **Each fix to the wait loop brought the next finding.** The loop changed in rounds 1, 2, 3, 4 and 5, and rounds 2, 4 and 5 and the direct review each found a problem with the previous version. A shell loop in a doc was never run until round 5.
 
 Changes it led to: none. Candidate rules, if a later retro gives the same origins for the same reasons: test any instruction that depends on an outside service or the harness against the real thing before round 1, and run any command a doc tells agents to run before the first review.
+
+## [#10](https://github.com/AboulEinein/soroband/pull/10) docs(review): record each review round and a retro per PR (2026-10-28)
+
+Planned rounds: 2.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Sonnet | 2 Medium, 3 Low, 1 Minor | `first look`: the commits that add the retro came after the review ended; no step created the entry or added direct and CodeRabbit rows; the glossary said rounds only; no threshold for a pattern; #9's entry broke its own format twice. |
