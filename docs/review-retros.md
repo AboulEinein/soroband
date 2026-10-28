@@ -1,6 +1,6 @@
 # Review retros
 
-One entry per pull request, as [`review.md`](review.md) describes: a row for each blind round and direct review as it runs while the pull request is a draft, then, in one final commit, the rows for the reviews after it is ready (a clean review of a records commit gets none) and the retro. A session that stops blocked commits what it has so far, and the session that resumes completes it. Together with [`coderabbit-findings.md`](coderabbit-findings.md), these show why reviews take the rounds they do.
+One entry per pull request. Which rows it gets and when each part is committed is in [`review.md`](review.md) (Rounds step 3, CodeRabbit steps 6 to 9). Together with [`coderabbit-findings.md`](coderabbit-findings.md), these show why reviews take the rounds they do.
 
 Each entry has:
 - **A heading:** the pull request, its title and the date it opened.
@@ -52,7 +52,8 @@ Planned rounds: 2. Ran: 5 blind rounds, 2 direct reviews, 3 CodeRabbit reviews w
 | CodeRabbit | CodeRabbit | 2 Minor (review body) | `missed earlier`: #9's entry counted unposted reviews as rounds. Not valid: #10's retro was not written yet. |
 | direct | Haiku | none | |
 | CodeRabbit | CodeRabbit | 1 Major | `fix regression`: the opening line asked a row for every review after ready, including the clean records-commit review the rules exempt. |
+| CodeRabbit | CodeRabbit | 2 Minor | `fix regression`: the opening line, which restated `review.md`'s timing, missed the further records commit and the blocked commit's contents. |
 
 **Retro.** Planned 2 rounds; ran 5 blind rounds, 2 direct reviews and 3 CodeRabbit reviews with findings. One cause behind almost all of it: the rules had to say when the review's own records are committed, and every record is a commit that CodeRabbit reviews. Rounds 1 to 3 each moved the end of the review and created the next finding (`fix regression` in rounds 2, 3, 4 and 5 and the last CodeRabbit review), until the reassessment after round 3 put all records into one final commit. After that the findings were wording around the new rule. CodeRabbit added what the blind rounds did not trace: the path of a finding with no fix, and its own habit of resolving its threads.
 
-Changes it led to: the records rule itself (one final records commit), and step 5 now says CodeRabbit may resolve its own threads. Candidate rule, if a later retro repeats `fix regression` for the same reason: before writing a rule that ends a loop, trace each path through it, including a finding with no fix, in the PR description, so round 1 reviews the trace.
+Changes it led to: the records rule itself (one final records commit); step 5 now says CodeRabbit may resolve its own threads; and `review-retros.md`'s opening line points to `review.md` instead of restating it, after three CodeRabbit findings in a row came from that restatement drifting. Candidate rule, if a later retro repeats `fix regression` for the same reason: before writing a rule that ends a loop, trace each path through it, including a finding with no fix, in the PR description, so round 1 reviews the trace.
