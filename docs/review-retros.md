@@ -143,6 +143,7 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | 1 Minor | `first look`: round 1's row rated the Discussion finding `Discussion`, which the table does not define, the same slip as #14. |
 | CodeRabbit | CodeRabbit | 1 Minor | `fix regression`: the severity list written for the previous finding left out the pr-review skill's `Minor`. |
 | CodeRabbit | CodeRabbit | 1 Minor | `first look`: `plan.md`'s stacked-branches rule did not allow a milestone to start from `main` once its predecessor had merged, as the handover tells M5 to. |
+| CodeRabbit | CodeRabbit | 1 Minor | `fix regression`: the retarget rule written for round 1's finding retargeted after the merge, not before. |
 
 **Retro.** Planned 1 round; it took 1 blind round and 3 direct reviews, because each fix to a factual claim (a path, a line, what GitHub does) was written from memory and the next reviewer checked it against the repository or GitHub. Writing down state that lives in another system needs the same check at writing time. CodeRabbit found the severity slip #14 already had, so the retro table now lists its severities; the first version of that list was written without reading the skill's scale and needed one more fix. Its last finding is review step 7's rule (a change to a requirement changes every document that states it) missed again: the blind round checked the handover against GitHub, not against `plan.md`.
 

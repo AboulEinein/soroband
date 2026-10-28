@@ -214,7 +214,7 @@ Things learned the hard way that no file or config will tell you.
 - Streaming `nettop` (`-L 0`) costs more than a full CPU core; keep it out of any measurement path.
 
 **GitHub**
-- The `main` ruleset requires the Core, App and CodeRabbit checks, an up-to-date branch and resolved threads. A PR stacked on a merged branch keeps that branch as its base; check the base before merging and retarget it with `gh pr edit <n> --base main`.
+- The `main` ruleset requires the Core, App and CodeRabbit checks, an up-to-date branch and resolved threads. A PR stacked on another PR's branch keeps that branch as its base; before merging the lower PR, retarget the stacked one with `gh pr edit <n> --base main`, so deleting the merged branch cannot close it.
 - GitHub opens no PR between branches without a common commit, so CodeRabbit reviews the whole project through an empty commit as the base branch and, as the head, a commit with `main`'s tree whose parent is that empty commit (#15). CodeRabbit's included allowance is 10 reviews an hour.
 - Force-pushing is refused for agents on this Mac; bring a branch up to date by merging `main` into it.
 
