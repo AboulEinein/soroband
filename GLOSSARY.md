@@ -168,6 +168,9 @@ _Avoid_: status item, menu bar label
 What the menu bar item shows: today on the current network, today on all networks, live speed, or icon only (the `menu_bar` setting).
 _Avoid_: display mode, mode (alone; the engine has modes too)
 
+**Menu bar count**:
+Which of today's bytes the two "today" menu bar modes show: the total, download, upload, or download and upload side by side (the `menu_bar_count` setting).
+
 **Live speed**:
 Interface bytes per second, down and up, over the last poll.
 

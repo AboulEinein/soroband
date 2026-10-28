@@ -23,6 +23,10 @@ pub const MENU_BAR: &str = "menu_bar";
 
 /// The values of [`MENU_BAR`].
 pub const MENU_BAR_OPTIONS: &[&str] = &["today_network", "today_all", "speed", "icon"];
+/// Key of which of today's bytes the menu bar item counts, when it shows a day's usage.
+pub const MENU_BAR_COUNT: &str = "menu_bar_count";
+/// The values of [`MENU_BAR_COUNT`].
+pub const MENU_BAR_COUNT_OPTIONS: &[&str] = &["total", "download", "upload", "both"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
@@ -73,6 +77,16 @@ pub const SCHEMA: &[Setting] = &[
         description: "What the menu bar item shows next to the network icon: today_network \
                       (today on the current network), today_all (today on all networks), \
                       speed (live download and upload speed) or icon (the icon alone).",
+    },
+    Setting {
+        key: MENU_BAR_COUNT,
+        kind: Kind::Choice {
+            options: MENU_BAR_COUNT_OPTIONS,
+            default: "total",
+        },
+        description: "Which of today's bytes the menu bar item shows when menu_bar is \
+                      today_network or today_all: total (download plus upload), download, \
+                      upload or both (download and upload side by side).",
     },
 ];
 
@@ -246,7 +260,7 @@ fn check(setting: &Setting, value: &Value) -> Result<Value, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Error, MENU_BAR, RESET_HOUR, Settings};
+    use super::{Error, MENU_BAR, MENU_BAR_COUNT, RESET_HOUR, Settings};
     use std::path::PathBuf;
 
     fn temp_file(name: &str) -> PathBuf {
@@ -395,6 +409,18 @@ mod tests {
             "speed",
             "a refused value changes nothing"
         );
+    }
+
+    #[test]
+    fn menu_bar_counts_the_total_unless_set_and_accepts_only_its_options() {
+        let mut settings = Settings::default();
+        assert_eq!(settings.get(MENU_BAR_COUNT).unwrap().value, "total");
+        for option in ["download", "upload", "both", "total"] {
+            settings.set(MENU_BAR_COUNT, option).unwrap();
+            assert_eq!(settings.get(MENU_BAR_COUNT).unwrap().value, option);
+        }
+        let error = settings.set(MENU_BAR_COUNT, "rx").unwrap_err().to_string();
+        assert!(error.contains("total, download, upload, both"), "{error}");
     }
 
     #[test]

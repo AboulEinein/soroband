@@ -32,6 +32,9 @@ pub enum Command {
     /// The Mac moved to network `id` ([`Store::join_network`]). What was polled before belongs to
     /// the previous network.
     Network(i64),
+    /// Network `from` turned out to be network `into` ([`Store::join_network_known_as`]): its
+    /// bytes, stored and today's, move into `into` and it leaves the registry.
+    Merge { from: i64, into: i64 },
     /// The settings file changed.
     ReloadSettings,
     /// Write everything and stop.
@@ -170,6 +173,16 @@ impl<H: Host> Service<H> {
                     self.ledger.switch(id);
                     written?;
                 }
+            }
+            Command::Merge { from, into } => {
+                // Nothing still booked to `from` may be written after it is gone, and a
+                // failed write keeps it for the next change.
+                self.write(now)?;
+                self.store
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .merge_network(from, into)?;
+                self.read_today(now)?;
             }
             Command::ReloadSettings => {
                 let reset_hour = self.load_reset_hour();

@@ -28,6 +28,12 @@ struct NetworkIdentity: Equatable {
     var key: String
     var name: String
     var kind: NetworkKind
+    /// The key the registry may know this network by from before its name was readable: a Wi‑Fi
+    /// network known by its router. The registry gives that network this key, and its history.
+    var formerKey: String?
+
+    /// The name a Wi‑Fi network known by its router starts with.
+    static let unnamedWiFi = "Wi-Fi"
 
     /// What an observation identifies.
     enum Result: Equatable {
@@ -38,7 +44,7 @@ struct NetworkIdentity: Equatable {
     }
 
     /// - Wi‑Fi is known by its name, or by its router when the name is hidden (no Location
-    ///   permission).
+    ///   permission). Once the name shows, the network known by its router becomes the named one.
     /// - Wired networks are known by their router, so a desk dock and the office LAN on the same
     ///   adapter stay apart.
     /// - A path macOS marks expensive is a hotspot.
@@ -54,10 +60,13 @@ struct NetworkIdentity: Equatable {
         switch observation.medium {
         case .wifi:
             if let ssid = observation.ssid, !ssid.isEmpty {
-                return .network(NetworkIdentity(key: "wifi:\(ssid)", name: ssid, kind: kind))
+                return .network(
+                    NetworkIdentity(
+                        key: "wifi:\(ssid)", name: ssid, kind: kind,
+                        formerKey: observation.router.map { "wifi-router:\($0)" }))
             }
             guard let router = observation.router else { return .waitForRouter }
-            return .network(NetworkIdentity(key: "wifi-router:\(router)", name: "Wi-Fi", kind: kind))
+            return .network(NetworkIdentity(key: "wifi-router:\(router)", name: unnamedWiFi, kind: kind))
         case .wired:
             guard let router = observation.router else { return .waitForRouter }
             let name = observation.isExpensive ? "Personal Hotspot" : "Ethernet"

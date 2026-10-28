@@ -178,4 +178,22 @@ struct PopoverContentTests {
         #expect(PopoverContent.icon(forApp: "macOS & Services") == .services)
         #expect(PopoverContent.icon(forApp: "process:curl") == .tool)
     }
+
+    /// Wi‑Fi known by its router is named "Wi-Fi" until Location access is allowed; the popover
+    /// offers it only then, not on a named Wi‑Fi nor on a wired network known by its router.
+    @Test func asksForLocationOnlyOnWifiKnownByItsRouter() {
+        let byRouter = Network(id: 1, key: "wifi-router:2:0:0:1:2:3", name: "Wi-Fi", kind: .wifi)
+        let dock = Network(id: 1, key: "ethernet:0:11:22:33:44:55", name: "Ethernet", kind: .ethernet)
+        let asks = { (current: Network?, allowed: Bool) in
+            PopoverContent.make(
+                status: status, today: today, registry: registry, current: current, connectedSince: nil,
+                allNetworks: false, locationAllowed: allowed
+            ).asksForLocation
+        }
+        #expect(asks(byRouter, false))
+        #expect(!asks(byRouter, true))
+        #expect(!asks(home, false))
+        #expect(!asks(dock, false))
+        #expect(!asks(nil, false))
+    }
 }

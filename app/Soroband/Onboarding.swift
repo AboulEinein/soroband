@@ -13,14 +13,15 @@ enum Onboarding {
         !alreadyShown && status == .notDetermined
     }
 
+    /// Remembered only once the user answered or closed the window: a window macOS kept behind
+    /// other apps at launch shows again at the next one.
     @MainActor
     static func showIfNeeded() {
         let defaults = UserDefaults.standard
         guard shouldShow(status: LocationAccess.shared.status, alreadyShown: defaults.bool(forKey: shownKey)) else {
             return
         }
-        defaults.set(true, forKey: shownKey)
-        OnboardingWindow.shared.show()
+        OnboardingWindow.shared.show(aboveOtherApps: true)
     }
 }
 
@@ -30,7 +31,9 @@ final class OnboardingWindow: NSObject, NSWindowDelegate {
 
     private(set) var window: NSWindow?
 
-    func show() {
+    /// - `aboveOtherApps`: at launch macOS may refuse to activate the app (the user is busy in
+    ///   another), which would leave the window behind theirs, unseen.
+    func show(aboveOtherApps: Bool = false) {
         if window == nil {
             let window = NSWindow(
                 contentViewController: NSHostingController(rootView: OnboardingView { [weak self] in self?.close() }))
@@ -43,6 +46,10 @@ final class OnboardingWindow: NSObject, NSWindowDelegate {
         }
         NSApp.activate()
         window?.makeKeyAndOrderFront(nil)
+        if aboveOtherApps {
+            window?.level = .floating
+            window?.orderFrontRegardless()
+        }
     }
 
     func close() {
@@ -50,6 +57,7 @@ final class OnboardingWindow: NSObject, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
+        UserDefaults.standard.set(true, forKey: Onboarding.shownKey)
         window = nil
     }
 }

@@ -75,6 +75,13 @@ struct GeneralSettings: View {
             {
                 ForEach(MenuBarMode.allCases) { Text($0.label).tag($0) }
             }
+            if usage.menuBarMode == .todayNetwork || usage.menuBarMode == .todayAll {
+                Picker(
+                    "Count", selection: Binding(get: { usage.menuBarCount }, set: { usage.setMenuBarCount($0) })
+                ) {
+                    ForEach(MenuBarCount.allCases) { Text($0.label).tag($0) }
+                }
+            }
             if usage.menuBarMode == .speed {
                 Text(
                     "Live speed changes the menu bar at every count, every 5 seconds, which uses more energy than a daily total."

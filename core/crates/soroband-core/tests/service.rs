@@ -151,6 +151,49 @@ fn bytes_polled_before_a_network_change_stay_on_the_old_network() {
     );
 }
 
+/// A Wi‑Fi network known by its router (here `phone`) turned out to be `home` once its name was
+/// readable: today's bytes on it, written or not, count as Home's, and it is gone.
+#[test]
+fn a_merged_network_s_bytes_move_into_the_other_today_and_in_the_database() {
+    let f = Fixture::new("merge");
+    let t = MIDNIGHT + 10 * H;
+    let mut service = f.service(session(&[(1_000, 0, 1_100), (1_000, 500, 1_650)]), t);
+    service.apply(&Command::Network(f.phone), t).unwrap();
+    // Router network: Mail 1,000 and en0 1,100.
+    tick(&mut service, t + 5);
+    service.apply(&Command::Network(f.home), t + 6).unwrap();
+    // Home: Safari 500 and en0 550.
+    tick(&mut service, t + 10);
+    service
+        .apply(
+            &Command::Merge {
+                from: f.phone,
+                into: f.home,
+            },
+            t + 11,
+        )
+        .unwrap();
+    let home = NetworkTotal {
+        network: f.home,
+        apps: rx(1_500),
+        interfaces: rx(1_650),
+    };
+    assert_eq!(service.today().network, home);
+    assert_eq!(service.today().all, NetworkTotal { network: 0, ..home });
+    let mut apps = today_apps(&service);
+    apps.sort_by(|a, b| a.1.cmp(&b.1));
+    assert_eq!(
+        apps,
+        [
+            (f.home, "Mail".to_owned(), rx(1_000)),
+            (f.home, "Safari".to_owned(), rx(500))
+        ]
+    );
+    let reader = f.reader();
+    assert_eq!(reader.network_totals(0).unwrap(), [home]);
+    assert_eq!(reader.network(f.phone).unwrap(), None);
+}
+
 /// Today's apps as the popover lists them: (network, app name, bytes).
 fn today_apps(service: &Service<Replay>) -> Vec<(i64, String, Bytes)> {
     service

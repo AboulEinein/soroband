@@ -32,6 +32,8 @@ final class NetworkMonitor {
     /// Looks for the router again until it is resolved or the path changes.
     private var routerWait: Task<Void, Never>?
     private var routerAttempts = 0
+    /// Looks for the Wi‑Fi name again after Location access was granted.
+    private var nameWait: Task<Void, Never>?
 
     func start() {
         monitor.pathUpdateHandler = { path in
@@ -43,6 +45,23 @@ final class NetworkMonitor {
     /// Looks again at the current path, for when the Wi‑Fi name became readable.
     func refresh() {
         update(monitor.currentPath)
+    }
+
+    /// Looks again at the current path each second for a few seconds until the Wi‑Fi name shows:
+    /// after Location access is granted, macOS can take seconds to reveal it, and no path change
+    /// follows when it does.
+    func refreshUntilNamed() {
+        nameWait?.cancel()
+        nameWait = Task { @MainActor in
+            for _ in 0..<10 {
+                self.refresh()
+                guard let observation = self.observation, observation.medium == .wifi, observation.ssid == nil else {
+                    return
+                }
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else { return }
+            }
+        }
     }
 
     private func update(_ path: NWPath) {

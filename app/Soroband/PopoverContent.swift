@@ -59,6 +59,9 @@ struct PopoverContent: Equatable {
 
     var header: Header
     var notice: Notice?
+    /// The current network is Wi‑Fi known by its router, because Location access is not allowed:
+    /// the popover offers to allow it, so the network gets its name.
+    var asksForLocation = false
     var appsTitle: String
     var apps: [Row]
     var hiddenApps: Int
@@ -77,9 +80,10 @@ struct PopoverContent: Equatable {
 
     /// - `current`: the network bytes are booked to, nil while none is identified.
     /// - `allNetworks`: the Apps tab's toggle; bars are then split by network.
+    /// - `locationAllowed`: whether macOS reveals Wi‑Fi names to the app.
     static func make(
         status: EngineStatus, today: Today, registry: [RegisteredNetwork], current: Network?,
-        connectedSince: Date?, allNetworks: Bool
+        connectedSince: Date?, allNetworks: Bool, locationAllowed: Bool = true
     ) -> PopoverContent {
         let slots = Dictionary(
             uniqueKeysWithValues: registry.enumerated().map { ($1.id, NetworkColor.slot(forIndex: $0)) })
@@ -161,6 +165,7 @@ struct PopoverContent: Equatable {
         return PopoverContent(
             header: header,
             notice: notice(for: status),
+            asksForLocation: !locationAllowed && current?.key.hasPrefix("wifi-router:") == true,
             appsTitle: allNetworks ? "Today, all networks" : "Today on \(header.name)",
             apps: apps,
             hiddenApps: max(0, sorted.count - visibleApps),

@@ -55,12 +55,15 @@ struct SnapshotTests {
         todayInterfaces: ByteCounts(rx: 1_223_600_000, tx: 273_800_000),
         speed: ByteCounts(rx: 137_000, tx: 42_000))
 
-    func popover(_ tab: PopoverView.Tab, allNetworks: Bool = false, status: EngineStatus = status) -> some View {
+    func popover(
+        _ tab: PopoverView.Tab, allNetworks: Bool = false, status: EngineStatus = status, current: Network = home,
+        locationAllowed: Bool = true
+    ) -> some View {
         let content = PopoverContent.make(
-            status: status, today: Self.today, registry: Self.registry, current: Self.home,
+            status: status, today: Self.today, registry: Self.registry, current: current,
             // 18:00 local time on 2026-10-27.
             connectedSince: Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 18)),
-            allNetworks: allNetworks)
+            allNetworks: allNetworks, locationAllowed: locationAllowed)
         return PopoverView(content: content, tab: .constant(tab), allNetworks: .constant(allNetworks))
             .background(Color(nsColor: .windowBackgroundColor))
     }
@@ -71,6 +74,13 @@ struct SnapshotTests {
 
     @Test func popoverAppsOnAllNetworks() throws {
         try Snapshot.verify(popover(.apps, allNetworks: true), named: "popover-apps-all-networks")
+    }
+
+    /// Home-5G before Location access: known by its router and named "Wi-Fi".
+    @Test func popoverAsksForLocation() throws {
+        let byRouter = Network(id: 1, key: "wifi-router:2:0:0:1:2:3", name: "Wi-Fi", kind: .wifi)
+        try Snapshot.verify(
+            popover(.apps, current: byRouter, locationAllowed: false), named: "popover-asks-for-location")
     }
 
     @Test func popoverNetworks() throws {

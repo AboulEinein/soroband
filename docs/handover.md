@@ -39,7 +39,7 @@ The state of the project for whoever picks it up next. Read this file, then the 
 
 ### M2 hand checklist
 
-1. **Location permission, so Wi‑Fi is named.** `scripts/install.sh`, then **Soroband › Allow Location Access…** › **Allow**. `soroband today` then lists the Wi‑Fi under its name. A network seen before the permission stays as "Wi-Fi", known by its router.
+1. **Location permission, so Wi‑Fi is named.** `scripts/install.sh`, then **Soroband › Allow Location Access…** › **Allow**. `soroband today` then lists the Wi‑Fi under its name, within a few seconds. The "Wi-Fi" network seen before the permission is gone: its usage is under the Wi‑Fi's name.
 2. **Real hotspot switch.** On Wi‑Fi, note `soroband today --json`. Join the iPhone's Personal Hotspot and run `/usr/bin/curl -o /dev/null https://speed.cloudflare.com/__down?bytes=20000000`. Rejoin the Wi‑Fi. Then check:
    - `soroband apps --network "<iPhone's name>" --json` shows curl at about 20,000,000 B.
    - `soroband today --json` lists the iPhone with `"kind": "hotspot"`.

@@ -38,11 +38,12 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     func update() {
         let usage = Usage.shared
         let display = MenuBarDisplay.make(
-            mode: usage.menuBarMode, status: usage.status, kind: NetworkMonitor.shared.current?.kind)
+            mode: usage.menuBarMode, count: usage.menuBarCount, status: usage.status,
+            kind: NetworkMonitor.shared.current?.kind)
         guard display != self.display, let button = item?.button else { return }
         let new = MenuBarDisplay.Drawn(
-            display: display, mode: usage.menuBarMode, network: usage.status.networkID,
-            total: MenuBarDisplay.total(mode: usage.menuBarMode, status: usage.status))
+            display: display, mode: usage.menuBarMode, count: usage.menuBarCount, network: usage.status.networkID,
+            total: MenuBarDisplay.total(mode: usage.menuBarMode, count: usage.menuBarCount, status: usage.status))
         let delay = MenuBarDisplay.redrawDelay(from: drawn, to: new, lastRedraw: lastRedraw, now: .now)
         if delay > 0 {
             // The latest numbers are read again when it fires.
@@ -125,6 +126,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
 private struct LivePopover: View {
     var usage = Usage.shared
     var monitor = NetworkMonitor.shared
+    var location = LocationAccess.shared
     @State var tab: PopoverView.Tab
     @State var allNetworks: Bool
     /// Opens History on this month, on `network` or on every network when nil.
@@ -136,9 +138,11 @@ private struct LivePopover: View {
         PopoverView(
             content: PopoverContent.make(
                 status: usage.status, today: usage.today, registry: usage.registry,
-                current: monitor.current, connectedSince: monitor.connectedSince, allNetworks: allNetworks),
+                current: monitor.current, connectedSince: monitor.connectedSince, allNetworks: allNetworks,
+                locationAllowed: location.isAllowed),
             tab: $tab, allNetworks: $allNetworks,
             openHistory: { openHistory(allNetworks || tab == .networks ? nil : monitor.current?.id) },
+            allowLocation: { location.allow() },
             openSettings: openSettings, quit: quit
         )
         .onChange(of: monitor.current) { usage.reloadRegistry() }
