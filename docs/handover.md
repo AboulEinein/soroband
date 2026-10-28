@@ -131,7 +131,7 @@ Small items for a later nits pass.
   - Trivial: `app/Soroband/HistoryWindow.swift:118`, run `Core.exportCSV` off the main thread; `app/Soroband/HistoryView.swift:62`, detect "all networks" without comparing `content.title` to `allNetworksTitle`.
 
   Deferred while merging the stack (from #4, #5, #6, #8):
-  - Major: `core/crates/soroband-core/src/meter/socket.rs:63` (#5), a wake after the engine thread has exited writes to a closed pipe and `SIGPIPE` kills the app; keep the read end in `Waker` or set `F_SETNOSIGPIPE`.
+  - Major: `core/crates/soroband-core/src/meter/socket.rs:62` (#5), a wake after the engine thread has exited writes to a closed pipe and `SIGPIPE` kills the app; keep the read end in `Waker` or set `F_SETNOSIGPIPE`.
   - Major: `scripts/verify/traffic.sh:39` (#4), other curls are counted with the test download.
   - Minor: `core/crates/soroband-cli/src/live.rs:86` and `:89` (#4), the elapsed timer starts before the baseline, and the last tick is not bounded by the remaining time.
   - Minor: `scripts/verify/traffic.sh:31` (#4), curl has no deadline.
@@ -197,7 +197,7 @@ Things learned the hard way that no file or config will tell you.
 - `cargo-mutants` is in `~/.cargo/bin`, which is not on `PATH` by default.
 
 **Verifying**
-- Each worktree's Debug build registers the `soroband-debug://` scheme. `open "soroband-debug://…"` can launch another worktree's build, and every running Debug app answers `soroband debug state` and writes the same state file. Send URLs with `open -g -a <this build's Soroband.app>`, check the `pid` in `debug state` `run-app.sh` stops only this worktree's `Soroband.app` and leaves other worktrees' Debug apps running. `networks.sh` ignores answers without a `network`.
+- Each worktree's Debug build registers the `soroband-debug://` scheme. `open "soroband-debug://…"` can launch another worktree's build, and every running Debug app answers `soroband debug state` and writes the same state file. Send URLs with `open -g -a <this build's Soroband.app>`, check the `pid` in `debug state`. `run-app.sh` stops only this worktree's `Soroband.app` and leaves other worktrees' Debug apps running. `networks.sh` ignores answers without a `network`.
 - A copy of `/usr/bin/curl` outside `/usr/bin` does not run, so `traffic.sh` identifies `/usr/bin/curl` and fails if another curl runs at the same time (other agents on this Mac use curl).
 
 **Working on this Mac**
@@ -214,7 +214,7 @@ Things learned the hard way that no file or config will tell you.
 - Streaming `nettop` (`-L 0`) costs more than a full CPU core; keep it out of any measurement path.
 
 **GitHub**
-- The `main` ruleset requires the Core, App and CodeRabbit checks, an up-to-date branch and resolved threads. A PR stacked on another branch is not retargeted when that branch merges unless GitHub deletes the branch, so check its base before merging.
+- The `main` ruleset requires the Core, App and CodeRabbit checks, an up-to-date branch and resolved threads. The repository does not delete a merged branch (`delete_branch_on_merge` is off), and GitHub retargets a PR stacked on a branch only when that branch is deleted, so retarget a stacked PR to `main` by hand before merging it.
 - GitHub opens no PR between branches without a common commit, so CodeRabbit reviews the whole project through an empty commit as the base branch and, as the head, a commit with `main`'s tree whose parent is that empty commit (#15). CodeRabbit's included allowance is 10 reviews an hour.
 - Force-pushing is refused for agents on this Mac; bring a branch up to date by merging `main` into it.
 
