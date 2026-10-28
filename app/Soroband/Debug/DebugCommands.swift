@@ -89,22 +89,41 @@ struct DebugState: Encodable {
         let x, y, width, height: Double
     }
 
+    struct Engine: Encodable {
+        let state: EngineStatus.State
+        let flows: Int
+        let apps: Int
+        let appBytes: Bytes
+        let interfaceBytes: Bytes
+    }
+
+    struct Bytes: Encodable {
+        let received, sent: UInt64
+    }
+
     let pid: Int32
     let bundleIdentifier: String
     let coreVersion: String
     let menuBarText: String
     let location: String
+    let engine: Engine
     let windows: [Window]
 
     @MainActor
     static func current() -> DebugState {
         let mainDisplayHeight = NSScreen.screens.first?.frame.maxY ?? 0
+        let engine = Core.engine
         return DebugState(
             pid: ProcessInfo.processInfo.processIdentifier,
             bundleIdentifier: Bundle.main.bundleIdentifier ?? "",
             coreVersion: Core.version,
             menuBarText: MenuBar.text,
             location: LocationAccess.shared.statusName,
+            engine: Engine(
+                state: engine.state, flows: engine.flows, apps: engine.apps,
+                appBytes: Bytes(received: engine.appBytes.received, sent: engine.appBytes.sent),
+                interfaceBytes: Bytes(
+                    received: engine.interfaceBytes.received, sent: engine.interfaceBytes.sent)),
             windows: NSApp.windows.map { window in
                 let frame = window.frame
                 return Window(

@@ -27,7 +27,7 @@ Hotspot Meter keeps a record per network, can start tracking on its own when a h
 
 1. **Network identity.** `NWPathMonitor` reports interface changes and `isExpensive` (set for iPhone Personal Hotspot). Wi‑Fi name from CoreWLAN `CWWiFiClient` (needs Location permission). Ethernet identified by gateway MAC so "Desk Dock" and "Office LAN" stay separate. Hotspot = expensive path, or a Wi‑Fi/USB interface the user marks as hotspot. Users can rename any network and fix its type. All event-driven: nothing polls while the network is stable.
 2. **Per-app counting: our own meter engine.** A small Rust core talks straight to the kernel's network statistics control socket (`com.apple.network.statistics`, protocol in XNU's open source `bsd/net/ntstat.h`). No `nettop`, no private framework. See "Meter engine" below.
-3. **Ground truth.** Interface byte counters (`getifaddrs`) give the true total per network. Any gap between that and the app sum shows as "Other", so totals always match what the network saw.
+3. **Ground truth.** The interface MIB's 64-bit byte counters (`net.link.generic`, `IFDATA_GENERAL`) give the true total per network. `getifaddrs` and the routing socket's `NET_RT_IFLIST2` are not usable: on macOS 27 an unprivileged process gets counters wrapped to 32 bits and rounded to whole kilobytes. Any gap between that and the app sum shows as "Other", so totals always match what the network saw.
 4. **Storage.** SQLite (system `libsqlite3`, no ORM), WAL mode. One row per (hour, network, app) with bytes down/up, primary key on those three columns. Kept forever: a year of heavy use is a few MB.
 5. **Daily reset.** The menu bar counter covers "today" from a configurable reset hour (default midnight). Nothing is deleted at reset.
 
@@ -40,18 +40,26 @@ Hotspot Meter keeps a record per network, can start tracking on its own when a h
 | `nettop` streaming (`-L 0`) | 137% (42 s CPU in 31 s) | 4 MB + parsing | n/a |
 | `NetworkStatistics.framework` (`prototypes/nstat-probe/nstat-probe.m`) | 0.31% | 7.8 MB | not validated |
 | **Own kernel-socket client, Rust** (`prototypes/meter-probe`) | **0.035–0.058%** | **2.0 MB**, 353 KB binary | `curl` 20.03 MB of 20.00; all apps 30.31 MB vs 31.89 MB on the interface (the gap is packet headers, which flows don't carry) |
+| **`soroband-core` engine** (M1, `soroband live`, 10 min idle, 5 s polls, 70–95 flows) | **0.017–0.033%** | **1.7–1.8 MB** footprint, 386 KB binary | `curl` 20,032,868 B for a 20,000,000 B body (+0.16%); all apps 8% below the interfaces over 60 s with the download, 22% below on an idle minute |
+| The Debug app running the engine (M1, 10 min idle) | 0.023–0.096% | 17.0–23.0 MB footprint | Same engine. Engine cost rises with the Mac's network activity; over the same 2 minutes the Debug app took 0.050%, `soroband live` 0.042% and the M0 app without an engine 0.017% |
 
 How it works:
 
 - One `PF_SYSTEM` control socket. Subscribe to all TCP and UDP flows with a kernel-side filter that accepts only Wi‑Fi, wired and cellular interfaces, so loopback, AWDL and VPN tunnels never reach us. Each flow's own `IS_LOCAL` property drops LAN traffic.
 - Every 5 s send one poll; the kernel replies with byte counters plus process name, pid and the effective pid in chunks. Book the delta per flow to (current network, app). Closed flows send a final update, so short connections are not lost.
-- **Delegated traffic:** the kernel reports the effective pid when a daemon (`nsurlsessiond`, App Store, `softwareupdated`) moves data for an app, so a background download is credited to the app it serves.
+- **Delegated traffic:** the kernel reports the effective pid when a daemon (`nsurlsessiond`, App Store, `softwareupdated`) or WebKit's networking process moves data for an app, so a background download or a web view's page is credited to the app it serves.
+- **Attribution:** a process inside an `.app` bundle is credited to the outermost bundle (helpers, XPC services and login items roll up). Processes under `/System/Library/`, `/System/iOSSupport/`, `/usr/libexec/`, `/usr/sbin/`, `/sbin/` and `/Library/Apple/` (also inside the OS and App cryptexes) are "macOS & Services". Any other executable is a command-line tool, named by its file name (`curl`). A process that exited before it was looked up keeps the name the kernel reported.
+- **Retransmissions count.** A flow's received bytes include duplicates from retransmission; they crossed the interface, so they are usage. The kernel reports the duplicates it recognised per flow (`nstat_rxduplicatebytes`), and `soroband live --json` shows them per app as `rx_duplicate`. On a lossy Wi‑Fi a 20 MB download carried up to 568 KB of them (+2.8%). That counter does not cover every re-received byte: on lossy downloads the excess beyond body plus reported duplicates grew from about 33 KB (TLS and HTTP framing on a clean run) to between 59 KB and 234 KB.
 - **Exact network switches:** on a path-change event the engine polls immediately and closes the bucket, so bytes land on the network they used, not the next one.
-- **Self-check:** the app sum is reconciled against the interface counter all the time. The gap shows as "Other / overhead", and a gap over ~15% flags the engine as degraded.
+- **Self-check:** the app sum is reconciled against the interface counter all the time. Flows carry no headers, so the app sum runs 8–10% below the interfaces during a bulk download and about 22% below on an idle minute, where headers, acknowledgements and link-local chatter are a large share of small packets. v0.1 makes no header-byte estimate. The rule (built in M3):
+  - The raw gap always shows as "Other / overhead", with no verdict.
+  - The ~15% gap is judged only over windows with enough interface volume: at least 10 MB on the interfaces in the last 10 minutes.
+  - "Degraded" shows only after two consecutive failing windows.
+  - Apps summing to more than the interfaces, by about 2%, flags at once, whatever the volume: flows never carry more than crossed the wire.
 
 Risks and how the design handles them:
 
-- **Layout drift.** The protocol is versioned only by struct size. macOS 27 sends a 360-byte TCP descriptor; the newest published XNU (macOS 26) says 344. The engine reads only stable leading fields (counters, pid, epid, name, addresses), checks each descriptor's size per provider, and falls back to network-only totals (step 3) when a size is unknown. A CI test replays captured kernel messages per macOS version.
+- **Layout drift.** The protocol is versioned only by struct size. macOS 27 sends a 360-byte TCP descriptor; the newest published XNU (macOS 26) says 344. The engine reads only stable leading fields (counters, pid, epid, name, interface properties), checks each descriptor's size against a table of sizes observed per macOS version and provider, and falls back to interface-only totals (step 3) when a size is unknown, reporting why. Only macOS 27's kernel TCP and UDP providers are in the table so far (the userland providers sent nothing there); each version added needs a recording from a Mac running it. CI replays the recorded sessions in `core/crates/soroband-core/tests/fixtures`.
 - **Idle-flow baseline.** The kernel can skip unchanged flows (`NOZERODELTAS`, `SUPPRESS_BORING_POLL`), but then a flow idle at startup later reports its whole lifetime. Seen in the probe: one Chrome connection added 22.7 MB that never crossed the interface. The engine polls every flow; at ~150 flows this costs 0.058% CPU.
 - **Domains.** The kernel has a per-flow domain extension, but it returned nothing to an unprivileged client. Per-domain usage is out unless we add DNS correlation later.
 
@@ -61,8 +69,8 @@ Shape: Rust crate `soroband-core` (socket client, aggregation, SQLite) exposed t
 
 | Measure | Budget | Evidence |
 | --- | --- | --- |
-| CPU, idle, popover closed | ≤ 0.1% average | Rust probe: 0.035–0.058% at 5 s polls, ~150 flows |
-| Memory, popover closed | ≤ 25 MB footprint | Bare SwiftUI `MenuBarExtra` app: 16 MB; Rust engine: 2 MB |
+| CPU, idle, popover closed | ≤ 0.1% average | Rust probe: 0.035–0.058% at 5 s polls, ~150 flows; `soroband-core` engine 0.017–0.033%, Debug app with engine 0.023–0.096% (M1) |
+| Memory, popover closed | ≤ 25 MB footprint | Bare SwiftUI `MenuBarExtra` app: 16 MB; Rust engine: 1.7–1.8 MB; Debug app with engine: 17.0–23.0 MB (M1) |
 | Memory, History window open | ≤ 60 MB, back under 30 MB after closing | Not measured yet |
 | Disk writes | One SQLite transaction per minute | Design |
 | Energy | No timers firing more than every 5 s when the popover is closed | Design |

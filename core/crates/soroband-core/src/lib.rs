@@ -3,6 +3,7 @@
 //! The app links this crate as a static library and calls the C API in [`ffi`].
 
 pub mod ffi;
+pub mod meter;
 
 /// Version of the core, from the workspace `Cargo.toml`.
 #[must_use]

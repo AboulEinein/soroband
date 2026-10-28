@@ -8,7 +8,7 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | --- | --- | --- | --- | --- |
 | P0 | Research and prototypes | 0 | done | – |
 | M0 | Repository foundation | 1 | blocked (hand checklist: Location across a rebuild, menu bar item on screen) | [#3](https://github.com/AboulEinein/soroband/pull/3) |
-| M1 | Meter engine | 1 | planned | – |
+| M1 | Meter engine | 1 | in review | [#4](https://github.com/AboulEinein/soroband/pull/4) |
 | M2 | Network identity and storage | 1 | planned | – |
 | M3 | Menu bar and popover (first dogfood build) | 1 | planned | – |
 | M4 | History window | 2 | planned | – |
@@ -51,13 +51,14 @@ Deliverables:
 - Kernel statistics client in `soroband-core`, ported from `prototypes/meter-probe`: chunked polls with continuation, full-poll baselines, final updates for closed flows, kernel-side interface filter, per-flow `IS_LOCAL` filter.
 - Layout guard: a table of known descriptor sizes per provider and macOS version; unknown sizes switch the engine to interface-only totals and report it.
 - Process attribution: `proc_pidpath` to `.app` bundle, helper processes rolled up to their app, effective pid credited for delegated traffic, daemons grouped as "macOS & Services".
-- Interface counters via 64-bit route statistics (`NET_RT_IFLIST2`) for reconciliation.
+- Interface counters via the interface MIB's 64-bit statistics (`IFDATA_GENERAL`) for reconciliation.
 - Recorded kernel message fixtures with replay tests.
 - `soroband live`: per-app internet bytes every N seconds.
 
 Exit criteria:
-- A known 20 MB download is attributed to its process within 1%.
-- The sum over all apps is within 10% of the interface counter over 60 s.
+- A known 20 MB download is attributed to its process: curl's received bytes are within 1% of the body size plus the duplicate bytes the kernel reports for that flow (`nstat_rxduplicatebytes`).
+- The sum over all apps is within 10% of the interface counter over 60 s under load (the `traffic.sh` download). The gap over an idle minute is measured and reported, not judged.
+- Network-quality cutoff for the two criteria above: a `traffic.sh` run is judged only if the kernel-reported duplicate bytes for curl's flow are under 1% of the body (200,000 bytes for the 20 MB file). Runs over the cutoff are recorded in the PR but not judged. At least 3 judged runs must pass.
 - Idle cost measured over 10 min: CPU ≤ 0.1%, memory ≤ 5 MB. Numbers recorded in `docs/design.md`.
 
 ### M2: Network identity and storage
@@ -81,6 +82,7 @@ Deliverables:
 - Menu bar item: network icon and today's total on the current network; other display modes in Settings.
 - Popover as in `prototypes/ui-spike`: current network card, Apps and Networks tabs, footer.
 - Settings: General and Networks tabs. Launch at login (`SMAppService`). First-run onboarding for the Location permission.
+- Engine self-check, as in [`design.md`](design.md#meter-engine): the raw gap between the interfaces and the app sum always shows as "Other / overhead"; "degraded" shows only after two consecutive 10-minute windows with at least 10 MB on the interfaces and a gap over ~15%, or at once when the apps sum to more than the interfaces by about 2%.
 
 Exit criteria:
 - Memory footprint ≤ 25 MB with the popover closed; CPU ≤ 0.1% idle over 10 min.
