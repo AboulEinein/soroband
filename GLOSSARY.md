@@ -220,7 +220,7 @@ The island style that keeps the shape notch-wide inside the menu bar and widens 
 ## Project
 
 **Milestone**:
-One step of the roadmap in `docs/plan.md` (M0 to M6), done on one branch with one PR.
+One step of the roadmap in `docs/plan.md` (M0 to M7), done on one branch with one PR.
 
 **Ledger**:
 The milestone table in `docs/plan.md`, the record of progress. The core's `Ledger` type holds bookings not yet written; in prose say bookings for that.
