@@ -21,7 +21,19 @@ struct SorobandApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var terminateSignal: DispatchSourceSignal?
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // A standby History process must not take activation from the menu bar app, which would
+        // close the popover that started it. It may once it shows its window.
+        if CommandLine.arguments.contains(HistoryOptions.standbyFlag) {
+            NSApp.setActivationPolicy(.prohibited)
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if let options = HistoryOptions(arguments: CommandLine.arguments) {
+            startHistory(options)
+            return
+        }
         if !Core.startEngine() {
             NSLog("Soroband: the usage database in %@ cannot be opened; nothing is recorded", Core.dataDirectory.path)
         }
@@ -41,6 +53,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         DebugCommands.start()
         #endif
+    }
+
+    /// The History process: the History window and nothing else (`HistoryOptions`).
+    @MainActor
+    private func startHistory(_ options: HistoryOptions) {
+        if !Core.openDatabase() {
+            NSLog("Soroband: the usage database in %@ cannot be read", Core.dataDirectory.path)
+        }
+        #if DEBUG
+        DebugCommands.startHistory()
+        #endif
+        // Standard input closing means the menu bar app is gone or dropped this process.
+        HistoryStandby.listen(
+            show: { HistoryWindow.shared.show($0) },
+            ended: { NSApp.terminate(nil) })
+        if CommandLine.arguments.contains(HistoryOptions.standbyFlag) {
+            HistoryWindow.shared.warmUp()
+        } else {
+            HistoryWindow.shared.show(options)
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

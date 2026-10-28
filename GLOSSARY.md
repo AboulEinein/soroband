@@ -124,6 +124,10 @@ _Avoid_: ledger (for this concept; see Ledger)
 **Hour**:
 A UTC hour start. Buckets are keyed by it.
 
+**Daily sums**:
+The bytes of each (UTC day, network, app), kept in `usage_day` beside the buckets and written with them, so a long History range reads one row a day instead of 24.
+_Avoid_: rollup, daily buckets
+
 **Reset hour**:
 The local hour at which today starts again (`reset_hour`, default 0). Nothing is deleted at it.
 _Avoid_: daily reset, daily counter (the Settings label says "Daily counter resets at"; the setting is `reset_hour`)
@@ -138,7 +142,7 @@ How far the apps' sum falls below the interface bytes. Mostly packet headers and
 _Avoid_: overhead (alone)
 
 **Other / overhead**:
-The popover row that shows the gap, always and without a verdict.
+The row of the popover's and History's app lists that shows the gap, always and without a verdict.
 
 **Self-check**:
 The continuous comparison of the apps' sum with the interface bytes, which gives a verdict: ok, degraded or overcount.
@@ -178,7 +182,23 @@ _Avoid_: header (its name in `PopoverContent`)
 The line above the popover's tabs when the engine has failed ("Not counting"), the engine is in interface-only mode, or the self-check is degraded or overcount.
 
 **History window**:
-The window for usage over any range (day to all time), by network and app.
+The window for usage over a range, by network and app: stat tiles, usage chart, apps, share by network and heatmap. It is the only window of the History process.
+
+**History process**:
+A second instance of Soroband.app, started with `--history`, that shows the History window, reads the database without starting the engine, and quits when the window closes. The menu bar app starts it, so History's memory never stays in the menu bar app.
+_Avoid_: helper, History app
+
+**Standby**:
+A History process started when the popover opens, waiting for options on its standard input, so a click on History… does not wait for a launch. It quits when the popover closes unused.
+_Avoid_: prewarm, warm process
+
+**Range**:
+What History shows: a day, week, month or year of the calendar, or all time.
+_Avoid_: period (the calendar unit a range steps by)
+
+**Bar**:
+One column of History's usage chart: an hour, a local day or a local month, stacked by network.
+_Avoid_: bucket (a stored unit of usage)
 
 **Island**:
 The optional black shape at the notch that opens for moments. The menu bar item stays the main element.

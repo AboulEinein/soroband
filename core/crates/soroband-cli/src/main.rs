@@ -24,7 +24,8 @@ Commands:
 #[cfg(debug_assertions)]
 const DEBUG_USAGE: &str = "
 Debug builds only:
-  debug state --json   Print what the running Debug app shows";
+  debug state --json   Print what the running Debug app shows
+  debug history --json Print what the Debug app's History window shows";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();

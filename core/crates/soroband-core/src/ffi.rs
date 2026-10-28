@@ -2,6 +2,7 @@
 
 use crate::check::Verdict;
 use crate::day;
+use crate::history;
 use crate::meter::{Bytes, Engine, Mode, SystemHost, Waker};
 use crate::service::{self, Command, Service};
 use crate::settings::{self, Settings};
@@ -101,6 +102,9 @@ static STATUS: Mutex<SorobandEngineStatus> = Mutex::new(SorobandEngineStatus {
     check: SOROBAND_CHECK_OK,
 });
 static START: Once = Once::new();
+/// The usage database, set by [`soroband_engine_start`] or [`soroband_database_open`]. History and
+/// the network list open it read-only for each read.
+static DATABASE: OnceLock<PathBuf> = OnceLock::new();
 static RUNNING: OnceLock<Running> = OnceLock::new();
 /// Set while the popover is open ([`soroband_engine_live`]).
 static LIVE: AtomicBool = AtomicBool::new(false);
@@ -162,6 +166,7 @@ pub unsafe extern "C" fn soroband_engine_start(
     );
     START.call_once(|| match open_store(&data_dir) {
         Ok(store) => {
+            let _ = DATABASE.set(data_dir.join(DATABASE_FILE));
             let settings_path = data_dir.join(settings::FILE_NAME);
             let running = RUNNING.get_or_init(|| Running {
                 store: Arc::new(Mutex::new(store)),
@@ -363,20 +368,188 @@ pub extern "C" fn soroband_today_json() -> *mut c_char {
     })
 }
 
+/// Opens the usage database in `data_dir` for reading, without the engine, for a process that only
+/// shows History. Later calls, and calls after [`soroband_engine_start`], keep the first database.
+/// Returns false when the database cannot be read.
+///
+/// # Safety
+/// `data_dir` must be a valid NUL-terminated UTF-8 path.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn soroband_database_open(data_dir: *const c_char) -> bool {
+    // SAFETY: the caller passes a valid NUL-terminated string.
+    let data_dir = PathBuf::from(unsafe { text(data_dir) });
+    let database = DATABASE.get_or_init(|| data_dir.join(DATABASE_FILE));
+    match Store::open_read_only(database) {
+        Ok(_) => true,
+        Err(error) => {
+            eprintln!("soroband: cannot read {}: {error}", database.display());
+            false
+        }
+    }
+}
+
+/// What the History window shows for one range, as JSON, read from its own read-only connection
+/// to the database so the engine's writes never wait for it. `query` is JSON:
+///
+/// ```json
+/// {"start": 0, "end": 0, "previous_start": 0, "previous_end": 0, "network": 1, "step": "day"}
+/// ```
+///
+/// Unix times; `previous_*` and `network` may be null or left out (no comparison; every
+/// network), `step` is "hour", "day" or "month". The answer:
+///
+/// ```json
+/// {"first_hour": 0, "interfaces": {"rx": 0, "tx": 0}, "previous": 0,
+///  "bars": [{"first_hour": 0, "network": 1, "rx": 0, "tx": 0}],
+///  "networks": [{"network": 1, "interfaces": {"rx": 0, "tx": 0}, "apps": {"rx": 0, "tx": 0}}],
+///  "apps": [{"network": 1, "id": "/Applications/Safari.app", "name": "Safari", "rx": 0, "tx": 0}],
+///  "busiest_day": {"first_hour": 0, "bytes": 0},
+///  "heatmap": [{"weekday": 0, "hour": 0, "bytes": 0}]}
+/// ```
+///
+/// as [`crate::history::History`] describes. Null when no database is open (neither
+/// [`soroband_engine_start`] nor [`soroband_database_open`] ran), the query is not valid or the
+/// read fails.
+///
+/// The caller owns the string and frees it with [`soroband_string_free`].
+///
+/// # Safety
+/// `query` must be a valid NUL-terminated string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn soroband_history_json(query: *const c_char) -> *mut c_char {
+    let Some(database) = DATABASE.get() else {
+        return std::ptr::null_mut();
+    };
+    // SAFETY: the caller passes a valid NUL-terminated string.
+    let query = unsafe { text(query) };
+    match history_json(database, &query, day::local_offset) {
+        Ok(json) => owned_c_string(&json),
+        Err(error) => {
+            eprintln!("soroband: cannot read history: {error}");
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// Writes the usage stored over the query's span and network to `path` as CSV
+/// ([`crate::history::export_csv`]); `query` is JSON as for [`soroband_history_json`], whose
+/// `previous_*` and `step` it ignores. Returns the number of rows written, or -1 when no database
+/// is open, the query is not valid, or the read or write fails.
+///
+/// # Safety
+/// `query` and `path` must be valid NUL-terminated strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn soroband_export_csv(query: *const c_char, path: *const c_char) -> i64 {
+    let Some(database) = DATABASE.get() else {
+        return -1;
+    };
+    // SAFETY: the caller passes valid NUL-terminated strings.
+    let (query, path) = unsafe { (text(query), text(path)) };
+    match export_csv_file(database, &query, Path::new(&path)) {
+        Ok(rows) => i64::try_from(rows).unwrap_or(i64::MAX),
+        Err(error) => {
+            eprintln!("soroband: cannot export CSV to {path}: {error}");
+            -1
+        }
+    }
+}
+
+fn parse_query(query: &str) -> Result<history::Query, String> {
+    let value: Value = serde_json::from_str(query).map_err(|e| format!("query: {e}"))?;
+    let time = |key: &str| value.get(key).and_then(Value::as_i64);
+    let span = |start, end| -> Result<Option<history::Span>, String> {
+        match (time(start), time(end)) {
+            (Some(start), Some(end)) => Ok(Some(history::Span { start, end })),
+            (None, None) => Ok(None),
+            _ => Err(format!("query: {start} and {end} go together")),
+        }
+    };
+    let step = match value.get("step") {
+        None | Some(Value::Null) => history::Step::Day,
+        Some(step) => step
+            .as_str()
+            .and_then(history::Step::parse)
+            .ok_or_else(|| format!("query: unknown step {step}"))?,
+    };
+    let network = match value.get("network") {
+        None | Some(Value::Null) => None,
+        Some(id) => Some(id.as_i64().ok_or("query: network must be an id")?),
+    };
+    Ok(history::Query {
+        span: span("start", "end")?.ok_or("query: start and end are required")?,
+        previous: span("previous_start", "previous_end")?,
+        network,
+        step,
+    })
+}
+
+/// The database opened read-only for one History read, with a 256 KB page cache instead of
+/// SQLite's 2 MB: a year's query then needs about 2 MB less, at no measured cost in time, and the
+/// History process stays inside its memory budget.
+fn open_for_history(database: &Path) -> Result<Store, String> {
+    let store = Store::open_read_only(database).map_err(|e| e.to_string())?;
+    store
+        .connection()
+        .pragma_update(None, "cache_size", -256)
+        .map_err(|e| e.to_string())?;
+    Ok(store)
+}
+
+fn history_json(database: &Path, query: &str, zone: fn(i64) -> i64) -> Result<String, String> {
+    let query = parse_query(query)?;
+    let store = open_for_history(database)?;
+    let h = history::history(&store, &query, zone).map_err(|e| e.to_string())?;
+    let bytes = |b: Bytes| json!({"rx": b.rx, "tx": b.tx});
+    Ok(json!({
+        "first_hour": h.first_hour,
+        "interfaces": bytes(h.interfaces),
+        "previous": h.previous,
+        "bars": h.bars.iter().map(|b| json!({
+            "first_hour": b.first_hour, "network": b.network, "rx": b.bytes.rx, "tx": b.bytes.tx,
+        })).collect::<Vec<_>>(),
+        "networks": h.networks.iter().map(|n| json!({
+            "network": n.network, "interfaces": bytes(n.interfaces), "apps": bytes(n.apps),
+        })).collect::<Vec<_>>(),
+        "apps": h.apps.iter().map(|a| json!({
+            "network": a.network, "id": a.app.id, "name": a.app.name,
+            "rx": a.bytes.rx, "tx": a.bytes.tx,
+        })).collect::<Vec<_>>(),
+        "busiest_day": h.busiest_day.map(|d| json!({"first_hour": d.first_hour, "bytes": d.bytes})),
+        "heatmap": h.heatmap.iter().map(|c| json!({
+            "weekday": c.weekday, "hour": c.hour, "bytes": c.bytes,
+        })).collect::<Vec<_>>(),
+    })
+    .to_string())
+}
+
+fn export_csv_file(database: &Path, query: &str, path: &Path) -> Result<u64, String> {
+    let query = parse_query(query)?;
+    let store = open_for_history(database)?;
+    let file = std::fs::File::create(path).map_err(|e| e.to_string())?;
+    let mut out = std::io::BufWriter::new(file);
+    let rows = history::export_csv(&store, query.span, query.network, &mut out)
+        .map_err(|e| e.to_string())?;
+    std::io::Write::flush(&mut out).map_err(|e| e.to_string())?;
+    Ok(rows)
+}
+
 /// Every network in the registry as a JSON array of
 /// `{"id", "key", "name", "kind", "last_used": Unix time of the last hour it carried bytes, or null}`,
-/// in the order they were first seen. Reads the database; null when the engine was not started or
-/// the read fails.
+/// in the order they were first seen. Reads the database; null when no database is open (neither
+/// [`soroband_engine_start`] nor [`soroband_database_open`] ran) or the read fails.
 ///
 /// The caller owns the string and frees it with [`soroband_string_free`].
 #[unsafe(no_mangle)]
 pub extern "C" fn soroband_networks_json() -> *mut c_char {
-    let Some(running) = RUNNING.get() else {
+    let read = if let Some(running) = RUNNING.get() {
+        let store = lock(&running.store);
+        store.networks().and_then(|n| Ok((n, store.last_used()?)))
+    } else if let Some(database) = DATABASE.get() {
+        Store::open_read_only(database)
+            .and_then(|store| Ok((store.networks()?, store.last_used()?)))
+    } else {
         return std::ptr::null_mut();
     };
-    let store = lock(&running.store);
-    let read = store.networks().and_then(|n| Ok((n, store.last_used()?)));
-    drop(store);
     match read {
         Ok((networks, last_used)) => owned_c_string(&networks_json(&networks, &last_used)),
         Err(error) => {
@@ -907,6 +1080,130 @@ mod tests {
             stored_rx >= booked.today_interface_rx,
             "stored {stored_rx}, booked {}",
             booked.today_interface_rx
+        );
+
+        // History reads the same database through its own connection.
+        let query = CString::new(format!(
+            r#"{{"start": {}, "end": {}, "network": {cafe}, "step": "hour"}}"#,
+            booked.today_start,
+            crate::day::now() + 3600
+        ))
+        .unwrap();
+        // SAFETY: a valid NUL-terminated string.
+        let history = json(unsafe { super::soroband_history_json(query.as_ptr()) });
+        assert!(
+            history["interfaces"]["rx"].as_u64().unwrap() >= 200_000,
+            "{history}"
+        );
+        assert_eq!(history["networks"][0]["network"], cafe, "{history}");
+        let csv = dir.join("export.csv");
+        let csv_c = CString::new(csv.to_str().unwrap()).unwrap();
+        // SAFETY: valid NUL-terminated strings.
+        let rows = unsafe { super::soroband_export_csv(query.as_ptr(), csv_c.as_ptr()) };
+        let text = std::fs::read_to_string(&csv).unwrap();
+        assert_eq!(
+            usize::try_from(rows).unwrap(),
+            text.lines().count() - 1,
+            "{text}"
+        );
+        // SAFETY: a valid NUL-terminated string.
+        assert!(unsafe { super::soroband_history_json(c"{}".as_ptr()) }.is_null());
+    }
+
+    #[test]
+    fn history_queries_are_read_from_json_and_answered_as_json() {
+        use super::{history_json, parse_query};
+        use crate::history::{Query, Span, Step};
+        use crate::meter::{App, Bytes};
+        use crate::store::{AppUsage, InterfaceUsage, Store};
+
+        assert_eq!(
+            parse_query(r#"{"start": 10, "end": 20}"#),
+            Ok(Query {
+                span: Span { start: 10, end: 20 },
+                previous: None,
+                network: None,
+                step: Step::Day,
+            })
+        );
+        assert_eq!(
+            parse_query(
+                r#"{"start": 10, "end": 20, "previous_start": 0, "previous_end": 10,
+                    "network": 3, "step": "month"}"#
+            ),
+            Ok(Query {
+                span: Span { start: 10, end: 20 },
+                previous: Some(Span { start: 0, end: 10 }),
+                network: Some(3),
+                step: Step::Month,
+            })
+        );
+        for bad in [
+            r#"{"end": 20}"#,
+            r#"{"start": 10, "end": 20, "previous_start": 0}"#,
+            r#"{"start": 10, "end": 20, "step": "week"}"#,
+            r#"{"start": 10, "end": 20, "network": "Home"}"#,
+            "not json",
+        ] {
+            assert!(parse_query(bad).is_err(), "{bad}");
+        }
+
+        let dir =
+            std::env::temp_dir().join(format!("soroband-history-json-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("usage.sqlite");
+        let mut store = Store::open(&path).unwrap();
+        store
+            .add(
+                &[AppUsage {
+                    hour: 3600,
+                    network: 1,
+                    app: App {
+                        id: "/Applications/Mail.app".into(),
+                        name: "Mail".into(),
+                    },
+                    bytes: Bytes { rx: 30, tx: 3 },
+                }],
+                &[InterfaceUsage {
+                    hour: 3600,
+                    network: 1,
+                    bytes: Bytes { rx: 40, tx: 4 },
+                }],
+            )
+            .unwrap();
+        // Thursday 1 January 1970, 01:00 UTC.
+        let answer: serde_json::Value = serde_json::from_str(
+            &history_json(
+                &path,
+                r#"{"start": 0, "end": 7200, "previous_start": 0, "previous_end": 1}"#,
+                |_| 0,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            answer,
+            serde_json::json!({
+                "first_hour": 3600,
+                "interfaces": {"rx": 40, "tx": 4},
+                "previous": 0,
+                "bars": [{"first_hour": 3600, "network": 1, "rx": 40, "tx": 4}],
+                "networks": [{"network": 1, "interfaces": {"rx": 40, "tx": 4},
+                              "apps": {"rx": 30, "tx": 3}}],
+                "apps": [{"network": 1, "id": "/Applications/Mail.app", "name": "Mail",
+                          "rx": 30, "tx": 3}],
+                "busiest_day": {"first_hour": 3600, "bytes": 44},
+                "heatmap": [{"weekday": 4, "hour": 1, "bytes": 44}],
+            })
+        );
+        assert!(
+            history_json(
+                &dir.join("missing.sqlite"),
+                r#"{"start": 0, "end": 1}"#,
+                |_| 0
+            )
+            .is_err()
         );
     }
 

@@ -6,9 +6,13 @@ enum Core {
     static var version: String { String(cString: soroband_core_version()) }
 
     /// Where the app keeps its database and settings. Debug builds use their own directory, so
-    /// they never touch the installed app's data. Must match `core/crates/soroband-cli/src/data.rs`.
+    /// they never touch the installed app's data, or `SOROBAND_DATA_DIR` when it is set (for a
+    /// run on synthetic data). Must match `core/crates/soroband-cli/src/data.rs`.
     static let dataDirectory: URL = {
         #if DEBUG
+        if let dir = ProcessInfo.processInfo.environment["SOROBAND_DATA_DIR"], !dir.isEmpty {
+            return URL(filePath: dir, directoryHint: .isDirectory)
+        }
         let name = "Soroband Debug"
         #else
         let name = "Soroband"
@@ -23,6 +27,16 @@ enum Core {
         dataDirectory.withUnsafeFileSystemRepresentation { path in
             guard let path else { return false }
             return soroband_engine_start(interval, path)
+        }
+    }
+
+    /// Opens the usage database for reading only, without the engine, for the History process.
+    /// Returns false when it cannot be read.
+    @discardableResult
+    static func openDatabase() -> Bool {
+        dataDirectory.withUnsafeFileSystemRepresentation { path in
+            guard let path else { return false }
+            return soroband_database_open(path)
         }
     }
 
@@ -90,6 +104,21 @@ enum Core {
     /// Every network in the registry. Reads the database.
     static func networks() -> [RegisteredNetwork] {
         decode([RegisteredNetwork].self, soroband_networks_json()) ?? []
+    }
+
+    /// What the History window shows for `query`, aggregated by the core from the database; nil
+    /// when the read fails.
+    static func history(_ query: HistoryQuery) -> HistoryData? {
+        decode(HistoryData.self, soroband_history_json(query.json))
+    }
+
+    /// Writes the usage stored over `query`'s span and network to `file` as CSV. Returns the
+    /// number of rows written, or nil when the read or write fails.
+    static func exportCSV(_ query: HistoryQuery, to file: URL) -> Int? {
+        let rows = file.withUnsafeFileSystemRepresentation { path in
+            path.map { soroband_export_csv(query.json, $0) } ?? -1
+        }
+        return rows < 0 ? nil : Int(rows)
     }
 
     private static func take(_ string: UnsafeMutablePointer<CChar>?) -> String? {
