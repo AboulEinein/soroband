@@ -22,6 +22,7 @@ Exit status: 0 on success; 2 for an unknown key or a value outside the setting's
 | --- | --- | --- | --- |
 | `reset_hour` | integer 0–23 | 0 | Hour of the day, local time, when "today" starts again. History is not affected: changing it only moves the start of today. |
 | `menu_bar` | choice: `today_network`, `today_all`, `speed`, `icon` | `today_network` | What the menu bar item shows next to the network icon: today on the current network, today on all networks, the live download and upload speed, or the icon alone. |
+| `menu_bar_count` | choice: `total`, `download`, `upload`, `both` | `total` | Which of today's bytes the menu bar item shows when `menu_bar` is `today_network` or `today_all`: the total, download, upload, or download and upload side by side. |
 
 The app's Settings window changes the same settings, with the same checks. Launch at login is not a setting here: macOS keeps it (System Settings › General › Login Items), and the app's Settings window turns it on and off.
 

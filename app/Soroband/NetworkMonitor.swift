@@ -100,6 +100,7 @@ final class NetworkMonitor {
         }
         guard identity.key != current?.key else { return }
         if let network = Core.networkChanged(to: identity) {
+            if identity.formerKey != nil { Usage.shared.rereadRegistryAfterMerge() }
             current = network
         } else if current != nil {
             // The registry could not record it: book to no network rather than the last one.

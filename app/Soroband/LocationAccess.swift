@@ -20,7 +20,12 @@ final class LocationAccess: NSObject, CLLocationManagerDelegate {
         manager.requestWhenInUseAuthorization()
     }
 
-    var isAllowed: Bool { statusName == "authorized" }
+    var isAllowed: Bool {
+        switch status {
+        case .authorizedAlways, .authorizedWhenInUse: true
+        default: false
+        }
+    }
 
     /// Asks macOS, or opens Location Services in System Settings once the user has answered,
     /// because macOS asks only once.

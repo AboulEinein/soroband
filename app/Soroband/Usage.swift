@@ -31,6 +31,9 @@ final class Usage {
         }
     }
 
+    /// Polls left that reread the registry, after a change that may merge a network into another.
+    private var registryRereads = 0
+
     /// Called by `MenuBarController` after each refresh.
     var onChange: (() -> Void)?
 
@@ -52,7 +55,17 @@ final class Usage {
             let today = Core.today()
             if today != self.today { self.today = today }
         }
+        if registryRereads > 0 {
+            registryRereads -= 1
+            if isLive { reloadRegistry() }
+        }
         onChange?()
+    }
+
+    /// The engine merges a network after the change that asked for it, so the registry the open
+    /// popover read at the change can still list the merged one: read it again on the next polls.
+    func rereadRegistryAfterMerge() {
+        registryRereads = 2
     }
 
     func reloadRegistry() {
