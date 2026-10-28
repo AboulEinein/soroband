@@ -72,12 +72,16 @@ struct OnboardingView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Text("To tell your Wi‑Fi networks apart by name, macOS needs Location access. Soroband reads only the network's name, never where you are, and nothing leaves your Mac.")
-                .fixedSize(horizontal: false, vertical: true)
-            Text("Without it, each Wi‑Fi network is still counted on its own, known by its router, and named “Wi‑Fi” until you rename it in Settings.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            Text(
+                "To tell your Wi‑Fi networks apart by name, macOS needs Location access. Soroband reads only the network's name, never where you are, and nothing leaves your Mac."
+            )
+            .fixedSize(horizontal: false, vertical: true)
+            Text(
+                "Without it, each Wi‑Fi network is still counted on its own, known by its router, and named “Wi‑Fi” until you rename it in Settings."
+            )
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
             HStack {
                 Spacer()
                 Button("Not Now", action: done)
