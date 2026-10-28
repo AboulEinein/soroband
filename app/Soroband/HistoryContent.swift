@@ -183,8 +183,8 @@ struct HistoryContent: Equatable {
         var kind: NetworkKind?
         /// Color slot; nil is the neutral color of no network.
         var slot: Int?
-        /// The chart's key and legend text: the name, with " (2)", " (3)" after a name an earlier
-        /// network (or no network) already has, since the chart colors by it and names can repeat.
+        /// The chart's key and legend text: the name, with " (2)", " (3)" when an earlier network
+        /// (or no network) already has that label, since the chart colors by it and names can repeat.
         var label: String
 
         init(id: Int64, name: String, kind: NetworkKind?, slot: Int?, label: String? = nil) {
@@ -427,14 +427,20 @@ struct HistoryContent: Equatable {
 
     /// Every network in the registry by id, with its color slot in registry order.
     static func networkStyles(registry: [RegisteredNetwork]) -> [Int64: NetworkStyle] {
-        // No network's name is taken first, so a network named like it gets a suffix.
-        var seen = [PopoverContent.unknownNetworkName: 1]
+        // No network's name is taken first, so a network named like it gets a suffix; a suffixed
+        // label skips any label already used, including another network's real name.
+        var used: Set<String> = [PopoverContent.unknownNetworkName]
         return Dictionary(uniqueKeysWithValues: registry.enumerated().map { index, network in
-            let count = seen[network.name, default: 0] + 1
-            seen[network.name] = count
+            var label = network.name
+            var count = 1
+            while used.contains(label) {
+                count += 1
+                label = "\(network.name) (\(count))"
+            }
+            used.insert(label)
             return (network.id, NetworkStyle(
                 id: network.id, name: network.name, kind: network.kind, slot: NetworkColor.slot(forIndex: index),
-                label: count == 1 ? network.name : "\(network.name) (\(count))"))
+                label: label))
         })
     }
 

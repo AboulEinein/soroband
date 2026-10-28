@@ -244,6 +244,14 @@ struct HistoryContentTests {
         // No network keeps its plain name in the chart.
         #expect(styles[3]?.label == "\(PopoverContent.unknownNetworkName) (2)")
         #expect(Set(styles.values.map(\.slot)).count == 3)
+        // A suffix never lands on a name another network already has.
+        let clash = HistoryContent.networkStyles(registry: [
+            RegisteredNetwork(id: 1, key: "wifi:a", name: "Home", kind: .wifi, lastUsed: nil),
+            RegisteredNetwork(id: 2, key: "wifi:b", name: "Home (2)", kind: .wifi, lastUsed: nil),
+            RegisteredNetwork(id: 3, key: "wifi:c", name: "Home", kind: .wifi, lastUsed: nil),
+        ])
+        #expect(clash[3]?.label == "Home (3)")
+        #expect(Set(clash.values.map(\.label)).count == 3)
     }
 
     // MARK: Pieces
