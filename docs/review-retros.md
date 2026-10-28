@@ -94,3 +94,4 @@ Planned rounds: 3.
 | --- | --- | --- | --- |
 | 1 (stopped) | Sonnet | 2 Medium | `first look`: a finished month's comparison span ran into the month shown; All Time after a network switch started at the previous network's first hour. Stopped by the user's pause after it posted these two; its summary was never written. |
 | 1 | Sonnet | none | Confirmed both fixes of the stopped review and resolved their threads. Noted outside the diff: the 30 MB criterion read literally, and the ledger and handover still to update. |
+| direct | Haiku | none | Checked 0864ba6 (the test fixture split for CI's compiler): the same 168 heatmap cells in the same order. [Comment](https://github.com/AboulEinein/soroband/pull/13#issuecomment-6463010429). |
