@@ -148,3 +148,20 @@ Planned rounds: 1.
 **Retro.** Planned 1 round; it took 1 blind round and 3 direct reviews, because each fix to a factual claim (a path, a line, what GitHub does) was written from memory and the next reviewer checked it against the repository or GitHub. Writing down state that lives in another system needs the same check at writing time. CodeRabbit found the severity slip #14 already had, so the retro table now lists its severities; the first version of that list was written without reading the skill's scale and needed one more fix. Its last finding is review step 7's rule (a change to a requirement changes every document that states it) missed again: the blind round checked the handover against GitHub, not against `plan.md`.
 
 Changes it led to: `review-retros.md` names the severity values.
+
+
+## [#17](https://github.com/AboulEinein/soroband/pull/17) fix(app): name Wi-Fi once Location is allowed and choose the menu bar count (2026-10-28)
+
+Planned rounds: 2.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 2 Low, 1 Minor | `first look`: an open popover kept the merged "Wi-Fi" row, `docs/agents/configure.md` did not list `menu_bar_count`, `isAllowed` compared the debug label. |
+| 2 | Opus | 1 Medium | `fix regression`: round 1's registry reread waited for the popover, so Settings › Networks still kept the "Wi-Fi" row. |
+| 3 | Opus | 2 Low, 1 unrated | `missed earlier`: the Location URL and branch duplicated in `LocationRow`, no glossary term for the merge, and no second look for the name after the 10 s retry. |
+| 4 | Opus | none | |
+
+**Retro.** Planned 2 rounds; it took 4 because the fix for round 1's stale row was written for the one view the finding named (the popover), and round 2 found the other view that shows the registry. A fix to a stale view needs every reader of the state it refreshes listed first. Round 3's findings were in the diff from the start; round 1 checked requirements and evidence and did not get to duplication or the glossary.
+
+Changes it led to: none yet; the `fix regression` cause (fixing the named view, not every reader) is new.
+
