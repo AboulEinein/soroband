@@ -92,3 +92,4 @@ Planned rounds: 3.
 
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
+| 1 (stopped) | Sonnet | 2 Medium | `first look`: a finished month's comparison span ran into the month shown; All Time after a network switch started at the previous network's first hour. Stopped by the user's pause after it posted these two; its summary was never written. |
