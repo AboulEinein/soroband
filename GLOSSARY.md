@@ -229,8 +229,9 @@ Duplicate bytes for curl's flow under 1% of the body; the line between a judged 
 **Round**:
 One blind review of a PR, posted on it.
 
-**Round cap**:
-The most rounds a PR gets, set before round 1, never above 3.
+**Planned rounds**:
+The rounds a PR expects, written in its description before round 1; a budget for judgment, not a limit. Whether another round runs is judged after each one.
+_Avoid_: round cap
 
 **Blind loop**:
 The rounds of blind review a PR gets while it is a draft; CodeRabbit reviews after it ends.
@@ -245,4 +246,4 @@ A fresh agent each round that sees only the PR and its requirements.
 The thread that starts milestone sessions in an unattended run and writes no code.
 
 **Retrospective**:
-The PR comment written when the round cap is reached with findings open, naming the root cause and a way forward.
+The PR comment written in a reassessment (a fixed finding came back, or the findings repeat in kind or stop shrinking), naming the root cause and a way forward.
