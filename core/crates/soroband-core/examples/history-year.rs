@@ -7,7 +7,7 @@
 //!
 //! Usage: cargo run --release --example history-year -- <data dir>
 //! The directory must not hold a database yet. Launch a Debug build on it with
-//! `open --env SOROBAND_DATA_DIR=<data dir> <Soroband.app>`.
+//! `open -g --env SOROBAND_DATA_DIR=<data dir> -a <Soroband.app>`.
 
 use soroband_core::day::{hour_start, local_offset, now};
 use soroband_core::history::{Query, Span, Step, history};

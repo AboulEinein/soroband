@@ -74,8 +74,10 @@ struct HistoryQuery: Equatable {
                 step: days > allTimeDays ? .month : .day)
         }
         let elapsed = min(interval.end, now).timeIntervalSince(interval.start)
+        // Ends at the shown period's start at the latest: a finished 31-day month after a 30-day
+        // one would otherwise count its own first day.
         let previous = calendar.date(byAdding: period, value: -1, to: interval.start).map {
-            DateInterval(start: $0, duration: max(0, elapsed))
+            DateInterval(start: $0, end: min($0.addingTimeInterval(max(0, elapsed)), interval.start))
         }
         let step: HistoryStep = switch range {
         case .day: .hour

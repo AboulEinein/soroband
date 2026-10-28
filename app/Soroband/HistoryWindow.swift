@@ -139,8 +139,11 @@ final class HistoryModel {
     private(set) var registry: [RegisteredNetwork]
     private(set) var query: HistoryQuery
     private(set) var content: HistoryContent
-    /// The earliest recorded hour, from the last answer; All Time starts there.
-    private var firstHour: Date?
+    /// The earliest recorded hour on each network (nil: every network), from earlier answers; All
+    /// Time starts there.
+    private var firstHours: [Int64?: Date] = [:]
+    /// Reads the database: `Core.history`, or a stand-in in tests.
+    private let read: @Sendable (HistoryQuery) -> HistoryData?
     /// Drops an answer when a newer query was sent while it was read.
     private var generation = 0
 
@@ -154,7 +157,11 @@ final class HistoryModel {
     /// Apps listed before "Show all".
     static let visibleApps = 12
 
-    init(range: HistoryRange, anchor: Date, network: Int64?, currentNetwork: Int64?, registry: [RegisteredNetwork]) {
+    init(
+        range: HistoryRange, anchor: Date, network: Int64?, currentNetwork: Int64?, registry: [RegisteredNetwork],
+        read: @escaping @Sendable (HistoryQuery) -> HistoryData? = Core.history
+    ) {
+        self.read = read
         self.currentNetwork = currentNetwork
         self.range = range
         self.anchor = anchor
@@ -202,14 +209,15 @@ final class HistoryModel {
         }
         let query = makeQuery()
         let answer = Answer()
-        let read = DispatchGroup()
-        read.enter()
+        let reading = DispatchGroup()
+        reading.enter()
+        let read = read
         DispatchQueue.global(qos: .userInitiated).async {
-            answer.data = Core.history(query)
-            read.leave()
+            answer.data = read(query)
+            reading.leave()
         }
         work()
-        read.wait()
+        reading.wait()
         apply(answer.data, for: query)
         // All Time chooses days or months by how far back history goes, known only now.
         if range == .all, makeQuery().step != query.step { loadNow() }
@@ -220,8 +228,9 @@ final class HistoryModel {
         generation += 1
         let generation = generation
         let query = makeQuery()
+        let read = read
         Task.detached(priority: .userInitiated) {
-            let data = Core.history(query)
+            let data = read(query)
             await MainActor.run {
                 guard generation == self.generation else { return }
                 self.apply(data, for: query)
@@ -232,11 +241,14 @@ final class HistoryModel {
 
     private func makeQuery() -> HistoryQuery {
         HistoryQuery.make(
-            range: range, anchor: anchor, network: network, firstHour: firstHour, now: .now, calendar: calendar)
+            range: range, anchor: anchor, network: network, firstHour: firstHours[network], now: .now,
+            calendar: calendar)
     }
 
     private func apply(_ data: HistoryData?, for query: HistoryQuery) {
-        if let first = data?.firstHour { firstHour = Date(timeIntervalSince1970: TimeInterval(first)) }
+        if let first = data?.firstHour {
+            firstHours[query.network] = Date(timeIntervalSince1970: TimeInterval(first))
+        }
         self.query = query
         content = HistoryContent.make(
             range: range, query: query, data: data ?? .empty, registry: registry, now: .now, calendar: calendar)

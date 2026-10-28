@@ -46,6 +46,15 @@ struct HistoryContentTests {
             """)
     }
 
+    @Test func aFinishedMonthComparesWithNoneOfItsOwnDays() {
+        // October has 31 days, September 30: 31 days from 1 September would reach 1 October.
+        let november2 = Self.calendar.date(byAdding: .day, value: 1, to: Self.november1)!
+        let query = HistoryQuery.make(
+            range: .month, anchor: Self.october15Noon, network: nil, firstHour: nil, now: november2,
+            calendar: Self.calendar)
+        #expect(query.previous == DateInterval(start: Self.september1, end: Self.october1))
+    }
+
     @Test func aWeekStartsOnTheCalendarsFirstWeekday() {
         let query = HistoryQuery.make(
             range: .week, anchor: Self.october27At9, network: nil, firstHour: nil, now: Self.october28,
