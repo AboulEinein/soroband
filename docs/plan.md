@@ -8,7 +8,7 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | --- | --- | --- | --- | --- |
 | P0 | Research and prototypes | 0 | done | – |
 | M0 | Repository foundation | 1 | blocked (hand checklist: menu bar item on screen, Location across a rebuild) | [#3](https://github.com/AboulEinein/soroband/pull/3) |
-| M1 | Meter engine | 1 | in review | [#4](https://github.com/AboulEinein/soroband/pull/4) |
+| M1 | Meter engine | 1 | done | [#4](https://github.com/AboulEinein/soroband/pull/4) |
 | M2 | Network identity and storage | 1 | blocked (hand checklist: Location, real hotspot switch, Wi‑Fi without its name) | [#5](https://github.com/AboulEinein/soroband/pull/5) |
 | M3 | Menu bar and popover (first dogfood build) | 1 | blocked (hand checklist and daily-use week) | [#6](https://github.com/AboulEinein/soroband/pull/6) |
 | M4 | History window | 2 | blocked (hand checklist) | [#13](https://github.com/AboulEinein/soroband/pull/13) |
@@ -16,7 +16,7 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | M6 | Memory and performance | 3 | planned | – |
 | M7 | Release v0.1.0 | 3 | planned | – |
 
-M0–M3 are stacked pull requests, each against the previous milestone's branch, merged in order once their checklists pass. The checklists are in [`handover.md`](handover.md#next-action).
+M0–M4 are merged to `main`. A milestone with a hand checklist stays `blocked` until the user has run it; the checklists are in [`handover.md`](handover.md#next-action).
 
 Statuses: `planned`, `in progress`, `in review`, `done`, `blocked (<reason>)`.
 

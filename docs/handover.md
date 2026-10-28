@@ -4,23 +4,21 @@ The state of the project for whoever picks it up next. Read this file, then the 
 
 ## Current state (2026-10-28)
 
-- M0–M3 are in stacked pull requests: [#3](https://github.com/AboulEinein/soroband/pull/3) (`m0-foundation`, against `main`), [#4](https://github.com/AboulEinein/soroband/pull/4) (`m1-meter-engine`), [#5](https://github.com/AboulEinein/soroband/pull/5) (`m2-networks-storage`) and [#6](https://github.com/AboulEinein/soroband/pull/6) (`m3-menubar-popover`), each against the previous milestone's branch. Each pull request is one commit and its description summarizes its review. Each milestone's review loop ended with nothing left to act on, and CI was green.
+- M0–M4 and the fix in [#14](https://github.com/AboulEinein/soroband/pull/14) are merged to `main` ([#3](https://github.com/AboulEinein/soroband/pull/3) to [#10](https://github.com/AboulEinein/soroband/pull/10), [#13](https://github.com/AboulEinein/soroband/pull/13), [#14](https://github.com/AboulEinein/soroband/pull/14)). On the merged state: 159 Rust and 65 Swift tests pass, swift-format lint is clean and `scripts/verify/install-guard.sh` passes. The milestones with a hand checklist stay `blocked` in the ledger until the user has run it.
 - M0 (repository foundation): the Rust workspace, the universal XCFramework bridge, the menu bar app showing "Soroband <core version>", the build, install and verification scripts, the agent install guide and CI. Its hand checklist (below) has not been run.
 - M1 (meter engine): the engine counts internet bytes per app from the kernel statistics socket; `soroband live` shows it; the app starts it at launch and reports it in `soroband debug state`. Under the network-quality cutoff, 3 judged `traffic.sh` runs passed, all at +0.16% attribution and −6.7% to −7.3% reconciliation; one lossy run over the cutoff reached +1.15%, because the kernel's duplicate counter misses some re-received bytes. Budget: engine 0.033% and 1.8 MB, Debug app 0.096% and 23.0 MB over 10 minutes. The replay fixtures are anonymized (see Decisions).
 - M2 (network identity and storage): simulated switches (`scripts/verify/networks.sh`, 6 of 6 runs), the restart check and `config set` on the running app pass, and growth is measured at 27.9 KB a day. Budget: Debug app 0.059% CPU and 19.0 MB over 10 minutes. Its hand checklist (below) has not been run.
 - M3 (menu bar and popover): the menu bar item (network icon and today's total, or today on all networks, live speed, icon only, through the `menu_bar` setting), the popover (network card, Apps and Networks tabs, "Other / overhead", footer), Settings (General and Networks), launch at login through `SMAppService`, the first-run Location window, and the engine self-check in `core/crates/soroband-core/src/check.rs`. The menu bar item and popover are AppKit (`NSStatusItem`, `NSPopover`) hosting SwiftUI, so Debug builds open them on command (`open-popover`, `open-settings`). Budget: Debug app 0.096% CPU and 21.0 MB over 10 minutes with the popover closed, on a busy network; 0.055% in icon-only mode. Its hand checklist and the daily-use week (exit criterion 2) need the user.
-- M4 (History window) is in [#13](https://github.com/AboulEinein/soroband/pull/13) (`m4-history`, against `docs/review-retros`, #10). History runs in its own process (a second instance started with `--history`, `app/Soroband/HistoryProcess.swift`), which the popover starts in standby; every number is aggregated in SQL (`core/crates/soroband-core/src/history.rs`), long ranges read daily sums (`usage_day`, schema version 2); CSV export. On a synthetic year (Debug build): 199–244 ms from the click to the window drawn on every range; the History process 50–56 MB while open, its standby 22 MB; the menu bar app keeps nothing of History after it closes. Budget: Debug app 0.074% CPU and 18.0 MB over 10 minutes. The blind loop and CodeRabbit's review ended with nothing left to act on (`docs/review-retros.md`). The user accepted "back under 30 MB after closing" as met, because History leaves nothing in the menu bar app; the app's own residue after the popover is M6's (Memory and performance). Its hand checklist (below) needs the user.
-- [#14](https://github.com/AboulEinein/soroband/pull/14) (`fix/dev-instance`, against `m4-history`): a Debug build's menu bar icon is orange, and `scripts/install.sh` replaces an installed app only after a yes in a terminal or with `--replace`, one run at a time (`scripts/verify/install-guard.sh` in CI). Its review ended with nothing left to act on.
+- M4 (History window): History runs in its own process (a second instance started with `--history`, `app/Soroband/HistoryProcess.swift`), which the popover starts in standby; every number is aggregated in SQL (`core/crates/soroband-core/src/history.rs`), long ranges read daily sums (`usage_day`, schema version 2); CSV export. On a synthetic year (Debug build): 199–244 ms from the click to the window drawn on every range; the History process 50–56 MB while open, its standby 22 MB; the menu bar app keeps nothing of History after it closes. Budget: Debug app 0.074% CPU and 18.0 MB over 10 minutes. The blind loop and CodeRabbit's review ended with nothing left to act on (`docs/review-retros.md`). The user accepted "back under 30 MB after closing" as met, because History leaves nothing in the menu bar app; the app's own residue after the popover is M6's (Memory and performance). Its hand checklist (below) needs the user.
+- A Debug build's menu bar icon is orange, and `scripts/install.sh` replaces an installed app only after a yes in a terminal or with `--replace`, one run at a time (`scripts/verify/install-guard.sh` in CI).
+- CodeRabbit reviewed the whole project in [#15](https://github.com/AboulEinein/soroband/pull/15) (not for merge; see Gotchas). Its findings and those deferred while merging the stack are the backlog in Follow-ups.
 - The app is named Soroband, with the bundle identifier `io.github.abouleinein.soroband` (Debug: `.debug`), data in `~/Library/Application Support/Soroband`, and the `soroband` command.
 
 ## Next action
 
-1. Run the M0 hand checklist (below). If item 3 fails, the signing approach needs rework.
-2. Run the M2 hand checklist (below).
-3. Run the M3 hand checklist (below) and start the daily-use week; note issues as follow-ups in the ledger.
-4. After the week, merge #3 to #6 in order, marking each milestone `done` in the ledger once its checklist has passed. M5 can then start in its own worktree.
-5. Run the M4 hand checklist (below) and merge #13 after #10.
-6. M5 (Dynamic Island moments) can start from `m4-history`, since M4 is blocked only on its hand checklist. It runs the review experiment in its section of `plan.md`.
+1. Open one pull request against `main` that fixes the CodeRabbit backlog (Follow-ups), the `SIGPIPE` crash first, with a test wherever behavior changes. It runs the usual loop in `docs/review.md`, and every finding goes in `docs/coderabbit-findings.md` (source: #15, or the PR it was deferred from). Then close #15 and delete its branches `review/empty-base` and `review/full-project-tree`.
+2. The user runs the M0, M2, M3 and M4 hand checklists (below) and starts the daily-use week; each milestone is marked `done` in the ledger once its checklist has passed, and issues go into Follow-ups.
+3. M5 (Dynamic Island moments) starts from `main` in its own worktree, when the user says so. It runs the review experiment in its section of `plan.md`.
 
 ### M4 hand checklist
 
@@ -120,6 +118,30 @@ The state of the project for whoever picks it up next. Read this file, then the 
 
 Small items for a later nits pass.
 
+- **CodeRabbit backlog.** One pull request fixes these (Next action 1). From the whole-project review (#15):
+  - Major: `.claude/skills/pr/LICENSE:3`, keep the upstream copyright notice of the vendored skill.
+  - Major: `core/crates/soroband-core/src/service.rs:151`, the self-check counts local-network bytes in its gap.
+  - Major: `README.md:16`, state the current per-app counting limitation.
+  - Major: `docs/handover.md:36`, the M0 hand checklist describes M0's menu ("Soroband 0.1.0", Allow Location Access… in a menu), not the current menu bar item and popover.
+  - Minor: `app/Soroband/HistoryProcess.swift:129`, reset `standing` before `open` launches a new process.
+  - Minor: `core/crates/soroband-core/src/meter/process.rs:260`, `i32::cast_unsigned` needs a newer Rust than `rust-version = "1.85"`.
+  - Minor: `scripts/verify/budget.sh:43`, a run passes when the footprint cannot be read.
+  - Minor: `CONTRIBUTING.md:35`, the prototype commands do not run from the repository root.
+  - Minor: `prototypes/meter-probe/src/main.rs:290` (length guard before slicing), `prototypes/ui-spike/snapshot.sh:14` (stop and clean up when the app fails), `prototypes/ui-spike/Sources/Soroband/HistoryDetail.swift:25` (crash on a future period).
+  - Trivial: `app/Soroband/HistoryWindow.swift:118`, run `Core.exportCSV` off the main thread; `app/Soroband/HistoryView.swift:62`, detect "all networks" without comparing `content.title` to `allNetworksTitle`.
+
+  Deferred while merging the stack (from #4, #5, #6, #8):
+  - Major: `core/crates/soroband-core/src/socket.rs:63` (#5), a wake after the engine thread has exited writes to a closed pipe and `SIGPIPE` kills the app; keep the read end in `Waker` or set `F_SETNOSIGPIPE`.
+  - Major: `scripts/verify/traffic.sh:39` (#4), other curls are counted with the test download.
+  - Minor: `core/crates/soroband-core/src/live.rs:86` and `:89` (#4), the elapsed timer starts before the baseline, and the last tick is not bounded by the remaining time.
+  - Minor: `scripts/verify/traffic.sh:31` (#4), curl has no deadline.
+  - Minor: `docs/verification.md:52` (#4), the engine's 5 MB memory check is missing.
+  - Minor: `core/crates/soroband-core/src/usage.rs:58` and `:229` (#5), totals show after a settings read error, and a numeric network ID is matched as a name.
+  - Minor: `app/Soroband/SettingsView.swift:23` (#6), the launch-at-login toggle is not refreshed when Settings regains focus.
+  - Minor: `CONTRIBUTING.md:47` (#8), document the recursive lint command.
+
+  The comments themselves are on each PR's review threads (`gh api repos/AboulEinein/soroband/pulls/<n>/comments`).
+
 - **Unreviewed fix.** The App-cryptex rule groups Apple daemons in the App cryptex (`/System/Volumes/Preboot/Cryptexes/App/usr/libexec/PasswordBreachAgent` and similar) as "macOS & Services". It has a test that failed before the fix, but no review round saw it.
 - **`cargo mutants` timeouts.** The last run on the meter module and C API (317 mutants: 255 caught, 22 missed, 34 unviable) had 6 timeouts, all in loops that then never end:
   - `Engine::tick` → `Ok(())`;
@@ -190,6 +212,11 @@ Things learned the hard way that no file or config will tell you.
 - Agents cannot click the menu bar (no Accessibility or Automation permission). Verify UI by rendering windows and capturing them with `screencapture -l <windowNumber>` (`prototypes/ui-spike/snapshot.sh` does this for the prototype). `SOROBAND_DEMO=<momentKind>` fires a moment at launch for a real-notch screenshot.
 - The menu bar is crowded; a new status item sits behind the notch (the Soroband item did in M0).
 - Streaming `nettop` (`-L 0`) costs more than a full CPU core; keep it out of any measurement path.
+
+**GitHub**
+- The `main` ruleset requires the Core, App and CodeRabbit checks, an up-to-date branch and resolved threads. Merged branches are not deleted, so a PR stacked on one must be retargeted to `main` by hand.
+- GitHub opens no PR between branches without a common commit, so CodeRabbit reviews the whole project through an empty commit as the base branch and, as the head, a commit with `main`'s tree whose parent is that empty commit (#15). CodeRabbit's included allowance is 10 reviews an hour.
+- Force-pushing is refused for agents on this Mac; bring a branch up to date by merging `main` into it.
 
 ## Where things are
 
