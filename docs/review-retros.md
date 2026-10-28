@@ -112,17 +112,18 @@ After the user's decisions, a records commit added M6 and M5's review experiment
 
 ## [#14](https://github.com/AboulEinein/soroband/pull/14) fix(app): tell a Debug build apart and guard the installed app (2026-10-28)
 
-Planned rounds: 1. Ran: 3 blind rounds, 1 direct review, 3 CodeRabbit reviews with an outcome.
+Planned rounds: 1. Ran: 3 blind rounds, 1 direct review, 4 CodeRabbit reviews with an outcome.
 
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | 1 | Sonnet | 1 Low | `first look`: nothing failed if the install guard was removed or moved below the replacement. |
 | 2 | Sonnet | none | Confirmed `install-guard.sh` and resolved the thread. |
 | CodeRabbit | CodeRabbit | 2 Minor | `fix regression`: `verification.md` claimed `install-guard.sh` checks the terminal answers, which it did not. `first look`: two concurrent installs could both pass the replace check. |
-| 3 | Sonnet | 1 Low, 1 Discussion | `first look`: the guard tells a terminal from a pipe, not the user from an agent; the CI and handover fixes for #3's and #10's threads were not named in the PR body. |
+| 3 | Sonnet | 1 Low, 1 unrated | `first look`: the guard tells a terminal from a pipe, not the user from an agent; the CI and handover fixes for #3's and #10's threads were not named in the PR body. |
 | CodeRabbit | CodeRabbit | none | Reviewed the lock, the terminal checks and the CI change. |
 | direct | Haiku | none | Checked 333db49 (the install guide's wording) and the PR body. [Comment](https://github.com/AboulEinein/soroband/pull/14#issuecomment-6467389983). |
 | CodeRabbit | CodeRabbit | none | |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: the records commit rated round 3's discussion as `Discussion`, which is not a severity. |
 
 **Retro.** Planned 1 round; it took 3 and a direct review because the fix for round 1's finding was a new check, which needs its own round, and CodeRabbit then found that check's claim was wider than what it ran, a `fix regression` from describing the intended check instead of the one written. Its race finding was a case no blind round looked for: two runs of a script at once. Before merging the stack, 4 CodeRabbit threads left open on #3 and #10 surfaced through the `main` ruleset's thread rule; their fixes ride in this PR, which merges last.
 
