@@ -58,3 +58,16 @@ Planned rounds: 2. Ran: 5 blind rounds, 2 direct reviews, 3 CodeRabbit reviews w
 **Retro.** Planned 2 rounds; ran 5 blind rounds, 2 direct reviews and 3 CodeRabbit reviews with findings. One cause behind almost all of it: the rules had to say when the review's own records are committed, and every record is a commit that CodeRabbit reviews. Rounds 1 to 3 each moved the end of the review and created the next finding (`fix regression` in rounds 2, 3, 4 and 5 and the last CodeRabbit review), until the reassessment after round 3 put all records into one final commit. After that the findings were wording around the new rule. CodeRabbit added what the blind rounds did not trace: the path of a finding with no fix, and its own habit of resolving its threads.
 
 Changes it led to: the records rule itself (one final records commit); step 5 now says CodeRabbit may resolve its own threads; and `review-retros.md`'s opening line points to `review.md` instead of restating it, after three CodeRabbit findings in a row came from that restatement drifting. Candidate rule, if a later retro repeats `fix regression` for the same reason: before writing a rule that ends a loop, trace each path through it, including a finding with no fix, in the PR description, so round 1 reviews the trace.
+
+## [#11](https://github.com/AboulEinein/soroband/pull/11) docs(handover): drop references to the earlier repository and app name (2026-10-28)
+
+Planned rounds: 1. Ran: 1 blind round, 1 CodeRabbit review.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Sonnet | 1 Low | `first look`: the edit deleted the blank line before `## Next action`. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** One round, as planned. The only finding was whitespace from the edit itself; fixing it needed no further round, and CodeRabbit raised nothing. The reviewer also noted that `docs/handover.md` still says the project started "without the earlier development history" in a dated decision-log row; the owner decides whether to reword it.
+
+Changes it led to: none.
