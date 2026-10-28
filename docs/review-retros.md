@@ -1,6 +1,6 @@
 # Review retros
 
-One entry per pull request, as [`review.md`](review.md) describes: a row for each blind round and direct review as it runs, then, in one final commit, the rows for CodeRabbit's reviews and the retro. A session that stops blocked commits what it has so far, and the session that resumes completes it. Together with [`coderabbit-findings.md`](coderabbit-findings.md), these show why reviews take the rounds they do.
+One entry per pull request, as [`review.md`](review.md) describes: a row for each blind round and direct review as it runs while the pull request is a draft, then, in one final commit, the rows for every review after it is ready and the retro. A session that stops blocked commits what it has so far, and the session that resumes completes it. Together with [`coderabbit-findings.md`](coderabbit-findings.md), these show why reviews take the rounds they do.
 
 Each entry has:
 - **A heading:** the pull request, its title and the date it opened.
