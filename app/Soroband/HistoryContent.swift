@@ -183,6 +183,17 @@ struct HistoryContent: Equatable {
         var kind: NetworkKind?
         /// Color slot; nil is the neutral color of no network.
         var slot: Int?
+        /// The chart's key and legend text: the name, with " (2)", " (3)" after a name an earlier
+        /// network (or no network) already has, since the chart colors by it and names can repeat.
+        var label: String
+
+        init(id: Int64, name: String, kind: NetworkKind?, slot: Int?, label: String? = nil) {
+            self.id = id
+            self.name = name
+            self.kind = kind
+            self.slot = slot
+            self.label = label ?? name
+        }
     }
 
     /// One network's segment of one chart bar.
@@ -416,9 +427,14 @@ struct HistoryContent: Equatable {
 
     /// Every network in the registry by id, with its color slot in registry order.
     static func networkStyles(registry: [RegisteredNetwork]) -> [Int64: NetworkStyle] {
-        Dictionary(uniqueKeysWithValues: registry.enumerated().map { index, network in
-            (network.id, NetworkStyle(
-                id: network.id, name: network.name, kind: network.kind, slot: NetworkColor.slot(forIndex: index)))
+        // No network's name is taken first, so a network named like it gets a suffix.
+        var seen = [PopoverContent.unknownNetworkName: 1]
+        return Dictionary(uniqueKeysWithValues: registry.enumerated().map { index, network in
+            let count = seen[network.name, default: 0] + 1
+            seen[network.name] = count
+            return (network.id, NetworkStyle(
+                id: network.id, name: network.name, kind: network.kind, slot: NetworkColor.slot(forIndex: index),
+                label: count == 1 ? network.name : "\(network.name) (\(count))"))
         })
     }
 

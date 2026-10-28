@@ -183,7 +183,7 @@ private struct UsageChart: View {
                     yEnd: .value("Bytes", drawn.high),
                     width: .ratio(0.7)
                 )
-                .foregroundStyle(by: .value("Network", bar.network.name))
+                .foregroundStyle(by: .value("Network", bar.network.label))
                 .cornerRadius(2)
                 .opacity(hovered == nil || hovered == bar.start ? 1 : 0.45)
             }
@@ -207,7 +207,7 @@ private struct UsageChart: View {
             }
         }
         .chartForegroundStyleScale(
-            domain: content.legend.map(\.name),
+            domain: content.legend.map(\.label),
             range: content.legend.map { $0.kind == nil ? Color.gray : NetworkColor.color(slot: $0.slot) })
         .chartLegend(content.legend.count > 1 ? .visible : .hidden)
         .chartLegend(position: .top, alignment: .leading)

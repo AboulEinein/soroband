@@ -231,6 +231,21 @@ struct HistoryContentTests {
         #expect(c.subtitle == "Tuesday, October 27, 2026")
     }
 
+    @Test func networksWithTheSameNameStaySeparateInTheChart() {
+        let registry = [
+            RegisteredNetwork(id: 1, key: "wifi:a", name: "Home", kind: .wifi, lastUsed: nil),
+            RegisteredNetwork(id: 2, key: "wifi:b", name: "Home", kind: .wifi, lastUsed: nil),
+            RegisteredNetwork(id: 3, key: "wifi:c", name: PopoverContent.unknownNetworkName, kind: .wifi, lastUsed: nil),
+        ]
+        let styles = HistoryContent.networkStyles(registry: registry)
+        #expect(styles[1]?.label == "Home")
+        #expect(styles[2]?.label == "Home (2)")
+        #expect(styles[2]?.name == "Home", "the sidebar and lists keep the name")
+        // No network keeps its plain name in the chart.
+        #expect(styles[3]?.label == "\(PopoverContent.unknownNetworkName) (2)")
+        #expect(Set(styles.values.map(\.slot)).count == 3)
+    }
+
     // MARK: Pieces
 
     @Test func aTinySegmentIsDrawnWithNoHeightInsteadOfBelowZero() {
