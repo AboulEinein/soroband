@@ -12,7 +12,23 @@ Coding agents start from [`AGENTS.md`](AGENTS.md), which lists the rules every c
 
 ## Building
 
-The app and core are being set up in milestone M0. Until then, the prototypes run on their own:
+```sh
+scripts/build.sh            # core, soroband command and Release app (universal; needs rustup)
+scripts/build.sh --host     # the same for this Mac's architecture only
+scripts/install.sh          # build, sign, install into /Applications and ~/.local/bin, launch
+```
+
+For development, `scripts/verify/run-app.sh` builds and launches the Debug app and prints its PID; `soroband debug state --json` (from `core/target/debug/soroband`) shows what it displays. The full set of verification tools is in [`docs/verification.md`](docs/verification.md#running-the-app).
+
+Tests:
+
+```sh
+(cd core && cargo test)
+scripts/verify/snapshots.sh                                   # snapshot tests; --record writes new baselines
+xcodebuild -project app/Soroband.xcodeproj -scheme Soroband test  # all Swift tests
+```
+
+The prototypes still run on their own:
 
 ```sh
 # Engine prototype: per-app internet bytes for 40 s, polling every 5 s

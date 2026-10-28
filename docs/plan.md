@@ -7,7 +7,7 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | ID | Milestone | Phase | Status | PR |
 | --- | --- | --- | --- | --- |
 | P0 | Research and prototypes | 0 | done | – |
-| M0 | Repository foundation | 1 | planned | – |
+| M0 | Repository foundation | 1 | blocked (hand checklist: Location across a rebuild, menu bar item on screen) | [#3](https://github.com/AboulEinein/soroband/pull/3) |
 | M1 | Meter engine | 1 | planned | – |
 | M2 | Network identity and storage | 1 | planned | – |
 | M3 | Menu bar and popover (first dogfood build) | 1 | planned | – |
@@ -34,7 +34,7 @@ Deliverables:
 - Bridge: `soroband-core` builds as a universal (arm64 + x86_64) static library with a generated C header (`cbindgen`), packaged as an XCFramework by `scripts/build-core.sh`.
 - `app/`: Xcode project for a menu-bar-only app (`LSUIElement`) that links the core and shows a string returned by Rust in the menu bar.
 - `scripts/build.sh`: builds core and app from a clean clone.
-- `scripts/install.sh`: builds a release, ad-hoc signs it, installs `Soroband.app` into `/Applications` and the `soroband` command into `~/.local/bin`, and launches the app. Idempotent, so the same script updates an existing install. Check whether the Location permission survives a rebuild; an ad-hoc signature changes with every build, so if macOS asks again, sign with a stable self-signed certificate the script creates in the login keychain.
+- `scripts/install.sh`: builds a release, signs it, installs `Soroband.app` into `/Applications` and the `soroband` command into `~/.local/bin`, and launches the app. Idempotent, so the same script updates an existing install. An ad-hoc signature changes with every build, so the script signs with a stable self-signed certificate it creates in its own keychain; `--adhoc` signs ad hoc. Check whether the Location permission survives a rebuild with each signature.
 - `docs/agents/install.md`: the install prompt for coding agents: check requirements (macOS 14+, Xcode, Rust), run the script, verify the app is running, walk the user through the Location permission.
 - `.github/workflows/ci.yml`: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test`, and an unsigned `xcodebuild` build on a macOS runner.
 - Verification harness from [`verification.md`](verification.md#running-the-app): `scripts/verify/run-app.sh`, `scripts/verify/budget.sh`, the `soroband-debug://` URL scheme and `soroband debug state --json` (Debug builds only), and the snapshot test setup with its first baseline.
