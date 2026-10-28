@@ -100,7 +100,7 @@ enum DebugCommands {
     /// app or web page can open a `soroband-debug://` URL.
     private static func captureStatusItem() {
         guard let view = MenuBarController.shared.buttonView,
-              let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)
+            let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)
         else {
             NSLog("soroband-debug: capture-status-item found no status item")
             return
@@ -114,8 +114,8 @@ enum DebugCommands {
     /// popover). The output path is fixed for the same reason as `statusItemFile`'s.
     private static func captureWindow(_ url: URL) {
         guard let number = queryItems(url)["number"].flatMap(Int.init),
-              let view = NSApp.windows.first(where: { $0.windowNumber == number })?.contentView?.superview,
-              let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)
+            let view = NSApp.windows.first(where: { $0.windowNumber == number })?.contentView?.superview,
+            let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)
         else {
             NSLog("soroband-debug: capture-window found no window for %@", url.absoluteString)
             return

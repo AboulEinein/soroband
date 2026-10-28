@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Soroband
 
 /// The menu bar item in each display mode, from a status worked out by hand.
@@ -36,7 +37,8 @@ struct MenuBarDisplayTests {
         let texts = [183_000_000, 183_400_000, 183_999_999, 184_000_000].map { (bytes: UInt64) in
             MenuBarDisplay.make(
                 mode: .todayNetwork, status: EngineStatus(todayNetworkInterfaces: ByteCounts(rx: bytes, tx: 0)),
-                kind: .wifi).text
+                kind: .wifi
+            ).text
         }
         #expect(texts == ["183 MB", "183 MB", "183 MB", "184 MB"])
         #expect(Format.menuBarBytes(999_999) == "< 1 MB")
@@ -48,9 +50,11 @@ struct MenuBarDisplayTests {
         let t = Date(timeIntervalSince1970: 1_793_098_800)
         typealias Drawn = MenuBarDisplay.Drawn
         let old = Drawn(
-            display: MenuBarDisplay(symbol: "wifi", text: "183 MB"), mode: .todayNetwork, network: 1, total: 183_000_000)
+            display: MenuBarDisplay(symbol: "wifi", text: "183 MB"), mode: .todayNetwork, network: 1, total: 183_000_000
+        )
         let grown = Drawn(
-            display: MenuBarDisplay(symbol: "wifi", text: "184 MB"), mode: .todayNetwork, network: 1, total: 184_000_000)
+            display: MenuBarDisplay(symbol: "wifi", text: "184 MB"), mode: .todayNetwork, network: 1, total: 184_000_000
+        )
         let delay = { (new: Drawn, secondsSince: TimeInterval) in
             MenuBarDisplay.redrawDelay(from: old, to: new, lastRedraw: t, now: t + secondsSince)
         }
@@ -67,21 +71,27 @@ struct MenuBarDisplayTests {
         other.display.text = "950 MB"
         other.total = 950_000_000
         #expect(delay(other, 5) == 0, "new network of the same kind")
-        other = Drawn(display: MenuBarDisplay(symbol: "wifi", text: "2 MB"), mode: .todayNetwork, network: 1, total: 2_000_000)
+        other = Drawn(
+            display: MenuBarDisplay(symbol: "wifi", text: "2 MB"), mode: .todayNetwork, network: 1, total: 2_000_000)
         #expect(delay(other, 5) == 0, "reset hour: the total went down")
-        other = Drawn(display: MenuBarDisplay(symbol: "wifi", text: "1.1 GB"), mode: .todayAll, network: 1, total: 1_100_000_000)
+        other = Drawn(
+            display: MenuBarDisplay(symbol: "wifi", text: "1.1 GB"), mode: .todayAll, network: 1, total: 1_100_000_000)
         #expect(delay(other, 5) == 0, "mode changed, though the total grew")
-        other = Drawn(display: MenuBarDisplay(symbol: "wifi", text: "↓ 2 KB/s ↑ 1 KB/s"), mode: .speed, network: 1, total: nil)
+        other = Drawn(
+            display: MenuBarDisplay(symbol: "wifi", text: "↓ 2 KB/s ↑ 1 KB/s"), mode: .speed, network: 1, total: nil)
         #expect(delay(other, 5) == 0, "live speed")
         // The first count after launch, which had no text, shows at once.
-        let launching = Drawn(display: MenuBarDisplay(symbol: "wifi", text: nil), mode: .todayNetwork, network: 1, total: 0)
+        let launching = Drawn(
+            display: MenuBarDisplay(symbol: "wifi", text: nil), mode: .todayNetwork, network: 1, total: 0)
         #expect(MenuBarDisplay.redrawDelay(from: launching, to: grown, lastRedraw: t, now: t + 5) == 0)
-        #expect(MenuBarDisplay.make(mode: .todayNetwork, status: EngineStatus(state: .starting), kind: .wifi)
-            == MenuBarDisplay(symbol: "wifi", text: nil))
+        #expect(
+            MenuBarDisplay.make(mode: .todayNetwork, status: EngineStatus(state: .starting), kind: .wifi)
+                == MenuBarDisplay(symbol: "wifi", text: nil))
     }
 
     @Test func iconOnlyHasNoText() {
-        #expect(MenuBarDisplay.make(mode: .icon, status: status, kind: .wifi) == MenuBarDisplay(symbol: "wifi", text: nil))
+        #expect(
+            MenuBarDisplay.make(mode: .icon, status: status, kind: .wifi) == MenuBarDisplay(symbol: "wifi", text: nil))
     }
 
     @Test func noIdentifiedNetworkShowsThePlainNetworkIcon() {

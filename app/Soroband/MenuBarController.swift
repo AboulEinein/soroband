@@ -80,13 +80,14 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     func showPopover(tab: PopoverView.Tab = .apps, allNetworks: Bool = false) {
         guard !popover.isShown, let button = item?.button else { return }
         Usage.shared.isLive = true
-        popover.contentViewController = NSHostingController(rootView: LivePopover(
-            tab: tab, allNetworks: allNetworks,
-            openSettings: { [weak self] in
-                self?.popover.performClose(nil)
-                SettingsWindow.shared.show()
-            },
-            quit: { NSApp.terminate(nil) }))
+        popover.contentViewController = NSHostingController(
+            rootView: LivePopover(
+                tab: tab, allNetworks: allNetworks,
+                openSettings: { [weak self] in
+                    self?.popover.performClose(nil)
+                    SettingsWindow.shared.show()
+                },
+                quit: { NSApp.terminate(nil) }))
         // A menu bar app is never frontmost by itself; the popover takes keys and clicks only once
         // the app is active.
         NSApp.activate()
@@ -127,7 +128,8 @@ private struct LivePopover: View {
             content: PopoverContent.make(
                 status: usage.status, today: usage.today, registry: usage.registry,
                 current: monitor.current, connectedSince: monitor.connectedSince, allNetworks: allNetworks),
-            tab: $tab, allNetworks: $allNetworks, openSettings: openSettings, quit: quit)
-            .onChange(of: monitor.current) { usage.reloadRegistry() }
+            tab: $tab, allNetworks: $allNetworks, openSettings: openSettings, quit: quit
+        )
+        .onChange(of: monitor.current) { usage.reloadRegistry() }
     }
 }
