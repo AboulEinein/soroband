@@ -240,7 +240,7 @@ The blind review rounds of a PR, run while it is a draft and again for fixes tha
 A PR's entry in `docs/review-retros.md`: the findings of each review (blind rounds, direct reviews, CodeRabbit) and their origins, then why the review took the rounds it did and what to change. Not the retrospective, which is written only in a reassessment.
 
 **Finding origin**:
-Why a finding showed up in the round it did, one of a fixed set in `docs/review-retros.md`.
+Why a finding showed up in the review it did, one of a fixed set in `docs/review-retros.md`.
 
 **Miss cause**:
 Why the blind loop missed a valid CodeRabbit finding, one of a fixed set in `docs/coderabbit-findings.md`.

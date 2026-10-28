@@ -1,6 +1,6 @@
 # Review retros
 
-One entry per pull request, as [`review.md`](review.md) describes: a row for each round while the review runs, then the retro once it has ended. Together with [`coderabbit-findings.md`](coderabbit-findings.md), these show why reviews take the rounds they do.
+One entry per pull request, as [`review.md`](review.md) describes: a row for each review while it runs, then the retro once it has ended. Together with [`coderabbit-findings.md`](coderabbit-findings.md), these show why reviews take the rounds they do.
 
 Each entry has:
 - **A heading:** the pull request, its title and the date it opened.
@@ -43,3 +43,4 @@ Planned rounds: 2.
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | 1 | Sonnet | 2 Medium, 3 Low, 1 Minor | `first look`: the commits that add the retro came after the review ended; no step created the entry or added direct and CodeRabbit rows; the glossary said rounds only; no threshold for a pattern; #9's entry broke its own format twice. |
+| 2 | Fable | 1 Medium, 1 Low, 1 Minor | `fix regression`: the round-1 exemption left CodeRabbit's review of the retro commit with no owner. `missed earlier`: "round" still meant every review in three places; the handover's pattern test was looser than `review.md`'s. |
