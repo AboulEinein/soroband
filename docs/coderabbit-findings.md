@@ -10,3 +10,4 @@ Columns:
 
 | Date | PR | Finding | Category | Verdict | Missed because | Follow-up |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2026-10-28 | [#9](https://github.com/AboulEinein/soroband/pull/9#discussion_r4396375602) | The wait loop reads only the `CodeRabbit` state, and by default (`fail_commit_status: false`) a review that errors still reports `SUCCESS`. | build and CI | valid | not checked | – |
