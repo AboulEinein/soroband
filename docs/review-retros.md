@@ -8,12 +8,12 @@ Each entry has:
 - **A table, one row per review:** the review (blind round number, `direct`, or `CodeRabbit`), the reviewer's model, the findings by severity (`unrated` where the reviewer gave none), and the origin of each finding.
 - **Retro:** why the review took the rounds it did, what the extra rounds caught that earlier ones did not, and the changes it led to (a rule, a check, a doc), or "none".
 
-Origins:
-- `first look`: found in the first review that could see it.
-- `missed earlier`: in code or text an earlier round already reviewed.
+Origins, most specific first; use the first that fits:
 - `fix regression`: came in with a fix for an earlier finding.
 - `new evidence`: shown by running or observing the real thing (a tool, a service, the app), which no reading of the diff could show.
 - `unclear requirement`: the requirement or the task allowed more than one reading.
+- `missed earlier`: in code or text an earlier review already saw.
+- `first look`: found in the first review that could see it.
 
 ## [#9](https://github.com/AboulEinein/soroband/pull/9) docs(review): add CodeRabbit after the blind loop and log its findings (2026-10-28)
 
@@ -44,3 +44,4 @@ Planned rounds: 2.
 | --- | --- | --- | --- |
 | 1 | Sonnet | 2 Medium, 3 Low, 1 Minor | `first look`: the commits that add the retro came after the review ended; no step created the entry or added direct and CodeRabbit rows; the glossary said rounds only; no threshold for a pattern; #9's entry broke its own format twice. |
 | 2 | Fable | 1 Medium, 1 Low, 1 Minor | `fix regression`: the round-1 exemption left CodeRabbit's review of the retro commit with no owner. `missed earlier`: "round" still meant every review in three places; the handover's pattern test was looser than `review.md`'s. |
+| 3 | Sonnet | 2 Medium, 2 Low | `fix regression`: a row per CodeRabbit review is a commit CodeRabbit reviews, so the review never ends; a blocked session never reaches the retro. `missed earlier`: no tie-break between origins; "round" in two handover lines. Reassessed: [retrospective](https://github.com/AboulEinein/soroband/pull/10) as a PR comment. |
