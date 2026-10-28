@@ -14,14 +14,15 @@ struct HistoryView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(selection: Binding(
-                get: { model.network.map(SidebarItem.network) ?? .all },
-                set: { item in
-                    switch item {
-                    case .network(let id): model.select(network: .some(id))
-                    case .all, nil: model.select(network: .some(nil))
-                    }
-                })
+            List(
+                selection: Binding(
+                    get: { model.network.map(SidebarItem.network) ?? .all },
+                    set: { item in
+                        switch item {
+                        case .network(let id): model.select(network: .some(id))
+                        case .all, nil: model.select(network: .some(nil))
+                        }
+                    })
             ) {
                 Label(HistoryContent.allNetworksTitle, systemImage: "globe").tag(SidebarItem.all)
                 ForEach(NetworkKind.allCases, id: \.self) { kind in
@@ -102,13 +103,15 @@ private struct StatTiles: View {
                 if let change = content.change {
                     Label(
                         "\(abs(change).formatted(.percent.precision(.fractionLength(0)))) vs previous \(content.range.label.lowercased())",
-                        systemImage: change >= 0 ? "arrow.up.right" : "arrow.down.right")
-                        .font(.caption).foregroundStyle(.secondary)
+                        systemImage: change >= 0 ? "arrow.up.right" : "arrow.down.right"
+                    )
+                    .font(.caption).foregroundStyle(.secondary)
                 }
             }
             Tile(title: "Download / upload") {
                 Label(Format.bytes(content.total.rx), systemImage: "arrow.down").font(.headline)
-                Label(Format.bytes(content.total.tx), systemImage: "arrow.up").font(.subheadline).foregroundStyle(.secondary)
+                Label(Format.bytes(content.total.tx), systemImage: "arrow.up").font(.subheadline).foregroundStyle(
+                    .secondary)
                 RatioBar(down: content.total.rx, up: content.total.tx).frame(height: 5)
             }
             Tile(title: "Daily average") {
@@ -130,7 +133,8 @@ private struct StatTiles: View {
 /// "Sunday, 4 Oct", with the year when it is not this year's.
 private func busiestDayLabel(_ date: Date) -> String {
     let sameYear = Calendar.current.isDate(date, equalTo: .now, toGranularity: .year)
-    return date.formatted(sameYear ? .dateTime.weekday(.wide).day().month() : .dateTime.weekday(.wide).day().month().year())
+    return date.formatted(
+        sameYear ? .dateTime.weekday(.wide).day().month() : .dateTime.weekday(.wide).day().month().year())
 }
 
 private struct RatioBar: View {
@@ -160,7 +164,10 @@ private struct UsageChart: View {
     }
 
     var body: some View {
-        Card(title: content.legend.count > 1 || content.title == HistoryContent.allNetworksTitle ? "Usage by network" : "Usage") {
+        Card(
+            title: content.legend.count > 1 || content.title == HistoryContent.allNetworksTitle
+                ? "Usage by network" : "Usage"
+        ) {
             if content.bars.isEmpty {
                 Text("Nothing was recorded in this range.")
                     .foregroundStyle(.secondary)
@@ -208,7 +215,8 @@ private struct UsageChart: View {
         }
         .chartForegroundStyleScale(
             domain: content.legend.map(\.label),
-            range: content.legend.map { $0.kind == nil ? Color.gray : NetworkColor.color(slot: $0.slot) })
+            range: content.legend.map { $0.kind == nil ? Color.gray : NetworkColor.color(slot: $0.slot) }
+        )
         .chartLegend(content.legend.count > 1 ? .visible : .hidden)
         .chartLegend(position: .top, alignment: .leading)
         .chartXSelection(value: $hoverDate)
@@ -304,7 +312,9 @@ private struct AppsCard: View {
                     }
                 }
                 AppRowView(row: content.overhead, scale: content.appsScale)
-                    .help("Bytes that crossed the network but no app's connections carry: packet headers, acknowledgements and system traffic.")
+                    .help(
+                        "Bytes that crossed the network but no app's connections carry: packet headers, acknowledgements and system traffic."
+                    )
                 if content.apps.count > HistoryModel.visibleApps {
                     Button(showsAll ? "Show fewer" : "Show all \(content.apps.count) apps") { showsAll.toggle() }
                         .buttonStyle(.link)
@@ -422,12 +432,14 @@ private struct HeatmapCard: View {
                     }
                     .frame(height: Self.gridHeight)
                     .onContinuousHover { phase in
-                        hovered = if case .active(let point) = phase { cell(at: point, width: geo.size.width) } else { nil }
+                        hovered =
+                            if case .active(let point) = phase { cell(at: point, width: geo.size.width) } else { nil }
                     }
                     ForEach([0, 6, 12, 18], id: \.self) { hour in
                         Text("\(hour)").font(.caption2).foregroundStyle(.secondary).fixedSize()
                             .position(
-                                x: CGFloat(hour) * (cellWidth(geo.size.width) + Self.spacing) + cellWidth(geo.size.width) / 2,
+                                x: CGFloat(hour) * (cellWidth(geo.size.width) + Self.spacing) + cellWidth(
+                                    geo.size.width) / 2,
                                 y: Self.gridHeight + 10)
                     }
                 }
@@ -455,7 +467,9 @@ private struct HeatmapCard: View {
     private func cell(at point: CGPoint, width: CGFloat) -> (row: Int, hour: Int)? {
         let row = Int(point.y / (Self.rowHeight + Self.spacing))
         let hour = Int(point.x / (cellWidth(width) + Self.spacing))
-        guard heatmap.rows.indices.contains(row), (0..<24).contains(hour), point.x >= 0, point.y >= 0 else { return nil }
+        guard heatmap.rows.indices.contains(row), (0..<24).contains(hour), point.x >= 0, point.y >= 0 else {
+            return nil
+        }
         return (row, hour)
     }
 

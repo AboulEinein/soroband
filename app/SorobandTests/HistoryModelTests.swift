@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Soroband
 
 /// What History asks the database for as the choices change, with a stand-in for the core.
@@ -27,8 +28,10 @@ struct HistoryModelTests {
         let model = HistoryModel(
             range: .all, anchor: .now, network: 2, currentNetwork: nil, registry: [], read: reader.read)
         model.loadNow()
-        #expect(model.content.interval.start == Calendar.current.startOfDay(
-            for: Date(timeIntervalSince1970: 1_772_323_200)))
+        #expect(
+            model.content.interval.start
+                == Calendar.current.startOfDay(
+                    for: Date(timeIntervalSince1970: 1_772_323_200)))
 
         model.select(network: .some(nil))
         for _ in 0..<200 where model.query.network != nil {
@@ -38,7 +41,9 @@ struct HistoryModelTests {
         // hotspot's March.
         let everyNetwork = try #require(reader.queries.last { $0.network == nil })
         #expect(everyNetwork.interval.start == Date(timeIntervalSince1970: 0))
-        #expect(model.content.interval.start == Calendar.current.startOfDay(
-            for: Date(timeIntervalSince1970: 1_735_689_600)))
+        #expect(
+            model.content.interval.start
+                == Calendar.current.startOfDay(
+                    for: Date(timeIntervalSince1970: 1_735_689_600)))
     }
 }

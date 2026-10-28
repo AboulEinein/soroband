@@ -136,7 +136,9 @@ struct SnapshotTests {
             let firstHour = Int64(date.timeIntervalSince1970) + 9 * 3600
             // Home every day; the office on weekdays; the phone and the dock now and then.
             var today: [(Int64, UInt64)] = [(1, UInt64(900 + (day * 37) % 700) * 1_000_000)]
-            if calendar.component(.weekday, from: date) % 7 > 1 { today.append((2, UInt64(800 + (day * 53) % 600) * 1_000_000)) }
+            if calendar.component(.weekday, from: date) % 7 > 1 {
+                today.append((2, UInt64(800 + (day * 53) % 600) * 1_000_000))
+            }
             if day % 6 == 2 { today.append((3, 400_000_000)) }
             if day % 5 == 0 { today.append((4, 700_000_000)) }
             for (network, bytes) in today {
@@ -177,18 +179,22 @@ struct SnapshotTests {
             apps: shares, busiestDay: busiest, heatmap: heatmap)
     }()
 
-    func history(_ range: HistoryRange, network: Int64? = nil, expandedApp: String? = nil, hover: Date? = nil) -> some View {
+    func history(_ range: HistoryRange, network: Int64? = nil, expandedApp: String? = nil, hover: Date? = nil)
+        -> some View
+    {
         let calendar = Calendar.current
         let now = calendar.date(from: DateComponents(year: 2026, month: 10, day: 28))!
         let anchor = calendar.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 9))!
         let query = HistoryQuery.make(
             range: range, anchor: anchor, network: network, firstHour: nil, now: now, calendar: calendar)
         let content = HistoryContent.make(
-            range: range, query: query, data: Self.october, registry: Self.historyRegistry, now: now, calendar: calendar)
+            range: range, query: query, data: Self.october, registry: Self.historyRegistry, now: now, calendar: calendar
+        )
         return HistoryDetail(
             content: content, expandedApp: .constant(expandedApp), hoverDate: .constant(hover),
-            showsAllApps: .constant(false))
-            .background(Color(nsColor: .windowBackgroundColor))
+            showsAllApps: .constant(false)
+        )
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     @Test func historyMonth() throws {
