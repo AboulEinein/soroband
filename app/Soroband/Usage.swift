@@ -57,13 +57,14 @@ final class Usage {
         }
         if registryRereads > 0 {
             registryRereads -= 1
-            if isLive { reloadRegistry() }
+            reloadRegistry()
         }
         onChange?()
     }
 
-    /// The engine merges a network after the change that asked for it, so the registry the open
-    /// popover read at the change can still list the merged one: read it again on the next polls.
+    /// The engine merges a network after the change that asked for it, so the registry the popover
+    /// or Settings read at the change can still list the merged one: read it again on the next
+    /// polls.
     func rereadRegistryAfterMerge() {
         registryRereads = 2
     }
