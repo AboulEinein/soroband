@@ -5,7 +5,7 @@ One entry per pull request, as [`review.md`](review.md) describes: a row for eac
 Each entry has:
 - **A heading:** the pull request, its title and the date it opened.
 - **Planned rounds** and what ran: blind rounds, direct reviews, CodeRabbit reviews.
-- **A table, one row per review:** the review (blind round number, `direct`, or `CodeRabbit`), the reviewer's model, the findings by severity, and the origin of each finding.
+- **A table, one row per review:** the review (blind round number, `direct`, or `CodeRabbit`), the reviewer's model, the findings by severity (`unrated` where the reviewer gave none), and the origin of each finding.
 - **Retro:** why the review took the rounds it did, what the extra rounds caught that earlier ones did not, and the changes it led to (a rule, a check, a doc), or "none".
 
 Origins:
@@ -24,9 +24,9 @@ Planned rounds: 1. Ran: 5 blind rounds, 1 direct review, 2 CodeRabbit reviews. T
 | 1 | Opus | 4 Medium, 1 Low, 1 Minor | `new evidence`: the draft's `SKIPPED` check ends `gh pr checks --watch` at once. `first look`: findings without a thread, unresolved valid threads, `plan.md` ending sessions before CodeRabbit, no end condition, no `accepted` verdict. |
 | 2 | Opus | 1 High, 3 Medium, 2 Low | `new evidence`: CodeRabbit skips PRs whose base is not `main`, so stacked PRs were never reviewed. `fix regression`: the round-1 wait loop never exits on a skipped check. `missed earlier`: undefined grounds for accepting a finding, no miss cause for fixes made after the loop, "loop" used for two things, blind reviewers resolving CodeRabbit threads. |
 | 3 | Opus | 1 High, 2 Medium, 3 Low | `new evidence`: CodeRabbit reads its config from the head branch, and #9 targeted `main` while the work lives on the stack; a foreground `sleep` is blocked and a review takes about 10 minutes; CodeRabbit pauses after 5 commits; its docstring check warns on every PR. `missed earlier`: no wait for reviews of fixes, a stale line about thread resolution, no glossary entry. |
-| 4 | Sonnet | 1 Medium, 6 smaller | `fix regression`: the wait loop could read the previous commit's check, and the nudge could not run inside a background loop. `missed earlier`: the blind loop definition, the `not valid` miss cause, the blocked reason in `plan.md`, the handover. |
+| 4 | Sonnet | 1 Medium, 6 unrated | `fix regression`: the wait loop could read the previous commit's check, and the nudge could not run inside a background loop. `missed earlier`: the blind loop definition, the `not valid` miss cause, the blocked reason in `plan.md`, the handover. |
 | 5 | Fable | 1 Low, 1 Minor | `fix regression`: the nudge fired at 90 s while the text said 2 minutes, and the loop could outlive the 30-minute background limit. |
-| direct | Haiku | 1 margin note | `fix regression`: 56 polls plus API calls left almost no room under 30 minutes. |
+| direct | Haiku | 1 unrated | `fix regression`: 56 polls plus API calls left almost no room under 30 minutes. |
 | CodeRabbit | CodeRabbit | 1 Major | `new evidence`: by default a review that errors still reports `SUCCESS` (`fail_commit_status`). |
 | CodeRabbit | CodeRabbit | none | |
 
@@ -34,4 +34,4 @@ Planned rounds: 1. Ran: 5 blind rounds, 1 direct review, 2 CodeRabbit reviews. T
 - **New evidence came late.** Most of the High and Medium findings came from how CodeRabbit, GitHub and the agent harness actually behave, learned one round at a time: the skipped check, the default branch only, the config read from the head branch, the pause after 5 commits, the background limit. The workflow was written from assumptions before any of it was observed. Running the flow once on a throwaway PR before the first round would have shown most of it.
 - **Each fix to the wait loop brought the next finding.** The loop changed in rounds 1, 2, 3, 4 and 5, and rounds 2, 4 and 5 and the direct review each found a problem with the previous version. A shell loop in a doc was never run until round 5.
 
-Changes it led to: none yet. Candidate rules, if later PRs show the same origins: test any instruction that depends on an outside service or the harness against the real thing before round 1, and run any command a doc tells agents to run before the first review.
+Changes it led to: none. Candidate rules, if a later retro gives the same origins for the same reasons: test any instruction that depends on an outside service or the harness against the real thing before round 1, and run any command a doc tells agents to run before the first review.
