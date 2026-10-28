@@ -4,19 +4,19 @@ The state of the project for whoever picks it up next. Read this file, then the 
 
 ## Current state (2026-10-27)
 
-- M0 (repository foundation) is blocked on the hand checklist below; its code is complete in [PR #3](https://github.com/AboulEinein/soroband/pull/3) on branch `m0-foundation`, CI is green, and the review loop ran its 3 rounds (6 Low findings, all fixed). The Rust workspace, the universal XCFramework bridge, the menu bar app showing "Soroband <core version>", the build, install and verification scripts, the agent install guide and CI are in place.
-- M1 (meter engine) is in review in [PR #4](https://github.com/AboulEinein/soroband/pull/4) on branch `m1-meter-engine`, stacked on `m0-foundation`. The engine counts internet bytes per app from the kernel statistics socket; `soroband live` shows it; the app starts it at launch and reports it in `soroband debug state`. After the review retrospective, the user approved the failure-path fix (`tests/faults.rs`), decided both exit-criterion questions, and allowed one more blind review round. That round found one Low issue: Apple daemons in the App cryptex were named one by one. It is fixed, and the user kept the fix without another round (listed in Follow-ups). The user also set a network-quality cutoff for the traffic criteria; under it, 3 judged `traffic.sh` runs pass. CI is green.
-- Measured under the cutoff: 3 judged `traffic.sh` runs, all at +0.16% attribution and −6.7% to −7.3% reconciliation. Lossy runs over the cutoff (8 so far) are reported in the PR; one of them reached +1.15%, because the kernel's duplicate counter misses some re-received bytes. Budget: engine 0.033% and 1.8 MB, Debug app 0.096% and 23.0 MB over 10 minutes, within budget but with little CPU headroom on a busy network.
-- M2 (network identity and storage) is in review in [PR #5](https://github.com/AboulEinein/soroband/pull/5) on branch `m2-networks-storage`, stacked on `m1-meter-engine`. Every deliverable is in. Simulated switches (`scripts/verify/networks.sh`, 6 of 6 runs), the restart check and `config set` on the running app all pass, and growth is measured at 27.9 KB a day. Budget: Debug app 0.059% CPU and 19.0 MB over 10 minutes. `cargo mutants` on the storage, settings and service modules left 1 mutant, an equivalent one. Review: the 3-round cap was reached with 2 findings open. The user chose the fix and changed the policy: no milestone stops with changes no reviewer has seen, and the conductor decides whether more rounds add value. Round 4 (2 Low, 1 Minor) was fixed. Round 5 had 1 Low and 1 Minor, both stale doc comments in `NetworkMonitor.swift`, fixed. The conductor reviewed that fix (comment-only in `NetworkMonitor.swift`, plus doc updates; both comments match the round-4 behavior) and ran no further round.
+- M0–M3 are in stacked pull requests: [#3](https://github.com/AboulEinein/soroband/pull/3) (`m0-foundation`, against `main`), [#4](https://github.com/AboulEinein/soroband/pull/4) (`m1-meter-engine`), [#5](https://github.com/AboulEinein/soroband/pull/5) (`m2-networks-storage`) and [#6](https://github.com/AboulEinein/soroband/pull/6) (`m3-menubar-popover`), each against the previous milestone's branch. They were built and reviewed in an earlier private repository under an earlier working name; that history is not published, so each pull request is one commit and its description summarizes its review. Each milestone's review loop ended with nothing left to act on, and CI was green.
+- M0 (repository foundation): the Rust workspace, the universal XCFramework bridge, the menu bar app showing "Soroband <core version>", the build, install and verification scripts, the agent install guide and CI. Its hand checklist (below) has not been run.
+- M1 (meter engine): the engine counts internet bytes per app from the kernel statistics socket; `soroband live` shows it; the app starts it at launch and reports it in `soroband debug state`. Under the network-quality cutoff, 3 judged `traffic.sh` runs passed, all at +0.16% attribution and −6.7% to −7.3% reconciliation; one lossy run over the cutoff reached +1.15%, because the kernel's duplicate counter misses some re-received bytes. Budget: engine 0.033% and 1.8 MB, Debug app 0.096% and 23.0 MB over 10 minutes. The replay fixtures are anonymized (see Decisions).
+- M2 (network identity and storage): simulated switches (`scripts/verify/networks.sh`, 6 of 6 runs), the restart check and `config set` on the running app pass, and growth is measured at 27.9 KB a day. Budget: Debug app 0.059% CPU and 19.0 MB over 10 minutes. Its hand checklist (below) has not been run.
+- M3 (menu bar and popover): the menu bar item (network icon and today's total, or today on all networks, live speed, icon only, through the `menu_bar` setting), the popover (network card, Apps and Networks tabs, "Other / overhead", footer), Settings (General and Networks), launch at login through `SMAppService`, the first-run Location window, and the engine self-check in `core/crates/soroband-core/src/check.rs`. The menu bar item and popover are AppKit (`NSStatusItem`, `NSPopover`) hosting SwiftUI, so Debug builds open them on command (`open-popover`, `open-settings`). Budget: Debug app 0.096% CPU and 21.0 MB over 10 minutes with the popover closed, on a busy network; 0.055% in icon-only mode. Its hand checklist and the daily-use week (exit criterion 2) need the user.
+- The app is named Soroband, with the bundle identifier `io.github.abouleinein.soroband` (Debug: `.debug`), data in `~/Library/Application Support/Soroband`, and the `soroband` command. macOS treats it as a new app: it starts with empty data and asks for Location again. An install from before the rename is a separate app, with its own bundle identifier, data folder and signing keychain; nothing in this repository touches it, and it shows its own menu bar item while it runs.
 
 ## Next action
 
-1. Run the M0 hand checklist (below) and report the results in PR #3. If item 3 passes, M0 can merge; if it fails, the signing approach needs rework before M1 merges.
-2. Review PR #4, then merge PR #3 and PR #4 in order.
-3. Review PR #5, then merge PR #3, PR #4 and PR #5 in order.
-4. Run the M2 hand checklist (below) and report the results in PR #5.
-5. Quit the m0-foundation Debug app if it is still running (see Gotchas, Verifying).
-6. Start M3 with the session prompt in [`plan.md`](plan.md#session-prompt), on `m3-menubar-popover` from `m2-networks-storage` if M2 is not merged yet.
+1. Run the M0 hand checklist (below). If item 3 fails, the signing approach needs rework.
+2. Run the M2 hand checklist (below).
+3. Run the M3 hand checklist (below) and start the daily-use week; note issues as follow-ups in the ledger.
+4. After the week, merge #3 to #6 in order, marking each milestone `done` in the ledger once its checklist has passed. M4 and M5 can then start as two sessions in separate worktrees.
 
 ### M0 hand checklist
 
@@ -36,6 +36,16 @@ The state of the project for whoever picks it up next. Read this file, then the 
    - `soroband today --json` lists the iPhone with `"kind": "hotspot"`.
    - The Wi‑Fi's `interfaces.rx` grew by much less than 20 MB.
 3. **Wi‑Fi without its name.** With Location off for the app, join a Wi‑Fi network. Within a few seconds `soroband debug state --json` (Debug build) shows a `wifi-router:` key, never `wifi-interface:`; a second such network gets its own key.
+
+### M3 hand checklist
+
+1. **Install the dogfood build.** `scripts/install.sh`. The installed app replaces `/Applications/Soroband.app`; quit any other Soroband first so only one item shows.
+2. **Popover by hand.** Click the menu bar item: the popover opens under it; click elsewhere and it closes; open it and click the item again: it closes and stays closed. Switch Apps and Networks, flip All networks, click the gear (Settings opens), and the power button (Soroband quits; reopen it).
+3. **Settings by hand.** Change Menu bar shows to each option and back; set Daily counter resets at to another hour and back; rename a network and press Return; the popover shows the new name.
+4. **Launch at login.** Turn it on in Settings › General. System Settings › General › Login Items lists Soroband. Log out and in: Soroband starts. (Debug builds outside `/Applications` report "macOS cannot find this copy", so this needs the installed build.)
+5. **First run.** If Location was never answered for the installed app, the Welcome window opens once at launch; Allow Location Access shows the macOS prompt.
+6. **⌘,** with the popover or Settings in front opens Soroband Settings, not an empty window.
+7. **The week.** Use it daily for a week; write each issue into the ledger's follow-ups.
 
 ## Decisions
 
@@ -69,7 +79,12 @@ The state of the project for whoever picks it up next. Read this file, then the 
 | 2026-10-27 | A network's router address comes from the System Configuration store (`ARPResolvedHardwareAddress`), not the ARP table, which macOS 27 hides from non-system apps. Wi‑Fi without its name (no Location) is known by its router. |
 | 2026-10-27 | Hour buckets are UTC hour starts; today starts at the local reset hour rounded down to a whole UTC hour (30 minutes early in half-hour time zones). |
 | 2026-10-27 | `serde_json` reads and writes `settings.json` in the core, rather than a hand-written parser for a file users and agents edit. |
-| 2026-10-27 | The project is named Soroband (soroban, the Japanese abacus, plus bandwidth) and published at `AboulEinein/soroband`, without the earlier development history. |
+| 2026-10-27 | The menu bar item and popover are an AppKit `NSStatusItem` and `NSPopover` hosting SwiftUI, not `MenuBarExtra`: the app (and Debug builds, on an agent's command) can open the popover, and its view is released when it closes. Settings is an AppKit window for the same reason. |
+| 2026-10-27 | The menu bar shows what crossed the network's interfaces (the true total), in whole megabytes below 1 GB and tenths of a gigabyte above, rounded down; a total that only grew redraws at most once a minute. Each redraw costs about 18 ms on a four-display Mac, which at every 5 s poll alone came to 0.36% CPU. Live speed redraws at every poll and says so in Settings. |
+| 2026-10-27 | Self-check details beyond the 2026-10-27 rule: a window under 10 MB is not judged, breaks a run of failures and keeps a degraded verdict; a judged window that passes clears it; an overcount stays flagged until a whole window has passed without one. |
+| 2026-10-27 | The `menu_bar` setting lives in the core's schema (a new `choice` kind) so `soroband config` and the Settings window change it alike. Launch at login is not a setting: macOS owns it through `SMAppService`. The first-run window is remembered in the app's `UserDefaults`. |
+| 2026-10-27 | The popover has no History… button until M4 builds the History window; "+ N more apps" stands in for "+ N more in History". |
+| 2026-10-27 | The project is named Soroband (soroban, the Japanese abacus, plus bandwidth) and published at `AboulEinein/soroband`, starting from one commit without the earlier development history. |
 | 2026-10-27 | Replay fixtures are anonymized: every app, tool and process name outside macOS's own and the test programs is made up, keeping its place in the file system, and interface counters start at 0 or 1,000,000,000 with their changes kept. A new recording gets the same treatment before it is committed: its app paths and process names (in `P` records and in the descriptors' process-name field) replaced with made-up ones, and its interface counters rebased. |
 | 2026-10-26 | Agent-friendly by design: a published install prompt any coding agent can follow, a `soroband config` command for every setting, and `--json` output on every query. |
 
@@ -96,6 +111,11 @@ Small items for a later nits pass.
 - **Registry-failure fallback is untested.** When `Core.networkChanged` fails (the database cannot record a network), `NetworkMonitor` books to no network (id 0). The branch has no unit test, because `NetworkMonitor` is bound to live system APIs; moving the decision into `NetworkIdentity` would make it testable.
 - **Wi‑Fi moves without a path change.** CoreWLAN's SSID-change events are not watched; a Wi‑Fi move that does not change the `NWPath` keeps the old network until the next path update.
 - **App idle CPU headroom.** The Debug app with the engine measured 0.096% of the 0.1% budget over 10 minutes on a busy network (0.023% on a quiet one). M3 adds the popover and menu bar label and must measure again; candidates if it is over: a longer poll interval while the popover is closed, or fewer allocations per poll.
+
+- **Test host shares the Debug database.** `xcodebuild test` launches the Debug app as its test host, which starts the engine on `~/Library/Application Support/Soroband Debug` like the running Debug app, so both book the same traffic while tests run and the Debug totals run high. A test host could use its own data directory.
+- **Version-named tools.** An executable named by its version (a command-line tool installed as `~/.local/share/<tool>/versions/1.4.3`) shows in the popover as "1.4.3" with a generic icon. The core could name such a tool by its parent directory.
+- **Segmented control width.** The popover's Apps/Networks control keeps its natural width on macOS 27 instead of the mockup's full width.
+- **App CPU headroom.** M3's Debug app measured 0.096% of the 0.1% budget on a busy network, 0.055% in icon-only mode. Live speed mode is over budget by design (it redraws every 5 s) and was not measured.
 
 ## Gotchas
 
@@ -138,6 +158,9 @@ Things learned the hard way that no file or config will tell you.
 **Working on this Mac**
 - On macOS 27 status items have no window of their own: `MenuBarAgent` draws the whole menu bar, and an `NSStatusBarWindow`'s `windowNumber` (for example `4294967296`) is not a CGWindowID, so `screencapture -l` cannot capture one item. Use `screencapture -R` with the `rect` from `soroband debug state --json`, or `open "soroband-debug://capture-status-item"` when the item is hidden.
 - `NSImageRep.draw(in:)` composites with `.copy`; drawing a transparent bitmap over a fill needs `draw(in:from:operation: .sourceOver …)`.
+- On macOS 27 every change of a status item's title redraws a "replicant" copy of the item for each display (`-[NSStatusItem _updateReplicants]`, an `NSView` cache-display each): about 18 ms of the main thread on a four-display Mac. Budget the menu bar text's change rate, not just its poll rate.
+- An app that receives a URL with `open -g` cannot bring itself forward (`NSApp.activate()` is refused for an app the user did not just use), and a popover or window left behind other windows is never drawn: `screencapture -l` returns an empty frame. For captures, send the URL with `open -a <this build's Soroband.app>` (no `-g`); `soroband-debug://capture-window?number=<n>` renders any window in-process.
+- `ImageRenderer` leaves out AppKit-backed controls (switches, segmented pickers, pop-up buttons). `app/SorobandTests/Snapshot.swift` renders snapshots through an `NSHostingView` in an offscreen window instead.
 - Agents cannot click the menu bar (no Accessibility or Automation permission). Verify UI by rendering windows and capturing them with `screencapture -l <windowNumber>` (`prototypes/ui-spike/snapshot.sh` does this for the prototype). `SOROBAND_DEMO=<momentKind>` fires a moment at launch for a real-notch screenshot.
 - The menu bar is crowded; a new status item sits behind the notch (the Soroband item did in M0).
 - Streaming `nettop` (`-L 0`) costs more than a full CPU core; keep it out of any measurement path.
@@ -147,7 +170,7 @@ Things learned the hard way that no file or config will tell you.
 - `GLOSSARY.md`: the domain language used in code, docs and PRs, with the names to avoid.
 - `docs/design.md`: product and architecture, performance budget, visual language.
 - `docs/plan.md`: milestones, exit criteria, ledger, stopping rules, session prompt.
-- `docs/review.md`: the review loop, the blind reviewer brief, the reassessment when the cap is hit.
+- `docs/review.md`: the review loop, the blind reviewer brief, when to run another round, and the reassessment with an advisor agent.
 - `docs/verification.md`: test rules, the tools for running and observing the app, per-milestone evidence.
 - `docs/mockups/`: rendered UI prototype screens.
 - `prototypes/`: throwaway code that settled the design; see its section in design.md.

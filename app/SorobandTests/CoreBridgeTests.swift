@@ -7,10 +7,6 @@ struct CoreBridgeTests {
         #expect(Core.version == (try RepositoryFiles.coreWorkspaceVersion()))
     }
 
-    @Test func menuBarShowsTheVersionFromTheCore() throws {
-        #expect(MenuBar.text == "Soroband \(try RepositoryFiles.coreWorkspaceVersion())")
-    }
-
     /// The engine reaches the kernel and finishes its first poll. On a macOS version whose
     /// descriptor layouts are not recorded yet it runs on interface totals, which still counts.
     @Test func engineConnectsToTheKernelAndPolls() async throws {

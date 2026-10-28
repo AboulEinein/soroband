@@ -2,7 +2,7 @@
 
 use crate::data;
 use serde_json::{Value, json};
-use soroband_core::settings::{self, Current, Kind, SCHEMA, Setting, Settings};
+use soroband_core::settings::{self, Current, Kind, SCHEMA, Setting, Settings, plain};
 use std::fmt::Write as _;
 use std::path::Path;
 use std::process::ExitCode;
@@ -56,17 +56,24 @@ fn load() -> Result<(Settings, std::path::PathBuf), (u8, String)> {
 }
 
 fn describe(setting: &Setting, current: &Current) -> Value {
-    let Kind::Integer { min, max } = setting.kind;
     let mut value = json!({
         "key": setting.key,
-        "type": "integer",
-        "min": min,
-        "max": max,
-        "default": setting.default,
+        "default": setting.default_value(),
         "value": current.value,
         "is_default": current.is_default,
         "description": setting.description,
     });
+    match setting.kind {
+        Kind::Integer { min, max, .. } => {
+            value["type"] = json!("integer");
+            value["min"] = json!(min);
+            value["max"] = json!(max);
+        }
+        Kind::Choice { options, .. } => {
+            value["type"] = json!("choice");
+            value["options"] = json!(options);
+        }
+    }
     if let Some(problem) = &current.problem {
         value["problem"] = json!(problem);
     }
@@ -74,13 +81,16 @@ fn describe(setting: &Setting, current: &Current) -> Value {
 }
 
 fn line(setting: &Setting, current: &Current) -> String {
-    let Kind::Integer { min, max } = setting.kind;
+    let kind = match setting.kind {
+        Kind::Integer { min, max, .. } => format!("integer {min}-{max}"),
+        Kind::Choice { options, .. } => format!("one of {}", options.join(", ")),
+    };
     let mut text = format!(
-        "{} = {}{}\n    integer {min}-{max}, default {}. {}",
+        "{} = {}{}\n    {kind}, default {}. {}",
         setting.key,
-        current.value,
+        plain(&current.value),
         if current.is_default { " (default)" } else { "" },
-        setting.default,
+        plain(&setting.default_value()),
         setting.description
     );
     if let Some(problem) = &current.problem {
@@ -113,7 +123,7 @@ fn get(key: &str, json: bool) -> Outcome {
     Ok(if json {
         describe(setting, &current).to_string()
     } else {
-        current.value.to_string()
+        plain(&current.value)
     })
 }
 
@@ -125,7 +135,7 @@ fn set(key: &str, value: &str) -> Outcome {
     })?;
     save(&settings, &path)?;
     let current = settings.get(key).map_err(|e| (1, e.to_string()))?;
-    let mut text = format!("{key} = {}", current.value);
+    let mut text = format!("{key} = {}", plain(&current.value));
     if let Err(error) = data::post_settings_changed() {
         let _ = write!(
             text,

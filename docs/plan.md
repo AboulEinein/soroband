@@ -7,13 +7,15 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | ID | Milestone | Phase | Status | PR |
 | --- | --- | --- | --- | --- |
 | P0 | Research and prototypes | 0 | done | – |
-| M0 | Repository foundation | 1 | blocked (hand checklist: Location across a rebuild, menu bar item on screen) | [#3](https://github.com/AboulEinein/soroband/pull/3) |
+| M0 | Repository foundation | 1 | blocked (hand checklist: menu bar item on screen, Location across a rebuild) | [#3](https://github.com/AboulEinein/soroband/pull/3) |
 | M1 | Meter engine | 1 | in review | [#4](https://github.com/AboulEinein/soroband/pull/4) |
-| M2 | Network identity and storage | 1 | in review | [#5](https://github.com/AboulEinein/soroband/pull/5) |
-| M3 | Menu bar and popover (first dogfood build) | 1 | planned | – |
+| M2 | Network identity and storage | 1 | blocked (hand checklist: Location, real hotspot switch, Wi‑Fi without its name) | [#5](https://github.com/AboulEinein/soroband/pull/5) |
+| M3 | Menu bar and popover (first dogfood build) | 1 | blocked (hand checklist and daily-use week) | [#6](https://github.com/AboulEinein/soroband/pull/6) |
 | M4 | History window | 2 | planned | – |
 | M5 | Dynamic Island moments | 2 | planned | – |
 | M6 | Release v0.1.0 | 3 | planned | – |
+
+M0–M3 are stacked pull requests, each against the previous milestone's branch, merged in order once their checklists pass. The checklists are in [`handover.md`](handover.md#next-action).
 
 Statuses: `planned`, `in progress`, `in review`, `done`, `blocked (<reason>)`.
 
@@ -138,7 +140,7 @@ Estimated sessions: M0 1, M1 1–2, M2 1, M3 1–2, M4 1, M5 2, M6 1, so about 9
 
 Milestones can run overnight as a chain, one fresh thread per milestone, started by a conductor thread that writes no code.
 
-- **Stacked branches.** Nothing is merged without the user, so each milestone branches from the previous milestone's branch and opens its PR against it: `m0-foundation` from `main`, `m1-meter-engine` from `m0-foundation`, `m2-networks-storage` from `m1-meter-engine`, `m3-menubar-popover` from `m2-networks-storage`. The user merges them in order; GitHub retargets each PR to `main` as its base merges.
+- **Stacked branches.** Nothing is merged without the user, so each milestone branches from the previous milestone's branch and opens its PR against it: `m<n>-<name>` from the branch of milestone n−1, the first from `main`. The user merges them in order; GitHub retargets each PR to `main` as its base merges.
 - **When the chain continues.** The next milestone starts only if the previous one ended `in review`, or `blocked` solely on a hand-run checklist (a permission prompt, a real hotspot, the daily-use week). Anything else stops the chain: a decision needed, repeated failures, red CI.
 - **The conductor checks the review judgment.** Each milestone thread runs its own review loop as [`review.md`](review.md#rounds) describes. When a thread stops, the conductor checks its review record against that loop and may send work back to the same thread. It asks the user only when the way forward needs a decision.
 - **Hand-run checklists** collect in each PR and in the handover; the user runs them in the morning, in milestone order.
@@ -157,7 +159,7 @@ In both cases, update **Current state** and **Next action** in the handover, and
 Paste this into a new session, with the milestone ID and branch filled in:
 
 ```text
-Run milestone M0 of Soroband on branch m0-foundation, created from main, with its PR against main.
+Run milestone M4 of Soroband on branch m4-history, created from main, with its PR against main.
 
 Before anything else, read AGENTS.md, docs/handover.md, docs/plan.md, docs/verification.md and docs/review.md.
 

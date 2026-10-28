@@ -40,20 +40,3 @@ final class LocationAccess: NSObject, CLLocationManagerDelegate {
         }
     }
 }
-
-struct LocationMenuItem: View {
-    let location: LocationAccess
-
-    var body: some View {
-        switch location.status {
-        case .notDetermined:
-            Button("Allow Location Access…") { location.request() }
-        case .authorizedAlways, .authorizedWhenInUse:
-            Button("Location Access: Allowed") {}.disabled(true)
-        default:
-            Button("Location Access: Off. Open Settings…") {
-                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices")!)
-            }
-        }
-    }
-}

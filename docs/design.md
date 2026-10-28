@@ -52,11 +52,12 @@ How it works:
 - **Attribution:** a process inside an `.app` bundle is credited to the outermost bundle (helpers, XPC services and login items roll up). Processes under `/System/Library/`, `/System/iOSSupport/`, `/usr/libexec/`, `/usr/sbin/`, `/sbin/` and `/Library/Apple/` (also inside the OS and App cryptexes) are "macOS & Services". Any other executable is a command-line tool, named by its file name (`curl`). A process that exited before it was looked up keeps the name the kernel reported.
 - **Retransmissions count.** A flow's received bytes include duplicates from retransmission; they crossed the interface, so they are usage. The kernel reports the duplicates it recognised per flow (`nstat_rxduplicatebytes`), and `soroband live --json` shows them per app as `rx_duplicate`. On a lossy Wi‑Fi a 20 MB download carried up to 568 KB of them (+2.8%). That counter does not cover every re-received byte: on lossy downloads the excess beyond body plus reported duplicates grew from about 33 KB (TLS and HTTP framing on a clean run) to between 59 KB and 234 KB.
 - **Exact network switches:** on a path-change event the engine polls immediately and closes the bucket, so bytes land on the network they used, not the next one.
-- **Self-check:** the app sum is reconciled against the interface counter all the time. Flows carry no headers, so the app sum runs 8–10% below the interfaces during a bulk download and about 22% below on an idle minute, where headers, acknowledgements and link-local chatter are a large share of small packets. v0.1 makes no header-byte estimate. The rule (built in M3):
-  - The raw gap always shows as "Other / overhead", with no verdict.
-  - The ~15% gap is judged only over windows with enough interface volume: at least 10 MB on the interfaces in the last 10 minutes.
-  - "Degraded" shows only after two consecutive failing windows.
-  - Apps summing to more than the interfaces, by about 2%, flags at once, whatever the volume: flows never carry more than crossed the wire.
+- **Self-check:** the app sum is reconciled against the interface counter all the time (`core/crates/soroband-core/src/check.rs`). Flows carry no headers, so the app sum runs 8–10% below the interfaces during a bulk download and about 22% below on an idle minute, where headers, acknowledgements and link-local chatter are a large share of small packets. v0.1 makes no header-byte estimate. The rule:
+  - The raw gap always shows as "Other / overhead" in the popover's Apps tab, with no verdict.
+  - The gap is judged over consecutive 10-minute windows, and only in a window with at least 10 MB on the interfaces. Such a window fails when the apps cover less than 85% of the interface bytes.
+  - "Degraded" shows after two failing windows in a row, and clears at the next judged window that passes. A window under 10 MB is not judged: it breaks a run of failures but keeps a degraded verdict.
+  - Apps summing to more than the interfaces by over 2% flags at once, whatever the volume, because flows never carry more than crossed the wire. The flag stays until a whole window has passed without it.
+  - On interface totals only (an unknown descriptor layout) nothing is judged; the popover says per-app counting is off.
 
 Risks and how the design handles them:
 
@@ -70,8 +71,8 @@ Shape: Rust crate `soroband-core` (socket client, aggregation, SQLite, settings)
 
 | Measure | Budget | Evidence |
 | --- | --- | --- |
-| CPU, idle, popover closed | ≤ 0.1% average | Rust probe: 0.035–0.058% at 5 s polls, ~150 flows; `soroband-core` engine 0.017–0.033%, Debug app with engine 0.023–0.096% (M1) |
-| Memory, popover closed | ≤ 25 MB footprint | Bare SwiftUI `MenuBarExtra` app: 16 MB; Rust engine: 1.7–1.8 MB; Debug app with engine: 17.0–23.0 MB (M1) |
+| CPU, idle, popover closed | ≤ 0.1% average | Rust probe: 0.035–0.058% at 5 s polls, ~150 flows; `soroband-core` engine 0.017–0.033%, Debug app with engine 0.023–0.096% (M1); Debug app with menu bar total and popover 0.096% on a busy network (71 MB in 10 min), 0.055% icon only (M3) |
+| Memory, popover closed | ≤ 25 MB footprint | Bare SwiftUI `MenuBarExtra` app: 16 MB; Rust engine: 1.7–1.8 MB; Debug app with engine: 17.0–23.0 MB (M1); with menu bar item and popover: 21.0 MB (M3) |
 | Memory, History window open | ≤ 60 MB, back under 30 MB after closing | Not measured yet |
 | Disk writes | One SQLite transaction per minute | Design |
 | Energy | No timers firing more than every 5 s when the popover is closed | Design |
@@ -80,8 +81,8 @@ How the app stays inside the budget:
 
 - **Engine:** one socket, one thread blocked in `poll(2)` between 5 s polls. Deltas accumulate in a map keyed by (network, app), about 50 entries. A flow's state is two counters and a name, dropped when the flow closes.
 - **Writes:** the in-memory hour bucket flushes to SQLite once a minute, on network change, and on quit.
-- **Menu bar label:** redraws only when the displayed string changes; at most every 5 s.
-- **Popover:** reads today's in-memory aggregates, never SQLite. While it is open the query interval drops to 1 s for live speed, and returns to 5 s when it closes.
+- **Menu bar label:** an AppKit status item, updated from the engine's poll callback. It redraws only when the displayed text changes, and each redraw costs about 18 ms of the main thread on a Mac with four displays (macOS redraws a copy of the item for each), which at every 5 s poll alone is 0.36% CPU. So a total shows whole megabytes below 1 GB and tenths of a gigabyte above, and a total that only grew redraws at most once a minute; a new network, a mode change or a total that went down at the reset hour redraws at once. The live speed mode redraws at every poll and is the costly one.
+- **Popover:** reads today's in-memory aggregates, never SQLite; only the network list (names, kinds and when each was last used) is read from the database, once when the popover opens. While it is open the engine polls every 1 s for live speed and publishes today's per-app list; when it closes, polls return to 5 s, the list stops, and the popover's view and app icons are released.
 - **History window:** created on open and released on close. Queries aggregate in SQL (`GROUP BY` on the indexed columns), returning at most a few hundred rows per chart. No raw rows load into memory.
 - **Dependencies:** Apple frameworks in the app; `libc`, `rusqlite` (system SQLite) and `serde_json` (the settings file) in the core.
 - **App icons:** loaded lazily, small size only, cached by bundle ID.
@@ -90,11 +91,11 @@ The spike does none of this (it holds 60 days of fake rows in memory and rescans
 
 ## UI
 
-**Menu bar item:** network type icon + today's total on the current network. Other options: today on all networks, live speed, or icon only.
+**Menu bar item:** network type icon + today's total on the current network, as crossed its interfaces. Other options (the `menu_bar` setting): today on all networks, live speed, or icon only. While the engine has stopped it reads "Not counting".
 
 **Popover** (click the item):
 - Current network card: name, type, connected since, today's total, down/up split, live speed.
-- Apps tab: today's top apps on this network, toggle for all networks (bars then split by network color).
+- Apps tab: today's top apps on this network, toggle for all networks (bars then split by network color), then "Other / overhead", the raw gap between the interfaces and the apps. A notice above the tabs shows when the self-check is degraded or over-counted, or the engine runs on interface totals.
 - Networks tab: today per network; unused ones show "last used".
 - Footer: today across all networks, History…, Settings, Quit.
 
