@@ -127,6 +127,8 @@ private struct LivePopover: View {
     var usage = Usage.shared
     var monitor = NetworkMonitor.shared
     var location = LocationAccess.shared
+    /// Read from the database once the popover has drawn, and again on another network or hour.
+    @State private var summary: PopoverSummary?
     @State var tab: PopoverView.Tab
     @State var allNetworks: Bool
     /// Opens History on this month, on `network` or on every network when nil.
@@ -134,21 +136,47 @@ private struct LivePopover: View {
     let openSettings: () -> Void
     let quit: () -> Void
 
+    /// The network History opens on, which the History card's numbers follow: the current one
+    /// while the Apps tab shows only it, every network otherwise.
+    private var historyNetwork: Int64? {
+        allNetworks || tab == .networks ? nil : monitor.current?.id
+    }
+
     var body: some View {
         PopoverView(
             content: PopoverContent.make(
                 status: usage.status, today: usage.today, registry: usage.registry,
                 current: monitor.current, connectedSince: monitor.connectedSince, allNetworks: allNetworks,
-                locationAllowed: location.isAllowed),
+                locationAllowed: location.isAllowed, summary: summary),
             tab: $tab, allNetworks: $allNetworks,
-            openHistory: { openHistory(allNetworks || tab == .networks ? nil : monitor.current?.id) },
+            openHistory: { openHistory(historyNetwork) },
             allowLocation: { location.allow() },
             openSettings: openSettings, quit: quit
         )
         .onChange(of: monitor.current) { usage.reloadRegistry() }
+        .task(
+            id: SummaryKey(
+                network: usage.status.networkID, historyNetwork: historyNetwork, todayStart: usage.status.todayStart,
+                hour: Int(Date.now.timeIntervalSince1970 / 3600))
+        ) {
+            guard usage.status.state != .starting else { return }
+            let (network, history, todayStart) = (usage.status.networkID, historyNetwork, usage.status.todayStart)
+            summary = await Task.detached(priority: .userInitiated) {
+                PopoverSummary.load(network: network, historyNetwork: history, todayStart: todayStart)
+            }.value
+        }
         .onAppear {
             // macOS may reveal the Wi‑Fi name later than `refreshUntilNamed` looked for it.
             if location.isAllowed, monitor.current?.key.hasPrefix("wifi-router:") == true { monitor.refresh() }
         }
     }
+}
+
+/// What the popover's summary depends on.
+private struct SummaryKey: Equatable {
+    var network: Int64
+    var historyNetwork: Int64?
+    var todayStart: Date
+    /// A new hour stores the last one, which the summary then reads.
+    var hour: Int
 }

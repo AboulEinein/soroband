@@ -52,7 +52,7 @@ struct HistoryView: View {
     }
 }
 
-/// The detail column: title, stat tiles, chart, apps, share by network and heatmap.
+/// The detail column: title, headline card, Where it went, chart, apps and heatmap.
 struct HistoryDetail: View {
     let content: HistoryContent
     @Binding var expandedApp: String?
@@ -65,26 +65,24 @@ struct HistoryDetail: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(content.title).font(.largeTitle.weight(.semibold))
+                    Text(content.title).font(.title2.weight(.bold))
                     Text(content.subtitle).foregroundStyle(.secondary)
                 }
-                StatTiles(content: content)
+                HStack(alignment: .top, spacing: 14) {
+                    HeadlineCard(content: content)
+                    if showsShares {
+                        SharesCard(content: content).frame(width: 340)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
                 UsageChart(content: content, hoverDate: $hoverDate)
-                HStack(alignment: .top, spacing: 16) {
+                HStack(alignment: .top, spacing: 14) {
                     AppsCard(content: content, expandedApp: $expandedApp, showsAll: $showsAllApps)
-                    // A single network on a Day has neither card: the apps then take the width.
-                    if showsShares || content.heatmap != nil {
-                        VStack(spacing: 16) {
-                            if showsShares {
-                                SharesCard(content: content)
-                            }
-                            if let heatmap = content.heatmap {
-                                HeatmapCard(heatmap: heatmap)
-                            }
-                        }
-                        .frame(width: 340)
+                    // A Day has no heatmap: the apps then take the width.
+                    if let heatmap = content.heatmap {
+                        HeatmapCard(heatmap: heatmap).frame(width: 340)
                     }
                 }
             }
@@ -93,48 +91,74 @@ struct HistoryDetail: View {
     }
 }
 
-private struct StatTiles: View {
+/// How much the range used: the total in large type, its change, and the numbers behind it.
+private struct HeadlineCard: View {
     let content: HistoryContent
 
     var body: some View {
-        HStack(spacing: 12) {
-            Tile(title: "Total") {
-                Text(Format.bytes(content.total.total)).font(.system(size: 26, weight: .semibold, design: .rounded))
+        Card {
+            HStack(spacing: 8) {
+                Text(caption).font(.caption).foregroundStyle(.secondary)
                 if let change = content.change {
                     Label(
                         "\(abs(change).formatted(.percent.precision(.fractionLength(0)))) vs previous \(content.range.label.lowercased())",
                         systemImage: change >= 0 ? "arrow.up.right" : "arrow.down.right"
                     )
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption2.weight(.medium))
+                    .padding(.horizontal, 7).padding(.vertical, 2)
+                    .background(.quaternary.opacity(0.7), in: .capsule)
                 }
             }
-            Tile(title: "Download / upload") {
-                Label(Format.bytes(content.total.rx), systemImage: "arrow.down").font(.headline)
-                Label(Format.bytes(content.total.tx), systemImage: "arrow.up").font(.subheadline).foregroundStyle(
-                    .secondary)
-                RatioBar(down: content.total.rx, up: content.total.tx).frame(height: 5)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                let total = Format.numberAndUnit(content.total.total)
+                Text(total.number).font(.system(size: 50, weight: .bold, design: .rounded))
+                Text(total.unit).font(.system(size: 22, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
             }
-            Tile(title: "Daily average") {
-                Text(Format.bytes(content.dailyAverage)).font(.title3.weight(.semibold))
-                Text("over \(content.elapsedDays) day\(content.elapsedDays == 1 ? "" : "s")")
-                    .font(.caption).foregroundStyle(.secondary)
+            HStack(alignment: .top, spacing: 16) {
+                Fact(title: "↓ Download", value: Format.bytes(content.total.rx))
+                Fact(title: "↑ Upload", value: Format.bytes(content.total.tx))
+                Fact(
+                    title: "Daily average", value: Format.bytes(content.dailyAverage),
+                    detail: "over \(content.elapsedDays) day\(content.elapsedDays == 1 ? "" : "s")")
+                Fact(
+                    title: "Busiest day", value: content.busiestDay.map { Format.bytes($0.bytes) } ?? "–",
+                    detail: content.busiestDay.map { busiestDayLabel($0.start) })
             }
-            Tile(title: "Busiest day") {
-                Text(content.busiestDay.map { Format.bytes($0.bytes) } ?? "–").font(.title3.weight(.semibold))
-                Text(content.busiestDay.map { busiestDayLabel($0.start) } ?? " ")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
+            RatioBar(down: content.total.rx, up: content.total.tx).frame(height: 4)
         }
-        .fixedSize(horizontal: false, vertical: true)
         .monospacedDigit()
+    }
+
+    private var caption: String {
+        switch content.range {
+        case .day: "Used on \(content.subtitle)"
+        case .month, .year: "Used in \(content.subtitle)"
+        case .week, .all: "Used \(content.subtitle)"
+        }
     }
 }
 
-/// "Sunday, 4 Oct", with the year when it is not this year's.
+private struct Fact: View {
+    let title: String
+    let value: String
+    var detail: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text(value).font(.system(size: 15, weight: .semibold)).minimumScaleFactor(0.8)
+            if let detail { Text(detail).font(.caption).foregroundStyle(.tertiary) }
+        }
+        .lineLimit(1)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// "Wed 21 Oct", with the year when it is not this year's.
 private func busiestDayLabel(_ date: Date) -> String {
     let sameYear = Calendar.current.isDate(date, equalTo: .now, toGranularity: .year)
-    return date.formatted(
-        sameYear ? .dateTime.weekday(.wide).day().month() : .dateTime.weekday(.wide).day().month().year())
+    return date.formatted(sameYear ? .dateTime.weekday().day().month() : .dateTime.weekday().day().month().year())
 }
 
 private struct RatioBar: View {
@@ -164,10 +188,23 @@ private struct UsageChart: View {
     }
 
     var body: some View {
-        Card(
-            title: content.legend.count > 1 || content.title == HistoryContent.allNetworksTitle
-                ? "Usage by network" : "Usage"
-        ) {
+        Card {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(title).font(.headline)
+                Spacer()
+                if content.legend.count > 1 {
+                    ForEach(content.legend) { network in
+                        HStack(spacing: 5) {
+                            RoundedRectangle(cornerRadius: 2).fill(color(network)).frame(width: 8, height: 8)
+                            Text(network.label).lineLimit(1)
+                        }
+                    }
+                }
+                if let average = content.barAverage {
+                    Text("– – avg \(Format.bytes(average))").monospacedDigit()
+                }
+            }
+            .font(.caption).foregroundStyle(.secondary)
             if content.bars.isEmpty {
                 Text("Nothing was recorded in this range.")
                     .foregroundStyle(.secondary)
@@ -176,6 +213,26 @@ private struct UsageChart: View {
                 chart
             }
         }
+    }
+
+    private var title: String {
+        let every =
+            switch content.step {
+            case .hour: "Every hour"
+            case .day: "Every day"
+            case .month: "Every month"
+            }
+        return content.legend.count > 1 || content.title == HistoryContent.allNetworksTitle
+            ? "\(every), by network" : every
+    }
+
+    /// The bar that gets a label above it, and the label: the busiest day, and today.
+    private func callout(for bar: HistoryContent.BarSegment) -> String? {
+        guard content.step == .day, bar.high == content.tooltips[bar.start]?.total else { return nil }
+        if let busiest = content.busiestDay, Calendar.current.isDate(bar.start, inSameDayAs: busiest.start) {
+            return "Busiest · \(Format.bytes(busiest.bytes))"
+        }
+        return Calendar.current.isDateInToday(bar.start) ? "Today" : nil
     }
 
     private var chart: some View {
@@ -193,14 +250,16 @@ private struct UsageChart: View {
                 .foregroundStyle(by: .value("Network", bar.network.label))
                 .cornerRadius(2)
                 .opacity(hovered == nil || hovered == bar.start ? 1 : 0.45)
+                .annotation(position: .top, spacing: 3) {
+                    if hovered == nil, let callout = callout(for: bar) {
+                        Text(callout).font(.caption2.weight(.medium)).foregroundStyle(.secondary).fixedSize()
+                    }
+                }
             }
             if let average = content.barAverage {
                 RuleMark(y: .value("Average", average))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
                     .foregroundStyle(.secondary)
-                    .annotation(position: .top, alignment: .leading) {
-                        Text("avg \(Format.bytes(average))").font(.caption2).foregroundStyle(.secondary)
-                    }
             }
             if let hovered, let tooltip = content.tooltips[hovered] {
                 RuleMark(x: .value("Time", hovered, unit: unit))
@@ -217,8 +276,7 @@ private struct UsageChart: View {
             domain: content.legend.map(\.label),
             range: content.legend.map { $0.kind == nil ? Color.gray : NetworkColor.color(slot: $0.slot) }
         )
-        .chartLegend(content.legend.count > 1 ? .visible : .hidden)
-        .chartLegend(position: .top, alignment: .leading)
+        .chartLegend(.hidden)
         .chartXSelection(value: $hoverDate)
         .chartXScale(domain: content.chartDomain)
         .chartXAxis {
@@ -296,7 +354,8 @@ private struct AppsCard: View {
 
     var body: some View {
         let apps = showsAll ? content.apps : Array(content.apps.prefix(HistoryModel.visibleApps))
-        Card(title: "Apps", trailing: content.legend.count > 1 ? "Bars split by network" : nil) {
+        Card(title: "Apps", trailing: content.legend.count > 1 ? "Bars split by network · click a row for detail" : nil)
+        {
             VStack(spacing: 12) {
                 if content.apps.isEmpty {
                     Text("No app was credited in this range.")
@@ -333,7 +392,7 @@ private struct AppRowView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            RowIcon(icon: row.icon).frame(width: 20, height: 20)
+            RowIcon(icon: row.icon, tiled: true).frame(width: 24, height: 24)
             VStack(alignment: .leading, spacing: 5) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(row.title).lineLimit(1)
@@ -379,7 +438,7 @@ private struct SharesCard: View {
     let content: HistoryContent
 
     var body: some View {
-        Card(title: "Share by network") {
+        Card(title: "Where it went", trailing: "Share by network") {
             SegmentedBar(
                 segments: content.shares.map { PopoverContent.Segment(slot: $0.network.slot, bytes: $0.bytes) },
                 scale: max(content.total.total, 1)
@@ -445,6 +504,14 @@ private struct HeatmapCard: View {
                 }
                 .frame(height: Self.gridHeight + 20)
             }
+            if let insight {
+                Text(insight)
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.quaternary.opacity(0.4), in: .rect(cornerRadius: 8))
+            }
             HStack(spacing: 6) {
                 Text("Less")
                 LinearGradient(colors: [Self.low, Self.high], startPoint: .leading, endPoint: .trailing)
@@ -453,6 +520,17 @@ private struct HeatmapCard: View {
             }
             .font(.caption2).foregroundStyle(.secondary)
         }
+    }
+
+    /// The heatmap in one sentence: its busiest hour, and how little of the usage nights carry.
+    private var insight: String? {
+        guard let peak = heatmap.peak else { return nil }
+        var text = "Your busiest hour is \(peak.weekday) \(peak.hour):00–\(peak.hour + 1):00."
+        if let night = heatmap.nightShare {
+            text +=
+                " \(night.formatted(.percent.precision(.fractionLength(0)))) of the usage falls between midnight and 7:00."
+        }
+        return text
     }
 
     /// The hovered cell's value, else the peak.
@@ -493,36 +571,25 @@ private struct HeatmapCard: View {
     }
 }
 
-private struct Tile<Content: View>: View {
-    let title: String
-    @ViewBuilder let content: () -> Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            content()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(12)
-        .background(.background.secondary, in: .rect(cornerRadius: 10))
-    }
-}
-
 private struct Card<Content: View>: View {
-    let title: String
+    var title: String?
     var trailing: String?
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(title).font(.headline)
-                Spacer()
-                if let trailing { Text(trailing).font(.caption).foregroundStyle(.secondary) }
+            if let title {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(title).font(.headline)
+                    Spacer()
+                    if let trailing { Text(trailing).font(.caption).foregroundStyle(.secondary) }
+                }
             }
             content()
         }
-        .padding(14)
-        .background(.background.secondary, in: .rect(cornerRadius: 12))
+        .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(.background.secondary, in: .rect(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.separator.opacity(0.5)))
     }
 }

@@ -178,17 +178,21 @@ Which of today's bytes the two "today" menu bar modes show: the total, download,
 Interface bytes per second, down and up, over the last poll.
 
 **Popover**:
-The panel the menu bar item opens: network card, Apps and Networks tabs, footer.
+The panel the menu bar item opens: hero card, Apps and Networks tabs, footer with the History card.
 
-**Network card**:
-The popover's header for the current network: name, kind, connected since, today's total, down/up split, live speed.
-_Avoid_: header (its name in `PopoverContent`)
+**Hero card**:
+The popover's top card, tinted with the current network's color: name, kind, when the Mac joined it, live speed, today's total, down/up split, today on all networks, and today's hours as bars.
+_Avoid_: network card, header (its name in `PopoverContent`)
+
+**History card**:
+The popover's entry to History: this month and the last 7 days on the network History opens on (the current one while the Apps tab shows only it, every network otherwise).
+_Avoid_: History button
 
 **Notice**:
 The line above the popover's tabs when the engine has failed ("Not counting"), the engine is in interface-only mode, or the self-check is degraded or overcount.
 
 **History window**:
-The window for usage over a range, by network and app: stat tiles, usage chart, apps, share by network and heatmap. It is the only window of the History process.
+The window for usage over a range, by network and app: headline card, Where it went (share by network), usage chart, apps and heatmap. It is the only window of the History process.
 
 **History process**:
 A second instance of Soroband.app, started with `--history`, that shows the History window, reads the database without starting the engine, and quits when the window closes. The menu bar app starts it, so History's memory never stays in the menu bar app.

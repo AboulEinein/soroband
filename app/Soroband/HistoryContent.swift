@@ -257,11 +257,13 @@ struct HistoryContent: Equatable {
         /// 7 rows in the calendar's week order, each with 24 hours of bytes.
         var rows: [(weekday: String, hours: [UInt64])]
         var peak: (weekday: String, hour: Int, bytes: UInt64)?
+        /// The share of the usage between midnight and 7:00; nil without usage.
+        var nightShare: Double?
 
         static func == (a: Heatmap, b: Heatmap) -> Bool {
             a.rows.map(\.weekday) == b.rows.map(\.weekday) && a.rows.map(\.hours) == b.rows.map(\.hours)
                 && a.peak?.weekday == b.peak?.weekday && a.peak?.hour == b.peak?.hour
-                && a.peak?.bytes == b.peak?.bytes
+                && a.peak?.bytes == b.peak?.bytes && a.nightShare == b.nightShare
         }
     }
 
@@ -509,6 +511,10 @@ struct HistoryContent: Equatable {
                 peak = (symbols[day], hour, hours[day][hour])
             }
         }
-        return Heatmap(rows: order.map { (symbols[$0], hours[$0]) }, peak: peak)
+        let total = hours.joined().reduce(0, +)
+        let night = hours.map { $0[0..<7].reduce(0, +) }.reduce(0, +)
+        return Heatmap(
+            rows: order.map { (symbols[$0], hours[$0]) }, peak: peak,
+            nightShare: total == 0 ? nil : Double(night) / Double(total))
     }
 }

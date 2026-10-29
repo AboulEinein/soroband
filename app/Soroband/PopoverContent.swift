@@ -54,11 +54,24 @@ struct PopoverContent: Equatable {
         case failed
     }
 
+    struct HistoryEntry: Equatable {
+        /// Every network's bytes on each of the last 7 days, today last.
+        var week: [UInt64]
+        var month: UInt64
+    }
+
     /// Apps shown before the rest are summed up as "+ N more".
     static let visibleApps = 7
 
     var header: Header
     var notice: Notice?
+    /// Today on the current network hour by hour from the reset hour, nil for hours to come;
+    /// empty until the popover has read them (`PopoverSummary`).
+    var hours: [UInt64?] = []
+    /// The first of `hours`: the start of today.
+    var todayStart: Date?
+    /// The History card's numbers, once read.
+    var history: HistoryEntry?
     /// The current network is Wi‑Fi known by its router, because Location access is not allowed:
     /// the popover offers to allow it, so the network gets its name.
     var asksForLocation = false
@@ -81,9 +94,11 @@ struct PopoverContent: Equatable {
     /// - `current`: the network bytes are booked to, nil while none is identified.
     /// - `allNetworks`: the Apps tab's toggle; bars are then split by network.
     /// - `locationAllowed`: whether macOS reveals Wi‑Fi names to the app.
+    /// - `summary`: what the popover read from the database when it opened; nil until then.
     static func make(
         status: EngineStatus, today: Today, registry: [RegisteredNetwork], current: Network?,
-        connectedSince: Date?, allNetworks: Bool, locationAllowed: Bool = true
+        connectedSince: Date?, allNetworks: Bool, locationAllowed: Bool = true, summary: PopoverSummary? = nil,
+        now: Date = .now
     ) -> PopoverContent {
         let slots = Dictionary(
             uniqueKeysWithValues: registry.enumerated().map { ($1.id, NetworkColor.slot(forIndex: $0)) })
@@ -165,6 +180,9 @@ struct PopoverContent: Equatable {
         return PopoverContent(
             header: header,
             notice: notice(for: status),
+            hours: summary?.hours(today: status.todayNetworkInterfaces.total, now: now) ?? [],
+            todayStart: summary?.todayStart ?? (status.todayStart == .distantPast ? nil : status.todayStart),
+            history: summary.map { HistoryEntry(week: $0.week, month: $0.month) },
             asksForLocation: !locationAllowed && current?.key.hasPrefix("wifi-router:") == true,
             appsTitle: allNetworks ? "Today, all networks" : "Today on \(header.name)",
             apps: apps,

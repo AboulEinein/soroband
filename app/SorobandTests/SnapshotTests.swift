@@ -47,6 +47,16 @@ struct SnapshotTests {
             ])
     }()
 
+    /// 21:30 local time on 2026-10-27, and the day's hours before it on Home-5G: quiet at night,
+    /// busy through the day; the hour in progress comes from the live total.
+    static let now = Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 21, minute: 30))!
+    static let summary = PopoverSummary(
+        todayStart: Calendar.current.startOfDay(for: now),
+        storedHours: [4, 2, 1, 1, 0, 1, 3, 12, 40, 80, 100, 74, 52, 60, 96, 122, 84, 70, 52, 60, 34, 0, 0, 0]
+            .map { UInt64($0) * 1_000_000 },
+        week: [6.1, 8.4, 7.2, 9.8, 8.8, 10.4, 1.5].map { UInt64($0 * 1_000_000_000) },
+        month: 62_300_000_000)
+
     static let status = EngineStatus(
         networkID: 1,
         todayNetworkApps: ByteCounts(rx: 890_000_000, tx: 120_000_000),
@@ -63,9 +73,11 @@ struct SnapshotTests {
             status: status, today: Self.today, registry: Self.registry, current: current,
             // 18:00 local time on 2026-10-27.
             connectedSince: Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 18)),
-            allNetworks: allNetworks, locationAllowed: locationAllowed)
-        return PopoverView(content: content, tab: .constant(tab), allNetworks: .constant(allNetworks))
-            .background(Color(nsColor: .windowBackgroundColor))
+            allNetworks: allNetworks, locationAllowed: locationAllowed, summary: Self.summary, now: Self.now)
+        return PopoverView(
+            content: content, tab: .constant(tab), allNetworks: .constant(allNetworks), animatesOpen: false
+        )
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     @Test func popoverApps() throws {

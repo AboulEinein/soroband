@@ -165,3 +165,19 @@ Planned rounds: 2.
 
 Changes it led to: none yet; the `fix regression` cause (fixing the named view, not every reader) is new.
 
+
+## [#18](https://github.com/AboulEinein/soroband/pull/18) feat(ui): redesign the popover and History in the warm direction (2026-10-29)
+
+Planned rounds: 2.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Medium, 4 Low, 2 unrated | `first look`: glossary kept "Network card" with no Hero card or History card, hour bars arrived after opening and never grew, a 25-hour day lost its hour in progress, VoiceOver read no values, the total's split was copied, the History card's number did not follow where it opens, the popover reads the full History result for its bars (deferred to a follow-up). |
+| 2 | Opus | 1 Low, 1 Minor | `fix regression`: the 25-hour fix sized the axis with `max(count, 24)`, wrong on the 23-hour day. `missed earlier`: three comments still said "History entry". |
+| 3 | Sonnet | 1 Low, 1 unrated | `missed earlier`: the handover's segmented-control follow-up no longer held, and the glossary and `HistoryDetail` comment still said "stat tiles". |
+| direct | Haiku | none | Checked fcb1a6c (wording). [Comment](https://github.com/AboulEinein/soroband/pull/18#issuecomment-6487220124). |
+
+**Retro.** Planned 2 rounds; it took 3 and a direct review. Round 1's findings were real gaps in a large UI change, mostly edge days and wording the redesign retired. The regression came from fixing the long day without checking the short one: a fix for one side of a symmetric case needs a test for the other side too. Round 3's findings were text a renamed concept left behind, which a search for the retired words ("Network card", "History entry", "stat tiles") after the rename would have found.
+
+Changes it led to: none yet. A rename that leaves old words behind also happened in #17 (round 3's glossary finding); if it recurs, it becomes a checklist line: search for the retired term before pushing.
+

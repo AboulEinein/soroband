@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Soroband · Option C · Warm</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* ---------- Tokens ---------- */
+:root{
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --round: ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.dark{
+  color-scheme: dark;
+  --desk-a:#1d1b3a; --desk-b:#3b1f3f; --desk-c:#10283a;
+  --menubar: rgba(30,30,36,.55); --menubar-fg:#f5f5f7;
+  --material: rgba(38,38,44,.80); --material-strong: rgba(30,30,35,.92);
+  --window:#1c1c21; --sidebar: rgba(40,40,48,.72);
+  --card:#26262d; --card-2:#2d2d35; --stroke: rgba(255,255,255,.08); --stroke-2: rgba(255,255,255,.14);
+  --fg:#f5f5f7; --fg-2: rgba(235,235,245,.62); --fg-3: rgba(235,235,245,.38);
+  --track: rgba(255,255,255,.07); --grid: rgba(255,255,255,.06);
+  --accent:#4f8cff;
+  /* Network color slots (dark steps): blue, orange, aqua, yellow, magenta */
+  --n1:#4f8cff; --n2:#ff8a3d; --n3:#3fd0c9; --n4:#f5c542; --n5:#e566c9;
+  --overhead: rgba(235,235,245,.30);
+  --heat0: rgba(79,140,255,.06); --heat1:#4f8cff;
+  --shadow: 0 24px 60px rgba(0,0,0,.55), 0 0 0 .5px rgba(255,255,255,.12);
+}
+.light{
+  color-scheme: light;
+  --desk-a:#bcd3ff; --desk-b:#ffd6c2; --desk-c:#d7f3ee;
+  --menubar: rgba(255,255,255,.55); --menubar-fg:#1d1d1f;
+  --material: rgba(246,246,248,.84); --material-strong: rgba(250,250,252,.94);
+  --window:#f6f6f8; --sidebar: rgba(236,236,241,.80);
+  --card:#ffffff; --card-2:#f2f2f6; --stroke: rgba(0,0,0,.07); --stroke-2: rgba(0,0,0,.12);
+  --fg:#1d1d1f; --fg-2: rgba(60,60,67,.68); --fg-3: rgba(60,60,67,.42);
+  --track: rgba(0,0,0,.06); --grid: rgba(0,0,0,.06);
+  --accent:#2f6fea;
+  --n1:#2f6fea; --n2:#e8691b; --n3:#14a39c; --n4:#c99a06; --n5:#c43ea8;
+  --overhead: rgba(60,60,67,.30);
+  --heat0: rgba(47,111,234,.05); --heat1:#2f6fea;
+  --shadow: 0 24px 60px rgba(30,30,60,.22), 0 0 0 .5px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--font); color:var(--fg); -webkit-font-smoothing:antialiased; font-size:13px;}
+.desk{
+  min-height:100vh; padding:0 0 80px;
+  background:
+    radial-gradient(1200px 700px at 15% 10%, var(--desk-b), transparent 60%),
+    radial-gradient(1000px 800px at 85% 30%, var(--desk-c), transparent 60%),
+    linear-gradient(160deg, var(--desk-a), var(--desk-c));
+}
+.num{font-variant-numeric: tabular-nums;}
+.rounded{font-family:var(--round)}
+.muted{color:var(--fg-2)} .faint{color:var(--fg-3)}
+
+/* ---------- Page chrome (not part of the design) ---------- */
+.doc-bar{display:flex; align-items:center; gap:12px; padding:14px 28px 0; color:var(--fg);}
+.doc-bar h1{font:600 15px var(--round); margin:0}
+.doc-bar .sp{flex:1}
+.pill-btn{font:500 12px var(--font); color:var(--fg); background:var(--material); border:.5px solid var(--stroke-2);
+  border-radius:999px; padding:6px 12px; cursor:pointer; backdrop-filter: blur(20px);}
+.section-title{font:600 12px var(--font); letter-spacing:.06em; text-transform:uppercase; color:var(--fg-2); margin:34px 28px 12px;}
+.note{max-width:1100px; margin:10px 28px 0; font-size:12px; line-height:1.5; color:var(--fg-2);}
+.note code{font-family:var(--mono); font-size:11px; color:var(--fg)}
+
+/* ---------- Menu bar ---------- */
+.menubar{height:26px; display:flex; align-items:center; gap:2px; padding:0 10px; color:var(--menubar-fg);
+  background:var(--menubar); backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border-bottom:.5px solid var(--stroke); font:500 13px var(--font);}
+.menubar .apple{width:14px;height:16px;margin-right:12px}
+.menubar .m{padding:2px 8px}
+.menubar .m b{font-weight:700}
+.menubar .sp{flex:1}
+.mb-item{display:flex; align-items:center; gap:4px; padding:2px 7px; border-radius:5px; font-variant-numeric:tabular-nums; white-space:nowrap}
+.mb-item.active{background:rgba(127,127,127,.28)}
+.mb-item svg{flex:none}
+.mb-sys{display:flex; gap:12px; align-items:center; padding-left:8px; opacity:.95}
+.mb-sys span{font-variant-numeric:tabular-nums}
+.mb-gallery{display:grid; grid-template-columns: repeat(3, minmax(320px,1fr)); gap:14px; margin:0 28px; max-width:1180px}
+.mb-card{border-radius:14px; overflow:hidden; background:var(--material); border:.5px solid var(--stroke-2); backdrop-filter: blur(20px)}
+.mb-card .strip{height:26px; display:flex; align-items:center; justify-content:flex-end; gap:6px; padding:0 10px; color:var(--menubar-fg);
+  background:linear-gradient(90deg, transparent, var(--menubar)); font:500 13px var(--font)}
+.mb-card .cap{padding:9px 12px 11px; font-size:12px}
+.mb-card .cap b{font-weight:600}
+.mb-card .cap div{color:var(--fg-2); margin-top:2px; font-size:11px}
+.stack-num{display:inline-flex; flex-direction:column; line-height:9px; font-size:9.5px; font-weight:600; letter-spacing:-.1px}
+
+/* ---------- Popover ---------- */
+.pop-row{display:flex; gap:40px; flex-wrap:wrap; margin:0 28px; align-items:flex-start}
+.pop-wrap{position:relative; padding-top:12px}
+.pop-wrap .caption{font-size:11px; color:var(--fg-2); margin-bottom:8px}
+.popover{width:360px; border-radius:16px; background:var(--material); box-shadow:var(--shadow);
+  backdrop-filter: blur(40px) saturate(180%); -webkit-backdrop-filter: blur(40px) saturate(180%); padding:12px; position:relative}
+.popover::before{content:""; position:absolute; top:-7px; left:50%; margin-left:-9px; width:18px; height:18px; transform:rotate(45deg);
+  background:var(--material); border-radius:3px; box-shadow:-.5px -.5px 0 var(--stroke-2)}
+.hero{border-radius:14px; padding:12px 14px 12px; position:relative; overflow:hidden;
+  background:
+   radial-gradient(260px 140px at 100% 0%, color-mix(in srgb, var(--net) 38%, transparent), transparent 70%),
+   linear-gradient(180deg, color-mix(in srgb, var(--net) 16%, var(--card)), var(--card));
+  border:.5px solid color-mix(in srgb, var(--net) 30%, var(--stroke));}
+.hero-top{display:flex; align-items:center; gap:9px}
+.net-badge{width:28px;height:28px;border-radius:8px; display:grid; place-items:center; color:#fff;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--net) 80%, white), var(--net)); box-shadow: inset 0 .5px 0 rgba(255,255,255,.4)}
+.hero-top .t{font-weight:600; font-size:13px}
+.hero-top .s{font-size:11px; color:var(--fg-2)}
+.live{margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; font-size:11px; color:var(--fg-2); font-variant-numeric:tabular-nums; line-height:1.35}
+.live i{font-style:normal; color:var(--fg)}
+.hero-num{display:flex; align-items:baseline; gap:6px; margin-top:12px}
+.hero-num .big{font:700 44px/1 var(--round); letter-spacing:-1px; font-variant-numeric:tabular-nums}
+.hero-num .unit{font:600 20px var(--round); color:var(--fg-2)}
+.hero-num .lbl{margin-left:auto; text-align:right; font-size:11px; color:var(--fg-2); line-height:1.4}
+.hero-num .lbl b{color:var(--fg); font-weight:600}
+.beads{display:flex; gap:3px; align-items:flex-end; height:30px; margin-top:12px}
+.beads span{flex:1; border-radius:3px; background:var(--net); opacity:.9; min-height:3px; transform-origin:bottom}
+.beads span.future{background:var(--track); opacity:1}
+.beads span.now{box-shadow:0 0 0 1.5px var(--card), 0 0 0 3px color-mix(in srgb, var(--net) 60%, transparent)}
+.bead-axis{display:flex; justify-content:space-between; font-size:9.5px; color:var(--fg-3); margin-top:4px; font-variant-numeric:tabular-nums}
+.updn{display:flex; gap:12px; font-size:11px; color:var(--fg-2); margin-top:8px; font-variant-numeric:tabular-nums}
+.updn b{color:var(--fg); font-weight:600}
+
+.prompt{margin-top:8px; display:flex; align-items:center; gap:9px; padding:8px 8px 8px 10px; border-radius:11px;
+  background:var(--card); border:.5px solid var(--stroke-2); font-size:11.5px; line-height:1.3}
+.prompt .ic{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;background:var(--track); color:var(--fg); flex:none}
+.prompt .tx{flex:1} .prompt .tx b{font-weight:600}
+.btn-sm{font:600 11.5px var(--font); color:#fff; background:var(--accent); border:0; border-radius:999px; padding:4px 11px; cursor:pointer}
+
+.seg{display:flex; padding:2px; border-radius:9px; background:var(--track); margin:12px 0 10px}
+.seg button{flex:1; font:500 12px var(--font); color:var(--fg-2); border:0; background:transparent; padding:4px 0; border-radius:7px; cursor:pointer}
+.seg button.on{background:var(--card-2); color:var(--fg); box-shadow:0 1px 2px rgba(0,0,0,.18), 0 0 0 .5px var(--stroke-2)}
+.list-head{display:flex; align-items:center; justify-content:space-between; font-size:11px; color:var(--fg-2); margin:0 2px 6px}
+.toggle{display:flex; align-items:center; gap:6px}
+.sw{width:26px;height:15px;border-radius:999px;background:var(--track);position:relative;border:.5px solid var(--stroke-2)}
+.sw::after{content:"";position:absolute;top:1px;left:1px;width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.rows{display:flex; flex-direction:column; gap:2px}
+.row{display:grid; grid-template-columns:24px 1fr auto; gap:3px 9px; align-items:center; padding:5px 6px; border-radius:9px}
+.row:hover{background:var(--track)}
+.row .ico{grid-row:span 2; width:24px;height:24px}
+.row .nm{font-size:12.5px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.row .v{font-size:12px; font-variant-numeric:tabular-nums; text-align:right}
+.row .v small{color:var(--fg-3); font-size:10.5px; margin-right:6px}
+.bar{grid-column:2 / span 2; height:6px; border-radius:3px; background:var(--track); display:flex; gap:2px; overflow:hidden}
+.bar span{height:100%; border-radius:2px; transform-origin:left}
+.more{font-size:11px; color:var(--fg-3); padding:4px 8px 0}
+
+.footer{margin-top:10px; display:flex; gap:8px; align-items:stretch}
+.hist-card{flex:1; display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:12px; cursor:pointer;
+  background:var(--card); border:.5px solid var(--stroke-2); color:var(--fg); text-align:left; font:inherit;
+  transition: background .15s ease, transform .15s ease}
+.hist-card:hover{background:var(--card-2)}
+.hist-card:active{transform:scale(.98)}
+.hist-card .spark{display:flex; gap:2px; align-items:flex-end; height:24px; width:62px}
+.hist-card .spark span{flex:1; border-radius:2px; background:var(--fg-3)}
+.hist-card .spark span.today{background:var(--fg)}
+.hist-card .t1{font-size:12px; font-weight:600}
+.hist-card .t2{font-size:10.5px; color:var(--fg-2); font-variant-numeric:tabular-nums}
+.hist-card .chev{margin-left:auto; color:var(--fg-3); display:flex; align-items:center; gap:4px; font-size:10.5px}
+.hist-card kbd{font:500 10px var(--font); color:var(--fg-3); border:.5px solid var(--stroke-2); border-radius:4px; padding:0 4px}
+.icon-btn{width:38px; border-radius:12px; display:grid; place-items:center; background:var(--card); border:.5px solid var(--stroke-2); color:var(--fg-2); cursor:pointer}
+.icon-btn:hover{color:var(--fg); background:var(--card-2)}
+
+/* Open animation: popover only, runs once on open */
+.animate .beads span{animation: grow .5s cubic-bezier(.2,.8,.2,1) both}
+.animate .bar span{animation: growx .55s cubic-bezier(.2,.8,.2,1) both}
+@keyframes grow{from{transform:scaleY(0)}}
+@keyframes growx{from{transform:scaleX(0)}}
+
+/* ---------- History window ---------- */
+.win{width:1100px; height:800px; margin:0 28px; border-radius:12px; overflow:hidden; display:grid; grid-template-columns:220px 1fr;
+  background:var(--window); box-shadow:var(--shadow); position:relative}
+.side{background:var(--sidebar); backdrop-filter: blur(30px); border-right:.5px solid var(--stroke); padding:12px 10px; display:flex; flex-direction:column}
+.lights{display:flex; gap:8px; padding:2px 4px 18px}
+.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.side h6{margin:10px 8px 6px; font:600 11px var(--font); color:var(--fg-3)}
+.nav{display:grid; grid-template-columns:18px 1fr auto; gap:2px 8px; align-items:center; padding:6px 8px; border-radius:8px; font-size:13px; cursor:default}
+.nav.sel{background:color-mix(in srgb, var(--accent) 22%, transparent)}
+.nav .sub{grid-column:2 / span 2; font-size:10.5px; color:var(--fg-2); display:flex; gap:6px; align-items:center}
+.nav .amt{font-size:11px; color:var(--fg-2); font-variant-numeric:tabular-nums}
+.dot{width:9px;height:9px;border-radius:50%}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#34c759;display:inline-block}
+.side .foot{margin-top:auto; padding:10px 8px 2px; font-size:10.5px; color:var(--fg-3); line-height:1.5}
+
+.main{display:flex; flex-direction:column; min-width:0}
+.toolbar{height:52px; display:flex; align-items:center; gap:12px; padding:0 18px; border-bottom:.5px solid var(--stroke)}
+.toolbar .title{font:600 14px var(--font)}
+.toolbar .title small{display:block; font:400 11px var(--font); color:var(--fg-2)}
+.toolbar .sp{flex:1}
+.tb-seg{display:flex; padding:2px; border-radius:8px; background:var(--track)}
+.tb-seg button{font:500 12px var(--font); color:var(--fg-2); border:0; background:transparent; padding:4px 11px; border-radius:6px}
+.tb-seg button.on{background:var(--card-2); color:var(--fg); box-shadow:0 1px 2px rgba(0,0,0,.15), 0 0 0 .5px var(--stroke-2)}
+.stepper{display:flex; align-items:center; border-radius:8px; background:var(--track); overflow:hidden}
+.stepper button{border:0; background:transparent; color:var(--fg); padding:4px 9px; font:500 12px var(--font); height:26px}
+.stepper button:disabled{color:var(--fg-3)}
+.stepper .div{width:.5px; height:14px; background:var(--stroke-2)}
+
+.content{flex:1; overflow:hidden; padding:14px 18px 16px; display:grid; grid-template-columns: 1fr 300px; grid-template-rows:auto auto 1fr; gap:14px}
+.card{background:var(--card); border:.5px solid var(--stroke); border-radius:16px; padding:14px 16px}
+.card h3{margin:0; font:600 13px var(--font)}
+.card .hd{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px}
+.card .hd .r{font-size:11px; color:var(--fg-2)}
+
+.headline{grid-column:1 / span 2; display:grid; grid-template-columns: 1.35fr 1fr; gap:14px; padding:0; background:none; border:0}
+.hl-main{position:relative; overflow:hidden; border-radius:18px; padding:16px 18px; border:.5px solid var(--stroke);
+  background:
+    radial-gradient(500px 220px at 0% 0%, color-mix(in srgb, var(--fg) 9%, transparent), transparent 70%),
+    radial-gradient(400px 220px at 100% 100%, color-mix(in srgb, var(--fg) 5%, transparent), transparent 70%),
+    var(--card);}
+.hl-main .k{font-size:11px; color:var(--fg-2); font-weight:500}
+.hl-main .big{font:700 50px/1 var(--round); letter-spacing:-1.5px; font-variant-numeric:tabular-nums; margin-top:6px}
+.hl-main .big small{font:600 24px var(--round); color:var(--fg-2); letter-spacing:0; margin-left:4px}
+.delta{display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px;
+  background:var(--track); color:var(--fg); margin-left:8px; vertical-align:middle}
+.hl-sub{display:flex; gap:22px; margin-top:12px; font-size:11px; color:var(--fg-2)}
+.hl-sub b{display:block; font:600 15px var(--round); color:var(--fg); font-variant-numeric:tabular-nums; margin-top:1px}
+.ratio{margin-top:12px; height:6px; border-radius:3px; display:flex; gap:2px; overflow:hidden}
+.ratio span{border-radius:2px}
+.share .bigbar{display:flex; gap:2px; height:22px; border-radius:7px; overflow:hidden; margin:2px 0 12px}
+.share .bigbar span{display:block}
+.share-row{display:grid; grid-template-columns:10px 16px 1fr auto 70px; gap:8px; align-items:center; padding:3px 0; font-size:12px}
+.share-row .p{color:var(--fg-2); font-variant-numeric:tabular-nums; font-size:11px}
+.share-row .v{text-align:right; font-variant-numeric:tabular-nums}
+.sq{width:10px;height:10px;border-radius:3px}
+
+.chart-card{grid-column:1 / span 2}
+.chart-legend{display:flex; gap:14px; font-size:11px; color:var(--fg-2)}
+.chart-legend span{display:flex; align-items:center; gap:5px}
+.chart-legend i{width:8px;height:8px;border-radius:2px;display:block}
+.chart svg{display:block; width:100%; height:auto; overflow:visible}
+.ctip{position:absolute; pointer-events:none; background:var(--material-strong); border:.5px solid var(--stroke-2); border-radius:10px; box-shadow:var(--shadow); padding:8px 10px; font-size:11px; min-width:170px; display:none; z-index:4}
+.ctip b{display:block; font-size:12px; margin-bottom:4px}
+.ctip .l{display:flex; align-items:center; gap:6px; color:var(--fg-2); line-height:1.6}
+.ctip .l i{width:7px;height:7px;border-radius:2px;display:block}
+.ctip .l span:last-child{margin-left:auto; color:var(--fg); font-variant-numeric:tabular-nums}
+.chart text{font:10px var(--font); fill:var(--fg-3); font-variant-numeric:tabular-nums}
+.callout{font:600 11px var(--font)}
+
+.apps-card{overflow:hidden}
+.apps-table{display:flex; flex-direction:column}
+.at-row{display:grid; grid-template-columns:22px 150px 1fr 44px 70px; gap:10px; align-items:center; padding:3px 4px; border-radius:8px; font-size:12px}
+.at-row:hover{background:var(--track)}
+.at-row .bar{grid-column:auto; height:8px}
+.at-row .p{color:var(--fg-3); text-align:right; font-variant-numeric:tabular-nums; font-size:11px}
+.at-row .v{text-align:right; font-variant-numeric:tabular-nums; font-weight:500}
+.at-row.exp{background:var(--track)}
+.split{grid-column:2 / span 4; display:flex; flex-wrap:wrap; gap:4px 14px; font-size:10.5px; color:var(--fg-2); padding:0 0 4px}
+.split span{display:flex; align-items:center; gap:5px; font-variant-numeric:tabular-nums}
+.split i{width:7px;height:7px;border-radius:2px;display:block}
+
+.heat .grid{display:grid; grid-template-columns:26px repeat(24, minmax(0,1fr)); gap:2px; font-size:9.5px; color:var(--fg-3)}
+.heat .grid div.c{aspect-ratio:1; border-radius:2px}
+.heat .grid div.c.peak{outline:1.5px solid var(--fg); outline-offset:-1px}
+.heat .grid .l{display:flex; align-items:center}
+.heat .axis{display:grid; grid-template-columns:26px repeat(4, 1fr); font-size:9.5px; color:var(--fg-3); margin-top:4px; font-variant-numeric:tabular-nums}
+.heat .ramp{display:flex; align-items:center; gap:6px; font-size:10px; color:var(--fg-3); margin-top:10px}
+.heat .ramp i{height:6px; width:90px; border-radius:3px; background:linear-gradient(90deg, var(--heat0), var(--heat1))}
+.insight{margin-top:12px; padding:9px 10px; border-radius:10px; background:var(--track); font-size:11px; line-height:1.4; color:var(--fg-2)}
+.insight b{color:var(--fg); font-weight:600}
+
+.anno{position:absolute; font:500 10.5px var(--font); color:#fff; background:#ff375f; border-radius:999px; padding:2px 8px; box-shadow:0 2px 8px rgba(0,0,0,.25); z-index:5; white-space:nowrap}
+.anno.l{right:auto}
+</style>
+</head>
+<body class="dark">
+<div class="desk">
+
+<div class="menubar" id="mainbar"></div>
+
+<div class="doc-bar">
+  <h1>Option C · Warm</h1>
+  <span class="muted" style="font-size:12px">Base: the expressive prototype. A hero card tinted with the network you are on, today in hourly beads, rounded numerals, warm cards. Network colors appear only where they mean a network.</span>
+  <span class="sp"></span>
+  <button class="pill-btn" onclick="replay()">Replay popover open</button>
+  <button class="pill-btn" onclick="toggleTheme()">Light / Dark</button>
+</div>
+
+<!-- 1. Menu bar -->
+<div class="section-title">1 · Menu bar item, every display mode</div>
+<div class="mb-gallery" id="mbGallery"></div>
+<p class="note">
+  Glyph: the current network's kind (Wi‑Fi, Hotspot, Ethernet) as a template image, never colored in the menu bar, so a metered hotspot is visible at a glance. The abacus mark lives inside the app (All Networks in History).
+  Text: <code>.monospacedDigit()</code> so the width never jitters; the item reserves its widest string per mode (<code>NSStatusItem.length</code> fixed per mode), so neighbors do not shift.
+  No animation: values change on poll only. "↓ and ↑" stacks two lines at 9.5 pt like iStat Menus, built as a two-line <code>NSAttributedString</code> in the button.
+</p>
+
+<!-- 2. Popover -->
+<div class="section-title">2 · Popover, 360 pt</div>
+<div class="pop-row" id="popRow">
+  <div class="pop-wrap"><div class="caption">Apps tab, current network (Keyez!_5G)</div><div class="popover" id="popApps"></div></div>
+  <div class="pop-wrap"><div class="caption">Networks tab</div><div class="popover" id="popNets"></div></div>
+  <div class="pop-wrap"><div class="caption">Location not allowed: Wi‑Fi named by router</div><div class="popover" id="popLoc"></div></div>
+</div>
+<p class="note">
+  The hero card is tinted with the current network's color (<code>.background(color.gradient.opacity(...))</code> plus a <code>RadialGradient</code>), so the popover says "you are on the blue network" before you read a word.
+  The bead strip is today's 24 hours on this network (<code>Chart { BarMark }</code> with <code>.chartXAxis(.hidden)</code>, or plain <code>HStack</code> of <code>RoundedRectangle</code>), the current hour ringed.
+  On open, beads and bars grow once (<code>.animation(.spring(duration: 0.5))</code> keyed on an <code>onAppear</code> flag); nothing animates after that, and live speed updates by text only.
+  History moves from a borderless text button to a full-width card: label, this month's total and a 7-day spark, with <code>⌘Y</code>. Settings and Quit become quiet square icon buttons.
+</p>
+
+<!-- 3. History -->
+<div class="section-title">3 · History window, 1100 × 800, Month · All Networks</div>
+<div class="win" id="win"></div>
+<p class="note">
+  Hierarchy: one headline row answers "how much, and where" (total with ↓/↑ ratio, then share by network as a big segmented bar with labels). The chart spans full width and calls out the busiest day and average in the plot, so the four stat tiles disappear.
+  Below, Apps take the wide column (per-network split under each bar; the expanded row lists bytes per network), the heatmap sits beside it with a one-line plain-language insight.
+  APIs: <code>NavigationSplitView</code> with <code>List(selection:)</code> sidebar, toolbar <code>Picker(.segmented)</code> + <code>ControlGroup</code> for ← Today →, Swift Charts <code>BarMark(stacking: .standard)</code> + <code>.foregroundStyle(by: .value("Network", …))</code> + <code>.chartForegroundStyleScale</code>, <code>RuleMark</code> for average with <code>.annotation</code>, <code>.chartXSelection</code> for the hover day with a labelled breakdown, <code>RectangleMark</code> for the heatmap.
+</p>
+
+</div>
+
+<script>
+/* ---------- Data (fake, deterministic) ---------- */
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const NETS = [
+  {name:"Keyez!_5G", kind:"wifi", c:"var(--n1)"},
+  {name:"Office Wi‑Fi", kind:"wifi", c:"var(--n2)"},
+  {name:"iPhone Hotspot", kind:"hotspot", c:"var(--n3)"},
+  {name:"Desk Dock", kind:"ethernet", c:"var(--n4)"},
+];
+const DAYS = 28; // 1–28 Oct 2026, today = Wed 28 Oct
+const days = [];
+for (let d = 1; d <= DAYS; d++) {
+  const dow = (d + 3) % 7; // 1 Oct 2026 is a Thursday; 0 = Sun
+  const weekend = dow === 0 || dow === 6;
+  const home = 0.8 + rnd() * 0.7 + (weekend ? 0.6 : 0);
+  const office = weekend ? 0 : 0.6 + rnd() * 0.9;
+  const hot = rnd() < 0.2 ? 0.15 + rnd() * 0.35 : 0;
+  const dock = !weekend && rnd() < 0.35 ? 0.3 + rnd() * 0.5 : 0;
+  days.push({d, dow, v:[home, office, hot, dock].map(x => +x.toFixed(2))});
+}
+days[20].v = [1.02, 1.55, 0.31, 0.62]; // busiest: Wed 21 Oct
+days[27].v = [0.95, 0.42, 0, 0]; // today so far
+const dayTotal = x => x.v.reduce((a,b)=>a+b,0);
+const netTotals = NETS.map((_, i) => days.reduce((a, x) => a + x.v[i], 0));
+const total = netTotals.reduce((a,b)=>a+b,0);
+const avg = total / DAYS;
+const busiest = days.reduce((a, x) => dayTotal(x) > dayTotal(a) ? x : a);
+
+const APPS = [
+  {n:"Safari", ic:"safari", s:[.55,.30,.07,.08]},
+  {n:"Zoom", ic:"zoom", s:[.20,.62,.03,.15]},
+  {n:"Slack", ic:"slack", s:[.35,.48,.05,.12]},
+  {n:"Music", ic:"music", s:[.70,.18,.08,.04]},
+  {n:"macOS & Services", ic:"gear", s:[.52,.33,.06,.09]},
+  {n:"curl", ic:"term", s:[.40,.25,.00,.35]},
+];
+const appShare = [.31,.19,.12,.10,.08,.05];
+const overheadShare = .15;
+
+const fmt = gb => gb >= 10 ? gb.toFixed(1) + " GB" : gb >= 1 ? gb.toFixed(2) + " GB" : Math.round(gb * 1000) + " MB";
+const fmtMB = mb => mb >= 1000 ? (mb/1000).toFixed(2) + " GB" : mb.toFixed(1) + " MB";
+
+/* ---------- Icons ---------- */
+const kindIcon = (k, s=14, col="currentColor") => ({
+  wifi:`<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="${col}" stroke-width="1.7" stroke-linecap="round"><path d="M2 6.2a8.5 8.5 0 0 1 12 0"/><path d="M4.3 8.7a5.2 5.2 0 0 1 7.4 0"/><circle cx="8" cy="11.6" r="1.2" fill="${col}" stroke="none"/></svg>`,
+  hotspot:`<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="${col}" stroke-width="1.6" stroke-linecap="round"><path d="M6.3 9.7 9.7 6.3"/><path d="M7 4.5 8.5 3a2.5 2.5 0 0 1 3.5 3.5L10.5 8"/><path d="M9 11.5 7.5 13A2.5 2.5 0 0 1 4 9.5L5.5 8"/></svg>`,
+  ethernet:`<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round"><rect x="3" y="4" width="10" height="7" rx="1.5"/><path d="M6 11v2M10 11v2M6 7h4"/></svg>`,
+}[k]);
+const abacus = (s=16) => `<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none"><rect x="1.6" y="1.6" width="12.8" height="12.8" rx="3" stroke="currentColor" stroke-width="1.3"/><path d="M3 5.3h10M3 10.7h10" stroke="currentColor" stroke-width="1"/><rect x="4" y="3.8" width="3" height="3" rx="1.5" fill="currentColor"/><rect x="9" y="9.2" width="3" height="3" rx="1.5" fill="currentColor"/><rect x="5.2" y="9.2" width="3" height="3" rx="1.5" fill="currentColor"/></svg>`;
+const appIcon = (k, s=24) => {
+  const bg = {safari:"linear-gradient(180deg,#5ac8fa,#0a7aff)", zoom:"linear-gradient(180deg,#5aa9ff,#2d6cdf)", slack:"linear-gradient(180deg,#ffffff,#f1eef3)",
+    music:"linear-gradient(180deg,#ff6b81,#fa233b)", gear:"linear-gradient(180deg,#9a9aa2,#6c6c74)", term:"linear-gradient(180deg,#3a3a40,#16161a)", other:"transparent"}[k];
+  const g = {
+    safari:`<circle cx="12" cy="12" r="7.5" fill="none" stroke="#fff" stroke-width="1.2"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11z" fill="#fff"/>`,
+    zoom:`<rect x="5" y="8.5" width="9" height="7" rx="2" fill="#fff"/><path d="M15 11l4-2.5v7L15 13z" fill="#fff"/>`,
+    slack:`<g stroke-width="2.6" stroke-linecap="round"><path d="M9.5 6v5" stroke="#36c5f0"/><path d="M18 9.5h-5" stroke="#2eb67d"/><path d="M14.5 18v-5" stroke="#ecb22e"/><path d="M6 14.5h5" stroke="#e01e5a"/></g>`,
+    music:`<path d="M10 16.5V8l7-1.5V15" fill="none" stroke="#fff" stroke-width="1.5"/><circle cx="8.6" cy="16.6" r="1.8" fill="#fff"/><circle cx="15.6" cy="15.1" r="1.8" fill="#fff"/>`,
+    gear:`<circle cx="12" cy="12" r="5" fill="none" stroke="#fff" stroke-width="2.4" stroke-dasharray="2 1.6"/><circle cx="12" cy="12" r="2" fill="#fff"/>`,
+    term:`<path d="M7 9l3 3-3 3M12 15h5" fill="none" stroke="#7CFC9A" stroke-width="1.5" stroke-linecap="round"/>`,
+    other:`<circle cx="12" cy="12" r="8" fill="none" stroke="var(--fg-3)" stroke-width="1.3"/><g fill="var(--fg-2)"><circle cx="8.5" cy="12" r="1.1"/><circle cx="12" cy="12" r="1.1"/><circle cx="15.5" cy="12" r="1.1"/></g>`,
+  }[k];
+  return `<div class="ico" style="width:${s}px;height:${s}px;border-radius:${s*.24}px;background:${bg};${k!=='other'?'box-shadow:inset 0 0 0 .5px rgba(0,0,0,.2)':''}"><svg width="${s}" height="${s}" viewBox="0 0 24 24">${g}</svg></div>`;
+};
+const chev = d => `<svg width="10" height="10" viewBox="0 0 10 10"><path d="${d==='l'?'M6.5 2 3.5 5l3 3':'M3.5 2l3 3-3 3'}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
+
+/* ---------- 1. Menu bar ---------- */
+const MODES = [
+  {key:"Today's total", sub:"Today on current network (or all networks)", html:`${kindIcon('wifi',15)}<span>1.37 GB</span>`},
+  {key:"Download only (↓)", sub:"Today's download on current network", html:`${kindIcon('wifi',15)}<span>↓ 1.12 GB</span>`},
+  {key:"Upload only (↑)", sub:"Today's upload on current network", html:`${kindIcon('wifi',15)}<span>↑ 248 MB</span>`},
+  {key:"Download and upload", sub:"Two lines, 9.5 pt, fixed width", html:`${kindIcon('wifi',15)}<span class="stack-num num"><span>↓ 1.12 GB</span><span>↑ 248 MB</span></span>`},
+  {key:"Live speed", sub:"Updates per poll, no motion", html:`<span class="stack-num num"><span>↓ 2.4 MB/s</span><span>↑ 186 KB/s</span></span>`},
+  {key:"Icon only", sub:"Network-kind glyph, template; slashed when not counting", html:`${kindIcon('wifi',16)}`},
+];
+const sysItems = `<span class="mb-sys"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1.5 4.5a9.5 9.5 0 0 1 13 0"/><path d="M4 7.2a6 6 0 0 1 8 0"/><circle cx="8" cy="10" r="1.1" fill="currentColor" stroke="none"/></svg><svg width="24" height="12" viewBox="0 0 24 12"><rect x=".5" y=".5" width="20" height="11" rx="3" fill="none" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="14" height="8" rx="1.6" fill="currentColor"/><rect x="21.5" y="4" width="1.6" height="4" rx=".8" fill="currentColor" opacity=".5"/></svg><span>Wed 28 Oct&nbsp; 9:41</span></span>`;
+document.getElementById("mbGallery").innerHTML = MODES.map(m =>
+  `<div class="mb-card"><div class="strip"><span class="mb-item num">${m.html}</span>${sysItems}</div><div class="cap"><b>${m.key}</b><div>${m.sub}</div></div></div>`).join("");
+document.getElementById("mainbar").innerHTML =
+  `<span class="apple" style="font-size:15px;line-height:1">&#xF8FF;</span>
+   <span class="m"><b>Finder</b></span><span class="m">File</span><span class="m">Edit</span><span class="m">View</span><span class="m">Go</span><span class="m">Window</span><span class="m">Help</span>
+   <span class="sp"></span><span class="mb-item active num">${kindIcon('wifi',15)}<span>1.37 GB</span></span>${sysItems}`;
+
+/* ---------- 2. Popover ---------- */
+const hours = [12,6,3,2,1,1,2,8,22,38,51,64,47,72,58,44,61,80,95,0,0,0,0,0]; // MB per hour, now = 18:xx
+const nowHour = 18;
+function beads(){
+  const mx = Math.max(...hours);
+  return `<div class="beads">${hours.map((h,i)=>`<span class="${i>nowHour?'future':''} ${i===nowHour?'now':''}" style="height:${i>nowHour?3:Math.max(3,h/mx*30)}px;animation-delay:${i*14}ms"></span>`).join("")}</div>
+  <div class="bead-axis"><span>12 AM</span><span>6</span><span>12 PM</span><span>6</span><span>11 PM</span></div>`;
+}
+function hero(net, opts={}){
+  const {name="Keyez!_5G", kind="wifi", sub="Wi‑Fi · joined at 7:58 AM", big="1.37", unit="GB"} = opts;
+  return `<div class="hero" style="--net:${net}">
+    <div class="hero-top"><div class="net-badge">${kindIcon(kind,15,"#fff")}</div>
+      <div><div class="t">${name}</div><div class="s">${sub}</div></div>
+      <div class="live"><span>↓ <i>2.4 MB/s</i></span><span>↑ <i>186 KB/s</i></span></div></div>
+    <div class="hero-num"><span class="big">${big}</span><span class="unit">${unit}</span>
+      <span class="lbl">today on<br><b>this network</b></span></div>
+    <div class="updn"><span>↓ <b>1.12 GB</b> download</span><span>↑ <b>248 MB</b> upload</span><span style="margin-left:auto">all <b>1.61 GB</b></span></div>
+    ${beads()}
+  </div>`;
+}
+const popAppsMB = [438, 291, 176, 152, 96, 41];
+function appRows(){
+  const mx = popAppsMB[0];
+  let r = APPS.map((a,i)=>`<div class="row">${appIcon(a.ic)}<span class="nm">${a.n}</span><span class="v num">${fmtMB(popAppsMB[i])}</span>
+    <div class="bar"><span style="width:${popAppsMB[i]/mx*100}%;background:var(--n1);animation-delay:${80+i*35}ms"></span></div></div>`).join("");
+  r += `<div class="row" title="Bytes that crossed the network but no app's connections carry">${appIcon("other")}<span class="nm">Other / overhead</span><span class="v num">${fmtMB(118)}</span>
+    <div class="bar"><span style="width:${118/mx*100}%;background:var(--overhead);animation-delay:300ms"></span></div></div>`;
+  return r + `<div class="more">+ 4 more apps in History</div>`;
+}
+const popNets = [
+  {i:0, mb:1370, sub:"Wi‑Fi · connected now", live:true},
+  {i:3, mb:182, sub:"Ethernet · last used 9:12 AM"},
+  {i:2, mb:58, sub:"Hotspot · last used 8:40 AM"},
+  {i:1, mb:0, sub:"Wi‑Fi · last used yesterday"},
+];
+function netRows(){
+  const mx = 1370;
+  return popNets.map(n=>{ const N = NETS[n.i];
+    return `<div class="row"><div class="ico" style="width:24px;height:24px;border-radius:7px;display:grid;place-items:center;background:color-mix(in srgb, ${N.c} 22%, transparent);color:${N.c}">${kindIcon(N.kind,14)}</div>
+    <span class="nm">${N.name} ${n.live?'<span class="live-dot" style="margin-left:4px;vertical-align:middle"></span>':''}<div style="font-size:10.5px;color:var(--fg-2);font-weight:400">${n.sub}</div></span>
+    <span class="v num">${n.mb?fmtMB(n.mb):'<span class="faint">Not today</span>'}</span>
+    <div class="bar"><span style="width:${n.mb/mx*100}%;background:${N.c}"></span></div></div>`;}).join("");
+}
+function footer(){
+  const spark = [1.8,2.6,2.2,2.4,1.9,2.1,1.6];
+  return `<div class="footer">
+    <button class="hist-card" title="Open History (⌘Y)">
+      <div class="spark">${spark.map((v,i)=>`<span class="${i===6?'today':''}" style="height:${v/2.6*100}%"></span>`).join("")}</div>
+      <div><div class="t1">History</div><div class="t2">${fmt(total)} this month</div></div>
+      <span class="chev"><kbd>⌘Y</kbd>${chev('r')}</span>
+    </button>
+    <button class="icon-btn" title="Settings…"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.3"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg></button>
+    <button class="icon-btn" title="Quit Soroband"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 2v6"/><path d="M4.6 4.2a5 5 0 1 0 6.8 0"/></svg></button>
+  </div>`;
+}
+const seg = t => `<div class="seg"><button class="${t==='apps'?'on':''}">Apps</button><button class="${t==='nets'?'on':''}">Networks</button></div>`;
+function renderPopovers(){
+  document.getElementById("popApps").innerHTML = hero("var(--n1)") + seg("apps") +
+    `<div class="list-head"><span>Today on Keyez!_5G</span><span class="toggle">All networks <span class="sw"></span></span></div><div class="rows">${appRows()}</div>` + footer();
+  document.getElementById("popNets").innerHTML = hero("var(--n1)") + seg("nets") +
+    `<div class="list-head"><span>Today by network</span><span>${fmt(1.61)} total</span></div><div class="rows">${netRows()}</div>` + footer();
+  document.getElementById("popLoc").innerHTML = hero("var(--n1)", {name:"Wi‑Fi at 3c:22:fb:9a:10:4e", sub:"Wi‑Fi · named by its router"}) +
+    `<div class="prompt"><div class="ic"><svg width="12" height="12" viewBox="0 0 16 16"><path d="M14.5 1.5 1.5 7.2l5.8 1.5 1.5 5.8z" fill="currentColor"/></svg></div>
+      <div class="tx"><b>Show Wi‑Fi names</b><br><span class="muted">macOS shares the Wi‑Fi name only with Location allowed. Nothing leaves your Mac.</span></div>
+      <button class="btn-sm">Allow…</button></div>` + seg("apps") +
+    `<div class="list-head"><span>Today on this network</span><span class="toggle">All networks <span class="sw"></span></span></div><div class="rows">${appRows().split('<div class="more">')[0]}</div>` + footer();
+}
+
+/* ---------- 3. History ---------- */
+function renderHistory(){
+  const side = `<aside class="side">
+    <div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+    <div class="nav sel">${abacus(15)}<span style="font-weight:600">All Networks</span><span class="amt">${fmt(total)}</span></div>
+    <h6>Networks</h6>
+    ${[0,1,3,2].map(i=>{const N=NETS[i]; return `<div class="nav"><span style="color:${N.c};display:grid;place-items:center">${kindIcon(N.kind,15)}</span><span>${N.name}</span><span class="amt">${fmt(netTotals[i])}</span>
+      <span class="sub">${i===0?'<span class="live-dot"></span> Connected':i===1?'Last used yesterday':i===3?'Last used 9:12 AM':'Last used 8:40 AM'}</span></div>`}).join("")}
+    <div class="nav"><span class="faint" style="display:grid;place-items:center">?</span><span class="muted">Unknown network</span><span class="amt">42 MB</span></div>
+    <div class="foot">Counted on this Mac only.<br>Since 3 Aug 2026 · 87 days</div>
+  </aside>`;
+
+  const tb = `<div class="toolbar">
+    <div class="title">All Networks<small>October 2026 · 1–28 Oct so far</small></div><span class="sp"></span>
+    <div class="tb-seg">${["Day","Week","Month","Year","All Time"].map(x=>`<button class="${x==='Month'?'on':''}">${x}</button>`).join("")}</div>
+    <div class="stepper"><button title="Previous month">${chev('l')}</button><span class="div"></span><button>Today</button><span class="div"></span><button disabled title="Next month">${chev('r')}</button></div>
+  </div>`;
+
+  const dn = total*0.79, up = total-dn;
+  const headline = `<div class="headline">
+    <div class="hl-main">
+      <div class="k">Used in October <span class="delta">↗ 6% vs September, same days</span></div>
+      <div class="big">${total.toFixed(1)}<small>GB</small></div>
+      <div class="hl-sub">
+        <span>Download<b>↓ ${fmt(dn)}</b></span><span>Upload<b>↑ ${fmt(up)}</b></span>
+        <span>Daily average<b>${fmt(avg)}</b></span><span>Busiest day<b>Wed 21 · ${fmt(dayTotal(busiest))}</b></span>
+      </div>
+      <div class="ratio"><span style="flex:${dn};background:var(--fg-2)"></span><span style="flex:${up};background:var(--fg-3)"></span></div>
+    </div>
+    <div class="card share"><div class="hd"><h3>Where it went</h3><span class="r">Share by network</span></div>
+      <div class="bigbar">${netTotals.map((v,i)=>`<span style="flex:${v};background:${NETS[i].c}"></span>`).join("")}</div>
+      ${netTotals.map((v,i)=>({v,i})).sort((a,b)=>b.v-a.v).map(({v,i})=>`<div class="share-row"><span class="sq" style="background:${NETS[i].c}"></span><span style="color:var(--fg-2);display:grid">${kindIcon(NETS[i].kind,13)}</span><span>${NETS[i].name}</span><span class="p">${Math.round(v/total*100)}%</span><span class="v">${fmt(v)}</span></div>`).join("")}
+    </div>
+  </div>`;
+
+  const chart = `<div class="card chart-card"><div class="hd"><h3>Every day, by network</h3>
+      <div class="chart-legend">${NETS.map(n=>`<span><i style="background:${n.c}"></i>${n.name}</span>`).join("")}<span><i style="width:14px;height:0;border-top:1.5px dashed var(--fg-2);border-radius:0"></i>avg ${fmt(avg)}</span></div></div>
+      <div class="chart" style="position:relative">${chartSVG()}<div class="ctip" id="ctip"></div></div></div>`;
+
+  const appRowsH = APPS.map((a,i)=>{
+    const gb = total*appShare[i];
+    const segs = a.s.map((s,j)=>s>0?`<span style="width:${s*appShare[i]/appShare[0]*100}%;background:${NETS[j].c}"></span>`:'').join("");
+    const row = `<div class="at-row ${i===0?'exp':''}">${appIcon(a.ic,22)}<span>${a.n}</span><div class="bar">${segs}</div><span class="p">${Math.round(appShare[i]*100)}%</span><span class="v">${fmt(gb)}</span>
+      ${i===0?`<div class="split">${a.s.map((s,j)=>`<span><i style="background:${NETS[j].c}"></i>${NETS[j].name} ${fmt(gb*s)}</span>`).join("")}<span class="faint">↓ ${fmt(gb*.9)} · ↑ ${fmt(gb*.1)}</span></div>`:''}</div>`;
+    return row;}).join("") +
+    `<div class="at-row">${appIcon("other",22)}<span>Other / overhead</span><div class="bar"><span style="width:${overheadShare/appShare[0]*100}%;background:var(--overhead)"></span></div><span class="p">${Math.round(overheadShare*100)}%</span><span class="v">${fmt(total*overheadShare)}</span></div>`;
+  const apps = `<div class="card apps-card"><div class="hd"><h3>Apps</h3><span class="r">Bars split by network · click a row for detail · 9 more</span></div><div class="apps-table">${appRowsH}</div></div>`;
+
+  const heat = `<div class="card heat"><div class="hd"><h3>When you use data</h3><span class="r">Hour of week</span></div>${heatGrid()}
+     <div class="axis"><span></span><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span></div>
+     <div class="ramp">Less <i></i> More</div>
+     <div class="insight">Your busiest hour is <b>Tuesday, 2–3 PM</b>. Nights are almost silent: <b>3%</b> of usage happens between midnight and 7 AM.</div></div>`;
+
+  document.getElementById("win").innerHTML = side + `<div class="main">${tb}<div class="content">${headline}${chart}${apps}${heat}</div></div>`;
+}
+function chartSVG(){
+  const W = 800, H = 150, pl = 0, pr = 40, pt = 14, pb = 22;
+  const cw = (W - pl - pr) / 31, bw = cw - 6, max = 4;
+  const y = v => pt + (H - pt - pb) * (1 - v / max);
+  let s = `<svg viewBox="0 0 ${W} ${H}">`;
+  for (const g of [0,1,2,3,4]) s += `<line x1="0" x2="${W-pr}" y1="${y(g)}" y2="${y(g)}" stroke="var(--grid)"/><text x="${W-pr+8}" y="${y(g)+3}">${g} GB</text>`;
+  days.forEach((x, i) => {
+    let acc = 0; const X = pl + i * cw + 3;
+    const order = [0,1,3,2];
+    const segs = order.filter(j => x.v[j] > 0);
+    segs.forEach((j, k) => {
+      const v = x.v[j]; const y0 = y(acc), y1 = y(acc + v); acc += v;
+      const gap = k < segs.length - 1 ? 2 : 0;
+      s += `<rect x="${X}" y="${y1+gap}" width="${bw}" height="${Math.max(0,y0-y1-gap)}" rx="2" fill="${NETS[j].c}"/>`;
+    });
+    if ([1,5,12,19,26].includes(x.d)) s += `<text x="${X+bw/2}" y="${H-6}" text-anchor="middle">${x.d} Oct</text>`;
+  });
+  for (let i = DAYS; i < 31; i++) s += `<rect x="${pl+i*cw+3}" y="${y(0)-3}" width="${bw}" height="3" rx="1.5" fill="var(--track)"/>`;
+  // average rule
+  s += `<line x1="0" x2="${W-pr}" y1="${y(avg)}" y2="${y(avg)}" stroke="var(--fg-2)" stroke-dasharray="3 4"/>`;
+  // busiest callout
+  const bi = busiest.d - 1, bx = pl + bi*cw + 3 + bw/2, by = y(dayTotal(busiest));
+  s += `<text x="${bx}" y="${by-6}" text-anchor="middle" class="callout" style="fill:var(--fg)">▾ Busiest · ${fmt(dayTotal(busiest))}</text>`;
+  // today marker
+  const tx = pl + 27*cw + 3 + bw/2;
+  s += `<text x="${tx}" y="${y(dayTotal(days[27]))-6}" text-anchor="middle" style="fill:var(--fg-2)">Today</text>`;
+  days.forEach((x,i)=>{ s += `<rect class="hit" data-i="${i}" x="${pl+i*cw}" y="${pt}" width="${cw}" height="${H-pt-pb}" fill="transparent"/>`; });
+  return s + `</svg>`;
+}
+function heatGrid(){
+  const dn = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  let s = `<div class="grid">`;
+  dn.forEach((d, r) => {
+    s += `<span class="l">${d}</span>`;
+    for (let h = 0; h < 24; h++) {
+      const wk = r > 0 && r < 6;
+      let v = h < 7 ? 0.04 + rnd()*0.06 : wk ? (h>=9&&h<=18 ? 0.45 + rnd()*0.4 : 0.2 + rnd()*0.35) : (h>=10&&h<=23 ? 0.3+rnd()*0.4 : 0.15);
+      if (r===2 && h===14) v = 1;
+      s += `<div class="c ${r===2&&h===14?'peak':''}" title="${d} ${h}:00" style="background:color-mix(in srgb, var(--heat1) ${Math.round(v*100)}%, var(--heat0))"></div>`;
+    }
+  });
+  return s + `</div>`;
+}
+
+function wireChart(){
+  const tip=document.getElementById("ctip"), svg=document.querySelector(".chart svg");
+  const DN=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  svg.querySelectorAll("rect.hit").forEach(h=>{
+    h.addEventListener("mouseenter",()=>{
+      const x=days[+h.dataset.i], sc=svg.getBoundingClientRect().width/800, cx=(+h.getAttribute("x")+12)*sc;
+      tip.innerHTML=`<b>${DN[x.dow]}, ${x.d} October${x.d===28?" · so far":""}</b>`+[0,1,3,2].filter(j=>x.v[j]).map(j=>`<div class="l"><i style="background:${NETS[j].c}"></i><span>${NETS[j].name}</span><span>${fmt(x.v[j])}</span></div>`).join("")+`<div class="l" style="border-top:.5px solid var(--stroke-2);margin-top:3px;padding-top:3px"><span>Total</span><span>${fmt(dayTotal(x))}</span></div>`;
+      tip.style.display="block"; tip.style.top="-6px";
+      tip.style.left=(cx>400? cx-200 : cx+20)+"px";
+      h.setAttribute("fill","rgba(127,127,127,.12)");
+    });
+    h.addEventListener("mouseleave",()=>{tip.style.display="none"; h.setAttribute("fill","transparent");});
+  });
+}
+function replay(){
+  const row = document.getElementById("popRow");
+  row.classList.remove("animate"); void row.offsetWidth; row.classList.add("animate");
+}
+function toggleTheme(){ document.body.classList.toggle("dark"); document.body.classList.toggle("light"); }
+renderPopovers(); renderHistory(); wireChart(); replay();
+</script>
+</body>
+</html>
