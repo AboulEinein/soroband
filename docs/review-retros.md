@@ -207,3 +207,4 @@ Planned rounds: 2.
 
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
+| 1 | Opus | 1 Medium, 3 Low | `first look`: the small-PRs rule contradicted one milestone, one PR; the lint skipped rows it could not label; prepush.sh left out release clippy and the install guard, and its Xcode check turned off when the sentence it reads changed. |
