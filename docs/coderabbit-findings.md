@@ -49,3 +49,6 @@ Columns:
 | 2026-10-29 | [#20](https://github.com/AboulEinein/soroband/pull/20) | History's registry reread ran on the main thread at every answer. | performance | valid | after the loop | – |
 | 2026-10-29 | [#20](https://github.com/AboulEinein/soroband/pull/20) | Review body: `RegisteredNetwork.color` needed an explicit nil default for the memberwise initializer. An optional `var` already has one, and CI builds the fixtures without it. | build and CI | not valid | – | – |
 | 2026-10-29 | [#19](https://github.com/AboulEinein/soroband/pull/19#discussion_r4412556987) | The records named `REVIEW.md`, which it read as a miscased `docs/review.md`. `REVIEW.md` is a separate file at the repository root, added by #21, which the row names. | docs drift | not valid | – | – |
+| 2026-10-29 | [#21](https://github.com/AboulEinein/soroband/pull/21#discussion_r4413004958) | `records-lint.py` took either review's severities on any row, so `1 High` passed on a CodeRabbit row. | correctness | valid | not checked | – |
+| 2026-10-29 | [#21](https://github.com/AboulEinein/soroband/pull/21#discussion_r4413117932) | The lint allowed `Critical` for CodeRabbit rows while `review-retros.md` listed only `Major`, `Minor` and `Trivial`. Fixed by listing `Critical`, which CodeRabbit can give. | docs drift | valid | not checked | – |
+
