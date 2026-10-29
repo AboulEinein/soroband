@@ -21,9 +21,9 @@ Each test guards a behavior that a user or the performance budget depends on, an
 
 ## Before pushing
 
-CI builds with Xcode 27 (`macos-26` runners), the major version the app is developed with. An older Swift rejects some code a newer one accepts, so a build on another major proves nothing about CI's.
+CI builds with Xcode 26 (the newest on GitHub's `macos-latest` runners), while the app is developed with Xcode 27. An older Swift rejects some code a newer one accepts, so a local pass does not prove CI's: CI is the authority, and no review round starts before it passes (`review.md`).
 
-- **`scripts/verify/prepush.sh`** before every push: what CI runs (records lint, Rust format, clippy and tests, swift-format, the app's tests) plus the snapshots CI skips. It stops when this Mac's Xcode major differs from CI's.
+- **`scripts/verify/prepush.sh`** before every push: what CI runs (records lint, Rust format, clippy and tests, swift-format, the app's tests) plus the snapshots CI skips. It warns when this Mac's Xcode major differs from CI's.
 - **Check what the change reaches,** as a reviewer will (`REVIEW.md`):
   - every input that crosses a boundary (a C function, a `soroband` argument, a setting, a debug URL) has a test at its limits and one past them;
   - every function that can receive a state or value the change adds (an empty display, a new setting value, a picked color) has its guards read against it, and a test for the new input;

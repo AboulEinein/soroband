@@ -36,7 +36,7 @@ jobs:
 
   app:
     name: App (bridge tests, unsigned universal build)
-    runs-on: macos-26
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -46,15 +46,9 @@ jobs:
         with:
           workspaces: core
           cache-directories: core/target/tools
-      # The Xcode major named in docs/verification.md: an older Swift rejects code a newer one
-      # accepts, so CI builds with the one the app is developed with.
-      - name: Select Xcode 27
-        run: |
-          xcode=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
-          if [[ -z $xcode ]]; then
-            echo "::error::No Xcode 27 on this runner. Installed:"; ls -d /Applications/Xcode*.app; exit 1
-          fi
-          sudo xcode-select -s "$xcode"
+      # The newest Xcode on the runner, named in docs/verification.md.
+      - name: Select the newest Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
       - run: xcodebuild -version
       - run: xcrun swift-format lint --strict --recursive app
       - run: scripts/verify/install-guard.sh

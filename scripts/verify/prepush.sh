@@ -3,16 +3,14 @@
 #
 # Usage: scripts/verify/prepush.sh
 # CI builds the app with the Xcode named in docs/verification.md; a build that passes here on
-# another Xcode can still fail there, so this prints both and stops when the major versions differ.
+# another Xcode can still fail there, so this warns when the major versions differ.
 set -euo pipefail
 cd "${0:A:h}/../.."
 
 expected=$(sed -n 's/^CI builds with Xcode \([0-9][0-9]*\).*/\1/p' docs/verification.md | head -1)
 local_major=$(xcodebuild -version | sed -n 's/^Xcode \([0-9][0-9]*\).*/\1/p')
 if [[ -n $expected && $local_major != "$expected" ]]; then
-  print -u2 "prepush: this Mac builds with Xcode $local_major, CI with Xcode $expected (docs/verification.md)."
-  print -u2 "prepush: select CI's Xcode with DEVELOPER_DIR, or update CI and docs/verification.md together."
-  exit 1
+  print -u2 "prepush: warning: this Mac builds with Xcode $local_major, CI with Xcode $expected; wait for CI before a review round."
 fi
 
 print "== records"
