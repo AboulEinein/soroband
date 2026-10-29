@@ -53,13 +53,15 @@ struct HistoryModelTests {
         let home = RegisteredNetwork(id: 1, key: "wifi:Home", name: "Home", kind: .wifi, lastUsed: nil)
         var picked = home
         picked.color = 3
-        nonisolated(unsafe) var answer = [picked]
+        final class Answer: @unchecked Sendable { var registry: [RegisteredNetwork] = [] }
+        let answer = Answer()
+        answer.registry = [picked]
         let model = HistoryModel(
             range: .week, anchor: .now, network: nil, currentNetwork: nil, registry: [home],
-            read: Reader().read, readRegistry: { answer })
+            read: Reader().read, readRegistry: { answer.registry })
         model.loadNow()
         #expect(model.registry == [picked])
-        answer = []
+        answer.registry = []
         model.loadNow()
         #expect(model.registry == [picked], "a failed read keeps the registry")
     }
