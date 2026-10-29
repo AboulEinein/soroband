@@ -122,10 +122,10 @@ struct MenuBarDisplayTests {
     /// Each change of the text redraws the item on every display, which an idle Mac cannot
     /// afford every few seconds: idle traffic of a few KB/s must leave it alone.
     @Test func idleTrafficLeavesTheTextUnchangedUntilTheNextMegabyte() {
-        let texts = [183_000_000, 183_400_000, 183_999_999, 184_000_000].map { (bytes: UInt64) in
+        let shown = [183_000_000, 183_400_000, 183_999_999, 184_000_000].map { (bytes: UInt64) in
             texts([.total], status: EngineStatus(todayNetworkInterfaces: ByteCounts(rx: bytes, tx: 0)))
         }
-        #expect(texts == [["183 MB"], ["183 MB"], ["183 MB"], ["184 MB"]])
+        #expect(shown == [["183 MB"], ["183 MB"], ["183 MB"], ["184 MB"]])
         #expect(Format.menuBarBytes(999_999) == "< 1 MB")
         #expect(Format.menuBarBytes(1_099_999_999) == "1.0 GB")
         #expect(Format.menuBarBytes(12_345_000_000) == "12.3 GB")
