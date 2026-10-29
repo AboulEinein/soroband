@@ -64,6 +64,22 @@ struct MenuBarDisplayTests {
         #expect(!display([.speedDown], .inline).drawsTitle, "a speed keeps its width in the image")
     }
 
+    /// A reading dropped on another takes its place; the others keep their order, so a stacked
+    /// pair changes only where the user put something.
+    @Test func aMovedReadingTakesTheDropTargetsPlace() {
+        var layout = MenuBarLayout(readings: [.total, .speedDown, .speedUp])
+        layout.move(.total, to: 2)
+        #expect(layout.readings == [.speedDown, .speedUp, .total])
+        layout.move(.total, to: 0)
+        #expect(layout.readings == [.total, .speedDown, .speedUp])
+        layout.move(.speedUp, to: 1)
+        #expect(layout.readings == [.total, .speedUp, .speedDown])
+        layout.move(.download, to: 0)
+        layout.move(.total, to: 3)
+        layout.move(.total, to: -1)
+        #expect(layout.readings == [.total, .speedUp, .speedDown], "not shown, or out of range: unchanged")
+    }
+
     @Test func readingsAreStoredAsTheCoreSettingsValue() {
         #expect(MenuBarLayout(readings: [.speedUp, .total]).readingsValue == "speed_up,total")
         #expect(MenuBarLayout(readings: []).readingsValue == "none")

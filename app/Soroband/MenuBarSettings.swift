@@ -258,18 +258,9 @@ private struct OrderTray: View {
         let reading = layout.readings[index]
         return OrderChip(
             reading: reading, position: index + 1, count: layout.readings.count,
-            move: { dropped in apply { Self.move(dropped, to: index, in: &$0.readings) } },
-            step: { offset in apply { Self.move(reading, to: index + offset, in: &$0.readings) } },
+            move: { dropped in apply { $0.move(dropped, to: index) } },
+            step: { offset in apply { $0.move(reading, to: index + offset) } },
             remove: { apply { $0.readings.removeAll { $0 == reading } } })
-    }
-
-    /// Moves `reading` to `index`, the others keeping their order.
-    static func move(_ reading: MenuBarReading, to index: Int, in readings: inout [MenuBarReading]) {
-        guard let from = readings.firstIndex(of: reading), readings.indices.contains(index), from != index else {
-            return
-        }
-        readings.remove(at: from)
-        readings.insert(reading, at: index)
     }
 }
 

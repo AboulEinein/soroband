@@ -143,6 +143,16 @@ struct MenuBarLayout: Equatable {
 
     var showsSpeed: Bool { readings.contains { $0.isSpeed } }
 
+    /// Moves `reading` to `index`, the others keeping their order; nothing happens when it is not
+    /// shown or `index` is out of range.
+    mutating func move(_ reading: MenuBarReading, to index: Int) {
+        guard let from = readings.firstIndex(of: reading), readings.indices.contains(index), from != index else {
+            return
+        }
+        readings.remove(at: from)
+        readings.insert(reading, at: index)
+    }
+
     /// Today's bytes the readings count: on the current network, or on all of them.
     func today(in status: EngineStatus) -> ByteCounts {
         scope == .network ? status.todayNetworkInterfaces : status.todayInterfaces
