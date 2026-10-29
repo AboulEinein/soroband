@@ -198,3 +198,4 @@ Planned rounds: 2.
 
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
+| 1 | Opus | 1 Medium, 1 Low, 1 Minor | `first look`: the color picker was never rendered, the focus fix was not in the PR's evidence, a comment still said registry order. Unposted and fixed: a pick was lost when a router-known network merged into a named one. |
