@@ -563,6 +563,7 @@ struct NetworkColorPicker: View {
             .buttonStyle(.plain)
             .font(.caption)
             .foregroundStyle(.secondary)
+            .accessibilityAddTraits(isPicked ? [] : .isSelected)
         }
         .padding(12)
     }
