@@ -300,7 +300,7 @@ private struct OrderChip: View {
                 Divider()
                 Button("Remove") { remove() }
             }
-            .help("Drag onto another reading to swap places, or Control-click to move or remove")
+            .help("Drag onto another reading to move it there, or Control-click to move or remove")
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(reading.label), \(position) of \(count)")
             .accessibilityAction(named: "Move earlier") { step(-1) }
@@ -402,7 +402,8 @@ struct MenuBarPreview: View {
     /// Puts back the layout Settings opened with; nil while it is unchanged.
     var revert: (() -> Void)?
 
-    /// 1.1 GB today on this network (893.6 MB down, 203.8 MB up), 2.9 GB on all networks.
+    /// 1.09 GB today on this network (893.6 MB down, 203.8 MB up), 2.87 GB on all networks; the menu
+    /// bar rounds them down to 1.0 GB and 2.8 GB.
     static let sample = EngineStatus(
         todayNetworkInterfaces: ByteCounts(rx: 893_600_000, tx: 203_800_000),
         todayInterfaces: ByteCounts(rx: 2_370_000_000, tx: 500_000_000),
@@ -456,9 +457,12 @@ struct MenuBarPreview: View {
                         startPoint: .leading, endPoint: .trailing)
                 )
                 .accessibilityHidden(true)
+                // The other menus give way first; an item wider than the strip is scaled down
+                // rather than cut.
+                .layoutPriority(-1)
                 Image(systemName: "icloud").accessibilityHidden(true)
                 MenuBarItemImage(display: display)
-                    .fixedSize()
+                    .layoutPriority(1)
                     .padding(.horizontal, 6)
                     .frame(height: 22)
                     .background(.primary.opacity(0.14), in: .rect(cornerRadius: 5))

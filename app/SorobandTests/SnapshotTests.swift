@@ -121,7 +121,7 @@ struct SnapshotTests {
 
     @Test func settingsGeneral() throws {
         let launch = LaunchAtLogin(service: .init(status: { .enabled }, register: {}, unregister: {}))
-        let view = GeneralSettings(usage: Usage(), launchAtLogin: launch)
+        let view = GeneralSettings(usage: Usage(), launchAtLogin: launch, locationStatus: .notDetermined)
             .background(Color(nsColor: .windowBackgroundColor))
         try Snapshot.verify(view, named: "settings-general", size: CGSize(width: 560, height: 700))
     }

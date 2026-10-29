@@ -237,6 +237,8 @@ struct GeneralSettings: View {
     let usage: Usage
     let launchAtLogin: LaunchAtLogin
     var location = LocationAccess.shared
+    /// The Location permission shown; the real one when nil.
+    var locationStatus: CLAuthorizationStatus?
 
     var body: some View {
         SettingsPage(title: "General", subtitle: "When a day starts, how Soroband starts, and what macOS lets it see.")
@@ -284,7 +286,7 @@ struct GeneralSettings: View {
             }
             SettingsSection(title: "Wi‑Fi names") {
                 SettingsCard {
-                    LocationRow(status: location.status, allow: { location.allow() })
+                    LocationRow(status: locationStatus ?? location.status, allow: { location.allow() })
                 }
             }
             SettingsSection(title: "Your data") {

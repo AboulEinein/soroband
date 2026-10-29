@@ -122,12 +122,12 @@ Review experiment: M5's first review compares the blind reviewer with CodeRabbit
 
 Deliverables:
 - The menu bar app returns to its launch footprint after its windows close. Measured in M4: 18 MB at launch, 36 MB after Settings has opened and closed, 37–45 MB after the popover.
-- Idle CPU measured in every menu bar mode, including live speed, with headroom under the budget.
+- Idle CPU measured in every menu bar layout, including a live speed, with headroom under the budget.
 - History's open time and memory measured in a Release build, next to M4's Debug numbers.
 
 Exit criteria:
 - With no window open, after the popover, Settings and History have each opened and closed, the menu bar app is ≤ 25 MB.
-- Idle CPU ≤ 0.1% over 10 minutes in each menu bar mode.
+- Idle CPU ≤ 0.1% over 10 minutes in each menu bar layout.
 
 ### M7: Release v0.1.0
 
