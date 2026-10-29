@@ -12,7 +12,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SEVERITIES = {"Critical", "High", "Medium", "Low", "Minor", "unrated", "Major", "Trivial"}
+# The pr-review skill's scale for blind rounds and direct reviews, and CodeRabbit's own.
+SEVERITIES = {"Critical", "High", "Medium", "Low", "Minor", "unrated"}
+CODERABBIT_SEVERITIES = {"Critical", "Major", "Minor", "Trivial"}
 VERDICTS = {"valid", "accepted", "not valid"}
 MISSED = {"not checked", "judged fine", "outside the diff", "not in the requirements", "after the loop", "–"}
 SEPARATOR = re.compile(r":?-{3,}:?")
@@ -49,13 +51,14 @@ def check_retros(text: str, name: str = "review-retros.md") -> list[str]:
         findings = row[2]
         if findings == "none":
             continue
+        scale = CODERABBIT_SEVERITIES if row[0] == "CodeRabbit" else SEVERITIES
         # Commas inside a note in parentheses do not separate counts.
         for part in re.split(r",\s*(?![^()]*\))", findings):
             match = re.fullmatch(r"(\d+) (\w+)(?: \(.+\))?", part.strip())
-            if not match or match.group(2) not in SEVERITIES:
+            if not match or match.group(2) not in scale:
                 problems.append(
                     f"{name}:{number}: findings {part.strip()!r} is not a count of "
-                    f"{', '.join(sorted(SEVERITIES))}, or none"
+                    f"{', '.join(sorted(scale))}, or none"
                 )
     return problems
 
@@ -100,6 +103,8 @@ def self_test() -> list[str]:
         "| 2 | Opus | 1 Low, | x |",
         "| 3 | Opus | 1 Low | separators such as `|----|` |",
         "| 3 | Opus | 1 Low |",
+        "| CodeRabbit | CodeRabbit | 1 High | x |",
+        "| 4 | Opus | 1 Major | x |",
     ]
     findings_ok = [
         "| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |",
