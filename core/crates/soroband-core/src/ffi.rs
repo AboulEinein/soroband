@@ -335,15 +335,30 @@ pub unsafe extern "C" fn soroband_network_update(
         })
 }
 
-/// Sets the color of network `id` to slot `color` of the app's palette, or back to the slot of
-/// its place in the registry when `color` is negative. Returns false when there is no such
-/// network or the engine was not started.
+/// Slots in the app's network palette.
+const NETWORK_COLORS: i32 = 5;
+
+/// The stored color for `color` as the app passes it: a palette slot, `None` for a negative
+/// value (the slot of the network's place), or `Err` past the palette.
+fn network_color(color: i32) -> Result<Option<u8>, ()> {
+    match color {
+        ..0 => Ok(None),
+        0..NETWORK_COLORS => u8::try_from(color).map(Some).map_err(|_| ()),
+        _ => Err(()),
+    }
+}
+
+/// Sets the color of network `id` to slot `color` of the app's palette (0-4), or back to the
+/// slot of its place in the registry when `color` is negative. Returns false when there is no
+/// such network, `color` is past the palette, or the engine was not started.
 #[unsafe(no_mangle)]
 pub extern "C" fn soroband_network_set_color(id: i64, color: i32) -> bool {
     let Some(running) = RUNNING.get() else {
         return false;
     };
-    let color = u8::try_from(color).ok();
+    let Ok(color) = network_color(color) else {
+        return false;
+    };
     lock(&running.store)
         .set_network_color(id, color)
         .unwrap_or_else(|error| {
@@ -1326,6 +1341,16 @@ mod tests {
                 {"id": 2, "key": "wifi:Cafe", "name": "Cafe", "kind": "wifi", "last_used": null, "color": 4},
             ])
         );
+    }
+
+    #[test]
+    fn a_network_color_is_a_palette_slot_or_negative_for_automatic() {
+        use super::network_color;
+        assert_eq!(network_color(0), Ok(Some(0)));
+        assert_eq!(network_color(4), Ok(Some(4)));
+        assert_eq!(network_color(-1), Ok(None));
+        assert_eq!(network_color(5), Err(()), "past the palette");
+        assert_eq!(network_color(256), Err(()), "must not wrap to automatic");
     }
 
     #[test]
