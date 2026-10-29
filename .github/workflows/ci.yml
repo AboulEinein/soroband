@@ -31,10 +31,12 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo clippy --workspace --all-targets --release -- -D warnings
       - run: cargo test --workspace
+      - run: scripts/verify/records-lint.py
+        working-directory: .
 
   app:
     name: App (bridge tests, unsigned universal build)
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -44,6 +46,15 @@ jobs:
         with:
           workspaces: core
           cache-directories: core/target/tools
+      # The Xcode major named in docs/verification.md: an older Swift rejects code a newer one
+      # accepts, so CI builds with the one the app is developed with.
+      - name: Select Xcode 27
+        run: |
+          xcode=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
+          if [[ -z $xcode ]]; then
+            echo "::error::No Xcode 27 on this runner. Installed:"; ls -d /Applications/Xcode*.app; exit 1
+          fi
+          sudo xcode-select -s "$xcode"
       - run: xcodebuild -version
       - run: xcrun swift-format lint --strict --recursive app
       - run: scripts/verify/install-guard.sh

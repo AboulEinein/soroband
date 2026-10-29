@@ -18,7 +18,7 @@ Brief for a pull request, used word for word:
 Review PR #<number> in AboulEinein/soroband with the pr-review skill, using --no-story --submit.
 The PR implements milestone <ID>. Its requirements are in docs/plan.md under <ID>, and the evidence it must show is in docs/verification.md under <ID>.
 Resolve each earlier blind-review thread you confirm as handled; reply on any you do not, saying what is still missing. Leave CodeRabbit's threads alone.
-Go through the checklist in docs/review.md.
+Go through the checklist in docs/review.md and the rules in REVIEW.md.
 ```
 
 ## Rounds
@@ -27,6 +27,8 @@ Go through the checklist in docs/review.md.
 2. **Plan the rounds before round 1** and write the number in the PR description: 1 for a small fix, 2 for a typical change, 3 for a milestone or a risky change. The plan is a budget for judgment, not a stop: what ends the loop is below. Start the pull request's entry in [`review-retros.md`](review-retros.md) with its heading and planned rounds.
 3. **Each round:**
    - Push all commits first; nothing is pushed while the review runs. If the branch moves mid-review, the skill keeps its review as a draft instead of posting it.
+   - Wait for CI: a round starts once `gh pr checks` shows Core and App passing. A round on a pending or failing CI reviews code nobody has built.
+   - The reviewer runs on Opus.
    - Run the blind review.
    - Confirm the review is posted: `gh api repos/AboulEinein/soroband/pulls/<number>/reviews` lists it with a state other than `PENDING`. A draft or missing review means the round did not happen; run it again.
    - Answer every finding in its PR thread, either with the fix (the commit) or with evidence for why it should stay as it is.

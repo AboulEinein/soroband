@@ -19,6 +19,17 @@ Each test guards a behavior that a user or the performance budget depends on, an
 - **Swift:** logic lives in plain types (moment queue, network registry, settings sync, formatting) and is tested with Swift Testing. Views are verified by rendered images (below), not by asserting on view structure.
 - **Names state the behavior:** `closed_flow_final_bytes_are_counted`, `peek_ignores_pointer_beside_the_notch`.
 
+## Before pushing
+
+CI builds with Xcode 27 (`macos-26` runners), the major version the app is developed with. An older Swift rejects some code a newer one accepts, so a build on another major proves nothing about CI's.
+
+- **`scripts/verify/prepush.sh`** before every push: what CI runs (records lint, Rust format, clippy and tests, swift-format, the app's tests) plus the snapshots CI skips. It stops when this Mac's Xcode major differs from CI's.
+- **Check what the change reaches,** as a reviewer will (`REVIEW.md`):
+  - every input that crosses a boundary (a C function, a `soroband` argument, a setting, a debug URL) has a test at its limits and one past them;
+  - every function that can receive a state or value the change adds (an empty display, a new setting value, a picked color) has its guards read against it, and a test for the new input;
+  - a copy held elsewhere (the History process, a cache, a drawn image) is updated or its staleness is stated.
+- **Docs from evidence.** A number, a claim of "within budget" or "passes", or a rule restated from another doc, is copied from its source when written, not recalled.
+
 ## Running the app
 
 An agent drives and observes the real app without a mouse. The pieces below are built in M0 and grow with each milestone.
