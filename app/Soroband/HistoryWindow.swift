@@ -23,7 +23,8 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
         NSApp.setActivationPolicy(.accessory)
         let model = HistoryModel(
             range: options.range, anchor: options.date ?? .now, network: options.network,
-            currentNetwork: options.current, registry: Core.networks())
+            // The registry comes with the first answer, read off the main thread.
+            currentNetwork: options.current, registry: [])
         model.expandedApp = options.expandedApp
         model.hoverDate = options.hover
         var window: NSWindow!
