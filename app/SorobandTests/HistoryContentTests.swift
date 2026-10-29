@@ -263,6 +263,18 @@ struct HistoryContentTests {
         #expect(Set(clash.values.map(\.label)).count == 3)
     }
 
+    /// History colors a network as the popover and Settings do: its picked color first.
+    @Test func aPickedColorIsTheNetworksColorInHistory() {
+        var registry = [
+            RegisteredNetwork(id: 1, key: "wifi:a", name: "Home", kind: .wifi, lastUsed: nil),
+            RegisteredNetwork(id: 2, key: "wifi:b", name: "Cafe", kind: .wifi, lastUsed: nil),
+        ]
+        registry[0].color = 3
+        let styles = HistoryContent.networkStyles(registry: registry)
+        #expect(styles[1]?.slot == 3)
+        #expect(styles[2]?.slot == 1, "the others keep their place's color")
+    }
+
     // MARK: Pieces
 
     @Test func aTinySegmentIsDrawnWithNoHeightInsteadOfBelowZero() {

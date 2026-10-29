@@ -98,6 +98,15 @@ final class Usage {
         if Core.setSetting("reset_hour", to: String(hour)) { reloadSettings() }
     }
 
+    /// Sets network `id` to palette slot `color`, or back to its place's slot with nil.
+    func setNetworkColor(id: Int64, color: Int?) {
+        if !Core.setNetworkColor(id: id, color: color) {
+            NSLog("Soroband: the color of network %lld was not saved", id)
+        }
+        reloadRegistry()
+        onChange?()
+    }
+
     /// Renames network `id` and sets its kind, as the user chose in Settings.
     func updateNetwork(id: Int64, name: String, kind: NetworkKind) {
         if NetworkMonitor.shared.current?.id == id {

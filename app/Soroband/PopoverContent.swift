@@ -101,7 +101,7 @@ struct PopoverContent: Equatable {
         now: Date = .now
     ) -> PopoverContent {
         let slots = Dictionary(
-            uniqueKeysWithValues: registry.enumerated().map { ($1.id, NetworkColor.slot(forIndex: $0)) })
+            uniqueKeysWithValues: registry.enumerated().map { ($1.id, NetworkColor.slot(for: $1, index: $0)) })
         let networkID = current?.id ?? 0
 
         let header = Header(

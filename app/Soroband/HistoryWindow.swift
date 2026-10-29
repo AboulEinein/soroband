@@ -23,7 +23,8 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
         NSApp.setActivationPolicy(.accessory)
         let model = HistoryModel(
             range: options.range, anchor: options.date ?? .now, network: options.network,
-            currentNetwork: options.current, registry: Core.networks())
+            // The registry comes with the first answer, read off the main thread.
+            currentNetwork: options.current, registry: [])
         model.expandedApp = options.expandedApp
         model.hoverDate = options.hover
         var window: NSWindow!
@@ -147,6 +148,10 @@ final class HistoryModel {
     private var firstHours: [Int64?: Date] = [:]
     /// Reads the database: `Core.history`, or a stand-in in tests.
     private let read: @Sendable (HistoryQuery) -> HistoryData?
+    /// Reads the registry again with each answer, on the same thread, so names and colors changed
+    /// in Settings show at the next refresh: `Core.networks`, or a stand-in in tests. An empty answer
+    /// (a failed read) keeps the registry History has.
+    private let readRegistry: @Sendable () -> [RegisteredNetwork]
     /// Drops an answer when a newer query was sent while it was read.
     private var generation = 0
 
@@ -162,9 +167,11 @@ final class HistoryModel {
 
     init(
         range: HistoryRange, anchor: Date, network: Int64?, currentNetwork: Int64?, registry: [RegisteredNetwork],
-        read: @escaping @Sendable (HistoryQuery) -> HistoryData? = Core.history
+        read: @escaping @Sendable (HistoryQuery) -> HistoryData? = Core.history,
+        readRegistry: @escaping @Sendable () -> [RegisteredNetwork] = Core.networks
     ) {
         self.read = read
+        self.readRegistry = readRegistry
         self.currentNetwork = currentNetwork
         self.range = range
         self.anchor = anchor
@@ -209,19 +216,21 @@ final class HistoryModel {
     func loadNow(while work: () -> Void = {}) {
         final class Answer: @unchecked Sendable {
             var data: HistoryData?
+            var registry: [RegisteredNetwork] = []
         }
         let query = makeQuery()
         let answer = Answer()
         let reading = DispatchGroup()
         reading.enter()
-        let read = read
+        let (read, readRegistry) = (read, readRegistry)
         DispatchQueue.global(qos: .userInitiated).async {
             answer.data = read(query)
+            answer.registry = readRegistry()
             reading.leave()
         }
         work()
         reading.wait()
-        apply(answer.data, for: query)
+        apply(answer.data, registry: answer.registry, for: query)
         // All Time chooses days or months by how far back history goes, known only now.
         if range == .all, makeQuery().step != query.step { loadNow() }
     }
@@ -231,12 +240,13 @@ final class HistoryModel {
         generation += 1
         let generation = generation
         let query = makeQuery()
-        let read = read
+        let (read, readRegistry) = (read, readRegistry)
         Task.detached(priority: .userInitiated) {
             let data = read(query)
+            let registry = readRegistry()
             await MainActor.run {
                 guard generation == self.generation else { return }
-                self.apply(data, for: query)
+                self.apply(data, registry: registry, for: query)
                 if self.range == .all, self.makeQuery().step != query.step { self.load() }
             }
         }
@@ -248,11 +258,12 @@ final class HistoryModel {
             calendar: calendar)
     }
 
-    private func apply(_ data: HistoryData?, for query: HistoryQuery) {
+    private func apply(_ data: HistoryData?, registry fresh: [RegisteredNetwork], for query: HistoryQuery) {
         if let first = data?.firstHour {
             firstHours[query.network] = Date(timeIntervalSince1970: TimeInterval(first))
         }
         self.query = query
+        if !fresh.isEmpty, fresh != registry { registry = fresh }
         content = HistoryContent.make(
             range: range, query: query, data: data ?? .empty, registry: registry, now: .now, calendar: calendar)
         onChange?()

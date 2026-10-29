@@ -136,6 +136,24 @@ struct PopoverContentTests {
         #expect(content().networksScale == 640)
     }
 
+    /// A color picked in Settings replaces the one of the network's place, in every view that
+    /// colors networks; the others keep theirs.
+    @Test func aPickedColorReplacesTheColorOfTheNetworksPlace() throws {
+        var registry = registry
+        registry[0].color = 3
+        let networks = PopoverContent.make(
+            status: status, today: today, registry: registry, current: home, connectedSince: nil, allNetworks: false
+        ).networks
+        #expect(
+            networks.map(\.icon) == [.network(.wifi, slot: 3), .network(.hotspot, slot: 1), .network(.wifi, slot: 2)])
+        let decoded = try JSONDecoder().decode(
+            [RegisteredNetwork].self,
+            from: Data(#"[{"id":1,"key":"wifi:Home","name":"Home","kind":"wifi","last_used":null,"color":4}]"#.utf8))
+        #expect(decoded[0].color == 4)
+        #expect(NetworkColor.slot(for: decoded[0], index: 0) == 4)
+        #expect(NetworkColor.slot(for: RegisteredNetwork.unpicked(decoded[0]), index: 0) == 0)
+    }
+
     @Test func aNetworkNeverUsedSaysSo() {
         var registry = registry
         registry.append(RegisteredNetwork(id: 4, key: "wifi:Cafe", name: "Cafe", kind: .wifi, lastUsed: nil))

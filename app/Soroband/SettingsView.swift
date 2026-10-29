@@ -32,6 +32,11 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
             window.delegate = self
             window.center()
             self.window = window
+            NSApp.activate()
+            window.makeKeyAndOrderFront(nil)
+            // Otherwise AppKit focuses the first text field, a network's name, as if to rename it.
+            window.makeFirstResponder(nil)
+            return
         }
         NSApp.activate()
         window?.makeKeyAndOrderFront(nil)
@@ -115,7 +120,8 @@ struct SettingsView: View {
             case .networks:
                 NetworkSettings(
                     networks: usage.registry, current: NetworkMonitor.shared.current?.id,
-                    save: { usage.updateNetwork(id: $0, name: $1, kind: $2) })
+                    save: { usage.updateNetwork(id: $0, name: $1, kind: $2) },
+                    setColor: { usage.setNetworkColor(id: $0, color: $1) })
             case .about:
                 AboutSettings()
             }
@@ -420,6 +426,8 @@ struct NetworkSettings: View {
     /// The network the Mac is on.
     let current: Int64?
     let save: (_ id: Int64, _ name: String, _ kind: NetworkKind) -> Void
+    /// Sets a network's palette slot, or nil for its place's.
+    let setColor: (_ id: Int64, _ color: Int?) -> Void
     var now = Date.now
 
     var body: some View {
@@ -431,7 +439,7 @@ struct NetworkSettings: View {
             SettingsSection(
                 title: "Known networks",
                 footer:
-                    "Click a name to rename it, then press Return. Change the kind if macOS guessed wrong: a hotspot is a network you may pay for by the byte."
+                    "Click a name to rename it, then press Return. Click the icon to change its color. Change the kind if macOS guessed wrong: a hotspot is a network you may pay for by the byte."
             ) {
                 SettingsCard {
                     if networks.isEmpty {
@@ -440,12 +448,10 @@ struct NetworkSettings: View {
                     ForEach(Array(networks.enumerated()), id: \.element.id) { index, network in
                         if index > 0 { Divider().padding(.leading, 55) }
                         NetworkEditor(
-                            network: network, slot: NetworkColor.slot(forIndex: index),
-                            isCurrent: network.id == current,
-                            now: now
-                        ) { name, kind in
-                            save(network.id, name, kind)
-                        }
+                            network: network, slot: NetworkColor.slot(for: network, index: index),
+                            automaticSlot: NetworkColor.slot(for: RegisteredNetwork.unpicked(network), index: index),
+                            isCurrent: network.id == current, now: now,
+                            save: { save(network.id, $0, $1) }, setColor: { setColor(network.id, $0) })
                     }
                 }
             }
@@ -456,10 +462,14 @@ struct NetworkSettings: View {
 private struct NetworkEditor: View {
     let network: RegisteredNetwork
     let slot: Int
+    /// The slot it takes without a pick.
+    let automaticSlot: Int
     let isCurrent: Bool
     let now: Date
     let save: (String, NetworkKind) -> Void
+    let setColor: (Int?) -> Void
     @State private var name = ""
+    @State private var picksColor = false
 
     private var subtitle: String {
         guard let lastUsed = network.lastUsed else { return "Never used" }
@@ -469,7 +479,20 @@ private struct NetworkEditor: View {
 
     var body: some View {
         HStack(spacing: 11) {
-            SettingsTile(symbol: network.kind.symbol, tint: NetworkColor.color(slot: slot), size: 30)
+            Button {
+                picksColor = true
+            } label: {
+                SettingsTile(symbol: network.kind.symbol, tint: NetworkColor.color(slot: slot), size: 30)
+            }
+            .buttonStyle(.plain)
+            .help("Change the color of \(network.name)")
+            .accessibilityLabel("Color of \(network.name): \(NetworkColor.names[slot])")
+            .popover(isPresented: $picksColor, arrowEdge: .bottom) {
+                NetworkColorPicker(slot: slot, automaticSlot: automaticSlot, isPicked: network.color != nil) { color in
+                    setColor(color)
+                    picksColor = false
+                }
+            }
             VStack(alignment: .leading, spacing: 2) {
                 TextField("Name", text: $name)
                     .textFieldStyle(.plain)
@@ -497,6 +520,52 @@ private struct NetworkEditor: View {
         .padding(.horizontal, 12).padding(.vertical, 9)
         .onAppear { name = network.name }
         .onChange(of: network.name) { name = network.name }
+    }
+}
+
+/// The palette's swatches, and Automatic for the color of the network's place in the list.
+struct NetworkColorPicker: View {
+    let slot: Int
+    let automaticSlot: Int
+    let isPicked: Bool
+    let pick: (Int?) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // The color by name: some slots are low-contrast in light mode, so no swatch stands
+            // without a label.
+            Text("Color: \(NetworkColor.names[slot])")
+                .font(.caption.weight(.semibold))
+            HStack(spacing: 8) {
+                ForEach(NetworkColor.slots.indices, id: \.self) { index in
+                    Button {
+                        pick(index)
+                    } label: {
+                        Circle()
+                            .fill(NetworkColor.slots[index])
+                            .frame(width: 20, height: 20)
+                            .padding(3)
+                            .overlay(Circle().strokeBorder(.secondary, lineWidth: isPicked && index == slot ? 2 : 0))
+                    }
+                    .buttonStyle(.plain)
+                    .help(NetworkColor.names[index])
+                    .accessibilityLabel(NetworkColor.names[index])
+                    .accessibilityAddTraits(isPicked && index == slot ? .isSelected : [])
+                }
+            }
+            Button {
+                pick(nil)
+            } label: {
+                Label(
+                    "Automatic (\(NetworkColor.names[automaticSlot]))",
+                    systemImage: isPicked ? "circle" : "checkmark.circle.fill")
+            }
+            .buttonStyle(.plain)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .accessibilityAddTraits(isPicked ? [] : .isSelected)
+        }
+        .padding(12)
     }
 }
 

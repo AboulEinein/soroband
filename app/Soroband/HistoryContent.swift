@@ -432,7 +432,8 @@ struct HistoryContent: Equatable {
             heatmap: range == .day ? nil : heatmap(data.heatmap, calendar: calendar))
     }
 
-    /// Every network in the registry by id, with its color slot in registry order.
+    /// Every network in the registry by id, with its color slot: the one picked for it, or that
+    /// of its place in the registry.
     static func networkStyles(registry: [RegisteredNetwork]) -> [Int64: NetworkStyle] {
         // No network's name is taken first, so a network named like it gets a suffix; a suffixed
         // label skips any label already used, including another network's real name.
@@ -450,7 +451,7 @@ struct HistoryContent: Equatable {
                     network.id,
                     NetworkStyle(
                         id: network.id, name: network.name, kind: network.kind,
-                        slot: NetworkColor.slot(forIndex: index),
+                        slot: NetworkColor.slot(for: network, index: index),
                         label: label)
                 )
             })

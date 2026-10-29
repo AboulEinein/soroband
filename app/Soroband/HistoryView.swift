@@ -33,8 +33,8 @@ struct HistoryView: View {
                                 Label {
                                     Text(network.name)
                                 } icon: {
-                                    Image(systemName: kind.symbol)
-                                        .foregroundStyle(NetworkColor.color(slot: NetworkColor.slot(forIndex: index)))
+                                    let slot = NetworkColor.slot(for: network, index: index)
+                                    Image(systemName: kind.symbol).foregroundStyle(NetworkColor.color(slot: slot))
                                 }
                                 .badge(network.id == model.currentNetwork ? Text("Connected").font(.caption2) : nil)
                                 .tag(SidebarItem.network(network.id))

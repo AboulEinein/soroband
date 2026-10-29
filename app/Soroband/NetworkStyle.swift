@@ -23,8 +23,8 @@ extension NetworkKind {
 /// The symbol for usage booked to no network (id 0).
 let unknownNetworkSymbol = "network"
 
-/// Networks take the categorical color slots in the order they were first seen, so a network
-/// keeps its color in every view (docs/design.md, Visual language).
+/// Networks take the categorical color slots in the order they were first seen unless the user
+/// picked one, so a network keeps its color in every view (docs/design.md, Visual language).
 enum NetworkColor {
     static let slots: [Color] = [
         Color(light: 0x2A78D6, dark: 0x3987E5),  // blue
@@ -34,9 +34,12 @@ enum NetworkColor {
         Color(light: 0xE87BA4, dark: 0xD55181),  // magenta
     ]
 
-    /// The slot of the network at `index` in registry order; past the fifth, colors repeat.
-    static func slot(forIndex index: Int) -> Int {
-        index % slots.count
+    static let names = ["Blue", "Orange", "Aqua", "Yellow", "Magenta"]
+
+    /// The slot `network` picked, or that of its `index` in registry order; past the fifth,
+    /// colors repeat.
+    static func slot(for network: RegisteredNetwork, index: Int) -> Int {
+        (network.color ?? index) % slots.count
     }
 
     static func color(slot: Int?) -> Color {
