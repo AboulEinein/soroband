@@ -191,6 +191,13 @@ Planned rounds: 3 (raised from 2 when the user asked for the Settings redesign o
 | 1 | Opus | 1 Medium, 3 Low, 1 unrated | `first look`: the stacked drawing shipped unmeasured, the snapshot read the test host's real network, two equal lines gave duplicate SwiftUI ids, the combined speed stayed one wide line, design.md kept "mode" wording. Superseded or fixed by the redesign (replies on each thread). |
 | 2 | Opus | 5 Low | `first look`: the snapshot read the real Location permission, the preview cut an over-wide item's icon, the chip's help said "swap". `missed earlier`: "menu bar mode" left in plan.md, verification.md and the handover (the rename-leftover pattern #18's retro named). `fix regression`: the handover called the default layout within budget after the measurement said otherwise. |
 | 3 | Opus | 2 Low, 1 Minor | `missed earlier`: more retired words (`menu_bar`, `menu_bar_count`, "display modes") that the new checklist line found. `first look`: the preview fell back to the Wi‑Fi icon with no network; the scope's bytes were picked in three places. |
+| 4 | Sonnet | 1 Low | `first look`: the order tray's reordering was private and untested. |
+| 5 | Sonnet | none | Checked cb31277. |
+| CodeRabbit | CodeRabbit | 1 Major, 1 Minor, 2 Minor (review body) | `first look`: a local array shadowed the `texts` helper, which Xcode 26.6 on CI rejects and the local Xcode 27.1 accepted; round 1's row rated a finding `Discussion`; an engine starting again could wait a minute to empty the item. Not valid: the drop position. |
+| 6 | Sonnet | none | Checked ce807d3. [Comment](https://github.com/AboulEinein/soroband/pull/19#issuecomment-6495239970). |
+| CodeRabbit | CodeRabbit | 1 Minor (review body) | Not valid: the throttle over summed readings (today's counters only grow). |
+
+**Retro.** Planned 3 rounds; the blind loop took 6, and CodeRabbit found 3 valid findings after it. The PR grew from a two-line designer into a full Settings redesign, a settings schema change and two performance changes, so each round met new code. Rounds 2 and 3 found words the rename left behind, which became the checklist line in `review.md`. The test that did not compile on CI passed every local run on a newer Xcode, and every round ran while CI was pending. Two Sonnet rounds approved code CodeRabbit then faulted. [#21](https://github.com/AboulEinein/soroband/pull/21) turns these into rules: rounds wait for green CI and run on Opus, reviewers post every verified finding and check what the diff reaches, the records are linted, and work outside milestones takes one concern per PR.
 
 ## [#20](https://github.com/AboulEinein/soroband/pull/20) feat(settings): pick a network's color (2026-10-29)
 
@@ -200,6 +207,17 @@ Planned rounds: 2.
 | --- | --- | --- | --- |
 | 1 | Opus | 1 Medium, 1 Low, 1 Minor | `first look`: the color picker was never rendered, the focus fix was not in the PR's evidence, a comment still said registry order. Unposted and fixed: a pick was lost when a router-known network merged into a named one. |
 | 2 | Sonnet | 1 Low, 1 unrated | `first look`: History's styles had no test with a picked color; the swatches had no text label and were never seen in light mode. |
+| 3 | Sonnet | none | Checked 801ba81. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: `soroband_network_set_color` stored slots past the palette and wrapped 256 to Automatic (round 2's reviewer saw it and did not post it). |
+| 4 | Sonnet | none | Checked ff0e184. |
+| CodeRabbit | CodeRabbit | 1 Minor (review body) | `first look`: History kept the registry it read when it opened, so a picked color showed only after reopening (round 1's reviewer saw it and did not post it). |
+| 5 | Opus | 2 Low | `fix regression`: the History fix read the registry on the main thread inside the timed open. `first look`: Automatic had no selected trait for VoiceOver. |
+| CodeRabbit | CodeRabbit | 1 Minor, 1 Major (review body) | `fix regression`: the same main-thread read. Not valid: `color` needing an explicit nil default. |
+| 6 | Opus | 1 Low | `first look`: no test called `soroband_network_set_color` (found with `cargo mutants`). |
+| 7 | Opus | 2 Low | `fix regression`: History read the registry twice on open, once on the main thread; the refresh of an open window had no test. |
+| 8 | Opus | none | Checked 9f41f37. |
+
+**Retro.** Planned 2 rounds; it took 8 and three CodeRabbit reviews. Two of CodeRabbit's findings had been seen by blind reviewers and left out under the skill's nit cap. The History fix CodeRabbit asked for then took three rounds of its own, because it moved a database read into a timed path and was tested only on the path that opens the window. The Sonnet rounds found nothing in code where Opus rounds then did. [#21](https://github.com/AboulEinein/soroband/pull/21) and agent-skills#10 turn this into rules: no nit cap on behavior, check what the diff reaches, Opus for every round.
 
 ## [#21](https://github.com/AboulEinein/soroband/pull/21) chore(review): close the gaps CodeRabbit kept finding after the blind loop (2026-10-29)
 
