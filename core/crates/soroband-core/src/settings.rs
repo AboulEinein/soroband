@@ -22,21 +22,19 @@ pub const RESET_HOUR: &str = "reset_hour";
 pub const MENU_BAR_SCOPE: &str = "menu_bar_scope";
 /// The values of [`MENU_BAR_SCOPE`].
 pub const MENU_BAR_SCOPE_OPTIONS: &[&str] = &["network", "all"];
-/// Keys of the menu bar item's two lines. With one line shown it is drawn at the menu bar's
-/// size; with two they are stacked in a smaller size; with none the item is its icon alone.
-pub const MENU_BAR_TOP: &str = "menu_bar_top";
-pub const MENU_BAR_BOTTOM: &str = "menu_bar_bottom";
-/// What a menu bar line can show: today's bytes (total, download, upload), the live speed (both
-/// directions, download, upload), or nothing.
-pub const MENU_BAR_LINE_OPTIONS: &[&str] = &[
-    "total",
-    "download",
-    "upload",
-    "speed",
-    "speed_down",
-    "speed_up",
-    "none",
-];
+/// Key of the readings the menu bar item shows beside its icon, in order: up to
+/// [`MENU_BAR_MAX_READINGS`] of [`MENU_BAR_READING_OPTIONS`], or `none` for the icon alone.
+pub const MENU_BAR_READINGS: &str = "menu_bar_readings";
+/// What the menu bar item can show: today's bytes (total, download, upload) or the live speed
+/// (download, upload).
+pub const MENU_BAR_READING_OPTIONS: &[&str] =
+    &["total", "download", "upload", "speed_down", "speed_up"];
+pub const MENU_BAR_MAX_READINGS: usize = 4;
+/// Key of how the menu bar item draws its readings: stacked in pairs, each under a caption, or on
+/// one line.
+pub const MENU_BAR_STYLE: &str = "menu_bar_style";
+/// The values of [`MENU_BAR_STYLE`].
+pub const MENU_BAR_STYLE_OPTIONS: &[&str] = &["stacked", "labeled", "inline"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
@@ -45,6 +43,12 @@ pub enum Kind {
     /// One of a fixed set of words.
     Choice {
         options: &'static [&'static str],
+        default: &'static str,
+    },
+    /// Up to `max` different words of `options`, in order, separated by commas; `none` for no word.
+    List {
+        options: &'static [&'static str],
+        max: usize,
         default: &'static str,
     },
 }
@@ -61,7 +65,7 @@ impl Setting {
     pub fn default_value(&self) -> Value {
         match self.kind {
             Kind::Integer { default, .. } => Value::from(default),
-            Kind::Choice { default, .. } => Value::from(default),
+            Kind::Choice { default, .. } | Kind::List { default, .. } => Value::from(default),
         }
     }
 }
@@ -88,22 +92,25 @@ pub const SCHEMA: &[Setting] = &[
                       network) or all (every network).",
     },
     Setting {
-        key: MENU_BAR_TOP,
-        kind: Kind::Choice {
-            options: MENU_BAR_LINE_OPTIONS,
+        key: MENU_BAR_READINGS,
+        kind: Kind::List {
+            options: MENU_BAR_READING_OPTIONS,
+            max: MENU_BAR_MAX_READINGS,
             default: "total",
         },
-        description: "The menu bar item's first line: total, download or upload (today's \
-                      bytes), speed, speed_down or speed_up (the live speed), or none.",
+        description: "What the menu bar item shows beside its icon, in order, separated by \
+                      commas: up to 4 of total, download, upload (today's bytes), speed_down and \
+                      speed_up (the live speed); none for the icon alone.",
     },
     Setting {
-        key: MENU_BAR_BOTTOM,
+        key: MENU_BAR_STYLE,
         kind: Kind::Choice {
-            options: MENU_BAR_LINE_OPTIONS,
-            default: "none",
+            options: MENU_BAR_STYLE_OPTIONS,
+            default: "stacked",
         },
-        description: "The menu bar item's second line, stacked under the first in a smaller \
-                      size; the same options as menu_bar_top.",
+        description: "How the menu bar item draws its readings: stacked (in pairs, the first \
+                      on top, in a smaller size), labeled (each under a small caption) or inline \
+                      (one line).",
     },
 ];
 
@@ -235,9 +242,9 @@ impl Settings {
                         reason: format!("{text:?} is not a whole number"),
                     })?
             }
-            Kind::Choice { .. } => Value::from(text.trim()),
+            Kind::Choice { .. } | Kind::List { .. } => Value::from(text.trim()),
         };
-        check(setting, &value).map_err(|reason| Error::InvalidValue {
+        let value = check(setting, &value).map_err(|reason| Error::InvalidValue {
             key: key.into(),
             reason,
         })?;
@@ -272,15 +279,34 @@ fn check(setting: &Setting, value: &Value) -> Result<Value, String> {
             Some(word) if options.contains(&word) => Ok(Value::from(word)),
             _ => Err(format!("{value} is not one of {}", options.join(", "))),
         },
+        Kind::List { options, max, .. } => {
+            let text = value
+                .as_str()
+                .ok_or_else(|| format!("{value} is not a list of words"))?;
+            if text.trim() == "none" {
+                return Ok(Value::from("none"));
+            }
+            let words: Vec<&str> = text.split(',').map(str::trim).collect();
+            if let Some(word) = words.iter().find(|word| !options.contains(word)) {
+                return Err(format!(
+                    "{word:?} is not one of {} (or none)",
+                    options.join(", ")
+                ));
+            }
+            if words.len() > max {
+                return Err(format!("{} words, at most {max}", words.len()));
+            }
+            if let Some(index) = (1..words.len()).find(|&i| words[..i].contains(&words[i])) {
+                return Err(format!("{:?} is listed twice", words[index]));
+            }
+            Ok(Value::from(words.join(",")))
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        Error, MENU_BAR_BOTTOM, MENU_BAR_LINE_OPTIONS, MENU_BAR_SCOPE, MENU_BAR_TOP, RESET_HOUR,
-        Settings,
-    };
+    use super::{Error, MENU_BAR_READINGS, MENU_BAR_SCOPE, MENU_BAR_STYLE, RESET_HOUR, Settings};
     use std::path::PathBuf;
 
     fn temp_file(name: &str) -> PathBuf {
@@ -403,36 +429,55 @@ mod tests {
         }
     }
 
-    /// A fresh install shows today's total on the current network on one line, as before the
-    /// two lines existed.
+    /// A fresh install shows today's total on the current network.
     #[test]
-    fn menu_bar_shows_todays_total_on_the_current_network_on_one_line_unless_set() {
+    fn menu_bar_shows_todays_total_on_the_current_network_unless_set() {
         let settings = Settings::default();
         assert_eq!(settings.get(MENU_BAR_SCOPE).unwrap().value, "network");
-        assert_eq!(settings.get(MENU_BAR_TOP).unwrap().value, "total");
-        assert_eq!(settings.get(MENU_BAR_BOTTOM).unwrap().value, "none");
+        assert_eq!(settings.get(MENU_BAR_READINGS).unwrap().value, "total");
+        assert_eq!(settings.get(MENU_BAR_STYLE).unwrap().value, "stacked");
     }
 
+    /// Readings are kept in the order given, which is the order the item draws them in.
     #[test]
-    fn menu_bar_lines_accept_only_their_options() {
+    fn menu_bar_readings_are_up_to_four_different_options_in_order() {
         let mut settings = Settings::default();
-        for option in MENU_BAR_LINE_OPTIONS {
-            settings.set(MENU_BAR_BOTTOM, option).unwrap();
-            assert_eq!(settings.get(MENU_BAR_BOTTOM).unwrap().value, *option);
-        }
-        settings.set(MENU_BAR_TOP, "download").unwrap();
-        for bad in ["Download", "both", "", "4"] {
-            let error = settings.set(MENU_BAR_TOP, bad).unwrap_err().to_string();
-            assert!(
-                error.contains("total, download, upload, speed, speed_down, speed_up, none"),
-                "{bad:?}: {error}"
-            );
+        settings
+            .set(MENU_BAR_READINGS, "speed_up, download,total")
+            .unwrap();
+        assert_eq!(
+            settings.get(MENU_BAR_READINGS).unwrap().value,
+            "speed_up,download,total"
+        );
+        settings.set(MENU_BAR_READINGS, "none").unwrap();
+        assert_eq!(settings.get(MENU_BAR_READINGS).unwrap().value, "none");
+        for (bad, reason) in [
+            (
+                "speed",
+                "\"speed\" is not one of total, download, upload, speed_down, speed_up",
+            ),
+            ("", "\"\" is not one of"),
+            ("total,", "\"\" is not one of"),
+            ("total,none", "\"none\" is not one of"),
+            ("download,download", "\"download\" is listed twice"),
+            (
+                "total,download,upload,speed_down,speed_up",
+                "5 words, at most 4",
+            ),
+        ] {
+            let error = settings
+                .set(MENU_BAR_READINGS, bad)
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains(reason), "{bad:?}: {error}");
         }
         assert_eq!(
-            settings.get(MENU_BAR_TOP).unwrap().value,
-            "download",
+            settings.get(MENU_BAR_READINGS).unwrap().value,
+            "none",
             "a refused value changes nothing"
         );
+        assert!(settings.set(MENU_BAR_STYLE, "stacked").is_ok());
+        assert!(settings.set(MENU_BAR_STYLE, "vertical").is_err());
         assert!(settings.set(MENU_BAR_SCOPE, "today_all").is_err());
     }
 
@@ -440,10 +485,10 @@ mod tests {
     fn stored_menu_bar_value_from_a_hand_edit_falls_back_to_the_default() {
         let path = temp_file("menu-bar-hand-edit");
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(&path, r#"{"menu_bar_top": "rainbow"}"#).unwrap();
+        std::fs::write(&path, r#"{"menu_bar_readings": "total,rainbow"}"#).unwrap();
         let settings = Settings::load(&path).unwrap();
-        assert_eq!(settings.get(MENU_BAR_TOP).unwrap().value, "total");
-        let current = settings.get(MENU_BAR_TOP).unwrap();
+        let current = settings.get(MENU_BAR_READINGS).unwrap();
+        assert_eq!(current.value, "total");
         assert!(current.is_default);
         assert!(
             current

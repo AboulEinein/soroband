@@ -73,6 +73,11 @@ fn describe(setting: &Setting, current: &Current) -> Value {
             value["type"] = json!("choice");
             value["options"] = json!(options);
         }
+        Kind::List { options, max, .. } => {
+            value["type"] = json!("list");
+            value["options"] = json!(options);
+            value["max"] = json!(max);
+        }
     }
     if let Some(problem) = &current.problem {
         value["problem"] = json!(problem);
@@ -84,6 +89,10 @@ fn line(setting: &Setting, current: &Current) -> String {
     let kind = match setting.kind {
         Kind::Integer { min, max, .. } => format!("integer {min}-{max}"),
         Kind::Choice { options, .. } => format!("one of {}", options.join(", ")),
+        Kind::List { options, max, .. } => format!(
+            "up to {max} of {}, separated by commas, or none",
+            options.join(", ")
+        ),
     };
     let mut text = format!(
         "{} = {}{}\n    {kind}, default {}. {}",
