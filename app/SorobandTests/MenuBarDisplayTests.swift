@@ -61,6 +61,7 @@ struct MenuBarDisplayTests {
         #expect(display([.download, .upload], .labeled).columns.count == 2, "labeled: a column each")
         #expect(display([.download, .upload], .inline).drawsTitle)
         #expect(!display([.download], .labeled).drawsTitle, "a caption needs the image")
+        #expect(!display([.speedDown], .inline).drawsTitle, "a speed keeps its width in the image")
     }
 
     @Test func readingsAreStoredAsTheCoreSettingsValue() {
@@ -193,6 +194,29 @@ struct MenuBarDisplayTests {
         }
         #expect(widths[.stacked]! < widths[.inline]!, "a stacked pair is narrower than one line")
         #expect(try #require(display(["1.1 GB"]).itemImage(debug: true)).isTemplate == false)
+        // A speed keeps the width of its widest value, so the item does not resize at each poll.
+        let speed = { (value: String) in
+            MenuBarDisplay(
+                symbol: "wifi",
+                readings: [
+                    MenuBarDisplay.Reading(value: "893 MB", text: "↓ 893 MB"),
+                    MenuBarDisplay.Reading(
+                        value: value, text: "↓ \(value)", widestValue: MenuBarDisplay.widestSpeed),
+                ])
+        }
+        for style in MenuBarStyle.allCases {
+            var idle = speed("0 KB/s")
+            var busy = speed("137 KB/s")
+            idle.style = style
+            busy.style = style
+            #expect(idle.readingsImage().size == busy.readingsImage().size, "\(style)")
+        }
+        // The menu bar gets a bitmap of it, still a template, the same size, at the display's scale.
+        let drawn = try #require(display(["↓ 893 MB", "↑ 206 MB"]).itemImage(debug: false))
+        let bitmap = MenuBarDisplay.rasterized(drawn, scale: 2)
+        #expect(bitmap.isTemplate)
+        #expect(bitmap.size == drawn.size)
+        #expect(bitmap.representations.first?.pixelsHigh == 44)
     }
 
     /// A Debug build runs beside the installed app, so its item must not look like the installed

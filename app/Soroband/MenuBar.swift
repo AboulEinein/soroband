@@ -164,7 +164,16 @@ struct MenuBarDisplay: Equatable {
         var caption = ""
         var value: String
         var text: String
+        /// The widest value the reading takes in normal use, whose width it keeps while its own is
+        /// narrower: a speed changes at every poll, and an item that changed width would move the
+        /// menu bar's other items and lay the menu bar out again.
+        var widestValue: String?
+
+        var widestText: String { widestValue.map { text.replacingOccurrences(of: value, with: $0) } ?? text }
     }
+
+    /// The widest speed the menu bar shows below 1 GB/s.
+    static let widestSpeed = "999 MB/s"
 
     var symbol: String
     var style = MenuBarStyle.stacked
@@ -183,8 +192,11 @@ struct MenuBarDisplay: Equatable {
     }
 
     /// Whether the item's title can show the readings, on one line at the menu bar's size, so no
-    /// image of them is drawn.
-    var drawsTitle: Bool { style == .inline || (style == .stacked && readings.count == 1) }
+    /// image of them is drawn. A speed is drawn, to keep its widest value's width.
+    var drawsTitle: Bool {
+        readings.allSatisfy { $0.widestValue == nil }
+            && (style == .inline || (style == .stacked && readings.count == 1))
+    }
 
     /// - Today's totals are what crossed the interfaces, the network's true count.
     /// - The icon is the current network's kind; usage booked to no network shows a plain one.
@@ -204,7 +216,7 @@ struct MenuBarDisplay: Equatable {
             readings: layout.readings.map {
                 Reading(
                     caption: $0.caption, value: $0.value(today: today, speed: status.speed),
-                    text: $0.text(today: today, speed: status.speed))
+                    text: $0.text(today: today, speed: status.speed), widestValue: $0.isSpeed ? widestSpeed : nil)
             })
     }
 
@@ -283,25 +295,37 @@ struct MenuBarDisplay: Equatable {
         let string = { (text: String, font: NSFont, kern: CGFloat) in
             NSAttributedString(string: text, attributes: [.font: font, .foregroundColor: ink, .kern: kern])
         }
+        // The width of `text`, or of `widest` when that is wider.
+        let fitted = { (text: String, widest: String, font: NSFont) in
+            ceil(max(string(text, font, 0).size().width, string(widest, font, 0).size().width))
+        }
         let height = Self.height
-        // Each column's width, and how to draw it from a left edge.
+        // Each column's width, and how to draw it from a left edge. Text narrower than its column
+        // is right-aligned, so digits stay in place as a number shrinks.
         var parts: [(width: CGFloat, draw: (CGFloat) -> Void)] = []
-        let full = { (text: String) in
+        let full = { (text: String, widest: String) in
             let line = string(text, Self.fullFont, 0)
+            let columnWidth = fitted(text, widest, Self.fullFont)
             parts.append(
-                (ceil(line.size().width), { x in line.draw(at: NSPoint(x: x, y: (height - line.size().height) / 2)) }))
+                (
+                    columnWidth,
+                    { x in
+                        line.draw(
+                            at: NSPoint(x: x + columnWidth - line.size().width, y: (height - line.size().height) / 2))
+                    }
+                ))
         }
         switch style {
         case .inline:
-            if let text { full(text) }
+            if let text { full(text, readings.map(\.widestText).joined(separator: "  ")) }
         case .stacked:
             for column in columns {
                 guard column.count == 2 else {
-                    full(column[0].text)
+                    full(column[0].text, column[0].widestText)
                     continue
                 }
                 let lines = column.map { string($0.text, Self.stackedFont, 0) }
-                let width = ceil(lines.map { $0.size().width }.max() ?? 0)
+                let width = column.map { fitted($0.text, $0.widestText, Self.stackedFont) }.max() ?? 0
                 let lineHeight: CGFloat = 10.5
                 parts.append(
                     (
@@ -320,7 +344,9 @@ struct MenuBarDisplay: Equatable {
             for reading in readings {
                 let caption = string(reading.caption, Self.captionFont, 0.5)
                 let value = string(reading.value, Self.labeledFont, 0)
-                let width = ceil(max(caption.size().width, value.size().width))
+                let width = max(
+                    ceil(caption.size().width),
+                    fitted(reading.value, reading.widestValue ?? reading.value, Self.labeledFont))
                 parts.append(
                     (
                         width,
@@ -363,6 +389,28 @@ struct MenuBarDisplay: Equatable {
         }
         composite.isTemplate = !debug
         return composite
+    }
+
+    /// `image` drawn once into a bitmap at `scale`. The menu bar draws its item again for every
+    /// display, and an image with a drawing handler lays its text out again each time; a bitmap
+    /// is only copied.
+    @MainActor static func rasterized(_ image: NSImage, scale: CGFloat) -> NSImage {
+        guard
+            let bitmap = NSBitmapImageRep(
+                bitmapDataPlanes: nil, pixelsWide: Int((image.size.width * scale).rounded(.up)),
+                pixelsHigh: Int((image.size.height * scale).rounded(.up)), bitsPerSample: 8, samplesPerPixel: 4,
+                hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+            let context = NSGraphicsContext(bitmapImageRep: bitmap)
+        else { return image }
+        bitmap.size = image.size
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        image.draw(in: NSRect(origin: .zero, size: image.size))
+        NSGraphicsContext.restoreGraphicsState()
+        let rasterized = NSImage(size: image.size)
+        rasterized.addRepresentation(bitmap)
+        rasterized.isTemplate = image.isTemplate
+        return rasterized
     }
 
     /// Read by VoiceOver.

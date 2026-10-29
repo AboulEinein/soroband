@@ -67,7 +67,8 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             button.effectiveAppearance.performAsCurrentDrawingAppearance {
                 textColor = NSColor(cgColor: NSColor.labelColor.cgColor) ?? .labelColor
             }
-            button.image = display.itemImage(textColor: textColor)
+            let scale = NSScreen.screens.map(\.backingScaleFactor).max() ?? 2
+            button.image = display.itemImage(textColor: textColor).map { MenuBarDisplay.rasterized($0, scale: scale) }
             button.title = ""
         }
         button.setAccessibilityLabel(display.accessibilityLabel())
