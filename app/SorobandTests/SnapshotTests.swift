@@ -163,14 +163,21 @@ struct SnapshotTests {
     }
 
     /// The color picker of a network with a picked color (magenta, ringed) and of one without
-    /// (Automatic checked, naming its place's color).
+    /// (Automatic checked, naming its place's color), in dark and in light mode.
     @Test func networkColorPicker() throws {
-        let view = HStack(alignment: .top, spacing: 16) {
-            NetworkColorPicker(slot: 4, automaticSlot: 0, isPicked: true) { _ in }
-            NetworkColorPicker(slot: 1, automaticSlot: 1, isPicked: false) { _ in }
+        let pickers = { (scheme: ColorScheme) in
+            HStack(alignment: .top, spacing: 16) {
+                NetworkColorPicker(slot: 4, automaticSlot: 0, isPicked: true) { _ in }
+                NetworkColorPicker(slot: 1, automaticSlot: 1, isPicked: false) { _ in }
+            }
+            .padding(8)
+            .background(scheme == .dark ? Color(white: 0.16) : .white)
+            .environment(\.colorScheme, scheme)
         }
-        .padding(8)
-        .background(Color(nsColor: .windowBackgroundColor))
+        let view = VStack(spacing: 0) {
+            pickers(.dark)
+            pickers(.light)
+        }
         try Snapshot.verify(view, named: "settings-network-color-picker")
     }
 

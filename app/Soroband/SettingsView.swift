@@ -532,6 +532,10 @@ struct NetworkColorPicker: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            // The color by name: some slots are low-contrast in light mode, so no swatch stands
+            // without a label.
+            Text("Color: \(NetworkColor.names[slot])")
+                .font(.caption.weight(.semibold))
             HStack(spacing: 8) {
                 ForEach(NetworkColor.slots.indices, id: \.self) { index in
                     Button {
