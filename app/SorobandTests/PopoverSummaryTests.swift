@@ -3,7 +3,7 @@ import Testing
 
 @testable import Soroband
 
-/// The popover's hourly bars and History entry, from stored usage worked out by hand.
+/// The popover's hourly bars and History card, from stored usage worked out by hand.
 struct PopoverSummaryTests {
     static let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -92,5 +92,8 @@ struct PopoverSummaryTests {
         let hours = summary.hours(today: 40, now: lastHour)
         #expect(hours.count == 25)
         #expect(hours[24] == 30)
+        // It springs forward on 8 Mar 2026: 23 hours, so 23 bars and the last labelled 11 PM.
+        let march = newYork.date(from: DateComponents(year: 2026, month: 3, day: 8))!
+        #expect(PopoverSummary.dayHours(todayStart: march, calendar: newYork) == 23)
     }
 }

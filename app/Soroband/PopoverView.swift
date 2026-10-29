@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 /// The popover under the menu bar item: a hero card tinted with the current network's color,
-/// Apps and Networks tabs, and a footer with the History entry (`docs/design.md`, UI).
+/// Apps and Networks tabs, and a footer with the History card (`docs/design.md`, UI).
 struct PopoverView: View {
     enum Tab: String, CaseIterable {
         case apps = "Apps"
@@ -234,7 +234,7 @@ private struct HeroCard: View {
             HourBeads(
                 hours: content.hours.isEmpty ? Array(repeating: nil, count: 24) : content.hours, color: color,
                 grown: grown)
-            HourAxis(start: content.todayStart, count: max(content.hours.count, 24))
+            HourAxis(start: content.todayStart, count: content.hours.isEmpty ? 24 : content.hours.count)
         }
         .padding(14)
         .background {

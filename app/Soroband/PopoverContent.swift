@@ -70,7 +70,7 @@ struct PopoverContent: Equatable {
     var hours: [UInt64?] = []
     /// The first of `hours`: the start of today.
     var todayStart: Date?
-    /// The History entry's numbers, once read.
+    /// The History card's numbers, once read.
     var history: HistoryEntry?
     /// The current network is Wi‑Fi known by its router, because Location access is not allowed:
     /// the popover offers to allow it, so the network gets its name.
