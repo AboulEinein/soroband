@@ -171,6 +171,9 @@ struct MenuBarDisplayTests {
         let launching = Drawn(display: display([]), layout: .default, network: 1, total: 0)
         #expect(MenuBarDisplay.redrawDelay(from: launching, to: grown, lastRedraw: t, now: t + 5) == 0)
         #expect(texts([.total], status: EngineStatus(state: .starting)).isEmpty)
+        // An engine starting again empties the item at once, though its last counts stand.
+        let restarting = Drawn(display: display([]), layout: .default, network: 1, total: 184_000_000)
+        #expect(MenuBarDisplay.redrawDelay(from: old, to: restarting, lastRedraw: t, now: t + 5) == 0)
     }
 
     @Test func noIdentifiedNetworkShowsThePlainNetworkIcon() {

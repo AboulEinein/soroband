@@ -262,7 +262,7 @@ struct MenuBarDisplay: Equatable {
     /// Seconds to wait before showing `new` in place of `old`, drawn at `lastRedraw`.
     static func redrawDelay(from old: Drawn?, to new: Drawn, lastRedraw: Date, now: Date) -> TimeInterval {
         guard let old, old.display != new.display, old.layout == new.layout, old.network == new.network,
-            old.display.symbol == new.display.symbol, !old.display.readings.isEmpty,
+            old.display.symbol == new.display.symbol, !old.display.readings.isEmpty, !new.display.readings.isEmpty,
             let oldTotal = old.total, let newTotal = new.total, newTotal >= oldTotal
         else { return 0 }
         return max(0, totalRedrawInterval - now.timeIntervalSince(lastRedraw))
