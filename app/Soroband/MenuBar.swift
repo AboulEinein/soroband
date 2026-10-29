@@ -11,92 +11,180 @@ enum MenuBarScope: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .network: "Current network"
+        case .network: "This network"
         case .all: "All networks"
         }
     }
 }
 
-/// What one line of the menu bar item shows: the core's `menu_bar_top` and `menu_bar_bottom`.
-enum MenuBarLine: String, CaseIterable, Identifiable {
+/// One reading the menu bar item can show: an item of the core's `menu_bar_readings`.
+enum MenuBarReading: String, CaseIterable, Identifiable {
     case total
     case download
     case upload
-    case speed
     case speedDown = "speed_down"
     case speedUp = "speed_up"
-    case none
 
     var id: String { rawValue }
 
     /// Today's bytes, as opposed to the live speed.
-    static let usage: [MenuBarLine] = [.total, .download, .upload]
-    static let speeds: [MenuBarLine] = [.speed, .speedDown, .speedUp]
+    static let usage: [MenuBarReading] = [.total, .download, .upload]
+    static let speeds: [MenuBarReading] = [.speedDown, .speedUp]
 
     var label: String {
         switch self {
-        case .total: "Total"
-        case .download: "Download"
-        case .upload: "Upload"
-        case .speed: "Speed"
+        case .total: "Today’s total"
+        case .download: "Today’s download"
+        case .upload: "Today’s upload"
         case .speedDown: "Download speed"
         case .speedUp: "Upload speed"
-        case .none: "Nothing"
+        }
+    }
+
+    /// The reading's name where space is short.
+    var shortLabel: String {
+        switch self {
+        case .total: "Total"
+        case .download: "Down"
+        case .upload: "Up"
+        case .speedDown: "↓ Speed"
+        case .speedUp: "↑ Speed"
+        }
+    }
+
+    /// The caption the labeled style draws over the value.
+    var caption: String {
+        switch self {
+        case .total: "TODAY"
+        case .download: "DOWN"
+        case .upload: "UP"
+        case .speedDown: "↓ LIVE"
+        case .speedUp: "↑ LIVE"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .total: "chart.bar.fill"
+        case .download: "arrow.down"
+        case .upload: "arrow.up"
+        case .speedDown: "arrow.down.circle"
+        case .speedUp: "arrow.up.circle"
         }
     }
 
     var isSpeed: Bool { Self.speeds.contains(self) }
 
-    /// The line's text: today's bytes as the menu bar rounds them, or the live speed.
-    func text(today: ByteCounts, speed: ByteCounts) -> String? {
+    /// The value alone: today's bytes as the menu bar rounds them, or the live speed.
+    func value(today: ByteCounts, speed: ByteCounts) -> String {
         switch self {
         case .total: Format.menuBarBytes(today.total)
-        case .download: "↓ \(Format.menuBarBytes(today.rx))"
-        case .upload: "↑ \(Format.menuBarBytes(today.tx))"
-        case .speed: "↓ \(Format.speed(speed.rx)) ↑ \(Format.speed(speed.tx))"
-        case .speedDown: "↓ \(Format.speed(speed.rx))"
-        case .speedUp: "↑ \(Format.speed(speed.tx))"
-        case .none: nil
+        case .download: Format.menuBarBytes(today.rx)
+        case .upload: Format.menuBarBytes(today.tx)
+        case .speedDown: Format.menuBarSpeed(speed.rx)
+        case .speedUp: Format.menuBarSpeed(speed.tx)
         }
     }
 
-    /// Today's bytes the line counts; nil for a speed or no line.
+    /// The value with an arrow for its direction, as it reads without a caption.
+    func text(today: ByteCounts, speed: ByteCounts) -> String {
+        let value = value(today: today, speed: speed)
+        return switch self {
+        case .total: value
+        case .download, .speedDown: "↓ \(value)"
+        case .upload, .speedUp: "↑ \(value)"
+        }
+    }
+
+    /// Today's bytes the reading counts; nil for a speed.
     func counted(_ today: ByteCounts) -> UInt64? {
         switch self {
         case .total: today.total
         case .download: today.rx
         case .upload: today.tx
-        case .speed, .speedDown, .speedUp, .none: nil
+        case .speedDown, .speedUp: nil
         }
     }
 }
 
-/// What the menu bar item shows: up to two lines next to the network icon, counting today on
-/// the current network or on all of them.
-struct MenuBarLayout: Equatable {
-    var scope: MenuBarScope = .network
-    var top: MenuBarLine = .total
-    var bottom: MenuBarLine = .none
+/// How the menu bar item draws its readings: the core's `menu_bar_style`.
+enum MenuBarStyle: String, CaseIterable, Identifiable {
+    /// In pairs, the first on top, in a smaller size; a reading without a partner at full size.
+    case stacked
+    /// Each value under a small caption.
+    case labeled
+    /// One line at the menu bar's size.
+    case inline
 
-    static let `default` = MenuBarLayout()
-    static let topKey = "menu_bar_top"
-    static let bottomKey = "menu_bar_bottom"
+    var id: String { rawValue }
 
-    /// The lines shown, top first; empty for the icon alone.
-    var lines: [MenuBarLine] { [top, bottom].filter { $0 != .none } }
-
-    var showsSpeed: Bool { lines.contains { $0.isSpeed } }
-    var showsUsage: Bool { lines.contains { !$0.isSpeed } }
+    var label: String {
+        switch self {
+        case .stacked: "Stacked"
+        case .labeled: "Labeled"
+        case .inline: "Inline"
+        }
+    }
 }
 
-/// The menu bar item's icon and lines.
-struct MenuBarDisplay: Equatable {
-    var symbol: String
-    /// One line is drawn at the menu bar's size; two are stacked in a smaller size.
-    var lines: [String]
+/// What the menu bar item shows: up to four readings beside the network icon, in order, counting
+/// today on the current network or on all of them, drawn in a style.
+struct MenuBarLayout: Equatable {
+    static let maxReadings = 4
 
-    /// The lines as one string, for VoiceOver and `soroband debug state`; nil for the icon alone.
-    var text: String? { lines.isEmpty ? nil : lines.joined(separator: " ") }
+    var scope: MenuBarScope = .network
+    /// Empty for the icon alone.
+    var readings: [MenuBarReading] = [.total]
+    var style: MenuBarStyle = .stacked
+
+    static let `default` = MenuBarLayout()
+    static let readingsKey = "menu_bar_readings"
+    static let styleKey = "menu_bar_style"
+
+    var showsSpeed: Bool { readings.contains { $0.isSpeed } }
+    var showsUsage: Bool { readings.contains { !$0.isSpeed } }
+
+    /// `readings` as the core stores them: names separated by commas, or `none`.
+    var readingsValue: String {
+        readings.isEmpty ? "none" : readings.map(\.rawValue).joined(separator: ",")
+    }
+
+    /// The readings in a stored value; nil when it names one the app does not know.
+    static func readings(from value: String) -> [MenuBarReading]? {
+        if value == "none" { return [] }
+        let readings = value.split(separator: ",").map { MenuBarReading(rawValue: String($0)) }
+        return readings.contains(nil) ? nil : readings.compactMap { $0 }
+    }
+}
+
+/// The menu bar item's icon and readings.
+struct MenuBarDisplay: Equatable {
+    /// One reading as drawn: its caption, its value, and the value with its arrow.
+    struct Reading: Equatable {
+        var caption = ""
+        var value: String
+        var text: String
+    }
+
+    var symbol: String
+    var style = MenuBarStyle.stacked
+    var readings: [Reading]
+
+    /// The readings as one string, for VoiceOver and `soroband debug state`; nil for the icon alone.
+    var text: String? { readings.isEmpty ? nil : readings.map(\.text).joined(separator: "  ") }
+
+    /// The groups drawn side by side: pairs when stacked, the first on top; one reading each
+    /// otherwise.
+    var columns: [[Reading]] {
+        guard style == .stacked else { return readings.map { [$0] } }
+        return stride(from: 0, to: readings.count, by: 2).map {
+            Array(readings[$0..<min($0 + 2, readings.count)])
+        }
+    }
+
+    /// Whether the item's title can show the readings, on one line at the menu bar's size, so no
+    /// image of them is drawn.
+    var drawsTitle: Bool { style == .inline || (style == .stacked && readings.count == 1) }
 
     /// - Today's totals are what crossed the interfaces, the network's true count.
     /// - The icon is the current network's kind; usage booked to no network shows a plain one.
@@ -106,32 +194,33 @@ struct MenuBarDisplay: Equatable {
         let symbol = kind?.symbol ?? unknownNetworkSymbol
         if status.state == .failed {
             return MenuBarDisplay(
-                symbol: "exclamationmark.triangle", lines: layout.lines.isEmpty ? [] : ["Not counting"])
+                symbol: "exclamationmark.triangle", style: .inline,
+                readings: layout.readings.isEmpty ? [] : [Reading(value: "Not counting", text: "Not counting")])
         }
-        if status.state == .starting { return MenuBarDisplay(symbol: symbol, lines: []) }
+        if status.state == .starting { return MenuBarDisplay(symbol: symbol, style: layout.style, readings: []) }
         let today = layout.scope == .network ? status.todayNetworkInterfaces : status.todayInterfaces
-        // Both speeds alone stack, download over upload, rather than one wide line.
-        if layout.lines == [.speed] {
-            return MenuBarDisplay(
-                symbol: symbol,
-                lines: [MenuBarLine.speedDown, .speedUp].compactMap { $0.text(today: today, speed: status.speed) })
-        }
         return MenuBarDisplay(
-            symbol: symbol, lines: layout.lines.compactMap { $0.text(today: today, speed: status.speed) })
+            symbol: symbol, style: layout.style,
+            readings: layout.readings.map {
+                Reading(
+                    caption: $0.caption, value: $0.value(today: today, speed: status.speed),
+                    text: $0.text(today: today, speed: status.speed))
+            })
     }
 
-    /// Every change of the lines redraws the status item on each display (about 18 ms of the main
-    /// thread with four), so a total that only grew waits until `totalRedrawInterval` has passed
-    /// since the last redraw. Anything else (another network, even of the same kind, the layout, a
-    /// stopped engine, the live speed, a total that went down at the reset hour) shows at once.
+    /// Every change of the readings redraws the status item on each display (about 18 ms of the
+    /// main thread with four), so a total that only grew waits until `totalRedrawInterval` has
+    /// passed since the last redraw. Anything else (another network, even of the same kind, the
+    /// layout, a stopped engine, the live speed, a total that went down at the reset hour) shows at
+    /// once.
     static let totalRedrawInterval: TimeInterval = 60
 
-    /// The bytes the lines count, summed; nil when a line shows the live speed or none counts.
+    /// The bytes the readings count, summed; nil when one shows the live speed or none counts.
     /// Each counted part only grows during a day, so the sum grows whenever any shown part does.
     static func total(layout: MenuBarLayout, status: EngineStatus) -> UInt64? {
         guard !layout.showsSpeed, layout.showsUsage else { return nil }
         let today = layout.scope == .network ? status.todayNetworkInterfaces : status.todayInterfaces
-        return layout.lines.compactMap { $0.counted(today) }.reduce(0, +)
+        return layout.readings.compactMap { $0.counted(today) }.reduce(0, +)
     }
 
     /// What the item shows, with which layout, for which network (the engine's id), counting how
@@ -146,7 +235,7 @@ struct MenuBarDisplay: Equatable {
     /// Seconds to wait before showing `new` in place of `old`, drawn at `lastRedraw`.
     static func redrawDelay(from old: Drawn?, to new: Drawn, lastRedraw: Date, now: Date) -> TimeInterval {
         guard let old, old.display != new.display, old.layout == new.layout, old.network == new.network,
-            old.display.symbol == new.display.symbol, !old.display.lines.isEmpty,
+            old.display.symbol == new.display.symbol, !old.display.readings.isEmpty,
             let oldTotal = old.total, let newTotal = new.total, newTotal >= oldTotal
         else { return 0 }
         return max(0, totalRedrawInterval - now.timeIntervalSince(lastRedraw))
@@ -174,26 +263,81 @@ struct MenuBarDisplay: Equatable {
         return orange
     }
 
-    /// The font of stacked lines: two fit the menu bar's height, digits of one width.
+    /// The menu bar's own font, digits of one width so a changing count does not shift the bar.
+    @MainActor static var fullFont: NSFont {
+        .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+    }
+    /// The font of a stacked pair: two lines fit the menu bar's height.
     @MainActor static var stackedFont: NSFont { .monospacedDigitSystemFont(ofSize: 9.5, weight: .medium) }
+    @MainActor static var captionFont: NSFont { .systemFont(ofSize: 6.5, weight: .bold) }
+    @MainActor static var labeledFont: NSFont { .monospacedDigitSystemFont(ofSize: 11.5, weight: .semibold) }
 
-    /// Two lines stacked and right-aligned, as one image beside the icon. A template image takes
-    /// the menu bar's text color; `color` draws it in a fixed one instead (a Debug build, whose
-    /// item is not a template).
-    @MainActor static func stackedImage(_ lines: [String], color: NSColor? = nil) -> NSImage {
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: stackedFont, .foregroundColor: color ?? NSColor.black,
-        ]
-        let strings = lines.map { NSAttributedString(string: $0, attributes: attributes) }
-        let width = ceil(strings.map { $0.size().width }.max() ?? 0)
-        let lineHeight: CGFloat = 10.5
-        let size = NSSize(width: width, height: 22)
-        let image = NSImage(size: size, flipped: true) { _ in
-            let top = (size.height - lineHeight * CGFloat(strings.count)) / 2
-            for (index, string) in strings.enumerated() {
-                let x = width - string.size().width
-                // Each line's box is taller than its digits; draw it up by the difference.
-                string.draw(at: NSPoint(x: x, y: top + lineHeight * CGFloat(index) - 1))
+    /// The menu bar's height, which the readings are drawn to fit.
+    static let height: CGFloat = 22
+
+    /// The readings as one image, `height` high, columns 7 pt apart. A template image takes the
+    /// menu bar's text color; `color` draws it in a fixed one instead (a Debug build, whose item is
+    /// not a template).
+    @MainActor func readingsImage(color: NSColor? = nil) -> NSImage {
+        let ink = color ?? .black
+        let string = { (text: String, font: NSFont, kern: CGFloat) in
+            NSAttributedString(string: text, attributes: [.font: font, .foregroundColor: ink, .kern: kern])
+        }
+        let height = Self.height
+        // Each column's width, and how to draw it from a left edge.
+        var parts: [(width: CGFloat, draw: (CGFloat) -> Void)] = []
+        let full = { (text: String) in
+            let line = string(text, Self.fullFont, 0)
+            parts.append(
+                (ceil(line.size().width), { x in line.draw(at: NSPoint(x: x, y: (height - line.size().height) / 2)) }))
+        }
+        switch style {
+        case .inline:
+            if let text { full(text) }
+        case .stacked:
+            for column in columns {
+                guard column.count == 2 else {
+                    full(column[0].text)
+                    continue
+                }
+                let lines = column.map { string($0.text, Self.stackedFont, 0) }
+                let width = ceil(lines.map { $0.size().width }.max() ?? 0)
+                let lineHeight: CGFloat = 10.5
+                parts.append(
+                    (
+                        width,
+                        { x in
+                            let top = (height - lineHeight * 2) / 2
+                            for (index, line) in lines.enumerated() {
+                                // Each line's box is taller than its digits; draw it up by the difference.
+                                let y = top + lineHeight * CGFloat(index) - 1
+                                line.draw(at: NSPoint(x: x + width - line.size().width, y: y))
+                            }
+                        }
+                    ))
+            }
+        case .labeled:
+            for reading in readings {
+                let caption = string(reading.caption, Self.captionFont, 0.5)
+                let value = string(reading.value, Self.labeledFont, 0)
+                let width = ceil(max(caption.size().width, value.size().width))
+                parts.append(
+                    (
+                        width,
+                        { x in
+                            caption.draw(at: NSPoint(x: x + (width - caption.size().width) / 2, y: 1.5))
+                            value.draw(at: NSPoint(x: x + (width - value.size().width) / 2, y: 7.5))
+                        }
+                    ))
+            }
+        }
+        let gap: CGFloat = 7
+        let width = parts.map(\.width).reduce(0, +) + gap * CGFloat(max(parts.count - 1, 0))
+        let image = NSImage(size: NSSize(width: width, height: height), flipped: true) { _ in
+            var x: CGFloat = 0
+            for part in parts {
+                part.draw(x)
+                x += part.width + gap
             }
             return true
         }
@@ -201,19 +345,19 @@ struct MenuBarDisplay: Equatable {
         return image
     }
 
-    /// The icon and two stacked lines as the one image the status item draws: a status item has
-    /// one image and one line of title. `textColor` is the menu bar's text color for a Debug build,
-    /// whose image is not a template.
-    @MainActor func stackedItemImage(debug: Bool = isDebugBuild, textColor: NSColor = .labelColor) -> NSImage? {
+    /// The icon and the readings as the one image the status item draws when its title cannot
+    /// show them (`drawsTitle`), and Settings' preview always. `textColor` is the menu bar's text
+    /// color for a Debug build, whose image is not a template.
+    @MainActor func itemImage(debug: Bool = isDebugBuild, textColor: NSColor = .labelColor) -> NSImage? {
         guard let icon = image(debug: debug) else { return nil }
-        let text = Self.stackedImage(lines, color: debug ? textColor : nil)
+        guard !readings.isEmpty else { return icon }
+        let text = readingsImage(color: debug ? textColor : nil)
         let gap: CGFloat = 4
         let size = NSSize(width: icon.size.width + gap + text.size.width, height: text.size.height)
         let composite = NSImage(size: size, flipped: false) { _ in
             icon.draw(
                 in: NSRect(
-                    x: 0, y: (size.height - icon.size.height) / 2, width: icon.size.width,
-                    height: icon.size.height))
+                    x: 0, y: (size.height - icon.size.height) / 2, width: icon.size.width, height: icon.size.height))
             text.draw(in: NSRect(x: icon.size.width + gap, y: 0, width: text.size.width, height: text.size.height))
             return true
         }

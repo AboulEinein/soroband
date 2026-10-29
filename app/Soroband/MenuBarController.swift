@@ -59,16 +59,16 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         pendingRedraw = nil
         lastRedraw = .now
         drawn = new
-        if display.lines.count > 1 {
+        if display.drawsTitle {
+            button.image = display.image()
+            button.title = display.text.map { " \($0)" } ?? ""
+        } else {
             var textColor = NSColor.labelColor
             button.effectiveAppearance.performAsCurrentDrawingAppearance {
                 textColor = NSColor(cgColor: NSColor.labelColor.cgColor) ?? .labelColor
             }
-            button.image = display.stackedItemImage(textColor: textColor)
+            button.image = display.itemImage(textColor: textColor)
             button.title = ""
-        } else {
-            button.image = display.image()
-            button.title = display.text.map { " \($0)" } ?? ""
         }
         button.setAccessibilityLabel(display.accessibilityLabel())
     }

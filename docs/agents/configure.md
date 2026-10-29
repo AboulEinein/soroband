@@ -12,7 +12,7 @@ soroband config get reset_hour --json # the value with its schema
 soroband config set reset_hour 4      # prints "reset_hour = 4"
 ```
 
-`soroband config list --json` is the authority on which settings exist. Each entry has `key`, `type`, `default`, `value`, `is_default`, `description`, and `problem` when the file holds a value Soroband cannot use (it then uses the default and says why). An `integer` setting also has `min` and `max`; a `choice` setting has `options`, the words it accepts.
+`soroband config list --json` is the authority on which settings exist. Each entry has `key`, `type`, `default`, `value`, `is_default`, `description`, and `problem` when the file holds a value Soroband cannot use (it then uses the default and says why). An `integer` setting also has `min` and `max`; a `choice` setting has `options`, the words it accepts; a `list` setting has `options` and `max`, how many of them it takes.
 
 Exit status: 0 on success; 2 for an unknown key or a value outside the setting's type or range (nothing is saved); 1 when the settings file cannot be read or written. An unreadable `settings.json` is never overwritten: the command reports it, and you should show the user the error and ask before deleting or fixing the file.
 
@@ -22,8 +22,8 @@ Exit status: 0 on success; 2 for an unknown key or a value outside the setting's
 | --- | --- | --- | --- |
 | `reset_hour` | integer 0–23 | 0 | Hour of the day, local time, when "today" starts again. History is not affected: changing it only moves the start of today. |
 | `menu_bar_scope` | choice: `network`, `all` | `network` | Whose usage today the menu bar item counts: the current network's or every network's. |
-| `menu_bar_top` | choice: `total`, `download`, `upload`, `speed`, `speed_down`, `speed_up`, `none` | `total` | The menu bar item's first line: today's total, download or upload, the live speed (both directions, download or upload), or nothing. |
-| `menu_bar_bottom` | the same as `menu_bar_top` | `none` | The second line, stacked under the first in a smaller size. With both `none` the item is its icon alone. |
+| `menu_bar_readings` | list: up to 4 of `total`, `download`, `upload`, `speed_down`, `speed_up`, separated by commas, or `none` | `total` | What the menu bar item shows beside its icon, in order: today's total, download or upload, or the live download or upload speed. `none` leaves the icon alone. Example: `soroband config set menu_bar_readings download,upload`. |
+| `menu_bar_style` | choice: `stacked`, `labeled`, `inline` | `stacked` | How the readings are drawn: in pairs, the first on top, in a smaller size; each under a small caption; or on one line. |
 
 The app's Settings window changes the same settings, with the same checks. Launch at login is not a setting here: macOS keeps it (System Settings › General › Login Items), and the app's Settings window turns it on and off.
 

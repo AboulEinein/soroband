@@ -74,13 +74,12 @@ final class Usage {
 
     /// Rereads the settings the app shows, after `soroband config set` or a change in Settings.
     func reloadSettings() {
-        let line = { (key: String, fallback: MenuBarLine) in
-            Core.setting(key).flatMap(MenuBarLine.init(rawValue:)) ?? fallback
-        }
         menuBarLayout = MenuBarLayout(
             scope: Core.setting(MenuBarScope.settingKey).flatMap(MenuBarScope.init(rawValue:)) ?? .network,
-            top: line(MenuBarLayout.topKey, MenuBarLayout.default.top),
-            bottom: line(MenuBarLayout.bottomKey, MenuBarLayout.default.bottom))
+            readings: Core.setting(MenuBarLayout.readingsKey).flatMap(MenuBarLayout.readings(from:))
+                ?? MenuBarLayout.default.readings,
+            style: Core.setting(MenuBarLayout.styleKey).flatMap(MenuBarStyle.init(rawValue:))
+                ?? MenuBarLayout.default.style)
         resetHour = Core.setting("reset_hour").flatMap(Int.init) ?? 0
         onChange?()
     }
@@ -89,8 +88,8 @@ final class Usage {
     func setMenuBarLayout(_ layout: MenuBarLayout) {
         let saved =
             Core.setSetting(MenuBarScope.settingKey, to: layout.scope.rawValue)
-            && Core.setSetting(MenuBarLayout.topKey, to: layout.top.rawValue)
-            && Core.setSetting(MenuBarLayout.bottomKey, to: layout.bottom.rawValue)
+            && Core.setSetting(MenuBarLayout.readingsKey, to: layout.readingsValue)
+            && Core.setSetting(MenuBarLayout.styleKey, to: layout.style.rawValue)
         if !saved { NSLog("Soroband: the menu bar layout was not saved") }
         reloadSettings()
     }

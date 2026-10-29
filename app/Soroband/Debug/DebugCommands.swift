@@ -263,8 +263,9 @@ struct DebugState: Encodable {
 
     struct MenuBar: Encodable {
         let scope: String
-        let top: String
-        let bottom: String
+        /// As `menu_bar_readings` stores them.
+        let readings: String
+        let style: String
         let symbol: String?
         let text: String?
     }
@@ -317,8 +318,8 @@ struct DebugState: Encodable {
             menuBarText: MenuBarController.shared.display?.text ?? "",
             menuBar: MenuBar(
                 scope: Usage.shared.menuBarLayout.scope.rawValue,
-                top: Usage.shared.menuBarLayout.top.rawValue,
-                bottom: Usage.shared.menuBarLayout.bottom.rawValue,
+                readings: Usage.shared.menuBarLayout.readingsValue,
+                style: Usage.shared.menuBarLayout.style.rawValue,
                 symbol: MenuBarController.shared.display?.symbol,
                 text: MenuBarController.shared.display?.text),
             popoverShown: MenuBarController.shared.isPopoverShown,
