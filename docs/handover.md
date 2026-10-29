@@ -58,8 +58,8 @@ The state of the project for whoever picks it up next. Read this file, then the 
 
 1. **Install the dogfood build.** `scripts/install.sh`. The installed app replaces `/Applications/Soroband.app`; quit any other Soroband first so only one item shows.
 2. **Popover by hand.** Click the menu bar item: the popover opens under it; click elsewhere and it closes; open it and click the item again: it closes and stays closed. Switch Apps and Networks, flip All networks, click the gear (Settings opens), and the power button (Soroband quits; reopen it).
-3. **Settings by hand.** Change Menu bar shows to each option and back; set Daily counter resets at to another hour and back; rename a network and press Return; the popover shows the new name.
-4. **Launch at login.** Turn it on in Settings › General. System Settings › General › Login Items lists Soroband. Log out and in: Soroband starts. (Debug builds outside `/Applications` report "macOS cannot find this copy", so this needs the installed build.)
+3. **Settings by hand.** In Menu Bar, pick readings, reorder them, try each style and Count today on: the menu bar item follows each change, and Revert Changes restores what it showed when the pane opened. In General, set A new day starts at to another hour and back. In Networks, rename a network and press Return, and pick a color: the popover shows the new name and color, and an open History window shows them with its next refresh.
+4. **Launch at login.** Turn on Open at login in Settings › General. System Settings › General › Login Items lists Soroband. Log out and in: Soroband starts. (Debug builds outside `/Applications` report "macOS cannot find this copy", so this needs the installed build.)
 5. **First run.** If Location was never answered for the installed app, the Welcome window opens once at launch; Allow Location Access shows the macOS prompt.
 6. **⌘,** with the popover or Settings in front opens Soroband Settings, not an empty window.
 7. **The week.** Use it daily for a week; write each issue into the ledger's follow-ups.
