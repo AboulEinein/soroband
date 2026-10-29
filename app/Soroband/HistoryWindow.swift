@@ -147,6 +147,10 @@ final class HistoryModel {
     private var firstHours: [Int64?: Date] = [:]
     /// Reads the database: `Core.history`, or a stand-in in tests.
     private let read: @Sendable (HistoryQuery) -> HistoryData?
+    /// Reads the registry again at each answer, so names and colors changed in Settings show at the
+    /// next refresh: `Core.networks`, or a stand-in in tests. An empty answer (a failed read) keeps
+    /// the registry History has.
+    private let readRegistry: () -> [RegisteredNetwork]
     /// Drops an answer when a newer query was sent while it was read.
     private var generation = 0
 
@@ -162,9 +166,11 @@ final class HistoryModel {
 
     init(
         range: HistoryRange, anchor: Date, network: Int64?, currentNetwork: Int64?, registry: [RegisteredNetwork],
-        read: @escaping @Sendable (HistoryQuery) -> HistoryData? = Core.history
+        read: @escaping @Sendable (HistoryQuery) -> HistoryData? = Core.history,
+        readRegistry: @escaping () -> [RegisteredNetwork] = Core.networks
     ) {
         self.read = read
+        self.readRegistry = readRegistry
         self.currentNetwork = currentNetwork
         self.range = range
         self.anchor = anchor
@@ -253,6 +259,8 @@ final class HistoryModel {
             firstHours[query.network] = Date(timeIntervalSince1970: TimeInterval(first))
         }
         self.query = query
+        let fresh = readRegistry()
+        if !fresh.isEmpty, fresh != registry { registry = fresh }
         content = HistoryContent.make(
             range: range, query: query, data: data ?? .empty, registry: registry, now: .now, calendar: calendar)
         onChange?()

@@ -46,4 +46,21 @@ struct HistoryModelTests {
                 == Calendar.current.startOfDay(
                     for: Date(timeIntervalSince1970: 1_735_689_600)))
     }
+
+    /// History runs in its own process: a color or name changed in Settings reaches it at its
+    /// next refresh, and a failed registry read keeps what it had.
+    @Test func eachRefreshRereadsTheRegistry() {
+        let home = RegisteredNetwork(id: 1, key: "wifi:Home", name: "Home", kind: .wifi, lastUsed: nil)
+        var picked = home
+        picked.color = 3
+        nonisolated(unsafe) var answer = [picked]
+        let model = HistoryModel(
+            range: .week, anchor: .now, network: nil, currentNetwork: nil, registry: [home],
+            read: Reader().read, readRegistry: { answer })
+        model.loadNow()
+        #expect(model.registry == [picked])
+        answer = []
+        model.loadNow()
+        #expect(model.registry == [picked], "a failed read keeps the registry")
+    }
 }
