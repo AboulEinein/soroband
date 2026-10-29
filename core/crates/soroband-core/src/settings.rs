@@ -18,15 +18,25 @@ pub const FILE_NAME: &str = "settings.json";
 
 /// Key of the hour of the day, local time, at which the daily counter resets.
 pub const RESET_HOUR: &str = "reset_hour";
-/// Key of what the menu bar item shows.
-pub const MENU_BAR: &str = "menu_bar";
-
-/// The values of [`MENU_BAR`].
-pub const MENU_BAR_OPTIONS: &[&str] = &["today_network", "today_all", "speed", "icon"];
-/// Key of which of today's bytes the menu bar item counts, when it shows a day's usage.
-pub const MENU_BAR_COUNT: &str = "menu_bar_count";
-/// The values of [`MENU_BAR_COUNT`].
-pub const MENU_BAR_COUNT_OPTIONS: &[&str] = &["total", "download", "upload", "both"];
+/// Key of whose usage the menu bar item counts: the current network's or every network's.
+pub const MENU_BAR_SCOPE: &str = "menu_bar_scope";
+/// The values of [`MENU_BAR_SCOPE`].
+pub const MENU_BAR_SCOPE_OPTIONS: &[&str] = &["network", "all"];
+/// Keys of the menu bar item's two lines. With one line shown it is drawn at the menu bar's
+/// size; with two they are stacked in a smaller size; with none the item is its icon alone.
+pub const MENU_BAR_TOP: &str = "menu_bar_top";
+pub const MENU_BAR_BOTTOM: &str = "menu_bar_bottom";
+/// What a menu bar line can show: today's bytes (total, download, upload), the live speed (both
+/// directions, download, upload), or nothing.
+pub const MENU_BAR_LINE_OPTIONS: &[&str] = &[
+    "total",
+    "download",
+    "upload",
+    "speed",
+    "speed_down",
+    "speed_up",
+    "none",
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
@@ -69,24 +79,31 @@ pub const SCHEMA: &[Setting] = &[
                       History is not affected.",
     },
     Setting {
-        key: MENU_BAR,
+        key: MENU_BAR_SCOPE,
         kind: Kind::Choice {
-            options: MENU_BAR_OPTIONS,
-            default: "today_network",
+            options: MENU_BAR_SCOPE_OPTIONS,
+            default: "network",
         },
-        description: "What the menu bar item shows next to the network icon: today_network \
-                      (today on the current network), today_all (today on all networks), \
-                      speed (live download and upload speed) or icon (the icon alone).",
+        description: "Whose usage today the menu bar item counts: network (the current \
+                      network) or all (every network).",
     },
     Setting {
-        key: MENU_BAR_COUNT,
+        key: MENU_BAR_TOP,
         kind: Kind::Choice {
-            options: MENU_BAR_COUNT_OPTIONS,
+            options: MENU_BAR_LINE_OPTIONS,
             default: "total",
         },
-        description: "Which of today's bytes the menu bar item shows when menu_bar is \
-                      today_network or today_all: total (download plus upload), download, \
-                      upload or both (download and upload side by side).",
+        description: "The menu bar item's first line: total, download or upload (today's \
+                      bytes), speed, speed_down or speed_up (the live speed), or none.",
+    },
+    Setting {
+        key: MENU_BAR_BOTTOM,
+        kind: Kind::Choice {
+            options: MENU_BAR_LINE_OPTIONS,
+            default: "none",
+        },
+        description: "The menu bar item's second line, stacked under the first in a smaller \
+                      size; the same options as menu_bar_top.",
     },
 ];
 
@@ -260,7 +277,10 @@ fn check(setting: &Setting, value: &Value) -> Result<Value, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Error, MENU_BAR, MENU_BAR_COUNT, RESET_HOUR, Settings};
+    use super::{
+        Error, MENU_BAR_BOTTOM, MENU_BAR_LINE_OPTIONS, MENU_BAR_SCOPE, MENU_BAR_TOP, RESET_HOUR,
+        Settings,
+    };
     use std::path::PathBuf;
 
     fn temp_file(name: &str) -> PathBuf {
@@ -383,54 +403,47 @@ mod tests {
         }
     }
 
+    /// A fresh install shows today's total on the current network on one line, as before the
+    /// two lines existed.
     #[test]
-    fn menu_bar_shows_today_on_the_current_network_unless_set() {
-        let mut settings = Settings::default();
-        assert_eq!(settings.get(MENU_BAR).unwrap().value, "today_network");
-        for option in ["today_all", "speed", "icon", "today_network"] {
-            settings.set(MENU_BAR, option).unwrap();
-            assert_eq!(settings.get(MENU_BAR).unwrap().value, option);
-        }
+    fn menu_bar_shows_todays_total_on_the_current_network_on_one_line_unless_set() {
+        let settings = Settings::default();
+        assert_eq!(settings.get(MENU_BAR_SCOPE).unwrap().value, "network");
+        assert_eq!(settings.get(MENU_BAR_TOP).unwrap().value, "total");
+        assert_eq!(settings.get(MENU_BAR_BOTTOM).unwrap().value, "none");
     }
 
     #[test]
-    fn menu_bar_accepts_only_its_options() {
+    fn menu_bar_lines_accept_only_their_options() {
         let mut settings = Settings::default();
-        settings.set(MENU_BAR, "speed").unwrap();
-        for bad in ["Speed", "today", "", "4"] {
-            let error = settings.set(MENU_BAR, bad).unwrap_err().to_string();
+        for option in MENU_BAR_LINE_OPTIONS {
+            settings.set(MENU_BAR_BOTTOM, option).unwrap();
+            assert_eq!(settings.get(MENU_BAR_BOTTOM).unwrap().value, *option);
+        }
+        settings.set(MENU_BAR_TOP, "download").unwrap();
+        for bad in ["Download", "both", "", "4"] {
+            let error = settings.set(MENU_BAR_TOP, bad).unwrap_err().to_string();
             assert!(
-                error.contains("today_network, today_all, speed, icon"),
+                error.contains("total, download, upload, speed, speed_down, speed_up, none"),
                 "{bad:?}: {error}"
             );
         }
         assert_eq!(
-            settings.get(MENU_BAR).unwrap().value,
-            "speed",
+            settings.get(MENU_BAR_TOP).unwrap().value,
+            "download",
             "a refused value changes nothing"
         );
-    }
-
-    #[test]
-    fn menu_bar_counts_the_total_unless_set_and_accepts_only_its_options() {
-        let mut settings = Settings::default();
-        assert_eq!(settings.get(MENU_BAR_COUNT).unwrap().value, "total");
-        for option in ["download", "upload", "both", "total"] {
-            settings.set(MENU_BAR_COUNT, option).unwrap();
-            assert_eq!(settings.get(MENU_BAR_COUNT).unwrap().value, option);
-        }
-        let error = settings.set(MENU_BAR_COUNT, "rx").unwrap_err().to_string();
-        assert!(error.contains("total, download, upload, both"), "{error}");
+        assert!(settings.set(MENU_BAR_SCOPE, "today_all").is_err());
     }
 
     #[test]
     fn stored_menu_bar_value_from_a_hand_edit_falls_back_to_the_default() {
         let path = temp_file("menu-bar-hand-edit");
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(&path, r#"{"menu_bar": "rainbow"}"#).unwrap();
+        std::fs::write(&path, r#"{"menu_bar_top": "rainbow"}"#).unwrap();
         let settings = Settings::load(&path).unwrap();
-        assert_eq!(settings.get(MENU_BAR).unwrap().value, "today_network");
-        let current = settings.get(MENU_BAR).unwrap();
+        assert_eq!(settings.get(MENU_BAR_TOP).unwrap().value, "total");
+        let current = settings.get(MENU_BAR_TOP).unwrap();
         assert!(current.is_default);
         assert!(
             current

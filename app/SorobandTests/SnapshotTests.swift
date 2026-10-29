@@ -121,23 +121,30 @@ struct SnapshotTests {
 
     @Test func settingsGeneral() throws {
         let launch = LaunchAtLogin(service: .init(status: { .enabled }, register: {}, unregister: {}))
-        let view = GeneralSettings(usage: Usage(), launchAtLogin: launch, now: Self.now)
+        let view = GeneralSettings(usage: Usage(), launchAtLogin: launch)
             .background(Color(nsColor: .windowBackgroundColor))
-        try Snapshot.verify(view, named: "settings-general", size: CGSize(width: 560, height: 380))
+        try Snapshot.verify(view, named: "settings-general", size: CGSize(width: 560, height: 300))
     }
 
-    /// The preview for each count and for live speed, on the sample numbers.
+    /// The designer on its default layout, with the sample numbers before the first count.
+    @Test func settingsMenuBar() throws {
+        let view = MenuBarSettings(usage: Usage(), now: Self.now)
+            .background(Color(nsColor: .windowBackgroundColor))
+        try Snapshot.verify(view, named: "settings-menu-bar", size: CGSize(width: 560, height: 400))
+    }
+
+    /// The preview of one and two lines: usage, speed, both stacked, and the icon alone.
     @Test func menuBarPreviews() throws {
+        let layouts = [
+            MenuBarLayout(top: .total), MenuBarLayout(top: .download, bottom: .upload),
+            MenuBarLayout(top: .speedDown, bottom: .speedUp), MenuBarLayout(top: .total, bottom: .speed),
+            MenuBarLayout(top: .speed), MenuBarLayout(top: .none),
+        ]
         let previews = VStack(spacing: 8) {
-            ForEach(MenuBarCount.allCases) { count in
+            ForEach(layouts.indices, id: \.self) { index in
                 MenuBarPreview(
-                    display: MenuBarDisplay.make(
-                        mode: .todayNetwork, count: count, status: MenuBarPreview.sample, kind: .wifi),
+                    display: MenuBarDisplay.make(layout: layouts[index], status: MenuBarPreview.sample, kind: .wifi),
                     now: Self.now)
-            }
-            ForEach([MenuBarMode.speed, .icon]) { mode in
-                MenuBarPreview(
-                    display: MenuBarDisplay.make(mode: mode, status: MenuBarPreview.sample, kind: .wifi), now: Self.now)
             }
         }
         .padding(16)

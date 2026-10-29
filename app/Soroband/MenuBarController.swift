@@ -38,12 +38,11 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     func update() {
         let usage = Usage.shared
         let display = MenuBarDisplay.make(
-            mode: usage.menuBarMode, count: usage.menuBarCount, status: usage.status,
-            kind: NetworkMonitor.shared.current?.kind)
+            layout: usage.menuBarLayout, status: usage.status, kind: NetworkMonitor.shared.current?.kind)
         guard display != self.display, let button = item?.button else { return }
         let new = MenuBarDisplay.Drawn(
-            display: display, mode: usage.menuBarMode, count: usage.menuBarCount, network: usage.status.networkID,
-            total: MenuBarDisplay.total(mode: usage.menuBarMode, count: usage.menuBarCount, status: usage.status))
+            display: display, layout: usage.menuBarLayout, network: usage.status.networkID,
+            total: MenuBarDisplay.total(layout: usage.menuBarLayout, status: usage.status))
         let delay = MenuBarDisplay.redrawDelay(from: drawn, to: new, lastRedraw: lastRedraw, now: .now)
         if delay > 0 {
             // The latest numbers are read again when it fires.
@@ -60,8 +59,17 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         pendingRedraw = nil
         lastRedraw = .now
         drawn = new
-        button.image = display.image()
-        button.title = display.text.map { " \($0)" } ?? ""
+        if display.lines.count > 1 {
+            var textColor = NSColor.labelColor
+            button.effectiveAppearance.performAsCurrentDrawingAppearance {
+                textColor = NSColor(cgColor: NSColor.labelColor.cgColor) ?? .labelColor
+            }
+            button.image = display.stackedItemImage(textColor: textColor)
+            button.title = ""
+        } else {
+            button.image = display.image()
+            button.title = display.text.map { " \($0)" } ?? ""
+        }
         button.setAccessibilityLabel(display.accessibilityLabel())
     }
 

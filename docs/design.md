@@ -94,7 +94,7 @@ The spike does none of this (it holds 60 days of fake rows in memory and rescans
 
 The popover and History follow the "Warm" direction (`mockups/warm.html`), chosen from three by the user.
 
-**Menu bar item:** network type icon + today's total on the current network, as crossed its interfaces. Other options (the `menu_bar` setting): today on all networks, live speed, or icon only. Either "today" option shows the total, download, upload, or both side by side (the `menu_bar_count` setting). While the engine has stopped it reads "Not counting".
+**Menu bar item:** network type icon and up to two lines, each today's total, download or upload as crossed the interfaces, or the live speed (both directions, download or upload), counting the current network or every network (the menu bar layout: `menu_bar_scope`, `menu_bar_top`, `menu_bar_bottom`). The default is one line, today's total on the current network. One line is drawn at the menu bar's size; two are stacked at 9.5 pt, right-aligned, drawn with the icon as one template image (a status item has one image and one line of title). While the engine has stopped it reads "Not counting".
 
 **Popover** (click the item):
 - Hero card, tinted with the current network's color: name, type, when the Mac joined it, live speed, today's total in large type, down/up split, today on all networks, and today's hours as bars from the reset hour (24, or 23 and 25 when clocks change) (hours to come flat, the hour in progress ringed). The past hours are read from the database when the popover opens and at each new hour; the hour in progress is today's live total less the stored hours before it, so it does not trail the total.
@@ -130,7 +130,8 @@ The popover and History follow the "Warm" direction (`mockups/warm.html`), chose
 - Cost: one transparent, click-through panel that redraws only while a moment animates.
 
 **Settings:**
-- General: a live preview of the menu bar item as the chosen settings draw it (today's numbers, or sample ones before the first count), menu bar display and count, reset hour, launch at login.
+- General: reset hour, launch at login.
+- Menu Bar: a designer for the menu bar layout. Readings (today's total, download, upload; speed, download speed, upload speed) are dragged into a top and a bottom line, or clicked to fill the first empty one; a live preview draws the item as designed (today's numbers, or sample ones before the first count); Save applies it, Revert drops it, Default goes back to one line of today's total.
 - Island: master switch (off means a plain menu bar app), style (seamless or keep menu bar clear), each moment on/off, thresholds for data hog, background activity and large transfer, the pause action, full-screen behavior, built-in or all displays, and "send alerts as notifications" when the island is off.
 - Networks: rename, type.
 - Data: export CSV, show database.
