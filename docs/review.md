@@ -18,6 +18,7 @@ Brief for a pull request, used word for word:
 Review PR #<number> in AboulEinein/soroband with the pr-review skill, using --no-story --submit.
 The PR implements milestone <ID>. Its requirements are in docs/plan.md under <ID>, and the evidence it must show is in docs/verification.md under <ID>.
 Resolve each earlier blind-review thread you confirm as handled; reply on any you do not, saying what is still missing. Leave CodeRabbit's threads alone.
+Go through the checklist in docs/review.md.
 ```
 
 ## Rounds
@@ -90,3 +91,7 @@ The approach is in question, not the last fix, when a fixed finding comes back, 
    - where the advisor agrees or disagrees with the lead.
 4. **Propose the way forward**, with a recommendation: revise the requirement, rethink the approach from scratch, add the missing verification, or accept the finding with a recorded reason.
 5. **If the way forward needs no decision from the user** (a fix within the milestone's requirements and design), apply it and go back to the rounds. A second reassessment on the same root cause counts as needing a decision. Otherwise, first have any fixes already pushed reviewed (a round, or a direct review if they qualify), then set the ledger to `blocked (review: <cause>)` and stop the session; the user decides the next step.
+
+## Checklist
+
+- **Retired terms.** When the pull request renames or retires a term (in `GLOSSARY.md`'s _Avoid_ lists, or a setting, type or view it removes), search the whole repository for the old words, docs included; each hit outside the glossary's _Avoid_ list and the review logs is a finding. (#17, #18 and #19 each left one behind.)
