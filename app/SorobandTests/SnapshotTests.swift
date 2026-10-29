@@ -162,6 +162,18 @@ struct SnapshotTests {
         try Snapshot.verify(view, named: "settings-networks", size: CGSize(width: 560, height: 400))
     }
 
+    /// The color picker of a network with a picked color (magenta, ringed) and of one without
+    /// (Automatic checked, naming its place's color).
+    @Test func networkColorPicker() throws {
+        let view = HStack(alignment: .top, spacing: 16) {
+            NetworkColorPicker(slot: 4, automaticSlot: 0, isPicked: true) { _ in }
+            NetworkColorPicker(slot: 1, automaticSlot: 1, isPicked: false) { _ in }
+        }
+        .padding(8)
+        .background(Color(nsColor: .windowBackgroundColor))
+        try Snapshot.verify(view, named: "settings-network-color-picker")
+    }
+
     @Test func onboarding() throws {
         let view = OnboardingView(done: {}).background(Color(nsColor: .windowBackgroundColor))
         try Snapshot.verify(view, named: "onboarding")

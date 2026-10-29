@@ -524,7 +524,7 @@ private struct NetworkEditor: View {
 }
 
 /// The palette's swatches, and Automatic for the color of the network's place in the list.
-private struct NetworkColorPicker: View {
+struct NetworkColorPicker: View {
     let slot: Int
     let automaticSlot: Int
     let isPicked: Bool

@@ -279,7 +279,8 @@ impl Store {
     }
 
     /// Moves every byte booked to network `from` into network `into` and removes `from` from
-    /// the registry, in one transaction.
+    /// the registry, in one transaction. `into` takes the color picked for `from` when it has
+    /// none of its own.
     pub fn merge_network(&mut self, from: i64, into: i64) -> Result<()> {
         let tx = self.conn.transaction()?;
         // `WHERE true` keeps SQLite from reading `ON CONFLICT` as part of a join.
@@ -299,6 +300,11 @@ impl Store {
             )?;
             tx.execute(&format!("DELETE FROM {table} WHERE network = ?1"), [from])?;
         }
+        tx.execute(
+            "UPDATE networks SET color = (SELECT color FROM networks WHERE id = ?1)
+             WHERE id = ?2 AND color IS NULL",
+            params![from, into],
+        )?;
         tx.execute("DELETE FROM networks WHERE id = ?1", [from])?;
         tx.commit()
     }
@@ -1046,6 +1052,24 @@ mod tests {
         );
         store.merge_network(cafe.id, home.id).unwrap();
         assert_eq!(store.network_colors().unwrap().get(&home.id), Some(&3));
+        // A network known by its router, colored before its name was readable, passes its color
+        // on when it merges into the named one, unless that one has its own.
+        let router = store
+            .join_network("wifi-router:2:0:0:1:2:3", "Wi-Fi", NetworkKind::Wifi)
+            .unwrap();
+        let office = store
+            .join_network("wifi:Office", "Office", NetworkKind::Wifi)
+            .unwrap();
+        store.set_network_color(router.id, Some(1)).unwrap();
+        store.merge_network(router.id, office.id).unwrap();
+        assert_eq!(store.network_colors().unwrap().get(&office.id), Some(&1));
+        let router = store
+            .join_network("wifi-router:2:0:0:4:5:6", "Wi-Fi", NetworkKind::Wifi)
+            .unwrap();
+        store.set_network_color(router.id, Some(2)).unwrap();
+        store.merge_network(router.id, home.id).unwrap();
+        assert_eq!(store.network_colors().unwrap().get(&home.id), Some(&3));
+        store.set_network_color(office.id, None).unwrap();
         assert!(store.set_network_color(home.id, None).unwrap());
         assert!(store.network_colors().unwrap().is_empty());
         assert!(
