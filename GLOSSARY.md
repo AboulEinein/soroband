@@ -192,7 +192,7 @@ _Avoid_: History button
 The line above the popover's tabs when the engine has failed ("Not counting"), the engine is in interface-only mode, or the self-check is degraded or overcount.
 
 **History window**:
-The window for usage over a range, by network and app: stat tiles, usage chart, apps, share by network and heatmap. It is the only window of the History process.
+The window for usage over a range, by network and app: headline card, Where it went (share by network), usage chart, apps and heatmap. It is the only window of the History process.
 
 **History process**:
 A second instance of Soroband.app, started with `--history`, that shows the History window, reads the database without starting the engine, and quits when the window closes. The menu bar app starts it, so History's memory never stays in the menu bar app.

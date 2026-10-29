@@ -52,7 +52,7 @@ struct HistoryView: View {
     }
 }
 
-/// The detail column: title, stat tiles, chart, apps, share by network and heatmap.
+/// The detail column: title, headline card, Where it went, chart, apps and heatmap.
 struct HistoryDetail: View {
     let content: HistoryContent
     @Binding var expandedApp: String?
