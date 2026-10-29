@@ -65,4 +65,24 @@ struct HistoryModelTests {
         model.loadNow()
         #expect(model.registry == [picked], "a failed read keeps the registry")
     }
+
+    /// While History is open, the next period or range it loads brings the registry as it is now.
+    @Test func anOpenWindowTakesTheRegistryWithItsNextAnswer() async throws {
+        final class Answer: @unchecked Sendable { var registry: [RegisteredNetwork] = [] }
+        let home = RegisteredNetwork(id: 1, key: "wifi:Home", name: "Home", kind: .wifi, lastUsed: nil)
+        let answer = Answer()
+        answer.registry = [home]
+        let model = HistoryModel(
+            range: .week, anchor: .now, network: nil, currentNetwork: nil, registry: [],
+            read: Reader().read, readRegistry: { answer.registry })
+        model.loadNow()
+        var picked = home
+        picked.color = 2
+        answer.registry = [picked]
+        model.select(range: .month)
+        for _ in 0..<200 where model.registry != [picked] {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(model.registry == [picked])
+    }
 }
