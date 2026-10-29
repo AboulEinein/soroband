@@ -239,6 +239,7 @@ Planned rounds: 2.
 | 9 | Opus | 2 Minor | `first look`: the lint took impossible dates and zero counts. |
 | CodeRabbit | CodeRabbit | 1 Minor | `first look`: the lint allowed `Critical` for CodeRabbit while the retros' header listed only `Major`, `Minor` and `Trivial`; the header now names `Critical`, which CodeRabbit can give. |
 | 10 | Opus | 1 Low | `first look`: record rows went into a fix commit after the PR was ready, against `review.md`'s CodeRabbit step 6, leaving the two logs disagreeing until this records commit. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`, on the records commit: the handover did not say #21's review had ended. |
 
 **Retro.** Planned 2 rounds; the blind loop took 10 and a direct review, and CodeRabbit raised 2 findings. Rounds 3 to 9 each found another edge of the records lint's Markdown parsing (separators, notes with commas, pipes in code spans, impossible dates, zero counts), the kind docs/review.md says to reassess; the self-test added in round 5 pinned each one but did not stop new ones, because the lint parses general Markdown for records that use a narrow form. The CodeRabbit CLI then found one more (a row without its opening pipe), and the user chose to merge the lint as it is. Next time a check meant to guard a narrow format starts drawing edge cases, narrow the check to the format instead of widening it to the general one. Record rows were also committed in fix commits after the PR was ready; `review.md` already says not to.
 
