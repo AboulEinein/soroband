@@ -73,6 +73,11 @@ enum Core {
         soroband_network_update(id, name, kind.rawValue)
     }
 
+    /// Sets network `id` to palette slot `color`, or back to its place's slot with nil.
+    static func setNetworkColor(id: Int64, color: Int?) -> Bool {
+        soroband_network_set_color(id, Int32(color ?? -1))
+    }
+
     /// Rereads the settings file.
     static func reloadSettings() {
         soroband_settings_reload()
@@ -177,7 +182,7 @@ struct Today: Codable, Equatable {
     let apps: [AppUsage]
 }
 
-/// A network in the registry, with the last hour it carried bytes.
+/// A network in the registry, with the last hour it carried bytes and the color picked for it.
 struct RegisteredNetwork: Codable, Equatable, Identifiable {
     let id: Int64
     let key: String
@@ -185,9 +190,18 @@ struct RegisteredNetwork: Codable, Equatable, Identifiable {
     let kind: NetworkKind
     /// Unix time of the start of the last hour it carried bytes; nil when never used.
     let lastUsed: Int64?
+    /// The palette slot the user picked; nil while it takes the slot of its place in the registry.
+    var color: Int?
+
+    /// `network` as it would be without a picked color.
+    static func unpicked(_ network: RegisteredNetwork) -> RegisteredNetwork {
+        var unpicked = network
+        unpicked.color = nil
+        return unpicked
+    }
 
     enum CodingKeys: String, CodingKey {
-        case id, key, name, kind
+        case id, key, name, kind, color
         case lastUsed = "last_used"
     }
 }

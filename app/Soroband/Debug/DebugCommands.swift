@@ -79,10 +79,18 @@ enum DebugCommands {
     }
 
     /// `update-network?name=Desk&kind=ethernet` renames the current network and sets its kind, as
-    /// the Networks settings will.
+    /// the Networks settings do; `color=3` picks its palette slot, `color=auto` clears the pick.
     private static func updateNetwork(_ url: URL) {
         let query = queryItems(url)
         guard let current = NetworkMonitor.shared.current else { return }
+        if let color = query["color"] {
+            guard color == "auto" || Int(color).map(NetworkColor.slots.indices.contains) == true else {
+                NSLog("soroband-debug: unknown color in %@", url.absoluteString)
+                return
+            }
+            Usage.shared.setNetworkColor(id: current.id, color: Int(color))
+            if query["name"] == nil, query["kind"] == nil { return }
+        }
         guard let kind = NetworkKind(rawValue: query["kind"] ?? current.kind.rawValue) else {
             NSLog("soroband-debug: unknown network kind in %@", url.absoluteString)
             return

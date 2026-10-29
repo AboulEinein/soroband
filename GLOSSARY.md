@@ -109,7 +109,7 @@ The moment the current network changes. The engine polls at once so bytes land o
 _Avoid_: path change (the event that may cause one)
 
 **Network color**:
-The categorical color slot a network takes in the order it was first seen, the same in every view.
+The categorical color slot a network takes, the same in every view: the one the user picked in Settings › Networks, or else the slot of its place in the order networks were first seen.
 
 **Last used**:
 The last hour a network carried bytes.

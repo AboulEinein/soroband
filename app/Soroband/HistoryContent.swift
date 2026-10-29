@@ -450,7 +450,7 @@ struct HistoryContent: Equatable {
                     network.id,
                     NetworkStyle(
                         id: network.id, name: network.name, kind: network.kind,
-                        slot: NetworkColor.slot(forIndex: index),
+                        slot: NetworkColor.slot(for: network, index: index),
                         label: label)
                 )
             })

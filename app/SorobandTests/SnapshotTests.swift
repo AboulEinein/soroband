@@ -156,7 +156,7 @@ struct SnapshotTests {
 
     @Test func settingsNetworks() throws {
         let view = NetworkSettings(
-            networks: Self.registry, current: 1, save: { _, _, _ in }, now: Self.now
+            networks: Self.registry, current: 1, save: { _, _, _ in }, setColor: { _, _ in }, now: Self.now
         )
         .background(Color(nsColor: .windowBackgroundColor))
         try Snapshot.verify(view, named: "settings-networks", size: CGSize(width: 560, height: 400))
