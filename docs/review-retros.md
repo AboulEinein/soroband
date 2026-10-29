@@ -218,7 +218,7 @@ Planned rounds: 2.
 | 7 | Opus | 2 Low | `fix regression`: History read the registry twice on open, once on the main thread; the refresh of an open window had no test. |
 | 8 | Opus | none | Checked 9f41f37. |
 
-**Retro.** Planned 2 rounds; it took 8 and three CodeRabbit reviews. Two of CodeRabbit's findings had been seen by blind reviewers and left out under the skill's nit cap. The History fix CodeRabbit asked for then took three rounds of its own, because it moved a database read into a timed path and was tested only on the path that opens the window. The Sonnet rounds found nothing in code where Opus rounds then did. [#21](https://github.com/AboulEinein/soroband/pull/21) and agent-skills#10 turn this into rules: no nit cap on behavior, check what the diff reaches, Opus for every round.
+**Retro.** Planned 2 rounds; it took 8 and three CodeRabbit reviews. Two of CodeRabbit's findings had been seen by blind reviewers and left out under the skill's nit cap. The History fix CodeRabbit asked for then took three rounds of its own, because it moved a database read into a timed path and was tested only on the path that opens the window. The Sonnet rounds found nothing in code where Opus rounds then did. [#21](https://github.com/AboulEinein/soroband/pull/21) and a PR to the `pr-review` skill turn this into rules: no nit cap on behavior, check what the diff reaches, Opus for every round.
 
 ## [#21](https://github.com/AboulEinein/soroband/pull/21) chore(review): close the gaps CodeRabbit kept finding after the blind loop (2026-10-29)
 
