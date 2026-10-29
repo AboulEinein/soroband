@@ -35,6 +35,7 @@ xcrun swift-format lint --strict --recursive app
 print "== install guard"
 scripts/verify/install-guard.sh
 print "== app (with snapshots)"
-scripts/build-core.sh arm64 >/dev/null
-xcodebuild -project app/Soroband.xcodeproj -scheme Soroband -derivedDataPath build/DerivedData test -quiet
+scripts/build-core.sh "$(uname -m)" >/dev/null
+xcodebuild -project app/Soroband.xcodeproj -scheme Soroband -derivedDataPath build/DerivedData \
+  -destination "platform=macOS,arch=$(uname -m)" test -quiet
 print "prepush: all checks passed"
