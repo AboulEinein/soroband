@@ -42,7 +42,9 @@ struct MenuBarDisplayTests {
         #expect(lines(.upload) == ["↑ 206 MB"])
         #expect(lines(.download, .upload) == ["↓ 893 MB", "↑ 206 MB"])
         #expect(lines(.speedDown, .speedUp) == ["↓ 137 KB/s", "↑ 42 KB/s"])
-        #expect(lines(.speed) == ["↓ 137 KB/s ↑ 42 KB/s"])
+        // Both speeds alone stack; beside a usage line they share one.
+        #expect(lines(.speed) == ["↓ 137 KB/s", "↑ 42 KB/s"])
+        #expect(lines(.none, .speed) == ["↓ 137 KB/s", "↑ 42 KB/s"])
         // Usage and speed together: today's total over the live speed.
         #expect(lines(.total, .speed) == ["1.1 GB", "↓ 137 KB/s ↑ 42 KB/s"])
         // An empty top line leaves the bottom one alone on the first line.

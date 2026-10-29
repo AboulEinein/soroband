@@ -110,6 +110,12 @@ struct MenuBarDisplay: Equatable {
         }
         if status.state == .starting { return MenuBarDisplay(symbol: symbol, lines: []) }
         let today = layout.scope == .network ? status.todayNetworkInterfaces : status.todayInterfaces
+        // Both speeds alone stack, download over upload, rather than one wide line.
+        if layout.lines == [.speed] {
+            return MenuBarDisplay(
+                symbol: symbol,
+                lines: [MenuBarLine.speedDown, .speedUp].compactMap { $0.text(today: today, speed: status.speed) })
+        }
         return MenuBarDisplay(
             symbol: symbol, lines: layout.lines.compactMap { $0.text(today: today, speed: status.speed) })
     }

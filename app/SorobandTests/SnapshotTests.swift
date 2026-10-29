@@ -128,7 +128,7 @@ struct SnapshotTests {
 
     /// The designer on its default layout, with the sample numbers before the first count.
     @Test func settingsMenuBar() throws {
-        let view = MenuBarSettings(usage: Usage(), now: Self.now)
+        let view = MenuBarSettings(usage: Usage(), now: Self.now, kind: .wifi)
             .background(Color(nsColor: .windowBackgroundColor))
         try Snapshot.verify(view, named: "settings-menu-bar", size: CGSize(width: 560, height: 400))
     }

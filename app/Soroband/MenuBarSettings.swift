@@ -4,8 +4,9 @@ import SwiftUI
 /// with a live preview. Nothing changes in the menu bar until Save.
 struct MenuBarSettings: View {
     let usage: Usage
-    /// The preview's clock.
+    /// The preview's clock and network kind.
     var now = Date.now
+    var kind: NetworkKind = NetworkMonitor.shared.current?.kind ?? .wifi
     /// The layout being designed; nil while it is the saved one.
     @State private var draft: MenuBarLayout?
 
@@ -23,7 +24,7 @@ struct MenuBarSettings: View {
                 Text("Preview").font(.headline)
                 MenuBarPreview(
                     display: MenuBarDisplay.make(
-                        layout: layout, status: previewStatus, kind: NetworkMonitor.shared.current?.kind ?? .wifi),
+                        layout: layout, status: previewStatus, kind: kind),
                     now: now)
             }
 
@@ -198,7 +199,7 @@ struct MenuBarPreview: View {
                 Image(systemName: display.symbol)
                 if display.lines.count > 1 {
                     VStack(alignment: .trailing, spacing: -1) {
-                        ForEach(display.lines, id: \.self) { Text($0) }
+                        ForEach(display.lines.indices, id: \.self) { Text(display.lines[$0]) }
                     }
                     .font(Font(MenuBarDisplay.stackedFont))
                 } else if let text = display.text {
