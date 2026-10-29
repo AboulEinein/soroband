@@ -335,6 +335,23 @@ pub unsafe extern "C" fn soroband_network_update(
         })
 }
 
+/// Sets the color of network `id` to slot `color` of the app's palette, or back to the slot of
+/// its place in the registry when `color` is negative. Returns false when there is no such
+/// network or the engine was not started.
+#[unsafe(no_mangle)]
+pub extern "C" fn soroband_network_set_color(id: i64, color: i32) -> bool {
+    let Some(running) = RUNNING.get() else {
+        return false;
+    };
+    let color = u8::try_from(color).ok();
+    lock(&running.store)
+        .set_network_color(id, color)
+        .unwrap_or_else(|error| {
+            eprintln!("soroband: cannot set the color of network {id}: {error}");
+            false
+        })
+}
+
 /// Rereads the settings file; call when `soroband config set` posts its notification.
 #[unsafe(no_mangle)]
 pub extern "C" fn soroband_settings_reload() {
@@ -556,7 +573,8 @@ fn export_csv_file(database: &Path, query: &str, path: &Path) -> Result<u64, Str
 }
 
 /// Every network in the registry as a JSON array of
-/// `{"id", "key", "name", "kind", "last_used": Unix time of the last hour it carried bytes, or null}`,
+/// `{"id", "key", "name", "kind", "last_used": Unix time of the last hour it carried bytes, or null,
+/// "color": the palette slot the user picked, or null}`,
 /// in the order they were first seen. Reads the database; null when no database is open (neither
 /// [`soroband_engine_start`] nor [`soroband_database_open`] ran) or the read fails.
 ///
@@ -565,15 +583,14 @@ fn export_csv_file(database: &Path, query: &str, path: &Path) -> Result<u64, Str
 pub extern "C" fn soroband_networks_json() -> *mut c_char {
     let read = if let Some(running) = RUNNING.get() {
         let store = lock(&running.store);
-        store.networks().and_then(|n| Ok((n, store.last_used()?)))
+        registry(&store)
     } else if let Some(database) = DATABASE.get() {
-        Store::open_read_only(database)
-            .and_then(|store| Ok((store.networks()?, store.last_used()?)))
+        Store::open_read_only(database).and_then(|store| registry(&store))
     } else {
         return std::ptr::null_mut();
     };
     match read {
-        Ok((networks, last_used)) => owned_c_string(&networks_json(&networks, &last_used)),
+        Ok(registry) => owned_c_string(&networks_json(&registry)),
         Err(error) => {
             eprintln!("soroband: cannot read the networks: {error}");
             std::ptr::null_mut()
@@ -581,12 +598,25 @@ pub extern "C" fn soroband_networks_json() -> *mut c_char {
     }
 }
 
-fn networks_json(
-    networks: &[crate::store::Network],
-    last_used: &std::collections::BTreeMap<i64, i64>,
-) -> String {
+/// The networks, when each was last used, and the colors picked for them.
+struct Registry {
+    networks: Vec<crate::store::Network>,
+    last_used: std::collections::BTreeMap<i64, i64>,
+    colors: std::collections::BTreeMap<i64, u8>,
+}
+
+fn registry(store: &Store) -> crate::store::Result<Registry> {
+    Ok(Registry {
+        networks: store.networks()?,
+        last_used: store.last_used()?,
+        colors: store.network_colors()?,
+    })
+}
+
+fn networks_json(registry: &Registry) -> String {
     Value::Array(
-        networks
+        registry
+            .networks
             .iter()
             .map(|n| {
                 json!({
@@ -594,7 +624,8 @@ fn networks_json(
                     "key": n.key,
                     "name": n.name,
                     "kind": n.kind.as_str(),
-                    "last_used": last_used.get(&n.id),
+                    "last_used": registry.last_used.get(&n.id),
+                    "color": registry.colors.get(&n.id),
                 })
             })
             .collect(),
@@ -1273,8 +1304,8 @@ mod tests {
     }
 
     #[test]
-    fn networks_list_carries_when_each_was_last_used() {
-        use super::networks_json;
+    fn networks_list_carries_when_each_was_last_used_and_its_color() {
+        use super::{Registry, networks_json};
         use crate::store::{Network, NetworkKind};
         let network = |id, name: &str| Network {
             id,
@@ -1282,17 +1313,17 @@ mod tests {
             name: name.into(),
             kind: NetworkKind::Wifi,
         };
-        let last_used = [(1, 7200)].into_iter().collect();
-        let json: serde_json::Value = serde_json::from_str(&networks_json(
-            &[network(1, "Home"), network(2, "Cafe")],
-            &last_used,
-        ))
+        let json: serde_json::Value = serde_json::from_str(&networks_json(&Registry {
+            networks: vec![network(1, "Home"), network(2, "Cafe")],
+            last_used: [(1, 7200)].into_iter().collect(),
+            colors: [(2, 4)].into_iter().collect(),
+        }))
         .unwrap();
         assert_eq!(
             json,
             serde_json::json!([
-                {"id": 1, "key": "wifi:Home", "name": "Home", "kind": "wifi", "last_used": 7200},
-                {"id": 2, "key": "wifi:Cafe", "name": "Cafe", "kind": "wifi", "last_used": null},
+                {"id": 1, "key": "wifi:Home", "name": "Home", "kind": "wifi", "last_used": 7200, "color": null},
+                {"id": 2, "key": "wifi:Cafe", "name": "Cafe", "kind": "wifi", "last_used": null, "color": 4},
             ])
         );
     }

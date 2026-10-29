@@ -26,7 +26,8 @@ use std::path::Path;
 pub use rusqlite::Error;
 pub type Result<T> = rusqlite::Result<T>;
 
-const SCHEMA_VERSION: i64 = 2;
+const SCHEMA_VERSION: i64 = 3;
+/// The tables as of version 2; [`NETWORK_COLOR`] brings them to the current version.
 const SCHEMA: &str = "
     CREATE TABLE networks (
         id INTEGER PRIMARY KEY,
@@ -78,6 +79,10 @@ const DAY_ROLLUP: &str = "
         SELECT hour - hour % 86400, network, app, SUM(rx), SUM(tx) FROM usage
         GROUP BY hour - hour % 86400, network, app;
 ";
+
+/// From version 2: the color the user picked for a network, a slot of the app's palette; NULL
+/// while the network takes the slot of its place in the registry.
+const NETWORK_COLOR: &str = "ALTER TABLE networks ADD COLUMN color INTEGER;";
 
 /// Seconds in a UTC day, the unit of `usage_day`.
 pub const DAY: i64 = 86_400;
@@ -166,12 +171,17 @@ impl Store {
         match version {
             0 => {
                 conn.execute_batch(&format!(
-                    "BEGIN; {SCHEMA} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
+                    "BEGIN; {SCHEMA} {NETWORK_COLOR} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
                 ))?;
             }
             1 => {
                 conn.execute_batch(&format!(
-                    "BEGIN; {DAY_ROLLUP} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
+                    "BEGIN; {DAY_ROLLUP} {NETWORK_COLOR} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
+                ))?;
+            }
+            2 => {
+                conn.execute_batch(&format!(
+                    "BEGIN; {NETWORK_COLOR} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
                 ))?;
             }
             SCHEMA_VERSION => {}
@@ -300,6 +310,26 @@ impl Store {
             params![id, name, kind.as_str()],
         )?;
         Ok(changed == 1)
+    }
+
+    /// Sets the color slot of network `id`, or gives it back the slot of its place in the
+    /// registry with `None`. Returns false when there is no such network.
+    pub fn set_network_color(&mut self, id: i64, color: Option<u8>) -> Result<bool> {
+        let changed = self.conn.execute(
+            "UPDATE networks SET color = ?2 WHERE id = ?1",
+            params![id, color],
+        )?;
+        Ok(changed == 1)
+    }
+
+    /// The color slot the user picked for each network that has one, by network id.
+    pub fn network_colors(&self) -> Result<BTreeMap<i64, u8>> {
+        let mut statement = self
+            .conn
+            .prepare("SELECT id, color FROM networks WHERE color IS NOT NULL")?;
+        statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect()
     }
 
     pub fn network(&self, id: i64) -> Result<Option<Network>> {
@@ -873,10 +903,10 @@ mod tests {
         let path = temp_db("newer");
         drop(Store::open(&path).unwrap());
         let conn = rusqlite::Connection::open(&path).unwrap();
-        conn.pragma_update(None, "user_version", 3).unwrap();
+        conn.pragma_update(None, "user_version", 4).unwrap();
         drop(conn);
         let error = Store::open(&path).unwrap_err().to_string();
-        assert!(error.contains("schema version 3"), "{error}");
+        assert!(error.contains("schema version 4"), "{error}");
         assert!(Store::open_read_only(&path).is_err());
     }
 
@@ -985,5 +1015,42 @@ mod tests {
         store.add(&[usage(10_800, 1, "Mail", 100, 0)], &[]).unwrap();
         assert_eq!(days(&store)[0], (0, 1, 130, 3));
         assert!(Store::open_read_only(&path).is_ok());
+        assert!(store.network_colors().unwrap().is_empty());
+    }
+
+    /// A network keeps the color the user picked through renames and merges into it, and goes
+    /// back to its place's color when the pick is cleared.
+    #[test]
+    fn a_picked_color_is_kept_until_cleared() {
+        let path = temp_db("color");
+        {
+            // Version 2: before colors.
+            let conn = rusqlite::Connection::open(&path).unwrap();
+            conn.execute_batch(&format!("{} PRAGMA user_version = 2;", super::SCHEMA))
+                .unwrap();
+        }
+        let mut store = Store::open(&path).unwrap();
+        let home = store
+            .join_network("wifi:Home", "Home", NetworkKind::Wifi)
+            .unwrap();
+        let cafe = store
+            .join_network("wifi:Cafe", "Cafe", NetworkKind::Wifi)
+            .unwrap();
+        assert!(store.set_network_color(home.id, Some(3)).unwrap());
+        store
+            .update_network(home.id, "Flat", NetworkKind::Wifi)
+            .unwrap();
+        assert_eq!(
+            store.network_colors().unwrap(),
+            [(home.id, 3)].into_iter().collect()
+        );
+        store.merge_network(cafe.id, home.id).unwrap();
+        assert_eq!(store.network_colors().unwrap().get(&home.id), Some(&3));
+        assert!(store.set_network_color(home.id, None).unwrap());
+        assert!(store.network_colors().unwrap().is_empty());
+        assert!(
+            !store.set_network_color(999, Some(1)).unwrap(),
+            "no such network"
+        );
     }
 }
