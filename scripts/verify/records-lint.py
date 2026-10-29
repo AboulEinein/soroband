@@ -63,8 +63,11 @@ for number, row in table_rows(findings_log, "Date", re.compile(r"\d{4}-\d{2}-\d{
         problems.append(f"{findings_log.name}:{number}: verdict {verdict!r} is not one of {sorted(VERDICTS)}")
     if missed not in MISSED:
         problems.append(f"{findings_log.name}:{number}: missed because {missed!r} is not one of {sorted(MISSED)}")
-    if verdict == "not valid" and missed != "–":
-        problems.append(f"{findings_log.name}:{number}: a not valid finding is missed because –")
+    if (verdict == "not valid") != (missed == "–"):
+        problems.append(
+            f"{findings_log.name}:{number}: missed because is – exactly when the verdict is not valid, "
+            f"here {verdict!r} with {missed!r}"
+        )
 
 for problem in problems:
     print(problem)

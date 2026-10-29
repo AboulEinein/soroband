@@ -1,5 +1,7 @@
 #!/bin/zsh
-# Runs what CI runs, plus the snapshots CI cannot, before a push. Exits at the first failure.
+# Runs CI's checks before a push, for this Mac's architecture in Debug, plus the snapshots CI
+# skips. CI also builds a universal Release app; a failure only there shows in CI. Exits at the
+# first failure.
 #
 # Usage: scripts/verify/prepush.sh
 # CI builds the app with the Xcode named in docs/verification.md; a build that passes here on
