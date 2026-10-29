@@ -234,3 +234,4 @@ Planned rounds: 2.
 | 6 | Opus | 2 Low | `first look`: a code span's pipes split round 5's row on GitHub, and the lint did not count a retros row's cells. |
 | 7 | Opus | 1 Low | `first look`: the brief used word for word fitted only milestones, while AGENTS.md now makes non-milestone PRs routine. |
 | direct | Haiku | 1 unrated | `first look`: the non-milestone brief line pointed at a quoted request that the PR template did not ask for. [Comment](https://github.com/AboulEinein/soroband/pull/21#issuecomment-6497846284). |
+| 8 | Opus | none | Checked ebb7c5a. |
