@@ -21,7 +21,8 @@ DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 def cells(line: str) -> list[str]:
-    return [cell.strip() for cell in line.strip().strip("|").split("|")]
+    """A row's cells, split on pipes; an escaped pipe (`\\|`) stays in its cell, as GitHub renders it."""
+    return [cell.strip() for cell in re.split(r"(?<!\\)\|", line.strip().strip("|"))]
 
 
 def table_rows(text: str, name: str, header: str, first_cell: re.Pattern[str], expected: str, problems: list[str]):
@@ -42,7 +43,10 @@ def table_rows(text: str, name: str, header: str, first_cell: re.Pattern[str], e
 def check_retros(text: str, name: str = "review-retros.md") -> list[str]:
     problems: list[str] = []
     for number, row in table_rows(text, name, "Review", REVIEW_LABEL, "a round number, direct or CodeRabbit", problems):
-        findings = row[2] if len(row) > 2 else ""
+        if len(row) != 4:
+            problems.append(f"{name}:{number}: {len(row)} columns, the table has 4")
+            continue
+        findings = row[2]
         if findings == "none":
             continue
         # Commas inside a note in parentheses do not separate counts.
@@ -86,6 +90,7 @@ def self_test() -> list[str]:
         "| CodeRabbit | CodeRabbit | 1 Major, 2 Minor (review body) | x |",
         "| direct | Haiku | 2 Low (the lint, prepush) | x |",
         "|2 | Opus | 1 Low | x |",
+        "| 3 | Opus | 1 Low | separators such as `\\|----\\|` |",
     ]
     retros_bad = [
         "| 1 | Opus | 1 Discussion | x |",
@@ -93,6 +98,8 @@ def self_test() -> list[str]:
         "| bogus | Opus | none | x |",
         "| 2 | Opus | Low | x |",
         "| 2 | Opus | 1 Low, | x |",
+        "| 3 | Opus | 1 Low | separators such as `|----|` |",
+        "| 3 | Opus | 1 Low |",
     ]
     findings_ok = [
         "| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |",
