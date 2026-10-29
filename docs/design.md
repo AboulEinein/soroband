@@ -92,22 +92,24 @@ The spike does none of this (it holds 60 days of fake rows in memory and rescans
 
 ## UI
 
+The popover and History follow the "Warm" direction (`mockups/warm.html`), chosen from three by the user.
+
 **Menu bar item:** network type icon + today's total on the current network, as crossed its interfaces. Other options (the `menu_bar` setting): today on all networks, live speed, or icon only. Either "today" option shows the total, download, upload, or both side by side (the `menu_bar_count` setting). While the engine has stopped it reads "Not counting".
 
 **Popover** (click the item):
-- Current network card: name, type, connected since, today's total, down/up split, live speed.
+- Hero card, tinted with the current network's color: name, type, when the Mac joined it, live speed, today's total in large type, down/up split, today on all networks, and today's 24 hours as bars from the reset hour (hours to come flat, the hour in progress ringed). The past hours are read from the database when the popover opens and at each new hour; the hour in progress is today's live total less the stored hours before it, so it does not trail the total.
 - Apps tab: today's top apps on this network, toggle for all networks (bars then split by network color), then "Other / overhead", the raw gap between the interfaces and the apps. A notice above the tabs shows when the self-check is degraded or over-counted, or the engine runs on interface totals.
 - Networks tab: today per network; unused ones show "last used".
-- Footer: today across all networks, History…, Settings, Quit.
+- Footer: a History card (this month on every network and the last 7 days as small bars, read from the database when the popover opens; ⌘Y), Settings, Quit.
+- Bars grow once when the popover opens; nothing animates after that.
 
 **History window:**
 - Sidebar: All Networks, then networks grouped by Wi‑Fi / Hotspot / Ethernet, each icon in its network color; "Connected" badge on the current one.
 - Toolbar: Day / Week / Month / Year / All Time, previous/next, Today, Export CSV (every stored (hour, network, app) row of the range and network shown). Opens on this month: on the current network when the popover's Apps tab shows only that network, on every network otherwise.
-- Stat tiles: total with change vs the same elapsed span of the previous period; download/upload with a ratio bar; daily average; busiest day.
-- Usage chart: bars stacked by network (one color for a single network) of what crossed the interfaces: hours for Day, local days for Week and Month, months for Year, days or months for All Time (months past three months of history); dashed average line over the bars elapsed so far; hover tooltip listing each network and the total for that bar.
+- Headline card: the total in large type with its change vs the same elapsed span of the previous period; download, upload, daily average and busiest day; a download/upload ratio bar. Beside it on All Networks or with more than one network, Where it went: one 100% bar plus a row per network with share and bytes.
+- Usage chart, full width, its legend and average in the header: bars stacked by network (one color for a single network) of what crossed the interfaces: hours for Day, local days for Week and Month, months for Year, days or months for All Time (months past three months of history); dashed average line over the bars elapsed so far; the busiest day and today labelled above their bars; hover tooltip listing each network and the total for that bar.
 - Apps: the top 12 apps (Show all for the rest) with their share of the total and a bar split by network, then "Other / overhead"; click an app for its download/upload per network.
-- Share by network: one 100% bar plus a row per network with share and bytes.
-- When you use data: weekday × hour heatmap (Week and longer), hover a cell for its value. Local days, hours and weekdays come from each stored hour's middle, so in a half-hour time zone an hour belongs where most of it falls.
+- When you use data, beside the apps: weekday × hour heatmap (Week and longer), hover a cell for its value, and one sentence naming the busiest hour and the share of usage between midnight and 7:00. Local days, hours and weekdays come from each stored hour's middle, so in a half-hour time zone an hour belongs where most of it falls.
 - Shows what has been written: up to a minute behind the popover.
 
 **Dynamic Island moments** (optional, see [mockup](mockups/island-moments.png)):

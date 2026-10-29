@@ -178,7 +178,7 @@ Which of today's bytes the two "today" menu bar modes show: the total, download,
 Interface bytes per second, down and up, over the last poll.
 
 **Popover**:
-The panel the menu bar item opens: network card, Apps and Networks tabs, footer.
+The panel the menu bar item opens: hero card, Apps and Networks tabs, footer with the History card.
 
 **Network card**:
 The popover's header for the current network: name, kind, connected since, today's total, down/up split, live speed.

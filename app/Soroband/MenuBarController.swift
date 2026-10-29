@@ -127,6 +127,8 @@ private struct LivePopover: View {
     var usage = Usage.shared
     var monitor = NetworkMonitor.shared
     var location = LocationAccess.shared
+    /// Read from the database once the popover has drawn, and again on another network or hour.
+    @State private var summary: PopoverSummary?
     @State var tab: PopoverView.Tab
     @State var allNetworks: Bool
     /// Opens History on this month, on `network` or on every network when nil.
@@ -139,16 +141,35 @@ private struct LivePopover: View {
             content: PopoverContent.make(
                 status: usage.status, today: usage.today, registry: usage.registry,
                 current: monitor.current, connectedSince: monitor.connectedSince, allNetworks: allNetworks,
-                locationAllowed: location.isAllowed),
+                locationAllowed: location.isAllowed, summary: summary),
             tab: $tab, allNetworks: $allNetworks,
             openHistory: { openHistory(allNetworks || tab == .networks ? nil : monitor.current?.id) },
             allowLocation: { location.allow() },
             openSettings: openSettings, quit: quit
         )
         .onChange(of: monitor.current) { usage.reloadRegistry() }
+        .task(
+            id: SummaryKey(
+                network: usage.status.networkID, todayStart: usage.status.todayStart,
+                hour: Int(Date.now.timeIntervalSince1970 / 3600))
+        ) {
+            guard usage.status.state != .starting else { return }
+            let (network, todayStart) = (usage.status.networkID, usage.status.todayStart)
+            summary = await Task.detached(priority: .userInitiated) {
+                PopoverSummary.load(network: network, todayStart: todayStart)
+            }.value
+        }
         .onAppear {
             // macOS may reveal the Wi‑Fi name later than `refreshUntilNamed` looked for it.
             if location.isAllowed, monitor.current?.key.hasPrefix("wifi-router:") == true { monitor.refresh() }
         }
     }
+}
+
+/// What the popover's summary depends on.
+private struct SummaryKey: Equatable {
+    var network: Int64
+    var todayStart: Date
+    /// A new hour stores the last one, which the summary then reads.
+    var hour: Int
 }

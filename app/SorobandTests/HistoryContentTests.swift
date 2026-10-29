@@ -203,6 +203,12 @@ struct HistoryContentTests {
         #expect(heatmap.peak?.hour == 9)
     }
 
+    /// Monday 0:00 holds 400 of the 1,000 bytes; Tuesday 9:00, outside the night, the other 600.
+    @Test func heatmapSaysHowMuchOfTheUsageNightsCarry() throws {
+        #expect(try #require(content(october).heatmap).nightShare == 0.4)
+        #expect(content(.empty).heatmap?.nightShare == nil)
+    }
+
     @Test func aRangeWithNothingRecordedShowsZeros() {
         let c = content(.empty)
         #expect(c.total == .zero)
