@@ -209,3 +209,4 @@ Planned rounds: 2.
 | --- | --- | --- | --- |
 | 1 | Opus | 1 Medium, 3 Low | `first look`: the small-PRs rule contradicted one milestone, one PR; the lint skipped rows it could not label; prepush.sh left out release clippy and the install guard, and its Xcode check turned off when the sentence it reads changed. |
 | 2 | Opus | 2 Low | `fix regression`: the lint's new miss-cause check ran one way only. `first look`: prepush.sh said it runs what CI runs but leaves out the universal Release build. |
+| 3 | Opus | 1 Low | `fix regression`: round 2's header fix said "this Mac's architecture" while the script still built arm64 alone. |
