@@ -27,7 +27,7 @@ def table_rows(path: Path, header: str, first_cell: re.Pattern[str], expected: s
     """The rows of `path`'s tables headed by `header`; a row whose first cell does not fit is
     reported, not skipped."""
     for number, line in enumerate(path.read_text().splitlines(), 1):
-        if not line.startswith("| "):
+        if not line.lstrip().startswith("|"):
             continue
         row = cells(line)
         if row[0] in (header, "---"):
