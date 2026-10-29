@@ -181,3 +181,11 @@ Planned rounds: 2.
 
 Changes it led to: none yet. A rename that leaves old words behind also happened in #17 (round 3's glossary finding); if it recurs, it becomes a checklist line: search for the retired term before pushing.
 
+
+## [#19](https://github.com/AboulEinein/soroband/pull/19) feat(ui): redesign Settings with a live menu bar designer (2026-10-29)
+
+Planned rounds: 3 (raised from 2 when the user asked for the Settings redesign on top of the two-line designer).
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Medium, 3 Low, 1 Discussion | `first look`: the stacked drawing shipped unmeasured, the snapshot read the test host's real network, two equal lines gave duplicate SwiftUI ids, the combined speed stayed one wide line, design.md kept "mode" wording. Superseded or fixed by the redesign (replies on each thread). |
