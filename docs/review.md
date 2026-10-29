@@ -94,4 +94,4 @@ The approach is in question, not the last fix, when a fixed finding comes back, 
 
 ## Checklist
 
-- **Retired terms.** When the pull request renames or retires a term (in `GLOSSARY.md`'s _Avoid_ lists, or a setting, type or view it removes), search the whole repository for the old words, docs included; each hit outside the glossary's _Avoid_ list and the review logs is a finding. (#17, #18 and #19 each left one behind.)
+- **Retired terms.** When the pull request renames or retires a term (in `GLOSSARY.md`'s _Avoid_ lists, or a setting, type or view it removes), search the whole repository for the old words, docs included; each hit outside the glossary's _Avoid_ list and the review logs is a finding.
