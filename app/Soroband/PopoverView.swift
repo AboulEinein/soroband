@@ -19,10 +19,12 @@ struct PopoverView: View {
     /// Bars grow once when the popover opens; nothing animates after that.
     var animatesOpen = true
     @State private var grown = false
+    /// The hour bars grow when their numbers arrive, a moment after the popover opens.
+    @State private var hoursGrown = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HeroCard(content: content, grown: grown || !animatesOpen)
+            HeroCard(content: content, grown: hoursGrown || !animatesOpen)
             if let notice = content.notice {
                 NoticeView(notice: notice)
             }
@@ -42,7 +44,14 @@ struct PopoverView: View {
         .frame(width: 360)
         .onAppear {
             guard animatesOpen else { return }
-            withAnimation(.spring(duration: 0.5)) { grown = true }
+            withAnimation(.spring(duration: 0.5)) {
+                grown = true
+                hoursGrown = !content.hours.isEmpty
+            }
+        }
+        .onChange(of: content.hours.isEmpty) {
+            guard animatesOpen, !content.hours.isEmpty, !hoursGrown else { return }
+            withAnimation(.spring(duration: 0.5)) { hoursGrown = true }
         }
     }
 
@@ -201,7 +210,7 @@ private struct HeroCard: View {
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                let total = Self.split(Format.bytes(header.today.total))
+                let total = Format.numberAndUnit(header.today.total)
                 Text(total.number)
                     .font(.system(size: 44, weight: .bold, design: .rounded))
                 Text(total.unit)
@@ -221,10 +230,11 @@ private struct HeroCard: View {
             .font(.caption).monospacedDigit().foregroundStyle(.secondary)
             .lineLimit(1)
 
-            if !content.hours.isEmpty {
-                HourBeads(hours: content.hours, color: color, grown: grown)
-                HourAxis(start: content.todayStart)
-            }
+            // Flat until the hours are read, so the card keeps its height and the bars grow in.
+            HourBeads(
+                hours: content.hours.isEmpty ? Array(repeating: nil, count: 24) : content.hours, color: color,
+                grown: grown)
+            HourAxis(start: content.todayStart, count: max(content.hours.count, 24))
         }
         .padding(14)
         .background {
@@ -242,16 +252,10 @@ private struct HeroCard: View {
         guard let since = header.connectedSince else { return kind.label }
         return "\(kind.label) · joined at \(since.formatted(date: .omitted, time: .shortened))"
     }
-
-    /// "1.37 GB" as its number and its unit, drawn in two sizes.
-    static func split(_ text: String) -> (number: String, unit: String) {
-        guard let space = text.lastIndex(of: " ") else { return (text, "") }
-        return (String(text[..<space]), String(text[text.index(after: space)...]))
-    }
 }
 
-/// Today's 24 hours as bars in the network's color; hours still to come are flat, and the hour
-/// in progress is ringed.
+/// Today's hours as bars in the network's color; hours still to come are flat, and the hour in
+/// progress is ringed.
 private struct HourBeads: View {
     let hours: [UInt64?]
     let color: Color
@@ -284,18 +288,30 @@ private struct HourBeads: View {
         .frame(height: Self.height, alignment: .bottom)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Today hour by hour")
+        .accessibilityValue(accessibilityValue)
+    }
+
+    /// The hour in progress and the busiest hour, as the bars show them.
+    private var accessibilityValue: String {
+        let known = hours.enumerated().compactMap { hour, bytes in bytes.map { (hour, $0) } }
+        guard let current = known.last, let busiest = known.max(by: { $0.1 < $1.1 }) else { return "Not read yet" }
+        return
+            "\(Format.bytes(current.1)) this hour; busiest so far: hour \(busiest.0 + 1) of the day, \(Format.bytes(busiest.1))"
     }
 }
 
 /// Hour labels under the beads: the day's start, every six hours, and its last hour.
 private struct HourAxis: View {
     let start: Date?
+    /// Hours in the day: 24, or 23 and 25 on the days clocks change.
+    let count: Int
 
     var body: some View {
+        let offsets = [0, 6, 12, 18, count - 1]
         HStack {
-            ForEach([0, 6, 12, 18, 23], id: \.self) { offset in
+            ForEach(offsets, id: \.self) { offset in
                 Text(label(offset))
-                if offset != 23 { Spacer() }
+                if offset != offsets.last { Spacer() }
             }
         }
         .font(.system(size: 9.5)).foregroundStyle(.tertiary).monospacedDigit()

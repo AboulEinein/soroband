@@ -181,7 +181,7 @@ struct PopoverContent: Equatable {
             header: header,
             notice: notice(for: status),
             hours: summary?.hours(today: status.todayNetworkInterfaces.total, now: now) ?? [],
-            todayStart: summary?.todayStart,
+            todayStart: summary?.todayStart ?? (status.todayStart == .distantPast ? nil : status.todayStart),
             history: summary.map { HistoryEntry(week: $0.week, month: $0.month) },
             asksForLocation: !locationAllowed && current?.key.hasPrefix("wifi-router:") == true,
             appsTitle: allNetworks ? "Today, all networks" : "Today on \(header.name)",

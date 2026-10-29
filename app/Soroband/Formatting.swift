@@ -11,6 +11,13 @@ enum Format {
         "\(bytes(bytesPerSecond))/s"
     }
 
+    /// "1.37 GB" as its number and its unit, for drawing them in two sizes.
+    static func numberAndUnit(_ bytes: UInt64) -> (number: String, unit: String) {
+        let text = self.bytes(bytes)
+        guard let space = text.lastIndex(of: " ") else { return (text, "") }
+        return (String(text[..<space]), String(text[text.index(after: space)...]))
+    }
+
     /// A day's total for the menu bar: whole megabytes below 1 GB, tenths of a gigabyte above,
     /// rounded down so it never runs ahead of the popover. Every change of the text redraws the
     /// status item on each display, so it changes about once a megabyte rather than every 100 KB.

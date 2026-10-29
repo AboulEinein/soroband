@@ -61,13 +61,36 @@ struct PopoverSummaryTests {
     /// The days query must reach back to the 1st late in a month, and six days back early in one.
     @Test func theDaysQueryCoversTheMonthAndTheWeek() {
         let queries = PopoverSummary.queries(
-            network: 1, todayStart: Self.todayStart, now: Self.now, calendar: Self.calendar)
+            network: 1, historyNetwork: nil, todayStart: Self.todayStart, now: Self.now, calendar: Self.calendar)
         #expect(queries.hours.network == 1 && queries.hours.step == .hour)
         #expect(queries.hours.interval.duration == 24 * 3600)
         #expect(queries.days.network == nil && queries.days.step == .day)
+        // History opens on one network: the card's days follow it.
+        let one = PopoverSummary.queries(
+            network: 1, historyNetwork: 1, todayStart: Self.todayStart, now: Self.now, calendar: Self.calendar)
+        #expect(one.days.network == 1)
         #expect(queries.days.interval.start == Self.calendar.date(from: DateComponents(year: 2026, month: 10, day: 1)))
         let third = Self.calendar.date(from: DateComponents(year: 2026, month: 11, day: 3, hour: 12))!
-        let early = PopoverSummary.queries(network: 1, todayStart: third, now: third, calendar: Self.calendar)
+        let early = PopoverSummary.queries(
+            network: 1, historyNetwork: nil, todayStart: third, now: third, calendar: Self.calendar)
         #expect(early.days.interval.start == Self.calendar.date(from: DateComponents(year: 2026, month: 10, day: 28)))
+    }
+
+    /// New York falls back on 1 Nov 2026: that day has 25 hours, and the hour in progress in the
+    /// 25th must still be its own bar, not past the end of the day.
+    @Test func theDayClocksGoBackHasTwentyFiveHours() {
+        var newYork = Calendar(identifier: .gregorian)
+        newYork.timeZone = TimeZone(identifier: "America/New_York")!
+        let midnight = newYork.date(from: DateComponents(year: 2026, month: 11, day: 1))!
+        let lastHour = midnight.addingTimeInterval(24.5 * 3600)
+        let queries = PopoverSummary.queries(
+            network: 1, historyNetwork: nil, todayStart: midnight, now: lastHour, calendar: newYork)
+        #expect(queries.hours.interval.duration == 25 * 3600)
+        let summary = PopoverSummary.make(
+            hours: data([bar(hoursIn: 3, 10, from: midnight)]), days: data([]), todayStart: midnight, now: lastHour,
+            calendar: newYork)
+        let hours = summary.hours(today: 40, now: lastHour)
+        #expect(hours.count == 25)
+        #expect(hours[24] == 30)
     }
 }

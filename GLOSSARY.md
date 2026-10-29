@@ -180,9 +180,13 @@ Interface bytes per second, down and up, over the last poll.
 **Popover**:
 The panel the menu bar item opens: hero card, Apps and Networks tabs, footer with the History card.
 
-**Network card**:
-The popover's header for the current network: name, kind, connected since, today's total, down/up split, live speed.
-_Avoid_: header (its name in `PopoverContent`)
+**Hero card**:
+The popover's top card, tinted with the current network's color: name, kind, when the Mac joined it, live speed, today's total, down/up split, today on all networks, and today's hours as bars.
+_Avoid_: network card, header (its name in `PopoverContent`)
+
+**History card**:
+The popover's entry to History: this month and the last 7 days on the network History opens on (the current one while the Apps tab shows only it, every network otherwise).
+_Avoid_: History button
 
 **Notice**:
 The line above the popover's tabs when the engine has failed ("Not counting"), the engine is in interface-only mode, or the self-check is degraded or overcount.

@@ -97,10 +97,10 @@ The popover and History follow the "Warm" direction (`mockups/warm.html`), chose
 **Menu bar item:** network type icon + today's total on the current network, as crossed its interfaces. Other options (the `menu_bar` setting): today on all networks, live speed, or icon only. Either "today" option shows the total, download, upload, or both side by side (the `menu_bar_count` setting). While the engine has stopped it reads "Not counting".
 
 **Popover** (click the item):
-- Hero card, tinted with the current network's color: name, type, when the Mac joined it, live speed, today's total in large type, down/up split, today on all networks, and today's 24 hours as bars from the reset hour (hours to come flat, the hour in progress ringed). The past hours are read from the database when the popover opens and at each new hour; the hour in progress is today's live total less the stored hours before it, so it does not trail the total.
+- Hero card, tinted with the current network's color: name, type, when the Mac joined it, live speed, today's total in large type, down/up split, today on all networks, and today's hours as bars from the reset hour (24, or 23 and 25 when clocks change) (hours to come flat, the hour in progress ringed). The past hours are read from the database when the popover opens and at each new hour; the hour in progress is today's live total less the stored hours before it, so it does not trail the total.
 - Apps tab: today's top apps on this network, toggle for all networks (bars then split by network color), then "Other / overhead", the raw gap between the interfaces and the apps. A notice above the tabs shows when the self-check is degraded or over-counted, or the engine runs on interface totals.
 - Networks tab: today per network; unused ones show "last used".
-- Footer: a History card (this month on every network and the last 7 days as small bars, read from the database when the popover opens; ⌘Y), Settings, Quit.
+- Footer: a History card (this month and the last 7 days as small bars on the network History opens on, read from the database when the popover opens; ⌘Y), Settings, Quit.
 - Bars grow once when the popover opens; nothing animates after that.
 
 **History window:**

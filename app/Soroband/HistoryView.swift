@@ -110,7 +110,7 @@ private struct HeadlineCard: View {
                 }
             }
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                let total = Self.split(Format.bytes(content.total.total))
+                let total = Format.numberAndUnit(content.total.total)
                 Text(total.number).font(.system(size: 50, weight: .bold, design: .rounded))
                 Text(total.unit).font(.system(size: 22, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
@@ -136,11 +136,6 @@ private struct HeadlineCard: View {
         case .month, .year: "Used in \(content.subtitle)"
         case .week, .all: "Used \(content.subtitle)"
         }
-    }
-
-    static func split(_ text: String) -> (number: String, unit: String) {
-        guard let space = text.lastIndex(of: " ") else { return (text, "") }
-        return (String(text[..<space]), String(text[text.index(after: space)...]))
     }
 }
 

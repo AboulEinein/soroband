@@ -156,6 +156,7 @@ Small items for a later nits pass.
 - **Wi‑Fi moves without a path change.** CoreWLAN's SSID-change events are not watched; a Wi‑Fi move that does not change the `NWPath` keeps the old network until the next path update.
 - **App idle CPU headroom.** The Debug app with the engine measured 0.096% of the 0.1% budget over 10 minutes on a busy network (0.023% on a quiet one). M3 adds the popover and menu bar label and must measure again; candidates if it is over: a longer poll interval while the popover is closed, or fewer allocations per poll.
 
+- **Popover reads more than it shows.** The popover's summary uses `Core.history`, which also builds apps, networks, the heatmap and the busiest day it does not need, for up to 31 days, in the menu bar app's process. A bars-only read in the core would cost less; measure first with M6.
 - **Test host shares the Debug database.** `xcodebuild test` launches the Debug app as its test host, which starts the engine on `~/Library/Application Support/Soroband Debug` like the running Debug app, so both book the same traffic while tests run and the Debug totals run high. A test host could use its own data directory.
 - **Version-named tools.** An executable named by its version (a command-line tool installed as `~/.local/share/<tool>/versions/1.4.3`) shows in the popover as "1.4.3" with a generic icon. The core could name such a tool by its parent directory.
 - **Segmented control width.** The popover's Apps/Networks control keeps its natural width on macOS 27 instead of the mockup's full width.
