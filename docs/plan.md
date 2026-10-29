@@ -82,7 +82,7 @@ Exit criteria:
 ### M3: Menu bar and popover (first dogfood build)
 
 Deliverables:
-- Menu bar item: network icon and today's total on the current network; other display modes in Settings.
+- Menu bar item: network icon and today's total on the current network; other menu bar layouts in Settings.
 - Popover as in `prototypes/ui-spike`: current network card, Apps and Networks tabs, footer.
 - Settings: General and Networks tabs. Launch at login (`SMAppService`). First-run onboarding for the Location permission.
 - Engine self-check, as in [`design.md`](design.md#meter-engine): the raw gap between the interfaces and the app sum always shows as "Other / overhead"; "degraded" shows only after two consecutive 10-minute windows with at least 10 MB on the interfaces and a gap over ~15%, or at once when the apps sum to more than the interfaces by about 2%.

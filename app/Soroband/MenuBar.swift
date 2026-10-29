@@ -142,6 +142,11 @@ struct MenuBarLayout: Equatable {
     static let styleKey = "menu_bar_style"
 
     var showsSpeed: Bool { readings.contains { $0.isSpeed } }
+
+    /// Today's bytes the readings count: on the current network, or on all of them.
+    func today(in status: EngineStatus) -> ByteCounts {
+        scope == .network ? status.todayNetworkInterfaces : status.todayInterfaces
+    }
     var showsUsage: Bool { readings.contains { !$0.isSpeed } }
 
     /// `readings` as the core stores them: names separated by commas, or `none`.
@@ -210,7 +215,7 @@ struct MenuBarDisplay: Equatable {
                 readings: layout.readings.isEmpty ? [] : [Reading(value: "Not counting", text: "Not counting")])
         }
         if status.state == .starting { return MenuBarDisplay(symbol: symbol, style: layout.style, readings: []) }
-        let today = layout.scope == .network ? status.todayNetworkInterfaces : status.todayInterfaces
+        let today = layout.today(in: status)
         return MenuBarDisplay(
             symbol: symbol, style: layout.style,
             readings: layout.readings.map {
@@ -231,7 +236,7 @@ struct MenuBarDisplay: Equatable {
     /// Each counted part only grows during a day, so the sum grows whenever any shown part does.
     static func total(layout: MenuBarLayout, status: EngineStatus) -> UInt64? {
         guard !layout.showsSpeed, layout.showsUsage else { return nil }
-        let today = layout.scope == .network ? status.todayNetworkInterfaces : status.todayInterfaces
+        let today = layout.today(in: status)
         return layout.readings.compactMap { $0.counted(today) }.reduce(0, +)
     }
 

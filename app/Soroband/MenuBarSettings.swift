@@ -7,7 +7,7 @@ struct MenuBarSettings: View {
     let usage: Usage
     /// The preview's clock, and the current network's kind and name.
     var now = Date.now
-    var kind: NetworkKind? = NetworkMonitor.shared.current?.kind ?? .wifi
+    var kind: NetworkKind? = NetworkMonitor.shared.current?.kind
     var networkName: String? = NetworkMonitor.shared.current?.name
     /// The layout when the page opened.
     @State private var opened: MenuBarLayout?
@@ -20,7 +20,7 @@ struct MenuBarSettings: View {
     }
 
     private var today: ByteCounts {
-        layout.scope == .network ? status.todayNetworkInterfaces : status.todayInterfaces
+        layout.today(in: status)
     }
 
     var body: some View {
