@@ -230,3 +230,4 @@ Planned rounds: 2.
 | 2 | Opus | 2 Low | `fix regression`: the lint's new miss-cause check ran one way only. `first look`: prepush.sh said it runs what CI runs but leaves out the universal Release build. |
 | 3 | Opus | 1 Low | `fix regression`: round 2's header fix said "this Mac's architecture" while the script still built arm64 alone. |
 | 4 | Opus | 2 Low | `first look`: the lint skipped rows written without a space after the first pipe; nothing checked CI's selected Xcode against the one the doc names. |
+| 5 | Opus | 2 Low | `first look`: the lint refused valid separators such as `|----|` and split notes that contain a comma. Rounds 3 to 5 each found an edge of the lint's parsing, so the lint gained a self-test of rows it must accept and refuse. |
