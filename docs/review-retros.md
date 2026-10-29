@@ -243,3 +243,10 @@ Planned rounds: 2.
 
 **Retro.** Planned 2 rounds; the blind loop took 10 and a direct review, and CodeRabbit raised 2 findings. Rounds 3 to 9 each found another edge of the records lint's Markdown parsing (separators, notes with commas, pipes in code spans, impossible dates, zero counts), the kind docs/review.md says to reassess; the self-test added in round 5 pinned each one but did not stop new ones, because the lint parses general Markdown for records that use a narrow form. The CodeRabbit CLI then found one more (a row without its opening pipe), and the user chose to merge the lint as it is. Next time a check meant to guard a narrow format starts drawing edge cases, narrow the check to the format instead of widening it to the general one. Record rows were also committed in fix commits after the PR was ready; `review.md` already says not to.
 
+
+## [#22](https://github.com/AboulEinein/soroband/pull/22) docs: record the merged #17 to #21 in the handover (2026-10-30)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
