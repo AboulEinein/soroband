@@ -200,3 +200,10 @@ Planned rounds: 2.
 | --- | --- | --- | --- |
 | 1 | Opus | 1 Medium, 1 Low, 1 Minor | `first look`: the color picker was never rendered, the focus fix was not in the PR's evidence, a comment still said registry order. Unposted and fixed: a pick was lost when a router-known network merged into a named one. |
 | 2 | Sonnet | 1 Low, 1 unrated | `first look`: History's styles had no test with a picked color; the swatches had no text label and were never seen in light mode. |
+
+## [#21](https://github.com/AboulEinein/soroband/pull/21) chore(review): close the gaps CodeRabbit kept finding after the blind loop (2026-10-29)
+
+Planned rounds: 2.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
