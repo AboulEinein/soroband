@@ -218,6 +218,81 @@ impl Store {
         )
     }
 
+    /// The network identified by `key`, as [`Store::join_network`], where it may be one the app
+    /// knew by `former` until now (a Wi‑Fi network known by its router before its name was
+    /// readable).
+    ///
+    /// - No network has `key` yet: the one known by `former` takes `key`, keeping its id and
+    ///   history, and takes `name` unless the user renamed it from `former_name`.
+    /// - Both exist: returns the network with `key` and the id of the one known by `former`,
+    ///   whose usage the caller then moves into it with [`Store::merge_network`] once nothing
+    ///   unwritten is booked to it.
+    pub fn join_network_known_as(
+        &mut self,
+        key: &str,
+        name: &str,
+        kind: NetworkKind,
+        former: &str,
+        former_name: &str,
+    ) -> Result<(Network, Option<i64>)> {
+        let lookup = |conn: &Connection, key: &str| {
+            conn.query_row(
+                "SELECT id, key, name, kind FROM networks WHERE key = ?1",
+                [key],
+                network_from_row,
+            )
+            .optional()
+        };
+        let Some(old) = lookup(&self.conn, former)? else {
+            return Ok((self.join_network(key, name, kind)?, None));
+        };
+        if let Some(network) = lookup(&self.conn, key)? {
+            return Ok((network, Some(old.id)));
+        }
+        let name = if old.name == former_name {
+            name
+        } else {
+            &old.name
+        };
+        self.conn.execute(
+            "UPDATE networks SET key = ?2, name = ?3 WHERE id = ?1",
+            params![old.id, key, name],
+        )?;
+        Ok((
+            Network {
+                key: key.to_owned(),
+                name: name.to_owned(),
+                ..old
+            },
+            None,
+        ))
+    }
+
+    /// Moves every byte booked to network `from` into network `into` and removes `from` from
+    /// the registry, in one transaction.
+    pub fn merge_network(&mut self, from: i64, into: i64) -> Result<()> {
+        let tx = self.conn.transaction()?;
+        // `WHERE true` keeps SQLite from reading `ON CONFLICT` as part of a join.
+        for (table, columns) in [
+            ("usage", "hour, network, app"),
+            ("usage_day", "day, network, app"),
+            ("interface_usage", "hour, network"),
+        ] {
+            let select = columns.replace("network", "?2");
+            tx.execute(
+                &format!(
+                    "INSERT INTO {table} ({columns}, rx, tx)
+                     SELECT {select}, rx, tx FROM {table} WHERE network = ?1 AND true
+                     ON CONFLICT ({columns}) DO UPDATE SET rx = rx + excluded.rx, tx = tx + excluded.tx"
+                ),
+                params![from, into],
+            )?;
+            tx.execute(&format!("DELETE FROM {table} WHERE network = ?1"), [from])?;
+        }
+        tx.execute("DELETE FROM networks WHERE id = ?1", [from])?;
+        tx.commit()
+    }
+
     /// Renames network `id` and sets its kind. Returns false when there is no such network.
     pub fn update_network(&mut self, id: i64, name: &str, kind: NetworkKind) -> Result<bool> {
         let changed = self.conn.execute(
@@ -591,6 +666,138 @@ mod tests {
         );
         assert_eq!(store.network(phone.id).unwrap(), Some(phone));
         assert_eq!(store.network(999).unwrap(), None);
+    }
+
+    /// Before Location access a Wi‑Fi network is known by its router and named "Wi-Fi"; once its
+    /// name is readable it must not stay behind under that generic name.
+    #[test]
+    fn a_network_known_by_its_router_takes_its_name_when_it_becomes_readable() {
+        let mut store = Store::open(&temp_db("known-as")).unwrap();
+        let router = store
+            .join_network("wifi-router:2:0:0:1:2:3", "Wi-Fi", NetworkKind::Wifi)
+            .unwrap();
+        store
+            .add(&[usage(3600, router.id, "Safari", 700, 70)], &[])
+            .unwrap();
+        let (named, merge) = store
+            .join_network_known_as(
+                "wifi:Home",
+                "Home",
+                NetworkKind::Wifi,
+                "wifi-router:2:0:0:1:2:3",
+                "Wi-Fi",
+            )
+            .unwrap();
+        assert_eq!(merge, None);
+        assert_eq!(named.id, router.id, "same network, same history");
+        assert_eq!(
+            (named.key.as_str(), named.name.as_str()),
+            ("wifi:Home", "Home")
+        );
+        assert_eq!(store.networks().unwrap(), std::slice::from_ref(&named));
+        assert_eq!(
+            store.network_totals(0).unwrap()[0].apps,
+            Bytes { rx: 700, tx: 70 }
+        );
+        // Known by its name from now on.
+        let (again, merge) = store
+            .join_network_known_as(
+                "wifi:Home",
+                "Home",
+                NetworkKind::Wifi,
+                "wifi-router:2:0:0:1:2:3",
+                "Wi-Fi",
+            )
+            .unwrap();
+        assert_eq!((again, merge), (named, None));
+
+        // A name the user gave it stays.
+        let renamed = store
+            .join_network("wifi-router:2:0:0:9:9:9", "Wi-Fi", NetworkKind::Wifi)
+            .unwrap();
+        store
+            .update_network(renamed.id, "Studio", NetworkKind::Wifi)
+            .unwrap();
+        let (studio, _) = store
+            .join_network_known_as(
+                "wifi:Studio5G",
+                "Studio5G",
+                NetworkKind::Wifi,
+                "wifi-router:2:0:0:9:9:9",
+                "Wi-Fi",
+            )
+            .unwrap();
+        assert_eq!((studio.id, studio.name.as_str()), (renamed.id, "Studio"));
+    }
+
+    /// The name was readable on an earlier visit, so both networks exist: the router's moves into
+    /// the named one, adding up where both have the same hour and app.
+    #[test]
+    fn merging_a_network_adds_its_usage_into_the_other_and_removes_it() {
+        let mut store = Store::open(&temp_db("merge")).unwrap();
+        let named = store
+            .join_network("wifi:Home", "Home", NetworkKind::Wifi)
+            .unwrap();
+        let router = store
+            .join_network("wifi-router:2:0:0:1:2:3", "Wi-Fi", NetworkKind::Wifi)
+            .unwrap();
+        let other = store
+            .join_network("wifi:Cafe", "Cafe", NetworkKind::Wifi)
+            .unwrap();
+        store
+            .add(
+                &[
+                    usage(3600, named.id, "Safari", 100, 10),
+                    usage(3600, router.id, "Safari", 700, 70),
+                    usage(7200, router.id, "Mail", 5, 1),
+                    usage(3600, other.id, "Safari", 9, 9),
+                ],
+                &[
+                    InterfaceUsage {
+                        hour: 3600,
+                        network: named.id,
+                        bytes: Bytes { rx: 200, tx: 20 },
+                    },
+                    InterfaceUsage {
+                        hour: 3600,
+                        network: router.id,
+                        bytes: Bytes { rx: 800, tx: 80 },
+                    },
+                ],
+            )
+            .unwrap();
+        let (found, merge) = store
+            .join_network_known_as(
+                "wifi:Home",
+                "Home",
+                NetworkKind::Wifi,
+                "wifi-router:2:0:0:1:2:3",
+                "Wi-Fi",
+            )
+            .unwrap();
+        assert_eq!((found.id, merge), (named.id, Some(router.id)));
+        store.merge_network(router.id, named.id).unwrap();
+
+        assert_eq!(store.networks().unwrap(), [named.clone(), other.clone()]);
+        let totals = store.network_totals(0).unwrap();
+        let home = totals.iter().find(|t| t.network == named.id).unwrap();
+        assert_eq!(home.apps, Bytes { rx: 805, tx: 81 });
+        assert_eq!(home.interfaces, Bytes { rx: 1000, tx: 100 });
+        let cafe = totals.iter().find(|t| t.network == other.id).unwrap();
+        assert_eq!(
+            cafe.apps,
+            Bytes { rx: 9, tx: 9 },
+            "other networks are untouched"
+        );
+        let days: i64 = store
+            .connection()
+            .query_row(
+                "SELECT SUM(rx) FROM usage_day WHERE network = ?1",
+                [named.id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(days, 805, "daily sums move too");
     }
 
     #[test]

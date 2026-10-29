@@ -81,7 +81,10 @@ A network of kind hotspot: a path macOS marks expensive (an iPhone's Personal Ho
 _Avoid_: expensive path (the signal that marks one)
 
 **Network key**:
-The string a network is recognized by on every join: its Wi‑Fi name, or its router address (`wifi:`, `wifi-router:`, `ethernet:`, `cellular:`).
+The string a network is recognized by on every join: its Wi‑Fi name, or its router address (`wifi:`, `wifi-router:`, `ethernet:`, `cellular:`). A `wifi-router:` key is replaced once the Wi‑Fi's name is readable (see Network merge).
+
+**Network merge**:
+What happens to a Wi‑Fi network known by its router when its name becomes readable: it takes the name's key, keeping its id and history, or, when a network with that name already exists, its usage is added into that network and it leaves the registry (`Command::Merge`).
 
 **Network identity**:
 The network key, name and kind worked out from what the Mac can see of the current path.
@@ -167,6 +170,9 @@ _Avoid_: status item, menu bar label
 **Menu bar mode**:
 What the menu bar item shows: today on the current network, today on all networks, live speed, or icon only (the `menu_bar` setting).
 _Avoid_: display mode, mode (alone; the engine has modes too)
+
+**Menu bar count**:
+Which of today's bytes the two "today" menu bar modes show: the total, download, upload, or download and upload side by side (the `menu_bar_count` setting).
 
 **Live speed**:
 Interface bytes per second, down and up, over the last poll.

@@ -22,9 +22,22 @@ struct NetworkIdentityTests {
 
     @Test func wifiIsKnownByItsName() throws {
         let home = try network(wifi(ssid: "Home"))
-        #expect(home == NetworkIdentity(key: "wifi:Home", name: "Home", kind: .wifi))
+        #expect(
+            home
+                == NetworkIdentity(key: "wifi:Home", name: "Home", kind: .wifi, formerKey: "wifi-router:2:0:0:1:2:3"))
         // Another access point of the same network, with another router, is the same network.
         #expect(try network(wifi(ssid: "Home", router: "aa:bb:cc:dd:ee:ff")).key == home.key)
+    }
+
+    /// Before Location access the network was booked under its router; when the name shows, the
+    /// registry must find that entry again, so the key it names has to be the router one's.
+    @Test func wifiWhoseNameShowsNamesTheRouterKeyItWasKnownBy() throws {
+        let before = try network(wifi(ssid: nil))
+        let after = try network(wifi(ssid: "Home"))
+        #expect(after.formerKey == before.key)
+        #expect(before.formerKey == nil)
+        #expect(try network(wifi(ssid: "Home", router: nil)).formerKey == nil)
+        #expect(try network(wired(router: "0:11:22:33:44:55")).formerKey == nil)
     }
 
     @Test func wifiWithoutItsNameIsKnownByItsRouter() throws {
@@ -37,7 +50,9 @@ struct NetworkIdentityTests {
 
     @Test func iPhoneHotspotIsAHotspotOverWifiAndUSB() throws {
         let overWifi = try network(wifi(ssid: "Sam’s iPhone", expensive: true))
-        #expect(overWifi == NetworkIdentity(key: "wifi:Sam’s iPhone", name: "Sam’s iPhone", kind: .hotspot))
+        #expect(overWifi.key == "wifi:Sam’s iPhone")
+        #expect(overWifi.name == "Sam’s iPhone")
+        #expect(overWifi.kind == .hotspot)
         let overUSB = try network(wired(router: "f2:5c:1:2:3:4", expensive: true))
         #expect(overUSB.kind == .hotspot)
         #expect(overUSB.name == "Personal Hotspot")

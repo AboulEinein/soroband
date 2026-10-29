@@ -26,6 +26,42 @@ struct MenuBarDisplayTests {
         #expect(display == MenuBarDisplay(symbol: "personalhotspot", text: "2.8 GB"))
     }
 
+    /// Today's 893.6 MB down and 206.4 MB up on this network, 2.37 GB and 500 MB on all of them.
+    @Test func countShowsDownloadUploadOrBothOfTodayAsCrossedTheInterfaces() {
+        let text = { (mode: MenuBarMode, count: MenuBarCount) in
+            MenuBarDisplay.make(mode: mode, count: count, status: status, kind: .wifi).text
+        }
+        #expect(text(.todayNetwork, .total) == "1.1 GB")
+        #expect(text(.todayNetwork, .download) == "↓ 893 MB")
+        #expect(text(.todayNetwork, .upload) == "↑ 206 MB")
+        #expect(text(.todayNetwork, .both) == "↓ 893 MB ↑ 206 MB")
+        #expect(text(.todayAll, .download) == "↓ 2.3 GB")
+        #expect(text(.todayAll, .upload) == "↑ 500 MB")
+        // Live speed and the icon have no day's count to choose from.
+        #expect(text(.speed, .upload) == "↓ 137 KB/s ↑ 42 KB/s")
+        #expect(text(.icon, .both) == nil)
+    }
+
+    /// Showing upload only, a download that does not move the upload must not redraw the item.
+    @Test func theThrottleFollowsTheBytesTheCountShows() {
+        #expect(MenuBarDisplay.total(mode: .todayNetwork, count: .download, status: status) == 893_600_000)
+        #expect(MenuBarDisplay.total(mode: .todayNetwork, count: .upload, status: status) == 206_400_000)
+        #expect(MenuBarDisplay.total(mode: .todayAll, count: .both, status: status) == 2_870_000_000)
+        let t = Date(timeIntervalSince1970: 1_793_098_800)
+        let old = MenuBarDisplay.Drawn(
+            display: MenuBarDisplay(symbol: "wifi", text: "1.1 GB"), mode: .todayNetwork, count: .total, network: 1,
+            total: 1_100_000_000)
+        let switched = MenuBarDisplay.Drawn(
+            display: MenuBarDisplay(symbol: "wifi", text: "↓ 893 MB"), mode: .todayNetwork, count: .download,
+            network: 1, total: 893_600_000)
+        #expect(MenuBarDisplay.redrawDelay(from: old, to: switched, lastRedraw: t, now: t + 5) == 0, "count changed")
+    }
+
+    @Test func countsAreTheCoreSettingsValues() {
+        // `soroband config set menu_bar_count <value>` must name a count the app knows.
+        #expect(MenuBarCount.allCases.map(\.rawValue) == ["total", "download", "upload", "both"])
+    }
+
     @Test func speedShowsDownloadAndUploadPerSecond() {
         let display = MenuBarDisplay.make(mode: .speed, status: status, kind: .ethernet)
         #expect(display == MenuBarDisplay(symbol: "cable.connector.horizontal", text: "↓ 137 KB/s ↑ 42 KB/s"))

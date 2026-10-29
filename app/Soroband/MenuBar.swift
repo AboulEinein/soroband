@@ -21,6 +21,48 @@ enum MenuBarMode: String, CaseIterable, Identifiable {
     }
 }
 
+/// Which of today's bytes the menu bar item shows in the today modes: the core's `menu_bar_count`
+/// setting.
+enum MenuBarCount: String, CaseIterable, Identifiable {
+    case total
+    case download
+    case upload
+    case both
+
+    static let settingKey = "menu_bar_count"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .total: "Total"
+        case .download: "Download"
+        case .upload: "Upload"
+        case .both: "Download and upload"
+        }
+    }
+
+    /// The text for `bytes` of today, as the menu bar rounds it.
+    func text(_ bytes: ByteCounts) -> String {
+        switch self {
+        case .total: Format.menuBarBytes(bytes.total)
+        case .download: "↓ \(Format.menuBarBytes(bytes.rx))"
+        case .upload: "↑ \(Format.menuBarBytes(bytes.tx))"
+        case .both: "↓ \(Format.menuBarBytes(bytes.rx)) ↑ \(Format.menuBarBytes(bytes.tx))"
+        }
+    }
+
+    /// The bytes the text counts. Each part only grows during a day, so their sum grows whenever
+    /// any shown part does.
+    func counted(_ bytes: ByteCounts) -> UInt64 {
+        switch self {
+        case .total, .both: bytes.total
+        case .download: bytes.rx
+        case .upload: bytes.tx
+        }
+    }
+}
+
 /// The menu bar item's icon and text.
 struct MenuBarDisplay: Equatable {
     var symbol: String
@@ -30,16 +72,17 @@ struct MenuBarDisplay: Equatable {
     /// - The icon is the current network's kind; usage booked to no network shows a plain one.
     /// - An engine that stopped says so instead of showing a count that no longer grows.
     /// - Before the first poll there is no count to show yet.
-    static func make(mode: MenuBarMode, status: EngineStatus, kind: NetworkKind?) -> MenuBarDisplay {
+    static func make(
+        mode: MenuBarMode, count: MenuBarCount = .total, status: EngineStatus, kind: NetworkKind?
+    ) -> MenuBarDisplay {
         let symbol = kind?.symbol ?? unknownNetworkSymbol
         if status.state == .failed {
             return MenuBarDisplay(symbol: "exclamationmark.triangle", text: mode == .icon ? nil : "Not counting")
         }
         if status.state == .starting { return MenuBarDisplay(symbol: symbol, text: nil) }
         return switch mode {
-        case .todayNetwork:
-            MenuBarDisplay(symbol: symbol, text: Format.menuBarBytes(status.todayNetworkInterfaces.total))
-        case .todayAll: MenuBarDisplay(symbol: symbol, text: Format.menuBarBytes(status.todayInterfaces.total))
+        case .todayNetwork: MenuBarDisplay(symbol: symbol, text: count.text(status.todayNetworkInterfaces))
+        case .todayAll: MenuBarDisplay(symbol: symbol, text: count.text(status.todayInterfaces))
         case .speed:
             MenuBarDisplay(
                 symbol: symbol, text: "↓ \(Format.speed(status.speed.rx)) ↑ \(Format.speed(status.speed.tx))")
@@ -54,26 +97,28 @@ struct MenuBarDisplay: Equatable {
     static let totalRedrawInterval: TimeInterval = 60
 
     /// The bytes the text of `mode` counts; nil for the modes that show no total.
-    static func total(mode: MenuBarMode, status: EngineStatus) -> UInt64? {
+    static func total(mode: MenuBarMode, count: MenuBarCount = .total, status: EngineStatus) -> UInt64? {
         switch mode {
-        case .todayNetwork: status.todayNetworkInterfaces.total
-        case .todayAll: status.todayInterfaces.total
+        case .todayNetwork: count.counted(status.todayNetworkInterfaces)
+        case .todayAll: count.counted(status.todayInterfaces)
         case .speed, .icon: nil
         }
     }
 
-    /// What the item shows, in which mode, for which network (the engine's id), counting how
-    /// many bytes.
+    /// What the item shows, in which mode and count, for which network (the engine's id),
+    /// counting how many bytes.
     struct Drawn: Equatable {
         var display: MenuBarDisplay
         var mode: MenuBarMode
+        var count: MenuBarCount = .total
         var network: Int64
         var total: UInt64?
     }
 
     /// Seconds to wait before showing `new` in place of `old`, drawn at `lastRedraw`.
     static func redrawDelay(from old: Drawn?, to new: Drawn, lastRedraw: Date, now: Date) -> TimeInterval {
-        guard let old, old.display != new.display, old.mode == new.mode, old.network == new.network,
+        guard let old, old.display != new.display, old.mode == new.mode, old.count == new.count,
+            old.network == new.network,
             old.display.symbol == new.display.symbol, old.display.text != nil,
             let oldTotal = old.total, let newTotal = new.total, newTotal >= oldTotal
         else { return 0 }

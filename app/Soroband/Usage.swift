@@ -15,6 +15,7 @@ final class Usage {
     /// The network registry, read when the popover or the Networks settings open.
     private(set) var registry: [RegisteredNetwork] = []
     private(set) var menuBarMode = MenuBarMode.todayNetwork
+    private(set) var menuBarCount = MenuBarCount.total
     private(set) var resetHour = 0
 
     /// Set by the popover: polls every second and publishes today's lists while true.
@@ -29,6 +30,9 @@ final class Usage {
             }
         }
     }
+
+    /// Polls left that reread the registry, after a change that may merge a network into another.
+    private var registryRereads = 0
 
     /// Called by `MenuBarController` after each refresh.
     var onChange: (() -> Void)?
@@ -51,7 +55,18 @@ final class Usage {
             let today = Core.today()
             if today != self.today { self.today = today }
         }
+        if registryRereads > 0 {
+            registryRereads -= 1
+            reloadRegistry()
+        }
         onChange?()
+    }
+
+    /// The engine merges a network after the change that asked for it, so the registry the popover
+    /// or Settings read at the change can still list the merged one: read it again on the next
+    /// polls.
+    func rereadRegistryAfterMerge() {
+        registryRereads = 2
     }
 
     func reloadRegistry() {
@@ -61,12 +76,17 @@ final class Usage {
     /// Rereads the settings the app shows, after `soroband config set` or a change in Settings.
     func reloadSettings() {
         menuBarMode = Core.setting(MenuBarMode.settingKey).flatMap(MenuBarMode.init(rawValue:)) ?? .todayNetwork
+        menuBarCount = Core.setting(MenuBarCount.settingKey).flatMap(MenuBarCount.init(rawValue:)) ?? .total
         resetHour = Core.setting("reset_hour").flatMap(Int.init) ?? 0
         onChange?()
     }
 
     func setMenuBarMode(_ mode: MenuBarMode) {
         if Core.setSetting(MenuBarMode.settingKey, to: mode.rawValue) { reloadSettings() }
+    }
+
+    func setMenuBarCount(_ count: MenuBarCount) {
+        if Core.setSetting(MenuBarCount.settingKey, to: count.rawValue) { reloadSettings() }
     }
 
     func setResetHour(_ hour: Int) {

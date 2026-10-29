@@ -240,13 +240,20 @@ pub struct SorobandNetwork {
 /// name and kind, which `out` receives. Returns false (and leaves `out` alone) when the engine was
 /// not started, `kind` is not "wifi", "ethernet" or "hotspot", or the database fails.
 ///
+/// `former_key`, when not null, is the key the app knew this network by until now, named
+/// `former_name` by default ([`Store::join_network_known_as`]): that network becomes this one,
+/// its history with it.
+///
 /// # Safety
-/// `key`, `name` and `kind` must be valid NUL-terminated strings, and `out` valid for writing.
+/// `key`, `name` and `kind` must be valid NUL-terminated strings, `former_key` and `former_name`
+/// null or valid NUL-terminated strings, and `out` valid for writing.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn soroband_network_changed(
     key: *const c_char,
     name: *const c_char,
     kind: *const c_char,
+    former_key: *const c_char,
+    former_name: *const c_char,
     out: *mut SorobandNetwork,
 ) -> bool {
     let Some(running) = RUNNING.get() else {
@@ -257,14 +264,29 @@ pub unsafe extern "C" fn soroband_network_changed(
     let Some(kind) = NetworkKind::parse(&kind) else {
         return false;
     };
-    let network = match lock(&running.store).join_network(&key, &name, kind) {
-        Ok(network) => network,
+    let joined = if former_key.is_null() || former_name.is_null() {
+        lock(&running.store)
+            .join_network(&key, &name, kind)
+            .map(|network| (network, None))
+    } else {
+        // SAFETY: not null, so valid NUL-terminated strings.
+        let (former_key, former_name) = unsafe { (text(former_key), text(former_name)) };
+        lock(&running.store).join_network_known_as(&key, &name, kind, &former_key, &former_name)
+    };
+    let (network, merge) = match joined {
+        Ok(joined) => joined,
         Err(error) => {
             eprintln!("soroband: cannot record network {key:?}: {error}");
             return false;
         }
     };
     running.send(Command::Network(network.id));
+    if let Some(from) = merge {
+        running.send(Command::Merge {
+            from,
+            into: network.id,
+        });
+    }
     // SAFETY: the caller passes a pointer valid for writing.
     unsafe {
         out.write(SorobandNetwork::new(
@@ -1007,7 +1029,14 @@ mod tests {
             let mut out = SorobandNetwork::new(0, "", NetworkKind::Wifi);
             // SAFETY: valid strings and a writable output.
             let ok = unsafe {
-                soroband_network_changed(key.as_ptr(), name.as_ptr(), kind.as_ptr(), &raw mut out)
+                soroband_network_changed(
+                    key.as_ptr(),
+                    name.as_ptr(),
+                    kind.as_ptr(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    &raw mut out,
+                )
             };
             ok.then(|| {
                 // SAFETY: `name` holds a NUL-terminated string.

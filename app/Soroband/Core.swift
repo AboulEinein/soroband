@@ -51,7 +51,11 @@ enum Core {
     /// network seen before keeps the name and kind the user gave it.
     static func networkChanged(to identity: NetworkIdentity) -> Network? {
         var out = SorobandNetwork()
-        guard soroband_network_changed(identity.key, identity.name, identity.kind.rawValue, &out) else {
+        let formerName = identity.formerKey == nil ? nil : NetworkIdentity.unnamedWiFi
+        guard
+            soroband_network_changed(
+                identity.key, identity.name, identity.kind.rawValue, identity.formerKey, formerName, &out)
+        else {
             return nil
         }
         return Network(out, key: identity.key)

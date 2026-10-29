@@ -263,6 +263,7 @@ struct DebugState: Encodable {
 
     struct MenuBar: Encodable {
         let mode: String
+        let count: String
         let symbol: String?
         let text: String?
     }
@@ -315,6 +316,7 @@ struct DebugState: Encodable {
             menuBarText: MenuBarController.shared.display?.text ?? "",
             menuBar: MenuBar(
                 mode: Usage.shared.menuBarMode.rawValue,
+                count: Usage.shared.menuBarCount.rawValue,
                 symbol: MenuBarController.shared.display?.symbol,
                 text: MenuBarController.shared.display?.text),
             popoverShown: MenuBarController.shared.isPopoverShown,

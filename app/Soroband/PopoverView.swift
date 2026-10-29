@@ -13,6 +13,7 @@ struct PopoverView: View {
     @Binding var tab: Tab
     @Binding var allNetworks: Bool
     var openHistory: () -> Void = {}
+    var allowLocation: () -> Void = {}
     var openSettings: () -> Void = {}
     var quit: () -> Void = {}
 
@@ -21,6 +22,9 @@ struct PopoverView: View {
             header
             if let notice = content.notice {
                 NoticeView(notice: notice)
+            }
+            if content.asksForLocation {
+                LocationPrompt(allow: allowLocation)
             }
             Picker("", selection: $tab) {
                 ForEach(Tab.allCases, id: \.self) { Text($0.rawValue) }
@@ -155,6 +159,27 @@ struct PopoverView: View {
                 .help("Quit Soroband")
         }
         .buttonStyle(.borderless)
+    }
+}
+
+/// Offered while the current Wi‑Fi is known by its router.
+private struct LocationPrompt: View {
+    let allow: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: "location.fill").foregroundStyle(.blue)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Show Wi‑Fi names").font(.caption.weight(.semibold))
+                Text("macOS shares the network's name only with Location access. Nothing leaves your Mac.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+            Button("Allow…", action: allow).controlSize(.small)
+        }
+        .padding(10)
+        .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 8))
     }
 }
 
