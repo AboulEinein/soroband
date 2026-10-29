@@ -232,3 +232,4 @@ Planned rounds: 2.
 | 4 | Opus | 2 Low | `first look`: the lint skipped rows written without a space after the first pipe; nothing checked CI's selected Xcode against the one the doc names. |
 | 5 | Opus | 2 Low | `first look`: the lint refused valid separators such as `\|----\|` and split notes that contain a comma. Rounds 3 to 5 each found an edge of the lint's parsing, so the lint gained a self-test of rows it must accept and refuse. |
 | 6 | Opus | 2 Low | `first look`: a code span's pipes split round 5's row on GitHub, and the lint did not count a retros row's cells. |
+| 7 | Opus | 1 Low | `first look`: the brief used word for word fitted only milestones, while AGENTS.md now makes non-milestone PRs routine. |

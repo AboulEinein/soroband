@@ -21,6 +21,12 @@ Resolve each earlier blind-review thread you confirm as handled; reply on any yo
 Go through the checklist in docs/review.md and the rules in REVIEW.md.
 ```
 
+For a pull request that is not a milestone (feedback, a fix, a redesign), the second line is instead:
+
+```text
+The PR is not a milestone. Its requirements are the user's request quoted in the PR's Summary and the project rules in AGENTS.md; the evidence rules are in docs/verification.md.
+```
+
 ## Rounds
 
 1. **Open the pull request as a draft** (`gh pr create --draft`). CodeRabbit skips drafts (`.coderabbit.yaml`), so it does not review each round's commits.
