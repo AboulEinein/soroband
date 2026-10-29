@@ -7,6 +7,7 @@ Exits non-zero, listing each bad row, when one does not fit. Run by CI and scrip
 `--self-test` checks the lint itself on rows it must accept and rows it must refuse.
 """
 
+import datetime
 import re
 import sys
 from pathlib import Path
@@ -54,7 +55,7 @@ def check_retros(text: str, name: str = "review-retros.md") -> list[str]:
         scale = CODERABBIT_SEVERITIES if row[0] == "CodeRabbit" else SEVERITIES
         # Commas inside a note in parentheses do not separate counts.
         for part in re.split(r",\s*(?![^()]*\))", findings):
-            match = re.fullmatch(r"(\d+) (\w+)(?: \(.+\))?", part.strip())
+            match = re.fullmatch(r"([1-9]\d*) (\w+)(?: \(.+\))?", part.strip())
             if not match or match.group(2) not in scale:
                 problems.append(
                     f"{name}:{number}: findings {part.strip()!r} is not a count of "
@@ -66,6 +67,10 @@ def check_retros(text: str, name: str = "review-retros.md") -> list[str]:
 def check_findings(text: str, name: str = "coderabbit-findings.md") -> list[str]:
     problems: list[str] = []
     for number, row in table_rows(text, name, "Date", DATE, "a date (YYYY-MM-DD)", problems):
+        try:
+            datetime.date.fromisoformat(row[0])
+        except ValueError:
+            problems.append(f"{name}:{number}: {row[0]!r} is not a date")
         if len(row) != 7:
             problems.append(f"{name}:{number}: {len(row)} columns, the table has 7")
             continue
@@ -105,6 +110,7 @@ def self_test() -> list[str]:
         "| 3 | Opus | 1 Low |",
         "| CodeRabbit | CodeRabbit | 1 High | x |",
         "| 4 | Opus | 1 Major | x |",
+        "| 2 | Opus | 0 Low | x |",
     ]
     findings_ok = [
         "| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |",
@@ -117,6 +123,7 @@ def self_test() -> list[str]:
         "| 2026-10-29 | #1 | x | correctness | not valid | not checked | – |",
         "| 2026-10-29 | #1 | x | correctness | bogus | – | – |",
         "| 2026-10-8 | #1 | x | correctness | valid | not checked | – |",
+        "| 2026-13-45 | #1 | x | correctness | valid | not checked | – |",
         "|2026-10-29 | #1 | x | correctness | valid | not checked |",
     ]
     failures = []

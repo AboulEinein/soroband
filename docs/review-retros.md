@@ -5,7 +5,7 @@ One entry per pull request. Which rows it gets and when each part is committed i
 Each entry has:
 - **A heading:** the pull request, its title and the date it opened.
 - **Planned rounds** and what ran: blind rounds, direct reviews, CodeRabbit reviews.
-- **A table, one row per review:** the review (blind round number, `direct`, or `CodeRabbit`), the reviewer's model, the findings by severity (the pr-review skill's `Critical`, `High`, `Medium`, `Low` and `Minor`, or `unrated` for a finding without one, such as its `Discussion`; CodeRabbit's `Major`, `Minor` and `Trivial` as given), and the origin of each finding.
+- **A table, one row per review:** the review (blind round number, `direct`, or `CodeRabbit`), the reviewer's model, the findings by severity (the pr-review skill's `Critical`, `High`, `Medium`, `Low` and `Minor`, or `unrated` for a finding without one, such as its `Discussion`; CodeRabbit's `Critical`, `Major`, `Minor` and `Trivial` as given), and the origin of each finding.
 - **Retro:** why the review took the rounds it did, what the extra rounds caught that earlier ones did not, and the changes it led to (a rule, a check, a doc), or "none".
 
 Origins, most specific first; use the first that fits:
@@ -235,3 +235,6 @@ Planned rounds: 2.
 | 7 | Opus | 1 Low | `first look`: the brief used word for word fitted only milestones, while AGENTS.md now makes non-milestone PRs routine. |
 | direct | Haiku | 1 unrated | `first look`: the non-milestone brief line pointed at a quoted request that the PR template did not ask for. [Comment](https://github.com/AboulEinein/soroband/pull/21#issuecomment-6497846284). |
 | 8 | Opus | none | Checked ebb7c5a. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: the lint took either review's severities on any row. |
+| 9 | Opus | 2 Minor | `first look`: the lint took impossible dates and zero counts. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: the lint allowed `Critical` for CodeRabbit while the retros' header listed only `Major`, `Minor` and `Trivial`; the header now names `Critical`, which CodeRabbit can give. |
