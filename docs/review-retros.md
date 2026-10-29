@@ -5,7 +5,7 @@ One entry per pull request. Which rows it gets and when each part is committed i
 Each entry has:
 - **A heading:** the pull request, its title and the date it opened.
 - **Planned rounds** and what ran: blind rounds, direct reviews, CodeRabbit reviews.
-- **A table, one row per review:** the review (blind round number, `direct`, or `CodeRabbit`), the reviewer's model, the findings by severity (the pr-review skill's `Critical`, `High`, `Medium`, `Low` and `Minor`, or `unrated` for a finding without one, such as its `Discussion`; CodeRabbit's `Major`, `Minor` and `Trivial` as given), and the origin of each finding.
+- **A table, one row per review:** the review (blind round number, `direct`, or `CodeRabbit`), the reviewer's model, the findings by severity (the pr-review skill's `Critical`, `High`, `Medium`, `Low` and `Minor`, or `unrated` for a finding without one, such as its `Discussion`; CodeRabbit's `Critical`, `Major`, `Minor` and `Trivial` as given), and the origin of each finding.
 - **Retro:** why the review took the rounds it did, what the extra rounds caught that earlier ones did not, and the changes it led to (a rule, a check, a doc), or "none".
 
 Origins, most specific first; use the first that fits:
@@ -218,4 +218,28 @@ Planned rounds: 2.
 | 7 | Opus | 2 Low | `fix regression`: History read the registry twice on open, once on the main thread; the refresh of an open window had no test. |
 | 8 | Opus | none | Checked 9f41f37. |
 
-**Retro.** Planned 2 rounds; it took 8 and three CodeRabbit reviews. Two of CodeRabbit's findings had been seen by blind reviewers and left out under the skill's nit cap. The History fix CodeRabbit asked for then took three rounds of its own, because it moved a database read into a timed path and was tested only on the path that opens the window. The Sonnet rounds found nothing in code where Opus rounds then did. [#21](https://github.com/AboulEinein/soroband/pull/21) and agent-skills#10 turn this into rules: no nit cap on behavior, check what the diff reaches, Opus for every round.
+**Retro.** Planned 2 rounds; it took 8 and three CodeRabbit reviews. Two of CodeRabbit's findings had been seen by blind reviewers and left out under the skill's nit cap. The History fix CodeRabbit asked for then took three rounds of its own, because it moved a database read into a timed path and was tested only on the path that opens the window. The Sonnet rounds found nothing in code where Opus rounds then did. [#21](https://github.com/AboulEinein/soroband/pull/21) and a PR to the `pr-review` skill turn this into rules: no nit cap on behavior, check what the diff reaches, Opus for every round.
+
+## [#21](https://github.com/AboulEinein/soroband/pull/21) chore(review): close the gaps CodeRabbit kept finding after the blind loop (2026-10-29)
+
+Planned rounds: 2.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Medium, 3 Low | `first look`: the small-PRs rule contradicted one milestone, one PR; the lint skipped rows it could not label; prepush.sh left out release clippy and the install guard, and its Xcode check turned off when the sentence it reads changed. |
+| 2 | Opus | 2 Low | `fix regression`: the lint's new miss-cause check ran one way only. `first look`: prepush.sh said it runs what CI runs but leaves out the universal Release build. |
+| 3 | Opus | 1 Low | `fix regression`: round 2's header fix said "this Mac's architecture" while the script still built arm64 alone. |
+| 4 | Opus | 2 Low | `first look`: the lint skipped rows written without a space after the first pipe; nothing checked CI's selected Xcode against the one the doc names. |
+| 5 | Opus | 2 Low | `first look`: the lint refused valid separators such as `\|----\|` and split notes that contain a comma. Rounds 3 to 5 each found an edge of the lint's parsing, so the lint gained a self-test of rows it must accept and refuse. |
+| 6 | Opus | 2 Low | `first look`: a code span's pipes split round 5's row on GitHub, and the lint did not count a retros row's cells. |
+| 7 | Opus | 1 Low | `first look`: the brief used word for word fitted only milestones, while AGENTS.md now makes non-milestone PRs routine. |
+| direct | Haiku | 1 unrated | `first look`: the non-milestone brief line pointed at a quoted request that the PR template did not ask for. [Comment](https://github.com/AboulEinein/soroband/pull/21#issuecomment-6497846284). |
+| 8 | Opus | none | Checked ebb7c5a. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: the lint took either review's severities on any row. |
+| 9 | Opus | 2 Minor | `first look`: the lint took impossible dates and zero counts. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: the lint allowed `Critical` for CodeRabbit while the retros' header listed only `Major`, `Minor` and `Trivial`; the header now names `Critical`, which CodeRabbit can give. |
+| 10 | Opus | 1 Low | `first look`: record rows went into a fix commit after the PR was ready, against `review.md`'s CodeRabbit step 6, leaving the two logs disagreeing until this records commit. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`, on the records commit: the handover did not say #21's review had ended. |
+
+**Retro.** Planned 2 rounds; the blind loop took 10 and a direct review, and CodeRabbit raised 2 findings. Rounds 3 to 9 each found another edge of the records lint's Markdown parsing (separators, notes with commas, pipes in code spans, impossible dates, zero counts), the kind docs/review.md says to reassess; the self-test added in round 5 pinned each one but did not stop new ones, because the lint parses general Markdown for records that use a narrow form. The CodeRabbit CLI then found one more (a row without its opening pipe), and the user chose to merge the lint as it is. Next time a check meant to guard a narrow format starts drawing edge cases, narrow the check to the format instead of widening it to the general one. Record rows were also committed in fix commits after the PR was ready; `review.md` already says not to.
+
