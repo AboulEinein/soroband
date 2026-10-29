@@ -1112,6 +1112,23 @@ mod tests {
             changed("wifi:Office", "Office", "wifi"),
             Some((office, "Office 4th floor".to_owned()))
         );
+        // A color picked in Settings is stored and read back with the registry; one past the
+        // palette is refused and changes nothing; a negative one clears the pick.
+        let color = || {
+            json(super::soroband_networks_json())
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|n| n["id"] == office)
+                .unwrap()["color"]
+                .clone()
+        };
+        assert!(super::soroband_network_set_color(office, 3));
+        assert_eq!(color(), 3);
+        assert!(!super::soroband_network_set_color(office, 5));
+        assert_eq!(color(), 3);
+        assert!(super::soroband_network_set_color(office, -1));
+        assert_eq!(color(), serde_json::Value::Null);
         // A network with no stable key yet: booked to no network.
         soroband_network_unidentified();
         wait_for("no network", &|| soroband_engine_status().network_id == 0);
