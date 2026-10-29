@@ -20,16 +20,28 @@ def cells(line: str) -> list[str]:
     return [cell.strip() for cell in line.strip().strip("|").split("|")]
 
 
-def table_rows(path: Path, first_cell: re.Pattern[str]):
-    for number, line in enumerate(path.read_text().splitlines(), 1):
-        if line.startswith("| ") and first_cell.match(cells(line)[0]):
-            yield number, cells(line)
-
-
 problems = []
 
+
+def table_rows(path: Path, header: str, first_cell: re.Pattern[str], expected: str):
+    """The rows of `path`'s tables headed by `header`; a row whose first cell does not fit is
+    reported, not skipped."""
+    for number, line in enumerate(path.read_text().splitlines(), 1):
+        if not line.startswith("| "):
+            continue
+        row = cells(line)
+        if row[0] in (header, "---"):
+            continue
+        if first_cell.fullmatch(row[0]):
+            yield number, row
+        else:
+            problems.append(f"{path.name}:{number}: first cell {row[0]!r} is not {expected}")
+
+
 retros = ROOT / "docs/review-retros.md"
-for number, row in table_rows(retros, re.compile(r"^(\d+|direct|CodeRabbit)$")):
+for number, row in table_rows(
+    retros, "Review", re.compile(r"\d+(?: \(.+\))?|direct|CodeRabbit"), "a round number, direct or CodeRabbit"
+):
     findings = row[2] if len(row) > 2 else ""
     if findings == "none":
         continue
@@ -42,7 +54,7 @@ for number, row in table_rows(retros, re.compile(r"^(\d+|direct|CodeRabbit)$")):
             )
 
 findings_log = ROOT / "docs/coderabbit-findings.md"
-for number, row in table_rows(findings_log, re.compile(r"^\d{4}-\d{2}-\d{2}$")):
+for number, row in table_rows(findings_log, "Date", re.compile(r"\d{4}-\d{2}-\d{2}"), "a date (YYYY-MM-DD)"):
     if len(row) != 7:
         problems.append(f"{findings_log.name}:{number}: {len(row)} columns, the table has 7")
         continue
