@@ -918,12 +918,18 @@ mod tests {
         let set = |key: &CStr, value: &CStr| unsafe {
             soroband_setting_set(key.as_ptr(), value.as_ptr())
         };
-        assert_eq!(setting(c"menu_bar").as_deref(), Some("today_network"));
-        assert!(set(c"menu_bar", c"speed"));
-        assert_eq!(setting(c"menu_bar").as_deref(), Some("speed"));
-        assert!(!set(c"menu_bar", c"rainbow"));
+        assert_eq!(setting(c"menu_bar_readings").as_deref(), Some("total"));
+        assert!(set(c"menu_bar_readings", c"download,upload"));
+        assert_eq!(
+            setting(c"menu_bar_readings").as_deref(),
+            Some("download,upload")
+        );
+        assert!(!set(c"menu_bar_readings", c"rainbow"));
         assert!(!set(c"reset_hour", c"24"));
-        assert_eq!(setting(c"menu_bar").as_deref(), Some("speed"));
+        assert_eq!(
+            setting(c"menu_bar_readings").as_deref(),
+            Some("download,upload")
+        );
         assert_eq!(setting(c"reset_hour").as_deref(), Some("7"));
         assert_eq!(setting(c"no_such_setting"), None);
         // Applied without the notification `soroband config set` posts.

@@ -121,17 +121,45 @@ struct SnapshotTests {
 
     @Test func settingsGeneral() throws {
         let launch = LaunchAtLogin(service: .init(status: { .enabled }, register: {}, unregister: {}))
-        let view = GeneralSettings(usage: Usage(), launchAtLogin: launch)
+        let view = GeneralSettings(usage: Usage(), launchAtLogin: launch, locationStatus: .notDetermined)
             .background(Color(nsColor: .windowBackgroundColor))
-        try Snapshot.verify(view, named: "settings-general", size: CGSize(width: 560, height: 300))
+        try Snapshot.verify(view, named: "settings-general", size: CGSize(width: 560, height: 700))
+    }
+
+    /// The Menu Bar page on its default layout, with the sample numbers before the first count.
+    @Test func settingsMenuBar() throws {
+        let view = MenuBarSettings(usage: Usage(), now: Self.now, kind: .wifi, networkName: "Home-5G")
+            .background(Color(nsColor: .windowBackgroundColor))
+        try Snapshot.verify(view, named: "settings-menu-bar", size: CGSize(width: 560, height: 900))
+    }
+
+    /// The item in each style: one reading, a pair, three, four, and the icon alone.
+    @Test func menuBarPreviews() throws {
+        let readings: [[MenuBarReading]] = [
+            [.total], [.download, .upload], [.total, .speedDown, .speedUp],
+            [.download, .upload, .speedDown, .speedUp], [],
+        ]
+        let layouts = MenuBarStyle.allCases.flatMap { style in
+            readings.map { MenuBarLayout(readings: $0, style: style) }
+        }
+        let previews = VStack(spacing: 4) {
+            ForEach(layouts.indices, id: \.self) { index in
+                MenuBarPreview(
+                    display: MenuBarDisplay.make(layout: layouts[index], status: MenuBarPreview.sample, kind: .wifi),
+                    now: Self.now)
+            }
+        }
+        .frame(width: 520)
+        .background(Color(nsColor: .windowBackgroundColor))
+        try Snapshot.verify(previews, named: "settings-menu-bar-previews")
     }
 
     @Test func settingsNetworks() throws {
         let view = NetworkSettings(
-            networks: Self.registry, location: .notDetermined, allowLocation: {}, save: { _, _, _ in }
+            networks: Self.registry, current: 1, save: { _, _, _ in }, now: Self.now
         )
         .background(Color(nsColor: .windowBackgroundColor))
-        try Snapshot.verify(view, named: "settings-networks", size: CGSize(width: 560, height: 340))
+        try Snapshot.verify(view, named: "settings-networks", size: CGSize(width: 560, height: 400))
     }
 
     @Test func onboarding() throws {

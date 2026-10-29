@@ -28,6 +28,18 @@ enum Format {
         return "\(tenths.formatted(.number.precision(.fractionLength(1)))) GB"
     }
 
+    /// A live speed for the menu bar: whole KB/s below 1 MB/s, tenths of a MB/s below 10 MB/s,
+    /// whole MB/s above, rounded down. Idle traffic of a few hundred bytes a second reads "0 KB/s"
+    /// and leaves the text, and so the status item, unchanged.
+    static func menuBarSpeed(_ bytesPerSecond: UInt64) -> String {
+        if bytesPerSecond < 1_000_000 { return "\(bytesPerSecond / 1000) KB/s" }
+        if bytesPerSecond < 10_000_000 {
+            let tenths = Double(bytesPerSecond / 100_000) / 10
+            return "\(tenths.formatted(.number.precision(.fractionLength(1)))) MB/s"
+        }
+        return "\(bytesPerSecond / 1_000_000) MB/s"
+    }
+
     /// Formatters are safe to share across threads once configured, and this one is never changed.
     nonisolated(unsafe) private static let formatter: ByteCountFormatter = {
         let formatter = ByteCountFormatter()

@@ -14,8 +14,7 @@ final class Usage {
     private(set) var today = Today(networks: [], apps: [])
     /// The network registry, read when the popover or the Networks settings open.
     private(set) var registry: [RegisteredNetwork] = []
-    private(set) var menuBarMode = MenuBarMode.todayNetwork
-    private(set) var menuBarCount = MenuBarCount.total
+    private(set) var menuBarLayout = MenuBarLayout.default
     private(set) var resetHour = 0
 
     /// Set by the popover: polls every second and publishes today's lists while true.
@@ -75,18 +74,24 @@ final class Usage {
 
     /// Rereads the settings the app shows, after `soroband config set` or a change in Settings.
     func reloadSettings() {
-        menuBarMode = Core.setting(MenuBarMode.settingKey).flatMap(MenuBarMode.init(rawValue:)) ?? .todayNetwork
-        menuBarCount = Core.setting(MenuBarCount.settingKey).flatMap(MenuBarCount.init(rawValue:)) ?? .total
+        menuBarLayout = MenuBarLayout(
+            scope: Core.setting(MenuBarScope.settingKey).flatMap(MenuBarScope.init(rawValue:)) ?? .network,
+            readings: Core.setting(MenuBarLayout.readingsKey).flatMap(MenuBarLayout.readings(from:))
+                ?? MenuBarLayout.default.readings,
+            style: Core.setting(MenuBarLayout.styleKey).flatMap(MenuBarStyle.init(rawValue:))
+                ?? MenuBarLayout.default.style)
         resetHour = Core.setting("reset_hour").flatMap(Int.init) ?? 0
         onChange?()
     }
 
-    func setMenuBarMode(_ mode: MenuBarMode) {
-        if Core.setSetting(MenuBarMode.settingKey, to: mode.rawValue) { reloadSettings() }
-    }
-
-    func setMenuBarCount(_ count: MenuBarCount) {
-        if Core.setSetting(MenuBarCount.settingKey, to: count.rawValue) { reloadSettings() }
+    /// Saves the menu bar layout. Its values come from the core's options, so none is refused.
+    func setMenuBarLayout(_ layout: MenuBarLayout) {
+        let saved =
+            Core.setSetting(MenuBarScope.settingKey, to: layout.scope.rawValue)
+            && Core.setSetting(MenuBarLayout.readingsKey, to: layout.readingsValue)
+            && Core.setSetting(MenuBarLayout.styleKey, to: layout.style.rawValue)
+        if !saved { NSLog("Soroband: the menu bar layout was not saved") }
+        reloadSettings()
     }
 
     func setResetHour(_ hour: Int) {

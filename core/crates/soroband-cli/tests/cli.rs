@@ -278,38 +278,48 @@ fn config_set_refuses_a_bad_value_and_leaves_the_file_alone() {
 }
 
 #[test]
-fn config_set_menu_bar_takes_a_word_from_its_options() {
+fn config_set_menu_bar_readings_takes_words_from_its_options() {
     let _serial = NOTIFICATIONS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let dir = data_dir("config-menu-bar");
-    let described = json_of(&soroband(&dir, &["config", "get", "menu_bar", "--json"]));
-    assert_eq!(described["type"], "choice");
+    let described = json_of(&soroband(
+        &dir,
+        &["config", "get", "menu_bar_readings", "--json"],
+    ));
+    assert_eq!(described["type"], "list");
     assert_eq!(
         described["options"],
-        json!(["today_network", "today_all", "speed", "icon"])
+        json!(["total", "download", "upload", "speed_down", "speed_up"])
     );
-    assert_eq!(described["value"], "today_network");
+    assert_eq!(described["max"], 4);
+    assert_eq!(described["value"], "total");
 
     let listener = Listener::new("io.github.abouleinein.soroband.debug.settings-changed");
-    let set = soroband(&dir, &["config", "set", "menu_bar", "speed"]);
+    let set = soroband(
+        &dir,
+        &["config", "set", "menu_bar_readings", "download, upload"],
+    );
     assert!(set.status.success(), "{set:?}");
-    assert_eq!(String::from_utf8(set.stdout).unwrap(), "menu_bar = speed\n");
+    assert_eq!(
+        String::from_utf8(set.stdout).unwrap(),
+        "menu_bar_readings = download,upload\n"
+    );
     assert!(listener.posted(), "the app was not notified");
     // Printed as typed, without JSON quotes, so scripts can compare it.
-    let get = soroband(&dir, &["config", "get", "menu_bar"]);
-    assert_eq!(String::from_utf8(get.stdout).unwrap(), "speed\n");
+    let get = soroband(&dir, &["config", "get", "menu_bar_readings"]);
+    assert_eq!(String::from_utf8(get.stdout).unwrap(), "download,upload\n");
     let saved = std::fs::read_to_string(dir.join("settings.json")).unwrap();
     assert_eq!(
         serde_json::from_str::<Value>(&saved).unwrap(),
-        json!({ "menu_bar": "speed" })
+        json!({ "menu_bar_readings": "download,upload" })
     );
 
-    let bad = soroband(&dir, &["config", "set", "menu_bar", "rainbow"]);
+    let bad = soroband(&dir, &["config", "set", "menu_bar_readings", "rainbow"]);
     assert_eq!(bad.status.code(), Some(2));
     assert_eq!(
-        soroband(&dir, &["config", "get", "menu_bar"]).stdout,
-        b"speed\n"
+        soroband(&dir, &["config", "get", "menu_bar_readings"]).stdout,
+        b"download,upload\n"
     );
 }
 

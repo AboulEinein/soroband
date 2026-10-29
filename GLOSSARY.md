@@ -167,12 +167,15 @@ _Avoid_: over-counted, over-count
 The always-present item in the menu bar: network icon and today's interface bytes on the current network by default. "Not counting" when the engine has stopped.
 _Avoid_: status item, menu bar label
 
-**Menu bar mode**:
-What the menu bar item shows: today on the current network, today on all networks, live speed, or icon only (the `menu_bar` setting).
-_Avoid_: display mode, mode (alone; the engine has modes too)
+**Menu bar layout**:
+What the menu bar item shows next to its icon: up to four readings in order, counting today on the current network or on every network, drawn in a menu bar style (the `menu_bar_readings`, `menu_bar_scope` and `menu_bar_style` settings). No reading leaves the icon alone.
+_Avoid_: display mode, menu bar mode, menu bar count, menu bar line
 
-**Menu bar count**:
-Which of today's bytes the two "today" menu bar modes show: the total, download, upload, or download and upload side by side (the `menu_bar_count` setting).
+**Reading**:
+One value the menu bar item can show: today's total, download or upload as crossed the interfaces, or the live download or upload speed.
+
+**Menu bar style**:
+How the readings are drawn: **stacked** (in pairs, the first on top, in a smaller size; a reading without a partner at full size), **labeled** (each value under a small caption) or **inline** (one line at the menu bar's size).
 
 **Live speed**:
 Interface bytes per second, down and up, over the last poll.
