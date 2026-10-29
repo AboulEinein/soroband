@@ -130,7 +130,7 @@ The popover and History follow the "Warm" direction (`mockups/warm.html`), chose
 - Cost: one transparent, click-through panel that redraws only while a moment animates.
 
 **Settings:**
-- General: menu bar display, reset hour, launch at login.
+- General: a live preview of the menu bar item as the chosen settings draw it (today's numbers, or sample ones before the first count), menu bar display and count, reset hour, launch at login.
 - Island: master switch (off means a plain menu bar app), style (seamless or keep menu bar clear), each moment on/off, thresholds for data hog, background activity and large transfer, the pause action, full-screen behavior, built-in or all displays, and "send alerts as notifications" when the island is off.
 - Networks: rename, type.
 - Data: export CSV, show database.

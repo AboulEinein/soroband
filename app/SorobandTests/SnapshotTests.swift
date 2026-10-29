@@ -121,9 +121,29 @@ struct SnapshotTests {
 
     @Test func settingsGeneral() throws {
         let launch = LaunchAtLogin(service: .init(status: { .enabled }, register: {}, unregister: {}))
-        let view = GeneralSettings(usage: Usage(), launchAtLogin: launch)
+        let view = GeneralSettings(usage: Usage(), launchAtLogin: launch, now: Self.now)
             .background(Color(nsColor: .windowBackgroundColor))
-        try Snapshot.verify(view, named: "settings-general", size: CGSize(width: 560, height: 300))
+        try Snapshot.verify(view, named: "settings-general", size: CGSize(width: 560, height: 380))
+    }
+
+    /// The preview for each count and for live speed, on the sample numbers.
+    @Test func menuBarPreviews() throws {
+        let previews = VStack(spacing: 8) {
+            ForEach(MenuBarCount.allCases) { count in
+                MenuBarPreview(
+                    display: MenuBarDisplay.make(
+                        mode: .todayNetwork, count: count, status: MenuBarPreview.sample, kind: .wifi),
+                    now: Self.now)
+            }
+            ForEach([MenuBarMode.speed, .icon]) { mode in
+                MenuBarPreview(
+                    display: MenuBarDisplay.make(mode: mode, status: MenuBarPreview.sample, kind: .wifi), now: Self.now)
+            }
+        }
+        .padding(16)
+        .frame(width: 420)
+        .background(Color(nsColor: .windowBackgroundColor))
+        try Snapshot.verify(previews, named: "settings-menu-bar-previews")
     }
 
     @Test func settingsNetworks() throws {

@@ -61,16 +61,26 @@ struct SettingsView: View {
             .tabItem { Label("Networks", systemImage: "wifi") }
             .tag(Tab.networks)
         }
-        .frame(width: 560, height: 380)
+        .frame(width: 560, height: 440)
     }
 }
 
 struct GeneralSettings: View {
     let usage: Usage
     let launchAtLogin: LaunchAtLogin
+    /// The preview's clock.
+    var now = Date.now
 
     var body: some View {
         Form {
+            Section {
+                MenuBarPreview(
+                    display: MenuBarDisplay.make(
+                        mode: usage.menuBarMode, count: usage.menuBarCount, status: previewStatus,
+                        kind: NetworkMonitor.shared.current?.kind ?? .wifi), now: now)
+            } header: {
+                Text("Preview")
+            }
             Picker("Menu bar shows", selection: Binding(get: { usage.menuBarMode }, set: { usage.setMenuBarMode($0) }))
             {
                 ForEach(MenuBarMode.allCases) { Text($0.label).tag($0) }
@@ -116,11 +126,55 @@ struct GeneralSettings: View {
         .formStyle(.grouped)
     }
 
+    /// Today's numbers, or sample ones before the engine has counted anything to show.
+    private var previewStatus: EngineStatus {
+        usage.status.state == .starting ? MenuBarPreview.sample : usage.status
+    }
+
     static func hourLabel(_ hour: Int) -> String {
         var components = DateComponents()
         components.hour = hour
         let date = Calendar.current.date(from: components) ?? .now
         return date.formatted(date: .omitted, time: .shortened)
+    }
+}
+
+/// The menu bar item as the chosen settings draw it, on a strip like the menu bar, beside a
+/// clock for scale.
+struct MenuBarPreview: View {
+    let display: MenuBarDisplay
+    var now = Date.now
+
+    /// 1.1 GB today on this network (893.6 MB down, 203.8 MB up), 2.9 GB on all networks.
+    static let sample = EngineStatus(
+        todayNetworkInterfaces: ByteCounts(rx: 893_600_000, tx: 203_800_000),
+        todayInterfaces: ByteCounts(rx: 2_370_000_000, tx: 500_000_000),
+        speed: ByteCounts(rx: 137_000, tx: 42_000))
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Spacer()
+            HStack(spacing: 4) {
+                Image(systemName: display.symbol)
+                if let text = display.text { Text(text) }
+            }
+            .padding(.horizontal, 7).padding(.vertical, 2)
+            .background(.primary.opacity(0.12), in: .rect(cornerRadius: 5))
+            .fixedSize()
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(display.accessibilityLabel(debug: false))
+            Image(systemName: "battery.75percent").foregroundStyle(.secondary)
+            Text(now.formatted(.dateTime.weekday().hour().minute()))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+        }
+        .font(.system(size: 13)).monospacedDigit()
+        .lineLimit(1)
+        .padding(.horizontal, 10)
+        .frame(height: 26)
+        .background(.bar, in: .rect(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.separator))
+        .help("How the menu bar item looks with these settings")
     }
 }
 
