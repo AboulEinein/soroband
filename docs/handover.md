@@ -137,7 +137,6 @@ Small items for a later nits pass.
   - Trivial: `app/Soroband/HistoryWindow.swift:118`, run `Core.exportCSV` off the main thread; `app/Soroband/HistoryView.swift:62`, detect "all networks" without comparing `content.title` to `allNetworksTitle`.
 
   Deferred while merging the stack (from #4, #5, #6, #8):
-  - Major: `core/crates/soroband-core/src/meter/socket.rs:62` (#5), a wake after the engine thread has exited writes to a closed pipe and `SIGPIPE` kills the app; keep the read end in `Waker` or set `F_SETNOSIGPIPE`.
   - Major: `scripts/verify/traffic.sh:39` (#4), other curls are counted with the test download.
   - Minor: `core/crates/soroband-cli/src/live.rs:86` and `:90` (#4), the elapsed timer starts before the baseline, and the last tick is not bounded by the remaining time.
   - Minor: `scripts/verify/traffic.sh:31` (#4), curl has no deadline.

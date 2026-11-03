@@ -258,6 +258,16 @@ Planned rounds: 1.
 **Retro.** Planned 1 round; it took 1 and two direct reviews, and CodeRabbit found nothing. The round's finding sat outside the diff: the merges made a hand checklist stale, and REVIEW.md's "what the diff reaches" is what found it. The fix then described History's refresh from memory instead of from `HistoryWindow.swift`, the "docs from evidence" rule in `verification.md`.
 
 
+## [#23](https://github.com/AboulEinein/soroband/pull/23) fix(core): stop a wake after the engine ends from raising SIGPIPE (2026-11-03)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 2 Low | `first look`: the handover's Next action 1 and Follow-ups still said one pull request fixes the CodeRabbit backlog; fixed in #24, which owns those lines. `first look`: the PR had no entry here before round 1, as Rounds step 2 asks. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1, and CodeRabbit found nothing. Both findings were about records, not the fix: the orchestrator's brief told the implementer not to touch `review-retros.md`, so no entry was started before round 1. The brief for the backlog PRs now starts the entry.
 ## [#24](https://github.com/AboulEinein/soroband/pull/24) docs: fix CodeRabbit's docs and license findings (2026-11-03)
 
 Planned rounds: 1.
