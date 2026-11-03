@@ -131,22 +131,20 @@ Small items for a later nits pass.
 - **CodeRabbit backlog.** Grouped pull requests fix these (Next action 1). From the whole-project review (#15):
   - Major: `core/crates/soroband-core/src/service.rs:151`, the self-check counts local-network bytes in its gap.
   - Minor: `app/Soroband/HistoryProcess.swift:129`, reset `standing` before `open` launches a new process.
-  - Minor: `core/crates/soroband-core/src/meter/process.rs:260`, `i32::cast_unsigned` needs a newer Rust than `rust-version = "1.85"`.
   - Minor: `scripts/verify/budget.sh:43`, a run passes when the footprint cannot be read.
   - Minor: `prototypes/meter-probe/src/main.rs:290` (length guard before slicing), `prototypes/ui-spike/snapshot.sh:14` (stop and clean up when the app fails), `prototypes/ui-spike/Sources/Soroband/HistoryDetail.swift:25` (crash on a future period).
   - Trivial: `app/Soroband/HistoryWindow.swift:118`, run `Core.exportCSV` off the main thread; `app/Soroband/HistoryView.swift:62`, detect "all networks" without comparing `content.title` to `allNetworksTitle`.
 
   Deferred while merging the stack (from #4, #5, #6, #8):
   - Major: `scripts/verify/traffic.sh:39` (#4), other curls are counted with the test download.
-  - Minor: `core/crates/soroband-cli/src/live.rs:86` and `:90` (#4), the elapsed timer starts before the baseline, and the last tick is not bounded by the remaining time.
   - Minor: `scripts/verify/traffic.sh:31` (#4), curl has no deadline.
   - Minor: `docs/verification.md:52` (#4), the engine's 5 MB memory check is missing.
-  - Minor: `core/crates/soroband-cli/src/usage.rs:58` and `:228` (#5), totals show after a settings read error, and a numeric network ID is matched as a name.
   - Minor: `app/Soroband/SettingsView.swift:23` (#6), the launch-at-login toggle is not refreshed when Settings regains focus.
 
   The comments themselves are on each PR's review threads (`gh api repos/AboulEinein/soroband/pulls/<n>/comments`); comments outside the diff are in the review bodies (`.../pulls/<n>/reviews`).
 
 - **Unreviewed fix.** The App-cryptex rule groups Apple daemons in the App cryptex (`/System/Volumes/Preboot/Cryptexes/App/usr/libexec/PasswordBreachAgent` and similar) as "macOS & Services". It has a test that failed before the fix, but no review round saw it.
+- **Nothing keeps `rust-version` true.** `core/Cargo.toml` declares `rust-version = "1.85"`, and `cargo +1.85 test --workspace` passes, but CI builds only on `stable`, so code that needs a newer Rust passes CI unnoticed. A CI job on 1.85 would catch it.
 - **`cargo mutants` timeouts.** The last run on the meter module and C API (317 mutants: 255 caught, 22 missed, 34 unviable) had 6 timeouts, all in loops that then never end:
   - `Engine::tick` → `Ok(())`;
   - `messages` `+=` → `*=`;
