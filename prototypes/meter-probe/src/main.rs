@@ -400,11 +400,11 @@ mod tests {
     }
 
     /// A domain item holds a 256-byte domain and a 256-byte owner after an 8-byte header; one cut short of that
-    /// is skipped, because slicing the owner would panic mid `--domains` run.
+    /// is skipped, because slicing the owner would panic mid `--domains` run. One byte short pins the guard's limit.
     #[test]
     fn domain_item_shorter_than_its_payload_is_skipped() {
         let mut m = meter();
-        m.update(&tcp_update(8 + 300), true);
+        m.update(&tcp_update(8 + 511), true);
         assert!(m.by_domain.is_empty());
         assert_eq!(m.by_app["curl"].rx, 1000);
     }
