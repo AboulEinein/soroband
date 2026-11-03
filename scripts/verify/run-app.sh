@@ -11,8 +11,9 @@ app=$root/build/DerivedData/Build/Products/Debug/Soroband.app
 $root/scripts/build-core.sh $(uname -m) >/dev/null
 cargo build --quiet --manifest-path $root/core/Cargo.toml -p soroband-cli
 
-# Every running Debug app answers `debug state`, so find this build's process by its path.
-own() { pgrep -f "^$app/Contents/MacOS/Soroband" || true }
+# Every running Debug app answers `debug state`, so find this build's process by its path; its
+# UI process runs the same executable with `--ui` and quits with it.
+own() { pgrep -f "^$app/Contents/MacOS/Soroband\$" || true }
 for old in $(own); do
   kill $old
   while kill -0 $old 2>/dev/null; do sleep 0.2; done
