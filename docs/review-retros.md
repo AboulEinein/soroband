@@ -337,3 +337,16 @@ Planned rounds: 1.
 | direct | Haiku | none | Checked 0e42c0f. [Comment](https://github.com/AboulEinein/soroband/pull/28#issuecomment-6605594258). |
 
 **Retro.** Planned 1 round; it took 2 and two direct reviews, and CodeRabbit found 1 more. Round 1's findings were docs that restated the judged-run rule in three places, only one of which the PR updated; the glossary entry was right, the others drifted. The evidence first lacked a clean judged run, which needed a 60 s network run under the measurement lock and waited behind the performance baseline. CodeRabbit's finding came from an environment the script did not control (`~/.curlrc`), which no reading of the diff alone suggested.
+
+
+## [#29](https://github.com/AboulEinein/soroband/pull/29) fix(core): count local-network bytes as explained in the self-check (2026-11-03)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 2 Low | `first look`: `design.md`'s overcount rule and `GLOSSARY.md`'s Overcount still compared apps alone. `first look`: the rule bullets in `check.rs`'s module doc still said "the apps". |
+| direct | Haiku | 1 unrated | Checked 1c66078; both findings handled. Raised that the popover's "Other / overhead" row still counts local-network bytes, against `GLOSSARY.md`; left for its own pull request. [Comment](https://github.com/AboulEinein/soroband/pull/29#issuecomment-6605223356). |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found nothing. Both findings were restatements of the self-check rule in other files, which the PR updated in its main paragraph but not in each bullet. The work surfaced a second, larger issue: the stored interface totals, and so the popover's "Other / overhead" row, include local-network bytes, which this PR's scope (the self-check) did not cover.

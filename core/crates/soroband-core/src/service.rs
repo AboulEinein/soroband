@@ -150,7 +150,9 @@ impl<H: Host> Service<H> {
         }
         // On interface totals alone no app is credited, so there is no gap to judge.
         if snapshot.mode == Mode::PerApp {
-            self.check.observe(booked.apps, booked.interfaces, now);
+            let mut explained = booked.apps;
+            explained += booked.local;
+            self.check.observe(explained, booked.interfaces, now);
         }
         self.last_booked = booked;
         if day_start(now, self.reset_hour, self.zone) != self.day_start {

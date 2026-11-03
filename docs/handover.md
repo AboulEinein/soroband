@@ -129,7 +129,6 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 Small items for a later nits pass.
 
 - **CodeRabbit backlog.** Grouped pull requests fix these (Next action 1). From the whole-project review (#15):
-  - Major: `core/crates/soroband-core/src/service.rs:151`, the self-check counts local-network bytes in its gap.
 
   The comments themselves are on each PR's review threads (`gh api repos/AboulEinein/soroband/pulls/<n>/comments`); comments outside the diff are in the review bodies (`.../pulls/<n>/reviews`).
 

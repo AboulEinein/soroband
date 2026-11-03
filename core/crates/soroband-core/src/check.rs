@@ -1,17 +1,19 @@
-//! The engine's self-check: the bytes credited to apps against the bytes that crossed the
-//! interfaces, judged over 10-minute windows.
+//! The engine's self-check: the bytes credited to apps, plus local-network bytes, against the
+//! bytes that crossed the interfaces, judged over 10-minute windows. Local-network flows cross
+//! the same interfaces but are not usage, so they count here as explained and nowhere else.
 //!
 //! Flows carry no packet headers, so the apps sum below the interfaces: 8–10% during a bulk
 //! download, about 22% on an idle minute. The check therefore judges the gap only when a window
 //! moved enough to make it meaningful:
 //!
-//! - A window with at least [`MIN_WINDOW_BYTES`] on the interfaces fails when the apps cover less
-//!   than `100 - MAX_GAP_PERCENT` percent of it. Two failing windows in a row make the engine
-//!   [`Verdict::Degraded`]; a passing one clears it. A window with less traffic is not judged and
-//!   breaks the run of failures, but keeps the verdict it found.
-//! - Apps summing to more than the interfaces by [`OVERCOUNT_PERCENT`] is reported at once, at
-//!   any volume, because flows never carry more than crossed the wire. It stays reported until a
-//!   whole window has passed without it.
+//! - A window with at least [`MIN_WINDOW_BYTES`] on the interfaces fails when the apps and the
+//!   local-network bytes cover less than `100 - MAX_GAP_PERCENT` percent of it. Two failing
+//!   windows in a row make the engine [`Verdict::Degraded`]; a passing one clears it. A window
+//!   with less traffic is not judged and breaks the run of failures, but keeps the verdict it
+//!   found.
+//! - Apps and local-network bytes summing to more than the interfaces by [`OVERCOUNT_PERCENT`] is
+//!   reported at once, at any volume, because flows never carry more than crossed the wire. It
+//!   stays reported until a whole window has passed without it.
 
 use crate::meter::Bytes;
 
@@ -47,7 +49,7 @@ pub struct SelfCheck {
 }
 
 impl SelfCheck {
-    /// Adds what one poll booked at `now`, and closes the window once it is [`WINDOW`] long.
+    /// Adds what one poll booked at `now`, with `apps` including its local-network bytes, and closes the window once it is [`WINDOW`] long.
     pub fn observe(&mut self, apps: Bytes, interfaces: Bytes, now: i64) {
         let start = *self.window_start.get_or_insert(now);
         self.apps += apps.total();

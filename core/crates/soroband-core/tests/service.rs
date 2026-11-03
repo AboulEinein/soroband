@@ -277,6 +277,46 @@ fn apps_far_below_the_interfaces_for_twenty_minutes_degrade_the_self_check() {
 }
 
 #[test]
+fn local_network_bytes_count_as_explained_in_the_self_check_and_not_as_usage() {
+    use soroband_core::check::{Verdict, WINDOW};
+    let f = Fixture::new("self-check-local");
+    let t = MIDNIGHT + 10 * H;
+    // A Time Machine backup to a NAS: Mail's local flow (3) moves 9 MB a window, its internet
+    // flow (1) 1 MB, and en0 carries both plus 5% overhead. The apps alone cover 10%.
+    let mut events = start(
+        &[],
+        &[
+            tcp_update(1, 0, 0, MAIL, false, 360),
+            tcp_update(3, 0, 0, MAIL, true, 360),
+        ],
+    );
+    for i in 1..=3u64 {
+        events.extend([
+            Event::Timeout,
+            Event::Send(ntstat::poll_all(POLL + i)),
+            datagram(&[
+                tcp_update(1, i * 1_000_000, 0, MAIL, false, 360),
+                tcp_update(3, i * 9_000_000, 0, MAIL, true, 360),
+                success(POLL + i, false),
+            ]),
+            en0(1_000_000 + i * 10_500_000, 1_000_000),
+        ]);
+    }
+    let mut service = f.service(Replay::new(events), t);
+    service.apply(&Command::Network(f.home), t).unwrap();
+    tick(&mut service, t + 5);
+    tick(&mut service, t + 5 + WINDOW);
+    tick(&mut service, t + 5 + 2 * WINDOW);
+    assert_eq!(service.check(), Verdict::Ok);
+    // Mail's usage is its internet bytes only.
+    assert_eq!(
+        today_apps(&service),
+        [(f.home, "Mail".into(), rx(3_000_000))]
+    );
+    assert_eq!(service.today().network.apps, rx(3_000_000));
+}
+
+#[test]
 fn bytes_are_written_once_a_minute() {
     let f = Fixture::new("minute");
     let t = MIDNIGHT + 10 * H;

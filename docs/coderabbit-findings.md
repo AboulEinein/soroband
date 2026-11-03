@@ -83,3 +83,4 @@ Columns:
 | 2026-11-03 | [#15](https://github.com/AboulEinein/soroband/pull/15#discussion_r4402053072) | `budget.sh` passed when the footprint could not be read. Fixed in #28. | error handling | valid | not checked | – |
 | 2026-11-03 | [#4](https://github.com/AboulEinein/soroband/pull/4#discussion_r4400014506) | `verification.md`'s M1 row left out the engine's 5 MB memory check. Fixed in #28. | docs drift | valid | not checked | – |
 | 2026-11-03 | [#28](https://github.com/AboulEinein/soroband/pull/28#discussion_r4455206603) | `traffic.sh`'s curl read `~/.curlrc`, whose retry restarts `--max-time`. | error handling | valid | not checked | – |
+| 2026-11-03 | [#15](https://github.com/AboulEinein/soroband/pull/15#discussion_r4402052952) | The self-check compared app bytes, which leave out local-network flows, against interface bytes that include them, so heavy LAN traffic could report Degraded. Fixed in #29. | correctness | valid | not checked | – |
