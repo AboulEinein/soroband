@@ -280,3 +280,8 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | 1 Minor | `first look`, on the records commit: a blank line before #23's row ended the findings table. |
 
 **Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found nothing in the change; on the records commit it found a blank line, carried from #23's records, that split the findings table, which `records-lint.py` does not check. Both findings came from describing app behavior from the UI instead of from the code that decides it (`Onboarding.shouldShow`, `KNOWN_LAYOUTS`), the "docs from evidence" rule in `verification.md`. The implementer also found a stale Location menu in `docs/agents/install.md`, fixed here although no review had raised it.
+
+
+## [#29](https://github.com/AboulEinein/soroband/pull/29) fix(core): count local-network bytes as explained in the self-check (2026-11-03)
+
+Planned rounds: 1.
