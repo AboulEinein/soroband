@@ -135,7 +135,6 @@ Small items for a later nits pass.
   - Minor: `core/crates/soroband-core/src/meter/process.rs:260`, `i32::cast_unsigned` needs a newer Rust than `rust-version = "1.85"`.
   - Minor: `scripts/verify/budget.sh:43`, a run passes when the footprint cannot be read.
   - Minor: `CONTRIBUTING.md:35`, the prototype commands do not run from the repository root.
-  - Minor: `prototypes/meter-probe/src/main.rs:290` (length guard before slicing), `prototypes/ui-spike/snapshot.sh:14` (stop and clean up when the app fails), `prototypes/ui-spike/Sources/Soroband/HistoryDetail.swift:25` (crash on a future period).
   - Trivial: `app/Soroband/HistoryWindow.swift:118`, run `Core.exportCSV` off the main thread; `app/Soroband/HistoryView.swift:62`, detect "all networks" without comparing `content.title` to `allNetworksTitle`.
 
   Deferred while merging the stack (from #4, #5, #6, #8):
