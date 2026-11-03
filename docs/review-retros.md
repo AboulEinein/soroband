@@ -350,3 +350,8 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | none | |
 
 **Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found nothing. Both findings were restatements of the self-check rule in other files, which the PR updated in its main paragraph but not in each bullet. The work surfaced a second, larger issue: the stored interface totals, and so the popover's "Other / overhead" row, include local-network bytes, which this PR's scope (the self-check) did not cover.
+
+
+## [#35](https://github.com/AboulEinein/soroband/pull/35) feat(app): M6a popover and Settings in a UI process (2026-11-03)
+
+Planned rounds: 3.
