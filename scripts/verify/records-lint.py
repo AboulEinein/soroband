@@ -55,15 +55,23 @@ def conflict_markers(text: str, name: str, problems: list[str]):
             problems.append(f"{name}:{number}: git conflict marker {line!r}")
 
 
-def unbroken_tables(text: str, name: str, header: str, table_end: re.Pattern[str], problems: list[str]):
+def unbroken_tables(
+    text: str, name: str, header: str, columns: int, table_end: re.Pattern[str], problems: list[str]
+):
     """Reports each line that is not a row inside a table headed by `header`, and each row outside
-    every such table. A table ends at the first line `table_end` matches, at the next `## ` heading,
-    or at the end of the file; the blank lines before that end belong to no table."""
+    every such table. A table is the log's own form: its header row, then a separator of `columns`
+    `---` cells, then rows. It ends at the first line `table_end` matches, at the next `## `
+    heading, or at the end of the file; the blank lines before that end belong to no table."""
     lines = text.splitlines()
+    separator = "|" + " --- |" * columns
     in_table: set[int] = set()
     index = 0
     while index < len(lines):
         if not lines[index].lstrip().startswith("|") or cells(lines[index])[0] != header:
+            index += 1
+            continue
+        if index + 1 >= len(lines) or lines[index + 1].strip() != separator:
+            problems.append(f"{name}:{index + 1}: table header not followed by its separator {separator!r}")
             index += 1
             continue
         end = index + 1
@@ -86,7 +94,7 @@ def unbroken_tables(text: str, name: str, header: str, table_end: re.Pattern[str
 def check_retros(text: str, name: str = "review-retros.md") -> list[str]:
     problems: list[str] = []
     conflict_markers(text, name, problems)
-    unbroken_tables(text, name, "Review", re.compile(r"\*\*Retro\.\*\*"), problems)
+    unbroken_tables(text, name, "Review", 4, re.compile(r"\*\*Retro\.\*\*"), problems)
     for number, row in table_rows(text, name, "Review", REVIEW_LABEL, "a round number, direct or CodeRabbit", problems):
         if len(row) != 4:
             problems.append(f"{name}:{number}: {len(row)} columns, the table has 4")
@@ -109,7 +117,7 @@ def check_retros(text: str, name: str = "review-retros.md") -> list[str]:
 def check_findings(text: str, name: str = "coderabbit-findings.md") -> list[str]:
     problems: list[str] = []
     conflict_markers(text, name, problems)
-    unbroken_tables(text, name, "Date", NEVER, problems)
+    unbroken_tables(text, name, "Date", 7, NEVER, problems)
     for number, row in table_rows(text, name, "Date", DATE, "a date (YYYY-MM-DD)", problems):
         try:
             datetime.date.fromisoformat(row[0])
@@ -192,6 +200,8 @@ def self_test() -> list[str]:
         entry + table + retro + ">>>>>>> origin/main\n",
         entry + table + retro + "||||||| merged common ancestors\n",
         entry + table + retro + "| 2 | Opus | none | x |\n",
+        entry + header + "| 1 | Opus | none | x |\n" + retro,
+        entry + header + "|---|---|---|---|\n| 1 | Opus | none | x |\n" + retro,
     ]
     findings_table = "| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |\n| --- | --- | --- | --- | --- | --- | --- |\n"
     row = "| 2026-10-29 | #1 | x | correctness | valid | not checked | – |\n"
@@ -209,6 +219,7 @@ def self_test() -> list[str]:
         "# Title\n\n=======\n\n" + findings_table + row,
         "# Title\n\n||||||| ---\n\n" + findings_table + row,
         "# Title\n\n" + row + "\n" + findings_table + row,
+        "# Title\n\n| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |\n" + row,
         "# Title\n\n" + findings_table + row + "||||||| ---\n" + row,
     ]
     failures = []
@@ -225,10 +236,10 @@ def self_test() -> list[str]:
         if not check_findings(text):
             failures.append(f"self-test: accepted a bad findings document {text!r}")
     for row in retros_ok:
-        if problems := check_retros(header + row):
+        if problems := check_retros(header + "| --- | --- | --- | --- |\n" + row):
             failures.append(f"self-test: refused a valid retros row {row!r}: {problems}")
     for row in retros_bad:
-        if not check_retros(header + row):
+        if not check_retros(header + "| --- | --- | --- | --- |\n" + row):
             failures.append(f"self-test: accepted a bad retros row {row!r}")
     for row in findings_ok:
         if problems := check_findings(findings_table + row):
