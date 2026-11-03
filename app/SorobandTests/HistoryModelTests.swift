@@ -61,9 +61,14 @@ struct HistoryModelTests {
             read: Reader().read, readRegistry: { answer.registry })
         model.loadNow()
         #expect(model.registry == [picked])
+        var repicked = picked
+        repicked.color = 5
+        answer.registry = [repicked]
+        model.loadNow()
+        #expect(model.registry == [repicked], "every refresh reads the registry, not only the first")
         answer.registry = []
         model.loadNow()
-        #expect(model.registry == [picked], "a failed read keeps the registry")
+        #expect(model.registry == [repicked], "a failed read keeps the registry")
     }
 
     /// While History is open, the next period or range it loads brings the registry as it is now.
