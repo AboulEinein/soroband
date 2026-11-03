@@ -268,6 +268,8 @@ struct HistoryContent: Equatable {
     }
 
     var title: String
+    /// Every network rather than one, whatever the title says: a network can be named "All Networks".
+    var isAllNetworks: Bool
     var subtitle: String
     var range: HistoryRange
     var step: HistoryStep
@@ -300,7 +302,8 @@ struct HistoryContent: Equatable {
     var heatmap: Heatmap?
 
     static func == (a: HistoryContent, b: HistoryContent) -> Bool {
-        a.title == b.title && a.subtitle == b.subtitle && a.range == b.range && a.step == b.step
+        a.title == b.title && a.isAllNetworks == b.isAllNetworks && a.subtitle == b.subtitle
+            && a.range == b.range && a.step == b.step
             && a.interval == b.interval && a.chartDomain == b.chartDomain && a.total == b.total && a.change == b.change
             && a.elapsedDays == b.elapsedDays && a.dailyAverage == b.dailyAverage
             && a.busiestDay?.start == b.busiestDay?.start && a.busiestDay?.bytes == b.busiestDay?.bytes
@@ -311,6 +314,9 @@ struct HistoryContent: Equatable {
     }
 
     static let allNetworksTitle = "All Networks"
+
+    /// Whether the detail splits usage by network: "Where it went" and the chart's "by network".
+    var splitsByNetwork: Bool { legend.count > 1 || isAllNetworks }
 
     static func make(
         range: HistoryRange, query: HistoryQuery, data: HistoryData, registry: [RegisteredNetwork], now: Date,
@@ -408,6 +414,7 @@ struct HistoryContent: Equatable {
         let selected = query.network.map(style)
         return HistoryContent(
             title: selected?.name ?? allNetworksTitle,
+            isAllNetworks: query.network == nil,
             subtitle: subtitle(range: range, interval: interval, calendar: calendar),
             range: range,
             step: query.step,
