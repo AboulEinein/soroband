@@ -257,7 +257,7 @@ A `traffic.sh` run under the network-quality cutoff, with no other curl in the w
 A `traffic.sh` run over the network-quality cutoff, with another curl in the window, or with a download that did not finish in time: recorded in the PR, not judged.
 
 **Network-quality cutoff**:
-Duplicate bytes for curl's flow under 1% of the body; the line between a judged run and a reported run.
+Duplicate bytes for curl's flow under 1% of the body; one of the conditions for a judged run.
 
 **Round**:
 One blind review of a PR, posted on it.

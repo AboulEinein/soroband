@@ -61,7 +61,7 @@ Deliverables:
 Exit criteria:
 - A known 20 MB download is attributed to its process: curl's received bytes are within 1% of the body size plus the duplicate bytes the kernel reports for that flow (`nstat_rxduplicatebytes`).
 - The sum over all apps is within 10% of the interface counter over 60 s under load (the `traffic.sh` download). The gap over an idle minute is measured and reported, not judged.
-- Network-quality cutoff for the two criteria above: a `traffic.sh` run is judged only if the kernel-reported duplicate bytes for curl's flow are under 1% of the body (200,000 bytes for the 20 MB file). Runs over the cutoff are recorded in the PR but not judged. At least 3 judged runs must pass.
+- Network-quality cutoff for the two criteria above: a `traffic.sh` run is judged only if the kernel-reported duplicate bytes for curl's flow are under 1% of the body (200,000 bytes for the 20 MB file), no other curl ran in the window, and the download finished within 45 s. Other runs are recorded in the PR but not judged. At least 3 judged runs must pass.
 - Idle cost measured over 10 min: CPU ≤ 0.1%, memory ≤ 5 MB. Numbers recorded in `docs/design.md`.
 
 ### M2: Network identity and storage
