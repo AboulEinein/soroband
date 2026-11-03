@@ -394,3 +394,16 @@ Planned rounds: 1.
 ## [#30](https://github.com/AboulEinein/soroband/pull/30) feat(verify): fail records-lint on a broken table or a conflict marker (2026-11-03)
 
 Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low | `first look`: the self-test did not pin the findings log's conflict-marker check. |
+| 2 | Opus | 1 Low | `fix regression`: the handover still said the lint skips rows without an opening pipe, which the new table check made false. |
+| direct | Haiku | none | Checked a3fc266. [Comment](https://github.com/AboulEinein/soroband/pull/30#issuecomment-6610499391). |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: diff3 `\|\|\|\|\|\|\|` markers were missed. |
+| 3 | Opus | 1 Low | `first look`: a table row outside every table passed. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: a header row with no separator counted as a table. |
+| CodeRabbit | CodeRabbit | 2 Minor | `first look`: a header of the wrong width, and indented table lines, counted as a table. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: a header with columns swapped passed. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: a second header or separator inside a table passed. |
+| 4 | Opus | 2 Low | `fix regression`: a compiled `.pyc` from the orchestrator's before/after checks was committed. `first look`: this entry had no rows. |
