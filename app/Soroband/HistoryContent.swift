@@ -140,7 +140,7 @@ struct HistoryData: Decodable, Equatable {
     }
 
     let firstHour: Int64?
-    /// What crossed the interfaces over the range: its total.
+    /// What crossed the interfaces over the range, less the local-network bytes: its total.
     let interfaces: ByteCounts
     let previous: UInt64?
     let bars: [Bar]

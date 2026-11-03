@@ -94,14 +94,19 @@ final class Usage {
     }
 
     /// Rereads the settings the app shows, after `soroband config set` or a change in Settings.
+    /// Only a changed layout redraws the menu bar; a changed reset hour reaches it with the poll
+    /// the engine makes for it.
     func reloadSettings() {
-        menuBarLayout = MenuBarLayout(
+        let layout = MenuBarLayout(
             scope: Core.setting(MenuBarScope.settingKey).flatMap(MenuBarScope.init(rawValue:)) ?? .network,
             readings: Core.setting(MenuBarLayout.readingsKey).flatMap(MenuBarLayout.readings(from:))
                 ?? MenuBarLayout.default.readings,
             style: Core.setting(MenuBarLayout.styleKey).flatMap(MenuBarStyle.init(rawValue:))
                 ?? MenuBarLayout.default.style)
-        resetHour = Core.setting("reset_hour").flatMap(Int.init) ?? 0
+        let resetHour = Core.setting("reset_hour").flatMap(Int.init) ?? 0
+        if resetHour != self.resetHour { self.resetHour = resetHour }
+        guard layout != menuBarLayout else { return }
+        menuBarLayout = layout
         onChange?()
     }
 

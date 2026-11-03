@@ -277,6 +277,19 @@ struct SnapshotTests {
             size: CGSize(width: 780, height: 1180))
     }
 
+    /// A snapshot must not depend on the display it runs on, or a baseline recorded on one display
+    /// fails on another.
+    @Test func renderingIgnoresTheDisplayColorSpace() throws {
+        let spaces: [NSColorSpace] = [.sRGB, .displayP3, .adobeRGB1998]
+        let images = try spaces.map { try #require(Snapshot.render(popover(.apps), size: nil, windowColorSpace: $0)) }
+        for (space, image) in zip(spaces, images) {
+            #expect(image.colorSpace == Snapshot.colorSpace.cgColorSpace, "rendered in \(space.localizedName ?? "?")")
+            #expect(
+                Snapshot.changedPixels(image, images[0], tolerance: 0) == 0,
+                "rendered in \(space.localizedName ?? "?")")
+        }
+    }
+
     @Test func comparisonFindsAChangedPixel() throws {
         // Guards the comparison itself: without it, every snapshot test would pass.
         let one = try #require(ImageRenderer(content: Color.black.frame(width: 4, height: 4)).cgImage)

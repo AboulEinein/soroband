@@ -11,7 +11,6 @@ use common::{MAIL, POLL, SAFARI, datagram, en0, mail, safari, start, success, tc
 use soroband_core::meter::record::{Event, Replay};
 use soroband_core::meter::{Bytes, Engine, ntstat};
 use soroband_core::service::{Command, Service, WRITE_INTERVAL};
-use soroband_core::settings::{self, Settings};
 use soroband_core::store::{NetworkKind, NetworkTotal, Store};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -84,7 +83,7 @@ impl Fixture {
         Service::new(
             Engine::start(replay).unwrap(),
             Arc::clone(&self.store),
-            self.dir.join(settings::FILE_NAME),
+            0,
             utc,
             now,
         )
@@ -94,13 +93,6 @@ impl Fixture {
     /// What another process (the `soroband` command) reads from the database file.
     fn reader(&self) -> Store {
         Store::open_read_only(&self.dir.join("usage.sqlite")).unwrap()
-    }
-
-    fn set_reset_hour(&self, hour: &str) {
-        let path = self.dir.join(settings::FILE_NAME);
-        let mut settings = Settings::load(&path).unwrap();
-        settings.set(settings::RESET_HOUR, hour).unwrap();
-        settings.save(&path).unwrap();
     }
 }
 
@@ -247,9 +239,8 @@ fn todays_apps_start_again_at_the_reset_hour() {
     // Mail at 02:00, Safari at 05:00; a 04:00 reset leaves Safari alone.
     tick(&mut service, MIDNIGHT + 2 * H);
     tick(&mut service, MIDNIGHT + 5 * H);
-    f.set_reset_hour("4");
     service
-        .apply(&Command::ReloadSettings, MIDNIGHT + 5 * H)
+        .apply(&Command::ResetHour(4), MIDNIGHT + 5 * H)
         .unwrap();
     assert_eq!(today_apps(&service), [(f.home, "Safari".into(), rx(70))]);
 }
@@ -314,6 +305,86 @@ fn local_network_bytes_count_as_explained_in_the_self_check_and_not_as_usage() {
         [(f.home, "Mail".into(), rx(3_000_000))]
     );
     assert_eq!(service.today().network.apps, rx(3_000_000));
+}
+
+#[test]
+fn local_network_bytes_stay_out_of_the_stored_interface_bytes() {
+    let f = Fixture::new("interfaces-local");
+    let t = MIDNIGHT + 10 * H;
+    // A Time Machine backup to a NAS: Mail's local flow (3) moves 900 MB, its internet flow (1)
+    // 10 MB, and en0 carries both plus 15 MB of headers and acknowledgements.
+    let mut events = start(
+        &[],
+        &[
+            tcp_update(1, 0, 0, MAIL, false, 360),
+            tcp_update(3, 0, 0, MAIL, true, 360),
+        ],
+    );
+    for i in 1..=2u64 {
+        events.extend([
+            Event::Timeout,
+            Event::Send(ntstat::poll_all(POLL + i)),
+            datagram(&[
+                tcp_update(1, i * 5_000_000, 0, MAIL, false, 360),
+                tcp_update(3, i * 450_000_000, 0, MAIL, true, 360),
+                success(POLL + i, false),
+            ]),
+            en0(1_000_000 + i * 462_500_000, 1_000_000),
+        ]);
+    }
+    let mut service = f.service(Replay::new(events), t);
+    service.apply(&Command::Network(f.home), t).unwrap();
+    tick(&mut service, t + 5);
+    tick(&mut service, t + 10);
+    service.apply(&Command::Stop, t + 11).unwrap();
+    // The interface bytes are the internet bytes, Mail's 10 MB and its 15 MB of overhead; the
+    // popover's "Other / overhead" row (interfaces minus apps) is that overhead alone.
+    let internet = NetworkTotal {
+        network: f.home,
+        apps: rx(10_000_000),
+        interfaces: rx(25_000_000),
+    };
+    assert_eq!(service.today().network, internet);
+    assert_eq!(service.last_booked().interfaces, rx(12_500_000));
+    assert_eq!(f.reader().network_totals(0).unwrap(), [internet]);
+}
+
+#[test]
+fn a_local_network_flows_headers_stay_in_the_interface_bytes() {
+    let f = Fixture::new("interfaces-local-headers");
+    let t = MIDNIGHT + 10 * H;
+    // A Time Machine backup to a NAS: Mail's local flow (3) moves 900 MB and en0 carries it with
+    // 45 MB (5%) of headers and acknowledgements; Mail's internet flow (1) moves 10 MB with none.
+    // Flows carry no headers, so only the 900 MB comes off: the 45 MB stays in the interface
+    // bytes and in "Other / overhead" (design.md, Ground truth). No header share is estimated.
+    let mut events = start(
+        &[],
+        &[
+            tcp_update(1, 0, 0, MAIL, false, 360),
+            tcp_update(3, 0, 0, MAIL, true, 360),
+        ],
+    );
+    events.extend([
+        Event::Timeout,
+        Event::Send(ntstat::poll_all(POLL + 1)),
+        datagram(&[
+            tcp_update(1, 10_000_000, 0, MAIL, false, 360),
+            tcp_update(3, 900_000_000, 0, MAIL, true, 360),
+            success(POLL + 1, false),
+        ]),
+        en0(1_000_000 + 955_000_000, 1_000_000),
+    ]);
+    let mut service = f.service(Replay::new(events), t);
+    service.apply(&Command::Network(f.home), t).unwrap();
+    tick(&mut service, t + 5);
+    service.apply(&Command::Stop, t + 6).unwrap();
+    let total = NetworkTotal {
+        network: f.home,
+        apps: rx(10_000_000),
+        interfaces: rx(55_000_000),
+    };
+    assert_eq!(service.today().network, total);
+    assert_eq!(f.reader().network_totals(0).unwrap(), [total]);
 }
 
 #[test]
@@ -393,33 +464,18 @@ fn changing_the_reset_hour_recounts_today() {
     assert_eq!(service.today().all.apps, rx(1_070));
 
     // `soroband config set reset_hour 4`: today now starts at 04:00 and holds only Safari's 70.
-    f.set_reset_hour("4");
     service
-        .apply(&Command::ReloadSettings, MIDNIGHT + 5 * H)
+        .apply(&Command::ResetHour(4), MIDNIGHT + 5 * H)
         .unwrap();
     let today = service.today();
     assert_eq!((today.reset_hour, today.start), (4, MIDNIGHT + 4 * H));
     assert_eq!(today.all.apps, rx(70));
 
     // Back to midnight: Mail's bytes count again; they were never deleted.
-    f.set_reset_hour("0");
     service
-        .apply(&Command::ReloadSettings, MIDNIGHT + 5 * H)
+        .apply(&Command::ResetHour(0), MIDNIGHT + 5 * H)
         .unwrap();
     assert_eq!(service.today().all.apps, rx(1_070));
-}
-
-#[test]
-fn unreadable_settings_keep_the_reset_hour_in_use() {
-    let f = Fixture::new("bad-settings");
-    f.set_reset_hour("4");
-    let mut service = f.service(session(&[]), MIDNIGHT + 5 * H);
-    assert_eq!(service.today().reset_hour, 4);
-    std::fs::write(f.dir.join(settings::FILE_NAME), "{ not json").unwrap();
-    service
-        .apply(&Command::ReloadSettings, MIDNIGHT + 5 * H)
-        .unwrap();
-    assert_eq!(service.today().reset_hour, 4);
 }
 
 #[test]

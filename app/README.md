@@ -11,7 +11,7 @@ The SwiftUI menu bar app (`LSUIElement`, no Dock icon). It links the Rust core f
 
 Debug builds use the bundle identifier `io.github.abouleinein.soroband.debug`, so they run next to an installed Release build.
 
-The menu bar process holds the menu bar item and the engine, and never a window. The popover, Settings, History and the Welcome window run in the UI process, a second instance of the same app started with `--ui` by the menu bar process (`Soroband/UIProcess.swift`, its side in `Soroband/UIHost.swift`): it starts when the pointer enters the menu bar item or at the first click, gets the engine's numbers from the menu bar process over its standard input, and quits 60 s after its last window closes, or with the menu bar process. A Debug build started with `SOROBAND_DATA_DIR` set (`open -g --env SOROBAND_DATA_DIR=<dir> -a <app>`) uses that data directory, and so does its UI process.
+The menu bar process holds the menu bar item and the engine, and never a window. The popover, Settings, History and the Welcome window run in the UI process, a second instance of the same app started with `--ui` by the menu bar process (`Soroband/UIProcess.swift`, its side in `Soroband/UIHost.swift`): it starts when the pointer enters the menu bar item or at the first click, gets the engine's numbers from the menu bar process over its standard input, and quits 60 s after its last window closes, or with the menu bar process. A Debug build started with `SOROBAND_DATA_DIR` set (`open -g --env SOROBAND_DATA_DIR=<dir> -a <app>`) uses that data directory, and so does its UI process; it hears `soroband config set` only from a command run with the same `SOROBAND_DATA_DIR`.
 
 Debug URL commands (`open -g -a <this build's Soroband.app> "soroband-debug://<command>"`):
 

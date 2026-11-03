@@ -48,14 +48,14 @@ The kernel's byte counter for one physical interface; the true total of what cro
 _Avoid_: ground truth, true total (as names)
 
 **Interface bytes**:
-What the interface counters show for a network over a span; what the menu bar item shows.
+What the interface counters show for a network over a span, less its local-network bytes; what is stored per (hour, network) and what the menu bar item shows.
 _Avoid_: interface totals (except in "interface-only mode")
 
 **Per-app mode**:
 The engine mode in which flows are trusted and bytes are credited to apps.
 
 **Interface-only mode**:
-The engine mode in which only interface bytes are counted and no app is credited, entered when the layout guard meets an unknown layout.
+The engine mode in which only interface bytes are counted and no app is credited, entered when the layout guard meets an unknown layout. With no flows read, local-network bytes cannot be told apart and stay in the interface bytes.
 _Avoid_: interface totals only, interface-only totals, "per-app counting is off"
 
 **Layout guard**:
@@ -141,27 +141,27 @@ The span from the most recent reset hour to now, rounded down to a whole UTC hou
 ## Self-check
 
 **Gap**:
-How far the apps' sum falls below the interface bytes. Mostly packet headers and acknowledgements, which flows do not carry.
+How far the apps' sum falls below the interface bytes. Mostly packet headers and acknowledgements, which flows do not carry, of internet and local-network flows alike; local-network flows' own bytes are not part of it.
 _Avoid_: overhead (alone)
 
 **Other / overhead**:
-The row of the popover's and History's app lists that shows the gap, always and without a verdict.
+The row of the popover's and History's app lists that shows the gap, always and without a verdict. Local-network bytes never show in it, but their packet headers and acknowledgements do: a large LAN transfer leaves roughly 8–10% of its size there.
 
 **Local-network bytes**:
-Bytes of flows the kernel marks local (`Snapshot::local`): LAN traffic such as Time Machine, AirPlay or a NAS. They cross the interfaces but are not internet traffic, so they are never usage; the self-check counts them as explained.
+Bytes of flows the kernel marks local (`Snapshot::local`): LAN traffic such as Time Machine, AirPlay or a NAS. They cross the interfaces but are not internet traffic, so they are never usage: each poll takes them off the interface bytes it stores, and the self-check counts them as explained. Their packet headers and acknowledgements are not flow bytes, so they stay in the interface bytes.
 
 **Self-check**:
-The continuous comparison of the apps' sum plus local-network bytes with the interface bytes, which gives a verdict: ok, degraded or overcount.
+The continuous comparison of the apps' sum plus local-network bytes with what crossed the interfaces, which gives a verdict: ok, degraded or overcount.
 _Avoid_: reconciliation, reconciliation self-check, engine self-check
 
 **Judged window**:
-A self-check window with enough interface bytes for its gap to be judged; it fails when the apps and local-network bytes cover too little of the interface bytes. The length and thresholds are `WINDOW`, `MIN_WINDOW_BYTES` and `MAX_GAP_PERCENT` in `core/crates/soroband-core/src/check.rs`.
+A self-check window with enough bytes across the interfaces for its gap to be judged; it fails when the apps and local-network bytes cover too little of what crossed the interfaces. The length and thresholds are `WINDOW`, `MIN_WINDOW_BYTES` and `MAX_GAP_PERCENT` in `core/crates/soroband-core/src/check.rs`.
 
 **Degraded**:
 The verdict after two failing judged windows in a row, cleared by the next judged window that passes.
 
 **Overcount**:
-The verdict when apps and local-network bytes together sum to more than the interface bytes by over `OVERCOUNT_PERCENT` (`check.rs`), at any volume.
+The verdict when apps and local-network bytes together sum to more than crossed the interfaces by over `OVERCOUNT_PERCENT` (`check.rs`), at any volume.
 _Avoid_: over-counted, over-count
 
 ## Interface
@@ -175,7 +175,7 @@ What the menu bar item shows next to its icon: up to four readings in order, cou
 _Avoid_: display mode, menu bar mode, menu bar count, menu bar line
 
 **Reading**:
-One value the menu bar item can show: today's total, download or upload as crossed the interfaces, or the live download or upload speed.
+One value the menu bar item can show: today's total, download or upload as crossed the interfaces less the local-network bytes, or the live download or upload speed.
 
 **Menu bar style**:
 How the readings are drawn: **stacked** (in pairs, the first on top, in a smaller size; a reading without a partner at full size), **labeled** (each value under a small caption) or **inline** (one line at the menu bar's size).

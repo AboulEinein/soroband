@@ -351,6 +351,61 @@ Planned rounds: 1.
 
 **Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found nothing. Both findings were restatements of the self-check rule in other files, which the PR updated in its main paragraph but not in each bullet. The work surfaced a second, larger issue: the stored interface totals, and so the popover's "Other / overhead" row, include local-network bytes, which this PR's scope (the self-check) did not cover.
 
+## [#31](https://github.com/AboulEinein/soroband/pull/31) test(snapshots): render and compare snapshots in a fixed color space (2026-11-03)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low | `first look`: the handover follow-up no longer said the fixed 2x render had never run on a 1x display. |
+| direct | Haiku | none | Checked 5866af0. [Comment](https://github.com/AboulEinein/soroband/pull/31#issuecomment-6610598040). |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: `renderingIgnoresTheDisplayColorSpace` claimed identical renders but compared with the snapshot tolerance. |
+| 2 | Opus | none | Checked 3deb662; `scripts/verify/snapshots.sh` passes. |
+
+**Retro.** Planned 1 round; it took 2 and a direct review, and CodeRabbit found 1 more. The implementer found that the brief's premise was wrong: the 6 failing snapshots came from app icons changing by 1/255 and the comparison converting to sRGB, not from the display, and sRGB would have clipped the app's wide-gamut colors; the fix pins Display P3 instead. CodeRabbit's finding was a test whose assertion was weaker than its name, which a blind reviewer reading the name accepted.
+
+
+## [#33](https://github.com/AboulEinein/soroband/pull/33) fix(cli): wait for notifyd to deliver posts before checking them (2026-11-03)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | none | Checked 24e7814; the `config_set` tests passed 200 of 200. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1, and CodeRabbit found nothing. The implementer reproduced the failure first (20 of 1000 runs) before changing anything, which made the fix and its evidence one step. The fix rests on `notifyd` delivering posts in the order they were queued, which `notify(3)` does not document; 0 of 1000 runs is the evidence.
+
+
+## [#34](https://github.com/AboulEinein/soroband/pull/34) fix(core): coalesce settings-changed notifications and keep tests off the app's name (2026-11-03)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 2 Low | `first look`: the coalescing test passed a Coalescer that runs on the first request. `first look`: an empty `SOROBAND_DATA_DIR` was an override in `directory()` but unset in `settings_changed()`. |
+| 2 | Opus | 1 Low | `missed earlier`: only the unchanged side of `reloadSettings`' layout guard was tested. |
+| 3 | Opus | 1 Low | `first look`: the notification naming was called a second concern; answered as the other half of the same burst problem. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: a Release CLI with `SOROBAND_DATA_DIR` set to a Debug app's directory posts the Release name; not a regression and not a supported setup, left as it is. |
+
+**Retro.** Planned 1 round; it took 3, and CodeRabbit raised 1 finding left as it is. Each round found a test that could not fail for one side of a new branch (the coalescer's wait, the layout guard's change path), the "tests verify intent" rule; checking each new branch both ways before round 1 would have saved two rounds. A merge from `main` brought in #33's changes to the same test file, which merged without conflict.
+
+
+## [#32](https://github.com/AboulEinein/soroband/pull/32) fix(core): keep local-network bytes out of stored interface bytes (2026-11-03)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Medium, 1 Low | `first look`: local-network flows' headers and acknowledgements stay in the stored interface bytes, so the docs' "a network's total is its internet traffic" was false. `first look`: eight descriptions still called the value everything that crossed the interfaces. |
+| 2 | Opus | 1 Low | `missed earlier`: five more descriptions of the same value outside round 1's list. |
+| direct | Haiku | 1 unrated | `missed earlier`: six more stale descriptions after f157c61. [Comment](https://github.com/AboulEinein/soroband/pull/32#issuecomment-6610918610). |
+| direct | Sonnet | none | Checked 2f1b14a and a sweep of every description. [Comment](https://github.com/AboulEinein/soroband/pull/32#issuecomment-6610960611). |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: the `soroband today` help said local-network traffic is left out, which interface-only mode cannot do. |
+| CodeRabbit | CodeRabbit | none | Checked the fix and the merge from `main`. |
+
+**Retro.** Planned 1 round; it took 2 and two direct reviews, and CodeRabbit found 1 more. Changing what a stored value means left its description wrong in many files, and each fix covered only the places a reviewer had listed, so three reviews in a row found more; a sweep of every description of the value ended it. Next time a change redefines a value, grep every description of it before the first round. The Medium came from reasoning about what a flow carries (no headers), which the test's numbers had hidden by putting all overhead on the internet flow.
+
 
 ## [#35](https://github.com/AboulEinein/soroband/pull/35) feat(app): M6a popover and Settings in a UI process (2026-11-03)
 
