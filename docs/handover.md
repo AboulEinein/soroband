@@ -131,7 +131,6 @@ Small items for a later nits pass.
 - **CodeRabbit backlog.** Grouped pull requests fix these (Next action 1). From the whole-project review (#15):
   - Major: `core/crates/soroband-core/src/service.rs:151`, the self-check counts local-network bytes in its gap.
   - Minor: `scripts/verify/budget.sh:43`, a run passes when the footprint cannot be read.
-  - Minor: `prototypes/meter-probe/src/main.rs:290` (length guard before slicing), `prototypes/ui-spike/snapshot.sh:14` (stop and clean up when the app fails), `prototypes/ui-spike/Sources/Soroband/HistoryDetail.swift:25` (crash on a future period).
 
   Deferred while merging the stack (from #4, #5, #6, #8):
   - Major: `scripts/verify/traffic.sh:39` (#4), other curls are counted with the test download.

@@ -287,7 +287,7 @@ impl Meter {
         entry.rx += drx;
         entry.tx += dtx;
 
-        if extended && d.len() >= desc_len + 8 + 256 {
+        if extended && d.len() >= desc_len + 8 + 512 {
             let item = &d[desc_len..];
             if u32_at(item, 0) == 1 {
                 let domain = cstr(&item[8..8 + 256]);
@@ -367,5 +367,52 @@ fn main() {
     print_top("by app", &meter.by_app);
     if domains {
         print_top("by domain", &meter.by_domain);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn meter() -> Meter {
+        Meter {
+            fd: -1,
+            flows: HashMap::new(),
+            by_app: HashMap::new(),
+            by_domain: HashMap::new(),
+            local_skipped: 0,
+            layout_mismatches: 0,
+            updates: 0,
+            sizes: HashMap::new(),
+        }
+    }
+
+    /// An extended TCP update whose descriptor is followed by `tail` bytes, the first being a type-1 (domain) item.
+    fn tcp_update(tail: usize) -> Vec<u8> {
+        let mut msg = vec![0u8; UPDATE_HDR + TCP_DESC + tail];
+        msg[32 + 8..32 + 16].copy_from_slice(&1000u64.to_ne_bytes());
+        msg[144..148].copy_from_slice(&TCP_KERNEL.to_ne_bytes());
+        msg[UPDATE_HDR + 196..UPDATE_HDR + 200].copy_from_slice(b"curl");
+        let item = UPDATE_HDR + TCP_DESC;
+        msg[item..item + 4].copy_from_slice(&1u32.to_ne_bytes());
+        msg[item + 8..item + 8 + 11].copy_from_slice(b"example.com");
+        msg
+    }
+
+    /// A domain item holds a 256-byte domain and a 256-byte owner after an 8-byte header; one cut short of that
+    /// is skipped, because slicing the owner would panic mid `--domains` run. One byte short pins the guard's limit.
+    #[test]
+    fn domain_item_shorter_than_its_payload_is_skipped() {
+        let mut m = meter();
+        m.update(&tcp_update(8 + 511), true);
+        assert!(m.by_domain.is_empty());
+        assert_eq!(m.by_app["curl"].rx, 1000);
+    }
+
+    #[test]
+    fn full_domain_item_is_booked() {
+        let mut m = meter();
+        m.update(&tcp_update(8 + 512), true);
+        assert_eq!(m.by_domain["example.com"].rx, 1000);
     }
 }

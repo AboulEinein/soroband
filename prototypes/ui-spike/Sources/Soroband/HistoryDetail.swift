@@ -20,7 +20,7 @@ struct HistoryDetail: View {
 
     /// The same elapsed span one period earlier, so a month in progress compares fairly.
     private var previousInterval: DateInterval? {
-        guard let period = range.period else { return nil }
+        guard let period = range.period, interval.start <= .now else { return nil }
         let start = calendar.date(byAdding: period, value: -1, to: interval.start)!
         return DateInterval(start: start, duration: min(interval.end, .now).timeIntervalSince(interval.start))
     }
