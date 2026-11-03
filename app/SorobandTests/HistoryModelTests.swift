@@ -61,9 +61,86 @@ struct HistoryModelTests {
             read: Reader().read, readRegistry: { answer.registry })
         model.loadNow()
         #expect(model.registry == [picked])
+        var repicked = picked
+        repicked.color = 5
+        answer.registry = [repicked]
+        model.loadNow()
+        #expect(model.registry == [repicked], "every refresh reads the registry, not only the first")
         answer.registry = []
         model.loadNow()
-        #expect(model.registry == [picked], "a failed read keeps the registry")
+        #expect(model.registry == [repicked], "a failed read keeps the registry")
+    }
+
+    /// An All Time export can take a while; it is written off the main thread, so the window keeps
+    /// drawing, and a failed write is reported.
+    @Test func csvIsWrittenOffTheMainThread() async throws {
+        let query = HistoryQuery.make(
+            range: .all, anchor: .now, network: nil, firstHour: nil, now: .now, calendar: .current)
+        let file = try Self.exportDirectory().appending(path: "usage.csv")
+        final class Seen: @unchecked Sendable { var onMain: Bool? }
+        let seen = Seen()
+        let written = await HistoryWindow.writeCSV(query, to: file) { _, temporary in
+            seen.onMain = Thread.isMainThread
+            return (try? "rows".write(to: temporary, atomically: false, encoding: .utf8)) != nil ? 10 : nil
+        }
+        #expect(written == 10)
+        #expect(seen.onMain == false)
+        #expect(await HistoryWindow.writeCSV(query, to: file) { _, _ in nil } == nil)
+    }
+
+    /// A write that fails, or a process that dies, partway through an export leaves the file the
+    /// user picked as it was: an earlier export they chose to overwrite is not truncated.
+    @Test func anUnfinishedExportLeavesTheFileWhole() async throws {
+        let query = HistoryQuery.make(
+            range: .all, anchor: .now, network: nil, firstHour: nil, now: .now, calendar: .current)
+        let file = try Self.exportDirectory().appending(path: "usage.csv")
+        try "earlier export".write(to: file, atomically: true, encoding: .utf8)
+        let written = await HistoryWindow.writeCSV(query, to: file) { _, target in
+            try? "half a".write(to: target, atomically: false, encoding: .utf8)
+            return nil
+        }
+        #expect(written == nil)
+        #expect(try String(contentsOf: file, encoding: .utf8) == "earlier export")
+        _ = await HistoryWindow.writeCSV(query, to: file) { _, target in
+            (try? "new export".write(to: target, atomically: false, encoding: .utf8)).map { 1 }
+        }
+        #expect(try String(contentsOf: file, encoding: .utf8) == "new export")
+    }
+
+    /// Closing the History window quits its process; an export still being written finishes
+    /// first, instead of the process exiting mid-write.
+    @Test func quittingWaitsForAnExportInFlight() async throws {
+        let query = HistoryQuery.make(
+            range: .all, anchor: .now, network: nil, firstHour: nil, now: .now, calendar: .current)
+        let file = try Self.exportDirectory().appending(path: "usage.csv")
+        let history = HistoryWindow()
+        let writing = DispatchSemaphore(value: 0)
+        let (written, finished) = AsyncStream.makeStream(of: Int?.self)
+        history.export(
+            query, to: file,
+            write: { _, target in
+                writing.wait()
+                return (try? "rows".write(to: target, atomically: false, encoding: .utf8)).map { 3 }
+            }, done: { finished.yield($0) })
+        let (replied, reply) = AsyncStream.makeStream(of: Void.self)
+        let answer = history.shouldTerminate { reply.yield() }
+        #expect(answer == .terminateLater, "quitting now would end the write partway")
+        writing.signal()
+        var rows: Int?? = nil
+        for await value in written {
+            rows = value
+            break
+        }
+        if answer == .terminateLater { for await _ in replied { break } }
+        #expect(rows == 3)
+        #expect(try String(contentsOf: file, encoding: .utf8) == "rows")
+        #expect(history.shouldTerminate {} == .terminateNow, "nothing left to wait for")
+    }
+
+    private static func exportDirectory() throws -> URL {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "soroband-export-\(UUID())")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
     }
 
     /// While History is open, the next period or range it loads brings the registry as it is now.

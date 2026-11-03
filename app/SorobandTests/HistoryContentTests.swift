@@ -239,6 +239,36 @@ struct HistoryContentTests {
         #expect(c.subtitle == "Tuesday, October 27, 2026")
     }
 
+    /// A network the user named "All Networks" is still one network: no split by network.
+    @Test func aNetworkNamedAllNetworksIsNotEveryNetwork() {
+        let registry = [
+            RegisteredNetwork(
+                id: 1, key: "wifi:Home", name: HistoryContent.allNetworksTitle, kind: .wifi, lastUsed: nil)
+        ]
+        let data = HistoryData(
+            firstHour: nil, interfaces: ByteCounts(rx: 300, tx: 0), previous: 0,
+            bars: [.init(firstHour: 1_792_969_200, network: 1, rx: 300, tx: 0)],
+            networks: [.init(network: 1, interfaces: ByteCounts(rx: 300, tx: 0), apps: .zero)], apps: [],
+            busiestDay: nil, heatmap: [])
+        func content(network: Int64?) -> HistoryContent {
+            let query = HistoryQuery.make(
+                range: .month, anchor: Self.october27At9, network: network, firstHour: nil, now: Self.october28,
+                calendar: Self.calendar)
+            return HistoryContent.make(
+                range: .month, query: query, data: data, registry: registry, now: Self.october28,
+                calendar: Self.calendar)
+        }
+        let one = content(network: 1)
+        #expect(one.title == HistoryContent.allNetworksTitle)
+        #expect(one.legend.count == 1)
+        #expect(!one.isAllNetworks)
+        #expect(!one.splitsByNetwork)
+        // Every network splits by network even when only one has usage.
+        let every = content(network: nil)
+        #expect(every.isAllNetworks)
+        #expect(every.splitsByNetwork)
+    }
+
     @Test func networksWithTheSameNameStaySeparateInTheChart() {
         let registry = [
             RegisteredNetwork(id: 1, key: "wifi:a", name: "Home", kind: .wifi, lastUsed: nil),

@@ -75,6 +75,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @MainActor
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        HistoryWindow.shared.shouldTerminate { sender.reply(toApplicationShouldTerminate: true) }
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         Core.stopEngine()
     }

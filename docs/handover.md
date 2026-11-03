@@ -129,16 +129,13 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 Small items for a later nits pass.
 
 - **CodeRabbit backlog.** Grouped pull requests fix these (Next action 1). From the whole-project review (#15):
-  - Minor: `app/Soroband/HistoryProcess.swift:129`, reset `standing` before `open` launches a new process.
   - Minor: `scripts/verify/budget.sh:43`, a run passes when the footprint cannot be read.
   - Minor: `prototypes/meter-probe/src/main.rs:290` (length guard before slicing), `prototypes/ui-spike/snapshot.sh:14` (stop and clean up when the app fails), `prototypes/ui-spike/Sources/Soroband/HistoryDetail.swift:25` (crash on a future period).
-  - Trivial: `app/Soroband/HistoryWindow.swift:118`, run `Core.exportCSV` off the main thread; `app/Soroband/HistoryView.swift:62`, detect "all networks" without comparing `content.title` to `allNetworksTitle`.
 
   Deferred while merging the stack (from #4, #5, #6, #8):
   - Major: `scripts/verify/traffic.sh:39` (#4), other curls are counted with the test download.
   - Minor: `scripts/verify/traffic.sh:31` (#4), curl has no deadline.
   - Minor: `docs/verification.md:52` (#4), the engine's 5 MB memory check is missing.
-  - Minor: `app/Soroband/SettingsView.swift:23` (#6), the launch-at-login toggle is not refreshed when Settings regains focus.
 
   The comments themselves are on each PR's review threads (`gh api repos/AboulEinein/soroband/pulls/<n>/comments`); comments outside the diff are in the review bodies (`.../pulls/<n>/reviews`).
 
