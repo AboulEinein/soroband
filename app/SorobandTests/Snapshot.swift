@@ -12,6 +12,8 @@ enum Snapshot {
     static let failures = FileManager.default.temporaryDirectory.appending(path: "soroband-snapshots")
     /// Channel values may differ by this much before a pixel counts as changed.
     static let channelTolerance = 2
+    /// Snapshots are rendered and compared in this color space, whatever the display's.
+    static let colorSpace = NSColorSpace.displayP3
 
     /// Renders `view` in dark mode at its fitting size, or at `size`, hosted in a window as the
     /// app shows it: `ImageRenderer` leaves out AppKit-backed controls such as switches and
@@ -43,11 +45,13 @@ enum Snapshot {
         }
     }
 
-    static func render(_ view: some View, size: CGSize?) -> CGImage? {
+    /// `windowColorSpace` stands in for the display's: a window takes its screen's color space unless set.
+    static func render(_ view: some View, size: CGSize?, windowColorSpace: NSColorSpace? = nil) -> CGImage? {
         let host = NSHostingView(rootView: view.environment(\.colorScheme, .dark))
         let window = NSWindow(
             contentRect: CGRect(origin: .zero, size: size ?? host.fittingSize),
             styleMask: [.borderless], backing: .buffered, defer: false)
+        if let windowColorSpace { window.colorSpace = windowColorSpace }
         window.appearance = NSAppearance(named: .darkAqua)
         window.backgroundColor = .windowBackgroundColor
         window.contentView = host
@@ -57,7 +61,15 @@ enum Snapshot {
             window.setContentSize(host.fittingSize)
             host.layoutSubtreeIfNeeded()
         }
-        guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return nil }
+        // A bitmap of its own at 2x: one made for the window takes the display's color space and scale.
+        guard
+            let bitmap = NSBitmapImageRep(
+                bitmapDataPlanes: nil, pixelsWide: Int((host.bounds.width * 2).rounded(.up)),
+                pixelsHigh: Int((host.bounds.height * 2).rounded(.up)), bitsPerSample: 8, samplesPerPixel: 4,
+                hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+            )?.retagging(with: colorSpace)
+        else { return nil }
+        bitmap.size = host.bounds.size
         host.cacheDisplay(in: host.bounds, to: bitmap)
         return bitmap.cgImage
     }
