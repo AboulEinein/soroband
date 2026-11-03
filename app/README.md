@@ -11,7 +11,7 @@ The SwiftUI menu bar app (`LSUIElement`, no Dock icon). It links the Rust core f
 
 Debug builds use the bundle identifier `io.github.abouleinein.soroband.debug`, so they run next to an installed Release build.
 
-The History window runs in a second process of the same app, started with `--history` by the menu bar app (`Soroband/HistoryProcess.swift`); it quits when its window closes. A Debug build started with `SOROBAND_DATA_DIR` set (`open -g --env SOROBAND_DATA_DIR=<dir> -a <app>`) uses that data directory, and so does its History process.
+The History window runs in a second process of the same app, started with `--history` by the menu bar app (`Soroband/HistoryProcess.swift`); it quits when its window closes. A Debug build started with `SOROBAND_DATA_DIR` set (`open -g --env SOROBAND_DATA_DIR=<dir> -a <app>`) uses that data directory, and so does its History process; it hears `soroband config set` only from a command run with the same `SOROBAND_DATA_DIR`.
 
 Debug URL commands (`open -g -a <this build's Soroband.app> "soroband-debug://<command>"`):
 
