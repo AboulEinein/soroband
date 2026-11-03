@@ -6,9 +6,10 @@ swift build -c debug
 out=../../docs/mockups
 mkdir -p $out
 list=$(mktemp)
+pid=
+trap '[[ -n $pid ]] && kill $pid 2>/dev/null; rm -f $list' EXIT
 SOROBAND_SNAPSHOT=$list .build/debug/Soroband &
 pid=$!
-trap 'kill $pid 2>/dev/null || true; rm -f $list' EXIT
 until [[ -s $list ]]; do
   kill -0 $pid 2>/dev/null || { echo "Soroband exited before writing its window list" >&2; exit 1; }
   perl -e 'select(undef,undef,undef,0.3)'

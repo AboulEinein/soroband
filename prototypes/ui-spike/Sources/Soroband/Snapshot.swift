@@ -16,7 +16,12 @@ enum Snapshot {
                 ("island-moments", show(momentGallery(), size: CGSize(width: 1000, height: 12 * 170), at: CGPoint(x: 300, y: 0), titled: false)),
             ]
             let lines = windows.map { "\($0.0) \($0.1.windowNumber)" }.joined(separator: "\n")
-            try? lines.write(toFile: file, atomically: true, encoding: .utf8)
+            do {
+                try lines.write(toFile: file, atomically: true, encoding: .utf8)
+            } catch {
+                // snapshot.sh waits for this file while the app runs, so exiting is what ends its wait.
+                fatalError("Cannot write the snapshot window list to \(file): \(error)")
+            }
         }
     }
 
