@@ -55,7 +55,7 @@ _Avoid_: interface totals (except in "interface-only mode")
 The engine mode in which flows are trusted and bytes are credited to apps.
 
 **Interface-only mode**:
-The engine mode in which only interface bytes are counted and no app is credited, entered when the layout guard meets an unknown layout.
+The engine mode in which only interface bytes are counted and no app is credited, entered when the layout guard meets an unknown layout. With no flows read, local-network bytes cannot be told apart and stay in the interface bytes.
 _Avoid_: interface totals only, interface-only totals, "per-app counting is off"
 
 **Layout guard**:

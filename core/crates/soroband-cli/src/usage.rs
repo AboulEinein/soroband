@@ -17,7 +17,8 @@ pub const TODAY_USAGE: &str = "\
 Usage: soroband today [--json]
 
 Today's usage per network, since the reset hour (soroband config get reset_hour).
-Received and Sent are what crossed the network, less local-network traffic;
+Received and Sent are what crossed the network, less local-network traffic
+(interface-only mode cannot tell that traffic apart, so it stays in);
 Apps is the part the meter credited to apps (the rest is headers, acknowledgements and system traffic).";
 
 pub const APPS_USAGE: &str = "\
