@@ -118,24 +118,73 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
         let query = model.query
         panel.beginSheetModal(for: window) { response in
             guard response == .OK, let file = panel.url else { return }
-            Task {
-                guard await !Self.writeCSV(query, to: file) else { return }
-                let alert = NSAlert()
-                alert.messageText = "The CSV could not be written."
-                alert.informativeText = file.path
-                alert.beginSheetModal(for: window, completionHandler: nil)
-            }
+            self.export(
+                query, to: file,
+                done: { rows in
+                    guard rows == nil else { return }
+                    guard window.isVisible else {
+                        Self.log.error("The CSV could not be written to \(file.path, privacy: .public)")
+                        return
+                    }
+                    let alert = NSAlert()
+                    alert.messageText = "The CSV could not be written."
+                    alert.informativeText = file.path
+                    alert.beginSheetModal(for: window, completionHandler: nil)
+                })
         }
     }
 
+    /// Exports in flight, which quitting waits for (`shouldTerminate`).
+    private var exports: [Int: Task<Void, Never>] = [:]
+    private var nextExport = 0
+
+    /// Writes `query`'s usage to `file` (`writeCSV`), then calls `done` with the rows written, nil
+    /// when it could not be written.
+    func export(
+        _ query: HistoryQuery, to file: URL,
+        write: @escaping @Sendable (HistoryQuery, URL) -> Int? = Core.exportCSV,
+        done: @escaping (Int?) -> Void = { _ in }
+    ) {
+        let id = nextExport
+        nextExport += 1
+        exports[id] = Task {
+            done(await Self.writeCSV(query, to: file, write: write))
+            exports[id] = nil
+        }
+    }
+
+    /// Closing the window quits the process; an export in flight finishes first, and `reply` is
+    /// called then.
+    func shouldTerminate(reply: @escaping () -> Void) -> NSApplication.TerminateReply {
+        guard !exports.isEmpty else { return .terminateNow }
+        let pending = Array(exports.values)
+        Task {
+            for export in pending { await export.value }
+            reply()
+        }
+        return .terminateLater
+    }
+
     /// Writes `query`'s usage to `file` off the main thread, so a long range does not stall the
-    /// window; false when it could not be written. `write` is `Core.exportCSV`, or a stand-in in
-    /// tests.
+    /// window, and returns the rows written; nil when it could not be written. The CSV is written
+    /// beside `file` and moved over it once complete, so `file` is never left half-written. `write`
+    /// is `Core.exportCSV`, or a stand-in in tests.
     nonisolated static func writeCSV(
         _ query: HistoryQuery, to file: URL,
         write: @escaping @Sendable (HistoryQuery, URL) -> Int? = Core.exportCSV
-    ) async -> Bool {
-        await Task.detached(priority: .userInitiated) { write(query, file) != nil }.value
+    ) async -> Int? {
+        await Task.detached(priority: .userInitiated) {
+            let files = FileManager.default
+            guard
+                let directory = try? files.url(
+                    for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: file, create: true)
+            else { return nil }
+            defer { try? files.removeItem(at: directory) }
+            let temporary = directory.appending(path: file.lastPathComponent)
+            guard let rows = write(query, temporary), (try? files.replaceItemAt(file, withItemAt: temporary)) != nil
+            else { return nil }
+            return rows
+        }.value
     }
 
     func windowWillClose(_ notification: Notification) {
