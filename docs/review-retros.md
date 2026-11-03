@@ -322,3 +322,18 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | none | Checked the fixes and the merge from `main`. |
 
 **Retro.** Planned 1 round; it took 3, and CodeRabbit found 2 more. Round 2 came from a test that did not pin its limit, and round 3 from CodeRabbit's fixes changing behavior; neither found a defect in the fixes. CodeRabbit's Major was in `Snapshot.swift`, a file the PR did not touch, which the blind rounds did not read. CI did not run on one commit during a GitHub outage; an empty commit started it, after a conflict with `main` turned out to be the real cause.
+
+
+## [#28](https://github.com/AboulEinein/soroband/pull/28) fix(verify): close false passes and the hang in traffic.sh and budget.sh (2026-11-03)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 2 Low | `first look`: `plan.md`'s M1 requirement and `verification.md`'s M1 row named only the duplicates cutoff as the condition for a judged run. `first look`: `GLOSSARY.md` still called the cutoff the whole line between judged and reported runs. |
+| direct | Haiku | none | Checked 8e93089 and the added evidence (a clean judged run, why two pids). [Comment](https://github.com/AboulEinein/soroband/pull/28#issuecomment-6604714476). |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: `/usr/bin/curl` read `~/.curlrc`, whose retry restarts `--max-time` and can run the download past its deadline. |
+| 2 | Opus | 1 Low | `first look`: a backlog heading left with no items under it. |
+| direct | Haiku | none | Checked 0e42c0f. [Comment](https://github.com/AboulEinein/soroband/pull/28#issuecomment-6605594258). |
+
+**Retro.** Planned 1 round; it took 2 and two direct reviews, and CodeRabbit found 1 more. Round 1's findings were docs that restated the judged-run rule in three places, only one of which the PR updated; the glossary entry was right, the others drifted. The evidence first lacked a clean judged run, which needed a 60 s network run under the measurement lock and waited behind the performance baseline. CodeRabbit's finding came from an environment the script did not control (`~/.curlrc`), which no reading of the diff alone suggested.
