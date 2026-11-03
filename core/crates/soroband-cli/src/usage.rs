@@ -211,22 +211,29 @@ fn apps_text(wanted: Option<&str>, json: bool) -> Result<String, String> {
     Ok(text.trim_end().to_owned())
 }
 
-/// The id of the network named `wanted` (any letter case), or with id `wanted`, and its registry
-/// entry. Id 0, also named [`UNKNOWN_NETWORK`], holds bytes booked while no network was
+/// The id of the network with id `wanted`, or else named `wanted` (any letter case), and its
+/// registry entry. An id comes first, so the ids the "pass an id instead" error lists always
+/// resolve. Id 0, also named [`UNKNOWN_NETWORK`], holds bytes booked while no network was
 /// identified; it has no entry.
 fn find_network<'a>(
     networks: &'a [Network],
     wanted: &str,
 ) -> Result<(i64, Option<&'a Network>), String> {
+    if let Ok(id) = wanted.parse::<i64>() {
+        if id == 0 {
+            return Ok((0, None));
+        }
+        if let Some(network) = networks.iter().find(|n| n.id == id) {
+            return Ok((id, Some(network)));
+        }
+    }
     let matches: Vec<&Network> = networks
         .iter()
-        .filter(|n| n.name.to_lowercase() == wanted.to_lowercase() || n.id.to_string() == wanted)
+        .filter(|n| n.name.to_lowercase() == wanted.to_lowercase())
         .collect();
     match matches.as_slice() {
         [network] => Ok((network.id, Some(network))),
-        [] if wanted == "0" || wanted.to_lowercase() == UNKNOWN_NETWORK.to_lowercase() => {
-            Ok((0, None))
-        }
+        [] if wanted.to_lowercase() == UNKNOWN_NETWORK.to_lowercase() => Ok((0, None)),
         [] => {
             let names: Vec<String> = networks.iter().map(|n| format!("{:?}", n.name)).collect();
             Err(format!(
@@ -295,5 +302,16 @@ mod tests {
             error.contains(r#"known networks: "Home", "Office", "office""#),
             "{error}"
         );
+    }
+
+    #[test]
+    fn an_id_wins_over_a_network_named_like_it() {
+        let networks = [network(2, "Office"), network(5, "2"), network(6, "2")];
+        assert_eq!(find_network(&networks, "2").unwrap().0, 2);
+        // Without an id 2, "2" is a name, and the ids it asks for resolve it.
+        let named = &networks[1..];
+        let error = find_network(named, "2").unwrap_err();
+        assert!(error.contains("pass an id instead: 5, 6"), "{error}");
+        assert_eq!(find_network(named, "5").unwrap().0, 5);
     }
 }

@@ -33,7 +33,7 @@ The same command reads the usage the app records:
 
 ```sh
 soroband today --json                  # today per network: apps' bytes and what crossed the network
-soroband apps --network Home --json    # today's apps on one network (by name, any case, or by id)
+soroband apps --network Home --json    # today's apps on one network (by id, or by name in any case)
 soroband apps --json                   # today's apps on all networks
 ```
 
