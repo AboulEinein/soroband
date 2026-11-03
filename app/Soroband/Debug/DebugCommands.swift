@@ -55,13 +55,32 @@ enum DebugCommands {
         case "close-history": UIProcess.shared.send(.closeHistory)
         case "export-history": notify_post(exportHistoryNotification)
         case "open-onboarding": UIProcess.shared.send(.showOnboarding)
-        case "hover": UIProcess.shared.pointer(inside: queryItems(url)["inside"] != "0")
+        case "hover": hover(url)
         case "quit-ui": UIProcess.shared.stop()
         case "capture-status-item": captureStatusItem()
         case "capture-window": captureWindow(url)
         case "simulate-network": simulateNetwork(url)
         case "update-network": updateNetwork(url)
         default: NSLog("soroband-debug: unknown command %@", url.absoluteString)
+        }
+    }
+
+    /// `hover?inside=1` and `hover?inside=0` act as the pointer entering and leaving the menu bar
+    /// item.
+    private static func hover(_ url: URL) {
+        guard let inside = pointerInside(queryItems(url)["inside"]) else {
+            NSLog("soroband-debug: hover needs inside=1 or inside=0 in %@", url.absoluteString)
+            return
+        }
+        UIProcess.shared.pointer(inside: inside)
+    }
+
+    /// `hover`'s `inside` value: true for "1", false for "0", nil for anything else.
+    nonisolated static func pointerInside(_ value: String?) -> Bool? {
+        switch value {
+        case "1": true
+        case "0": false
+        default: nil
         }
     }
 
