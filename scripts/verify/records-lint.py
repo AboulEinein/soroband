@@ -24,7 +24,7 @@ MISSED = {"not checked", "judged fine", "outside the diff", "not in the requirem
 SEPARATOR = re.compile(r":?-{3,}:?")
 REVIEW_LABEL = re.compile(r"\d+(?: \(.+\))?|direct|CodeRabbit")
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
-CONFLICT_MARKER = re.compile(r"(?:<{7}|>{7})(?: .*)?|={7}")
+CONFLICT_MARKER = re.compile(r"(?:<{7}|\|{7}|>{7})(?: .*)?|={7}")
 NEVER = re.compile(r"(?!)")
 
 
@@ -185,6 +185,7 @@ def self_test() -> list[str]:
         entry + table + retro + "=======\n",
         entry + table + retro + "<<<<<<<\n",
         entry + table + retro + ">>>>>>> origin/main\n",
+        entry + table + retro + "||||||| merged common ancestors\n",
     ]
     findings_table = "| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |\n| --- | --- | --- | --- | --- | --- | --- |\n"
     row = "| 2026-10-29 | #1 | x | correctness | valid | not checked | – |\n"
@@ -200,6 +201,8 @@ def self_test() -> list[str]:
         "# Title\n\n" + findings_table + row + "<<<<<<< HEAD\n" + row + "=======\n" + row + ">>>>>>> main\n",
         "# Title\n\n" + findings_table + row + "=======\n",
         "# Title\n\n=======\n\n" + findings_table + row,
+        "# Title\n\n||||||| ---\n\n" + findings_table + row,
+        "# Title\n\n" + findings_table + row + "||||||| ---\n" + row,
     ]
     failures = []
     for text in retros_docs_ok:
