@@ -62,4 +62,4 @@ If the menu reads **Location Access: Off**, the user denied it earlier or Locati
 
 ## Done
 
-Tell the user Soroband is installed, where the app and command are, and that running `scripts/install.sh` again from the clone updates it.
+Tell the user Soroband is installed, where the app and command are, and that running `scripts/install.sh --replace` again from the clone updates it, when the user asks.
