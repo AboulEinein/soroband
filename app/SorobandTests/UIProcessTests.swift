@@ -17,13 +17,14 @@ struct UIProcessTests {
         status: EngineStatus(networkID: 1), todayJSON: "", registry: [],
         menuBarLayout: .default, resetHour: 0, current: nil, connectedSince: nil)
 
-    /// A stand-in that prints `events` once started, then logs what it reads.
+    /// A stand-in that prints `events` once started, then logs what it reads. With `stateAnswer`,
+    /// it answers each `dumpState` with it after `answerDelay` seconds.
     private final class StandIn {
         let script: URL
         let log: URL
         let argumentsFile: URL
 
-        init(events: [UIEvent] = [.ready]) throws {
+        init(events: [UIEvent] = [.ready], stateAnswer: String? = nil, answerDelay: Double = 0) throws {
             let directory = FileManager.default.temporaryDirectory.appending(path: "ui-stand-in-\(UUID())")
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             script = directory.appending(path: "Soroband")
@@ -34,9 +35,20 @@ struct UIProcessTests {
             #!/bin/sh
             echo "$*" > '\(argumentsFile.path)'
             \(lines.map { "echo '\($0)'" }.joined(separator: "\n"))
-            exec cat > '\(log.path)'
+            \(reader(stateAnswer: stateAnswer, delay: answerDelay))
             """.write(to: script, atomically: true, encoding: .utf8)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        }
+
+        private func reader(stateAnswer: String?, delay: Double) throws -> String {
+            guard let stateAnswer else { return "exec cat > '\(log.path)'" }
+            let answer = String(decoding: try JSONEncoder().encode(UIEvent.debugState(stateAnswer)), as: UTF8.self)
+            return """
+                while IFS= read -r line; do
+                  printf '%s\\n' "$line" >> '\(log.path)'
+                  case "$line" in *dumpState*) (sleep \(delay); echo '\(answer)') & ;; esac
+                done
+                """
         }
 
         /// The arguments it was started with.
@@ -132,6 +144,27 @@ struct UIProcessTests {
         try await until { ui.phase == .ready }
         let second = try #require(ui.processIdentifier)
         #expect(second != first)
+    }
+
+    @Test func aDebugStateAnswerReachesTheLatestRequestPastAnEarlierOnesTimeout() async throws {
+        // Each answer comes 0.45 s after its request, past the 0.4 s wait; the second request,
+        // made 0.2 s after the first, still waits when the first one's wait runs out.
+        let standIn = try StandIn(stateAnswer: #"{"pid":1}"#, answerDelay: 0.45)
+        let ui = UIProcess(
+            executableURL: standIn.script, snapshot: { Self.snapshot }, handle: { _ in },
+            debugStateWait: .milliseconds(400))
+        defer { ui.stop() }
+        ui.pointer(inside: true)
+        try await until { ui.phase == .ready }
+
+        var first: String?? = .none
+        var second: String?? = .none
+        ui.debugState { first = .some($0) }
+        try await Task.sleep(for: .milliseconds(200))
+        ui.debugState { second = .some($0) }
+        try await until { second != nil }
+        #expect(first == .some(nil), "a newer request takes over from the first")
+        #expect(second == .some(#"{"pid":1}"#), "the first request's timeout must not end the second's wait")
     }
 
     @Test func changesMadeInTheUIProcessReachTheMenuBarProcess() async throws {

@@ -164,7 +164,10 @@ final class UIProcess {
     private let writer = DispatchQueue(label: "io.github.abouleinein.soroband.ui-process")
     private var waitingWrites = 0
     private var debugStateReply: ((String?) -> Void)?
+    /// Ends the wait of the request in `debugStateReply`, and only that one.
+    private var debugStateTimeout: Task<Void, Never>?
 
+    private let debugStateWait: Duration
     private let executableURL: URL?
     private let snapshot: @MainActor () -> UISnapshot
     private let handle: @MainActor (UIEvent) -> Void
@@ -176,8 +179,10 @@ final class UIProcess {
     init(
         executableURL: URL? = Bundle.main.executableURL,
         snapshot: @escaping @MainActor () -> UISnapshot = UISnapshot.current,
-        handle: @escaping @MainActor (UIEvent) -> Void = UIProcess.apply
+        handle: @escaping @MainActor (UIEvent) -> Void = UIProcess.apply,
+        debugStateWait: Duration = .seconds(1)
     ) {
+        self.debugStateWait = debugStateWait
         self.executableURL = executableURL
         self.snapshot = snapshot
         self.handle = handle
@@ -227,18 +232,26 @@ final class UIProcess {
         process?.terminate()
     }
 
-    /// Asks the UI process for its part of `soroband debug state`; nil when none runs or it does
-    /// not answer within a second.
+    /// Asks the UI process for its part of `soroband debug state`; nil when none runs, it does not
+    /// answer within `debugStateWait` (a second), or a newer request takes over.
     func debugState(_ reply: @escaping (String?) -> Void) {
         guard phase == .ready else { return reply(nil) }
-        debugStateReply?(nil)
+        answerDebugState(nil)
         debugStateReply = reply
         write(.dumpState)
-        Task { [weak self] in
-            try? await Task.sleep(for: .seconds(1))
-            self?.debugStateReply?(nil)
-            self?.debugStateReply = nil
+        debugStateTimeout = Task { [weak self, debugStateWait] in
+            try? await Task.sleep(for: debugStateWait)
+            guard !Task.isCancelled else { return }
+            self?.answerDebugState(nil)
         }
+    }
+
+    private func answerDebugState(_ json: String?) {
+        debugStateTimeout?.cancel()
+        debugStateTimeout = nil
+        let reply = debugStateReply
+        debugStateReply = nil
+        reply?(json)
     }
 
     /// Starts the process directly rather than through Launch Services, which drops the arguments
@@ -285,8 +298,7 @@ final class UIProcess {
         case .popover(let shown):
             isPopoverShown = shown
         case .debugState(let json):
-            debugStateReply?(json)
-            debugStateReply = nil
+            answerDebugState(json)
         default:
             handle(event)
             publish()
@@ -301,8 +313,7 @@ final class UIProcess {
         isPopoverShown = false
         queue = UIQueue()
         sent = nil
-        debugStateReply?(nil)
-        debugStateReply = nil
+        answerDebugState(nil)
         onExit?()
     }
 
