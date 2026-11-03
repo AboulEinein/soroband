@@ -317,6 +317,48 @@ fn local_network_bytes_count_as_explained_in_the_self_check_and_not_as_usage() {
 }
 
 #[test]
+fn local_network_bytes_stay_out_of_the_stored_interface_bytes() {
+    let f = Fixture::new("interfaces-local");
+    let t = MIDNIGHT + 10 * H;
+    // A Time Machine backup to a NAS: Mail's local flow (3) moves 900 MB, its internet flow (1)
+    // 10 MB, and en0 carries both plus 15 MB of headers and acknowledgements.
+    let mut events = start(
+        &[],
+        &[
+            tcp_update(1, 0, 0, MAIL, false, 360),
+            tcp_update(3, 0, 0, MAIL, true, 360),
+        ],
+    );
+    for i in 1..=2u64 {
+        events.extend([
+            Event::Timeout,
+            Event::Send(ntstat::poll_all(POLL + i)),
+            datagram(&[
+                tcp_update(1, i * 5_000_000, 0, MAIL, false, 360),
+                tcp_update(3, i * 450_000_000, 0, MAIL, true, 360),
+                success(POLL + i, false),
+            ]),
+            en0(1_000_000 + i * 462_500_000, 1_000_000),
+        ]);
+    }
+    let mut service = f.service(Replay::new(events), t);
+    service.apply(&Command::Network(f.home), t).unwrap();
+    tick(&mut service, t + 5);
+    tick(&mut service, t + 10);
+    service.apply(&Command::Stop, t + 11).unwrap();
+    // The interface bytes are the internet bytes, Mail's 10 MB and its 15 MB of overhead; the
+    // popover's "Other / overhead" row (interfaces minus apps) is that overhead alone.
+    let internet = NetworkTotal {
+        network: f.home,
+        apps: rx(10_000_000),
+        interfaces: rx(25_000_000),
+    };
+    assert_eq!(service.today().network, internet);
+    assert_eq!(service.last_booked().interfaces, rx(12_500_000));
+    assert_eq!(f.reader().network_totals(0).unwrap(), [internet]);
+}
+
+#[test]
 fn bytes_are_written_once_a_minute() {
     let f = Fixture::new("minute");
     let t = MIDNIGHT + 10 * H;

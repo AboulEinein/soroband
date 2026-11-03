@@ -152,7 +152,7 @@ impl<H: Host> Service<H> {
         if snapshot.mode == Mode::PerApp {
             let mut explained = booked.apps;
             explained += booked.local;
-            self.check.observe(explained, booked.interfaces, now);
+            self.check.observe(explained, booked.crossed, now);
         }
         self.last_booked = booked;
         if day_start(now, self.reset_hour, self.zone) != self.day_start {

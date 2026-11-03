@@ -8,8 +8,9 @@
 //! - `usage`: internet bytes per (hour, network, app), summed from the meter.
 //! - `usage_day`: the same bytes per (UTC day, network, app), written with `usage`, so a long
 //!   History range reads one row per day instead of 24 ([`crate::history`]).
-//! - `interface_usage`: bytes that crossed the interfaces per (hour, network), for the
-//!   reconciliation and for Macs whose engine runs on interface totals only.
+//! - `interface_usage`: bytes that crossed the interfaces per (hour, network), less the
+//!   local-network bytes, for the network totals and for Macs whose engine runs on interface
+//!   totals only.
 //!
 //! Hours are Unix times of the start of a UTC hour ([`crate::day::hour_start`]). Network id 0
 //! means no network was identified (before the app named one, or while it waits for a network's
@@ -148,7 +149,7 @@ pub struct NetworkTotal {
     pub network: i64,
     /// Summed over the apps.
     pub apps: Bytes,
-    /// Crossed the interfaces.
+    /// Crossed the interfaces, less the local-network bytes.
     pub interfaces: Bytes,
 }
 
