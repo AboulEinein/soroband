@@ -299,3 +299,8 @@ Planned rounds: 1.
 ## [#26](https://github.com/AboulEinein/soroband/pull/26) fix(app): handle the CodeRabbit app Swift findings (2026-11-03)
 
 Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Medium, 1 Low | `first look`: moving the CSV export off the main thread let a window close quit the History process mid-write, leaving a truncated file. `first look`: Settings refreshed an injected `LaunchAtLogin` but showed `.shared`, so the test checked an object the window did not show. |
+| 2 | Opus | 1 Low | `first look`: this entry had no rows for the rounds that had run. |
