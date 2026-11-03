@@ -14,14 +14,14 @@ enum Onboarding {
     }
 
     /// Remembered only once the user answered or closed the window: a window macOS kept behind
-    /// other apps at launch shows again at the next one.
+    /// other apps at launch shows again at the next one. The UI process shows it.
     @MainActor
     static func showIfNeeded() {
         let defaults = UserDefaults.standard
         guard shouldShow(status: LocationAccess.shared.status, alreadyShown: defaults.bool(forKey: shownKey)) else {
             return
         }
-        OnboardingWindow.shared.show(aboveOtherApps: true)
+        UIProcess.shared.send(.showOnboarding)
     }
 }
 
@@ -50,6 +50,7 @@ final class OnboardingWindow: NSObject, NSWindowDelegate {
             window?.level = .floating
             window?.orderFrontRegardless()
         }
+        UIHost.windowsChanged()
     }
 
     func close() {
@@ -59,6 +60,7 @@ final class OnboardingWindow: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         UserDefaults.standard.set(true, forKey: Onboarding.shownKey)
         window = nil
+        UIHost.windowsChanged()
     }
 }
 

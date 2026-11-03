@@ -207,7 +207,7 @@ struct RegisteredNetwork: Codable, Equatable, Identifiable {
 }
 
 /// A network as the registry stores it.
-struct Network: Equatable {
+struct Network: Codable, Equatable {
     let id: Int64
     let key: String
     let name: String
@@ -224,13 +224,13 @@ extension Network {
 }
 
 /// The meter engine's health, totals since it started, and today's usage.
-struct EngineStatus: Equatable {
-    enum State: String, Encodable {
+struct EngineStatus: Codable, Equatable {
+    enum State: String, Codable {
         case starting, perApp, interfaceOnly, failed
     }
 
     /// The self-check's verdict on the apps' sum against the interfaces (`core/.../check.rs`).
-    enum Check: String, Encodable {
+    enum Check: String, Codable {
         case ok, degraded, overcount
     }
 

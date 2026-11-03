@@ -6,9 +6,9 @@ import notify
 ///
 /// - `open -g -a <this build's Soroband.app> "soroband-debug://<command>"` runs a command (see
 ///   `handle`); without `-g` macOS brings the app to the front, taking the user's keyboard.
-/// - `soroband debug state --json` posts `dumpStateNotification`; the app answers by writing its
-///   state to `stateFile`. `soroband debug history --json` does the same with the History
-///   process (`dumpHistoryNotification`, `historyFile`). The names must match
+/// - `soroband debug state --json` posts `dumpStateNotification`; the menu bar process answers by
+///   writing its state and the UI process's to `stateFile`. `soroband debug history --json` asks
+///   the UI process for History (`dumpHistoryNotification`, `historyFile`). The names must match
 ///   `core/crates/soroband-cli/src/debug.rs`.
 @MainActor
 enum DebugCommands {
@@ -21,7 +21,7 @@ enum DebugCommands {
     static let historyCSVFile = directory.appending(path: "history.csv")
     static let dumpHistoryNotification = "io.github.abouleinein.soroband.debug.dump-history"
     static let historyFile = directory.appending(path: "history.json")
-    /// The menu bar app tells the History process to export what it shows.
+    /// The menu bar process tells the UI process to export what History shows.
     static let exportHistoryNotification = "io.github.abouleinein.soroband.debug.export-history"
 
     private static var token: Int32 = 0
@@ -33,8 +33,8 @@ enum DebugCommands {
         }
     }
 
-    /// The History process answers `soroband debug history --json` and `export-history`.
-    static func startHistory() {
+    /// The UI process answers `soroband debug history --json` and `export-history`.
+    static func startUI() {
         notify_register_dispatch(dumpHistoryNotification, &token, .main) { _ in
             MainActor.assumeIsolated { write(HistoryState.current(), to: historyFile) }
         }
@@ -50,11 +50,13 @@ enum DebugCommands {
         case "open-popover": openPopover(url)
         case "close-popover": MenuBarController.shared.closePopover()
         case "open-settings": openSettings(url)
-        case "close-settings": SettingsWindow.shared.window?.close()
+        case "close-settings": UIProcess.shared.send(.closeSettings)
         case "open-history": openHistory(url)
-        case "close-history": HistoryProcess.close()
+        case "close-history": UIProcess.shared.send(.closeHistory)
         case "export-history": notify_post(exportHistoryNotification)
-        case "open-onboarding": OnboardingWindow.shared.show()
+        case "open-onboarding": UIProcess.shared.send(.showOnboarding)
+        case "hover": UIProcess.shared.pointer(inside: queryItems(url)["inside"] != "0")
+        case "quit-ui": UIProcess.shared.stop()
         case "capture-status-item": captureStatusItem()
         case "capture-window": captureWindow(url)
         case "simulate-network": simulateNetwork(url)
@@ -106,11 +108,11 @@ enum DebugCommands {
             NSLog("soroband-debug: unknown popover tab in %@", url.absoluteString)
             return
         }
-        MenuBarController.shared.showPopover(tab: tab, allNetworks: query["all"] == "1")
+        MenuBarController.shared.showPopover(tab: tab.rawValue, allNetworks: query["all"] == "1")
     }
 
     /// `open-history?range=year&network=2&date=2026-10-15&app=<app id>&hover=2026-10-18T09:00`
-    /// opens History in a new History process (Month, every network, today unless given) and, for
+    /// opens History in the UI process (Month, every network, today unless given) and, for
     /// captures, expands an app and holds the chart's hover on a time. A History already open is
     /// replaced.
     private static func openHistory(_ url: URL) {
@@ -119,12 +121,11 @@ enum DebugCommands {
             NSLog("soroband-debug: unknown history range in %@", url.absoluteString)
             return
         }
-        HistoryProcess.open(
-            HistoryOptions(
-                range: range, date: query["date"].flatMap(localDate), network: query["network"].flatMap(Int64.init),
-                current: NetworkMonitor.shared.current?.id, expandedApp: query["app"],
-                hover: query["hover"].flatMap(localDate)),
-            replacing: true)
+        let options = HistoryOptions(
+            range: range, date: query["date"].flatMap(localDate), network: query["network"].flatMap(Int64.init),
+            current: NetworkMonitor.shared.current?.id, requested: .now, expandedApp: query["app"],
+            hover: query["hover"].flatMap(localDate))
+        UIProcess.shared.send(.showHistory(arguments: options.arguments, replacing: true))
     }
 
     /// `2026-10-15` or `2026-10-15T09:00`, in the local time zone.
@@ -158,7 +159,7 @@ enum DebugCommands {
             NSLog("soroband-debug: unknown settings tab in %@", url.absoluteString)
             return
         }
-        SettingsWindow.shared.show(tab: tab)
+        UIProcess.shared.send(.showSettings(tab: tab.rawValue))
     }
 
     private static func queryItems(_ url: URL) -> [String: String] {
@@ -182,13 +183,25 @@ enum DebugCommands {
 
     /// `capture-window?number=<window number>` renders that window's content, as the app draws
     /// it, to `windowFile`: for windows `screencapture` cannot see (behind the notch, or a
-    /// popover). The output path is fixed for the same reason as `statusItemFile`'s.
+    /// popover). A window of the UI process is rendered there. The output path is fixed for the
+    /// same reason as `statusItemFile`'s.
     private static func captureWindow(_ url: URL) {
-        guard let number = queryItems(url)["number"].flatMap(Int.init),
-            let view = NSApp.windows.first(where: { $0.windowNumber == number })?.contentView?.superview,
+        guard let number = queryItems(url)["number"].flatMap(Int.init) else {
+            NSLog("soroband-debug: capture-window needs a window number in %@", url.absoluteString)
+            return
+        }
+        if NSApp.windows.contains(where: { $0.windowNumber == number }) {
+            captureWindow(number: number)
+        } else {
+            UIProcess.shared.send(.captureWindow(number: number))
+        }
+    }
+
+    static func captureWindow(number: Int) {
+        guard let view = NSApp.windows.first(where: { $0.windowNumber == number })?.contentView?.superview,
             let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)
         else {
-            NSLog("soroband-debug: capture-window found no window for %@", url.absoluteString)
+            NSLog("soroband-debug: capture-window found no window %d", number)
             return
         }
         view.cacheDisplay(in: view.bounds, to: bitmap)
@@ -215,8 +228,18 @@ enum DebugCommands {
         }
     }
 
+    /// Writes the menu bar process's state with the UI process's, once it has answered.
     static func writeState() {
-        write(DebugState.current(), to: stateFile)
+        UIProcess.shared.debugState { json in
+            let ui = json.flatMap { try? JSONDecoder().decode(UIState.self, from: Data($0.utf8)) }
+            write(DebugState.current(ui: ui), to: stateFile)
+        }
+    }
+
+    /// The UI process's part of `soroband debug state`, as JSON.
+    static func uiState() -> String {
+        let data = (try? JSONEncoder().encode(UIState.current())) ?? Data("{}".utf8)
+        return String(decoding: data, as: UTF8.self)
     }
 
     private static func write(_ state: some Encodable, to file: URL) {
@@ -233,7 +256,7 @@ enum DebugCommands {
 
 /// What the running app shows, as printed by `soroband debug state --json`.
 struct DebugState: Encodable {
-    struct Window: Encodable {
+    struct Window: Codable {
         let number: Int
         let kind: String
         let title: String
@@ -242,7 +265,7 @@ struct DebugState: Encodable {
         let rect: Rect
     }
 
-    struct Rect: Encodable {
+    struct Rect: Codable {
         let x, y, width, height: Double
     }
 
@@ -308,8 +331,8 @@ struct DebugState: Encodable {
     let popoverShown: Bool
     /// The open Settings tab; nil while Settings is closed.
     let settingsTab: String?
-    /// The History process, while it runs (`soroband debug history --json` asks it).
-    let historyProcess: Int32?
+    /// The UI process, while it runs; it holds the popover, Settings, History and Welcome windows.
+    let uiProcess: UIState?
     let launchAtLogin: LaunchAtLoginState
     let location: String
     let engine: Engine
@@ -319,8 +342,7 @@ struct DebugState: Encodable {
     let windows: [Window]
 
     @MainActor
-    static func current() -> DebugState {
-        let mainDisplayHeight = NSScreen.screens.first?.frame.maxY ?? 0
+    static func current(ui: UIState?) -> DebugState {
         let engine = Core.engine
         return DebugState(
             pid: ProcessInfo.processInfo.processIdentifier,
@@ -333,9 +355,9 @@ struct DebugState: Encodable {
                 style: Usage.shared.menuBarLayout.style.rawValue,
                 symbol: MenuBarController.shared.display?.symbol,
                 text: MenuBarController.shared.display?.text),
-            popoverShown: MenuBarController.shared.isPopoverShown,
-            settingsTab: SettingsWindow.shared.window == nil ? nil : SettingsWindow.shared.tab.rawValue,
-            historyProcess: HistoryProcess.processIdentifier,
+            popoverShown: ui?.popoverShown ?? false,
+            settingsTab: ui?.settingsTab,
+            uiProcess: ui,
             launchAtLogin: LaunchAtLoginState(
                 isOn: LaunchAtLogin.shared.state.isOn, note: LaunchAtLogin.shared.state.note),
             location: LocationAccess.shared.statusName,
@@ -379,7 +401,35 @@ struct DebugState: Encodable {
     }
 }
 
-/// What the History process shows, as printed by `soroband debug history --json`.
+/// What the UI process shows, in `soroband debug state --json`'s `uiProcess`.
+struct UIState: Codable {
+    let pid: Int32
+    let popoverShown: Bool
+    /// From the click in the menu bar process to the popover drawn, at its last opening.
+    let popoverOpenMilliseconds: Double?
+    /// The open Settings tab; nil while Settings is closed.
+    let settingsTab: String?
+    let historyShown: Bool
+    let welcomeShown: Bool
+    /// Whether it waits to quit, with no window open and the pointer away from the menu bar item.
+    let lingering: Bool
+    let windows: [DebugState.Window]
+
+    @MainActor
+    static func current() -> UIState {
+        UIState(
+            pid: ProcessInfo.processInfo.processIdentifier,
+            popoverShown: PopoverController.shared.isShown,
+            popoverOpenMilliseconds: PopoverController.shared.openDuration.map { $0 * 1000 },
+            settingsTab: SettingsWindow.shared.window == nil ? nil : SettingsWindow.shared.tab.rawValue,
+            historyShown: HistoryWindow.shared.window != nil,
+            welcomeShown: OnboardingWindow.shared.window != nil,
+            lingering: UIHost.isLingering,
+            windows: DebugState.windows())
+    }
+}
+
+/// What the History window shows, as printed by `soroband debug history --json`.
 struct HistoryState: Encodable {
     let pid: Int32
     let range: String

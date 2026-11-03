@@ -2,7 +2,8 @@ import AppKit
 import CoreLocation
 import SwiftUI
 
-/// The Settings window, created when it opens and released when it closes.
+/// The Settings window, in the UI process (`UIHost`), created when it opens and released when it
+/// closes.
 @MainActor
 final class SettingsWindow: NSObject, NSWindowDelegate {
     static let shared = SettingsWindow()
@@ -40,6 +41,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
             window.makeKeyAndOrderFront(nil)
             // Otherwise AppKit focuses the first text field, a network's name, as if to rename it.
             window.makeFirstResponder(nil)
+            UIHost.windowsChanged()
             return
         }
         NSApp.activate()
@@ -58,6 +60,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         window = nil
+        UIHost.windowsChanged()
     }
 }
 

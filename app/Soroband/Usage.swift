@@ -4,7 +4,9 @@ import Foundation
 /// bar item, the popover and the settings.
 ///
 /// While the popover is closed only the status is read (a struct copy); the lists the popover
-/// needs are published by the core and read only while it is open.
+/// needs are published by the core and read only while it is open. In the UI process it mirrors
+/// the menu bar process's (`mirror`), and its changes go to the menu bar process, which runs the
+/// engine (`UIHost.forward`).
 @MainActor
 @Observable
 final class Usage {
@@ -21,6 +23,10 @@ final class Usage {
     var isLive = false {
         didSet {
             guard isLive != oldValue else { return }
+            if UIHost.forward(.live(isLive)) {
+                if !isLive { today = Today(networks: [], apps: []) }
+                return
+            }
             Core.setLive(isLive)
             if isLive {
                 reloadRegistry()
@@ -69,7 +75,17 @@ final class Usage {
     }
 
     func reloadRegistry() {
+        if UIHost.forward(.reloadRegistry) { return }
         registry = Core.networks()
+    }
+
+    /// In the UI process: takes what the menu bar process's `Usage` holds.
+    func mirror(_ snapshot: UISnapshot) {
+        if snapshot.status != status { status = snapshot.status }
+        if snapshot.today != today { today = snapshot.today }
+        if snapshot.registry != registry { registry = snapshot.registry }
+        if snapshot.menuBarLayout != menuBarLayout { menuBarLayout = snapshot.menuBarLayout }
+        if snapshot.resetHour != resetHour { resetHour = snapshot.resetHour }
     }
 
     /// Rereads the settings the app shows, after `soroband config set` or a change in Settings.
@@ -86,6 +102,11 @@ final class Usage {
 
     /// Saves the menu bar layout. Its values come from the core's options, so none is refused.
     func setMenuBarLayout(_ layout: MenuBarLayout) {
+        if UIHost.forward(.setMenuBarLayout(layout)) {
+            // Shown at once; the menu bar process's snapshot confirms it.
+            menuBarLayout = layout
+            return
+        }
         let saved =
             Core.setSetting(MenuBarScope.settingKey, to: layout.scope.rawValue)
             && Core.setSetting(MenuBarLayout.readingsKey, to: layout.readingsValue)
@@ -95,11 +116,16 @@ final class Usage {
     }
 
     func setResetHour(_ hour: Int) {
+        if UIHost.forward(.setResetHour(hour)) {
+            resetHour = hour
+            return
+        }
         if Core.setSetting("reset_hour", to: String(hour)) { reloadSettings() }
     }
 
     /// Sets network `id` to palette slot `color`, or back to its place's slot with nil.
     func setNetworkColor(id: Int64, color: Int?) {
+        if UIHost.forward(.setNetworkColor(id: id, color: color)) { return }
         if !Core.setNetworkColor(id: id, color: color) {
             NSLog("Soroband: the color of network %lld was not saved", id)
         }
@@ -109,6 +135,7 @@ final class Usage {
 
     /// Renames network `id` and sets its kind, as the user chose in Settings.
     func updateNetwork(id: Int64, name: String, kind: NetworkKind) {
+        if UIHost.forward(.updateNetwork(id: id, name: name, kind: kind)) { return }
         if NetworkMonitor.shared.current?.id == id {
             NetworkMonitor.shared.updateCurrent(name: name, kind: kind)
         } else {
