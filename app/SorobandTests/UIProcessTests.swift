@@ -14,7 +14,7 @@ struct UIProcessTests {
     }
 
     private static let snapshot = UISnapshot(
-        status: EngineStatus(networkID: 1), today: Today(networks: [], apps: []), registry: [],
+        status: EngineStatus(networkID: 1), todayJSON: "", registry: [],
         menuBarLayout: .default, resetHour: 0, current: nil, connectedSince: nil)
 
     /// A stand-in that prints `events` once started, then logs what it reads.
@@ -201,9 +201,11 @@ struct UIHostTests {
             status: EngineStatus(
                 networkID: 2, todayStart: Date(timeIntervalSince1970: 1_793_000_000), resetHour: 4,
                 todayNetworkInterfaces: ByteCounts(rx: 12, tx: 3), speed: ByteCounts(rx: 1, tx: 2), check: .degraded),
-            today: Today(
-                networks: [.init(network: 2, apps: ByteCounts(rx: 10, tx: 2), interfaces: ByteCounts(rx: 12, tx: 3))],
-                apps: [.init(network: 2, id: "/Applications/Safari.app", name: "Safari", rx: 10, tx: 2)]),
+            // As `soroband_today_json` writes it.
+            todayJSON: #"""
+                {"networks":[{"network":2,"apps":{"rx":10,"tx":2},"interfaces":{"rx":12,"tx":3}}],\#
+                "apps":[{"network":2,"id":"/Applications/Safari.app","name":"Safari","rx":10,"tx":2}]}
+                """#,
             registry: [
                 RegisteredNetwork(id: 2, key: "wifi:Home", name: "Home", kind: .wifi, lastUsed: 1_793_000_000, color: 3)
             ],
@@ -216,7 +218,14 @@ struct UIHostTests {
         let usage = Usage()
         usage.mirror(snapshot)
         #expect(usage.status == snapshot.status)
-        #expect(usage.today == snapshot.today)
+        #expect(
+            usage.today
+                == Today(
+                    networks: [
+                        .init(network: 2, apps: ByteCounts(rx: 10, tx: 2), interfaces: ByteCounts(rx: 12, tx: 3))
+                    ],
+                    apps: [.init(network: 2, id: "/Applications/Safari.app", name: "Safari", rx: 10, tx: 2)]),
+            "the UI process reads the lists the menu bar process passed on unread")
         #expect(usage.registry == snapshot.registry)
         #expect(usage.menuBarLayout == snapshot.menuBarLayout)
         #expect(usage.resetHour == 4)

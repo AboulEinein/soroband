@@ -105,9 +105,20 @@ enum Core {
         soroband_engine_on_poll(callback)
     }
 
-    /// Today's usage per network and app, as of the last poll; empty unless live.
-    static func today() -> Today {
-        decode(Today.self, soroband_today_json()) ?? Today(networks: [], apps: [])
+    /// Today's usage per network and app as the core's JSON, as of the last poll; empty lists
+    /// unless live.
+    static func todayJSON() -> String {
+        take(soroband_today_json()) ?? ""
+    }
+
+    /// `todayJSON()`'s text read.
+    static func today(json: String) -> Today {
+        do {
+            return try JSONDecoder().decode(Today.self, from: Data(json.utf8))
+        } catch {
+            NSLog("Soroband: cannot read today's usage from the core: %@", String(describing: error))
+            return Today(networks: [], apps: [])
+        }
     }
 
     /// Every network in the registry. Reads the database.

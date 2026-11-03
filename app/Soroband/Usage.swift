@@ -13,7 +13,12 @@ final class Usage {
     static let shared = Usage()
 
     private(set) var status = EngineStatus(state: .starting)
+    /// Read in the UI process, from `todayJSON`.
     private(set) var today = Today(networks: [], apps: [])
+    /// Today's lists as the core writes them (`Core.todayJSON`). The menu bar process hands them on
+    /// without reading them: decoding and encoding them each second there left about 1.4 MB of
+    /// fragmented heap after the popover closed.
+    private(set) var todayJSON = ""
     /// The network registry, read when the popover or the Networks settings open.
     private(set) var registry: [RegisteredNetwork] = []
     private(set) var menuBarLayout = MenuBarLayout.default
@@ -23,16 +28,13 @@ final class Usage {
     var isLive = false {
         didSet {
             guard isLive != oldValue else { return }
-            if UIHost.forward(.live(isLive)) {
-                if !isLive { today = Today(networks: [], apps: []) }
-                return
-            }
-            Core.setLive(isLive)
-            if isLive {
-                reloadRegistry()
-            } else {
+            if !isLive {
                 today = Today(networks: [], apps: [])
+                todayJSON = ""
             }
+            if UIHost.forward(.live(isLive)) { return }
+            Core.setLive(isLive)
+            if isLive { reloadRegistry() }
         }
     }
 
@@ -57,8 +59,8 @@ final class Usage {
         let status = Core.engine
         if status != self.status { self.status = status }
         if isLive {
-            let today = Core.today()
-            if today != self.today { self.today = today }
+            let json = Core.todayJSON()
+            if json != todayJSON { todayJSON = json }
         }
         if registryRereads > 0 {
             registryRereads -= 1
@@ -82,7 +84,10 @@ final class Usage {
     /// In the UI process: takes what the menu bar process's `Usage` holds.
     func mirror(_ snapshot: UISnapshot) {
         if snapshot.status != status { status = snapshot.status }
-        if snapshot.today != today { today = snapshot.today }
+        if snapshot.todayJSON != todayJSON {
+            todayJSON = snapshot.todayJSON
+            today = todayJSON.isEmpty ? Today(networks: [], apps: []) : Core.today(json: todayJSON)
+        }
         if snapshot.registry != registry { registry = snapshot.registry }
         if snapshot.menuBarLayout != menuBarLayout { menuBarLayout = snapshot.menuBarLayout }
         if snapshot.resetHour != resetHour { resetHour = snapshot.resetHour }

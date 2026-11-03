@@ -76,8 +76,9 @@ enum UIEvent: Codable, Equatable {
 /// poll in the menu bar process.
 struct UISnapshot: Codable, Equatable {
     var status: EngineStatus
-    /// Empty unless the popover is open (`Usage.isLive`).
-    var today: Today
+    /// Today's lists as the core's JSON (`Usage.todayJSON`), read only in the UI process; empty
+    /// unless the popover is open (`Usage.isLive`).
+    var todayJSON: String
     var registry: [RegisteredNetwork]
     var menuBarLayout: MenuBarLayout
     var resetHour: Int
@@ -88,7 +89,8 @@ struct UISnapshot: Codable, Equatable {
     static func current() -> UISnapshot {
         let usage = Usage.shared
         return UISnapshot(
-            status: usage.status, today: usage.today, registry: usage.registry, menuBarLayout: usage.menuBarLayout,
+            status: usage.status, todayJSON: usage.todayJSON, registry: usage.registry,
+            menuBarLayout: usage.menuBarLayout,
             resetHour: usage.resetHour, current: NetworkMonitor.shared.current,
             connectedSince: NetworkMonitor.shared.connectedSince)
     }
