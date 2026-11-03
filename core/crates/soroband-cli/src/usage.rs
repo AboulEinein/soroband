@@ -51,7 +51,7 @@ impl Today {
         // The running app keeps its last reset hour when the file turns unreadable, so no
         // fallback here is sure to match the day it shows.
         let reset_hour = Settings::load(&settings_path)
-            .map_err(|e| format!("{}: {e}. Fix or delete the file.", settings_path.display()))?
+            .map_err(|e| format!("{}: {e}. Fix the file, or delete it and set each value again with `soroband config set`, which tells the app.", settings_path.display()))?
             .reset_hour();
         let start = day::day_start(day::now(), reset_hour, day::local_offset);
         Ok(Self {

@@ -181,7 +181,10 @@ fn today_and_apps_refuse_an_unreadable_settings_file() {
         assert_eq!(output.status.code(), Some(1), "{args:?}: {output:?}");
         assert!(output.stdout.is_empty(), "{args:?}: {output:?}");
         let message = String::from_utf8(output.stderr).unwrap();
-        assert!(message.contains("Fix or delete the file"), "{message}");
+        assert!(
+            message.contains("set each value again with `soroband config set`"),
+            "{message}"
+        );
     }
 }
 
@@ -373,7 +376,10 @@ fn config_reports_an_unreadable_settings_file_without_replacing_it() {
     let output = soroband(&dir, &["config", "set", "reset_hour", "5"]);
     assert_eq!(output.status.code(), Some(1));
     let message = String::from_utf8(output.stderr).unwrap();
-    assert!(message.contains("Fix or delete the file"), "{message}");
+    assert!(
+        message.contains("set each value again with `soroband config set`"),
+        "{message}"
+    );
     assert_eq!(
         std::fs::read_to_string(dir.join("settings.json")).unwrap(),
         "{ reset_hour: 4"
