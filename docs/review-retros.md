@@ -350,3 +350,16 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | none | |
 
 **Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found nothing. Both findings were restatements of the self-check rule in other files, which the PR updated in its main paragraph but not in each bullet. The work surfaced a second, larger issue: the stored interface totals, and so the popover's "Other / overhead" row, include local-network bytes, which this PR's scope (the self-check) did not cover.
+
+## [#31](https://github.com/AboulEinein/soroband/pull/31) test(snapshots): render and compare snapshots in a fixed color space (2026-11-03)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low | `first look`: the handover follow-up no longer said the fixed 2x render had never run on a 1x display. |
+| direct | Haiku | none | Checked 5866af0. [Comment](https://github.com/AboulEinein/soroband/pull/31#issuecomment-6610598040). |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: `renderingIgnoresTheDisplayColorSpace` claimed identical renders but compared with the snapshot tolerance. |
+| 2 | Opus | none | Checked 3deb662; `scripts/verify/snapshots.sh` passes. |
+
+**Retro.** Planned 1 round; it took 2 and a direct review, and CodeRabbit found 1 more. The implementer found that the brief's premise was wrong: the 6 failing snapshots came from app icons changing by 1/255 and the comparison converting to sRGB, not from the display, and sRGB would have clipped the app's wide-gamut colors; the fix pins Display P3 instead. CodeRabbit's finding was a test whose assertion was weaker than its name, which a blind reviewer reading the name accepted.

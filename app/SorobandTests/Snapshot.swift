@@ -12,6 +12,8 @@ enum Snapshot {
     static let failures = FileManager.default.temporaryDirectory.appending(path: "soroband-snapshots")
     /// Channel values may differ by this much before a pixel counts as changed.
     static let channelTolerance = 2
+    /// Snapshots are rendered and compared in this color space, whatever the display's.
+    static let colorSpace = NSColorSpace.displayP3
 
     /// Renders `view` in dark mode at its fitting size, or at `size`, hosted in a window as the
     /// app shows it: `ImageRenderer` leaves out AppKit-backed controls such as switches and
@@ -43,11 +45,13 @@ enum Snapshot {
         }
     }
 
-    static func render(_ view: some View, size: CGSize?) -> CGImage? {
+    /// `windowColorSpace` stands in for the display's: a window takes its screen's color space unless set.
+    static func render(_ view: some View, size: CGSize?, windowColorSpace: NSColorSpace? = nil) -> CGImage? {
         let host = NSHostingView(rootView: view.environment(\.colorScheme, .dark))
         let window = NSWindow(
             contentRect: CGRect(origin: .zero, size: size ?? host.fittingSize),
             styleMask: [.borderless], backing: .buffered, defer: false)
+        if let windowColorSpace { window.colorSpace = windowColorSpace }
         window.appearance = NSAppearance(named: .darkAqua)
         window.backgroundColor = .windowBackgroundColor
         window.contentView = host
@@ -57,18 +61,26 @@ enum Snapshot {
             window.setContentSize(host.fittingSize)
             host.layoutSubtreeIfNeeded()
         }
-        guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return nil }
+        // A bitmap of its own at 2x: one made for the window takes the display's color space and scale.
+        guard
+            let bitmap = NSBitmapImageRep(
+                bitmapDataPlanes: nil, pixelsWide: Int((host.bounds.width * 2).rounded(.up)),
+                pixelsHigh: Int((host.bounds.height * 2).rounded(.up)), bitsPerSample: 8, samplesPerPixel: 4,
+                hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+            )?.retagging(with: colorSpace)
+        else { return nil }
+        bitmap.size = host.bounds.size
         host.cacheDisplay(in: host.bounds, to: bitmap)
         return bitmap.cgImage
     }
 
-    /// Number of pixels that differ by more than `channelTolerance`, or every pixel when the sizes differ.
-    static func changedPixels(_ a: CGImage, _ b: CGImage) -> Int {
+    /// Number of pixels that differ by more than `tolerance` in a channel, or every pixel when the sizes differ.
+    static func changedPixels(_ a: CGImage, _ b: CGImage, tolerance: Int = channelTolerance) -> Int {
         guard a.width == b.width, a.height == b.height else { return max(a.width * a.height, b.width * b.height) }
         let (pa, pb) = (rgba(a), rgba(b))
         var changed = 0
         for pixel in stride(from: 0, to: pa.count, by: 4) {
-            if (0..<4).contains(where: { abs(Int(pa[pixel + $0]) - Int(pb[pixel + $0])) > channelTolerance }) {
+            if (0..<4).contains(where: { abs(Int(pa[pixel + $0]) - Int(pb[pixel + $0])) > tolerance }) {
                 changed += 1
             }
         }
@@ -79,7 +91,7 @@ enum Snapshot {
         var pixels = [UInt8](repeating: 0, count: image.width * image.height * 4)
         let context = CGContext(
             data: &pixels, width: image.width, height: image.height, bitsPerComponent: 8,
-            bytesPerRow: image.width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bytesPerRow: image.width * 4, space: colorSpace.cgColorSpace!,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
         context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
         return pixels
