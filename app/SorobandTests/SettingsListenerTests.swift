@@ -13,11 +13,21 @@ struct SettingsListenerTests {
         for _ in 0..<100 { coalescer.request() }
         // The run waits out the window, so it reads the settings the burst's last post left.
         #expect(runs == 0)
-        try await Task.sleep(for: .milliseconds(600))
+        try await waitUntil { runs == 1 }
+        // Long enough for a second run of the burst to show.
+        try await Task.sleep(for: .milliseconds(500))
         #expect(runs == 1)
         coalescer.request()
         #expect(runs == 1)
-        try await Task.sleep(for: .milliseconds(600))
-        #expect(runs == 2)
+        try await waitUntil { runs == 2 }
+    }
+
+    /// Waits for `done`, up to 10 s: the main actor the run needs is shared with other tests.
+    private func waitUntil(_ done: () -> Bool) async throws {
+        let deadline = ContinuousClock.now + .seconds(10)
+        while !done(), ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(done())
     }
 }
