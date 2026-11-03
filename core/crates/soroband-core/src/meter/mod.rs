@@ -178,7 +178,7 @@ pub struct Snapshot {
     pub mode: Mode,
     /// Internet bytes per app, largest first. Empty in [`Mode::InterfaceOnly`].
     pub apps: Vec<(App, Bytes)>,
-    /// Bytes of flows to the local network, which are not internet traffic and not booked.
+    /// Bytes of flows to the local network, which are not internet traffic and not usage.
     pub local: Bytes,
     /// Bytes that crossed the internet interfaces, for reconciliation.
     pub interfaces: Bytes,

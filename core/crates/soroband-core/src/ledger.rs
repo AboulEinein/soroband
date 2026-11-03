@@ -16,6 +16,7 @@ pub struct Ledger {
     /// Totals at the last booking.
     seen_apps: HashMap<App, Bytes>,
     seen_interfaces: Bytes,
+    seen_local: Bytes,
     /// Booked and not yet written, by (hour, network, app) and (hour, network).
     apps: HashMap<(i64, i64, App), Bytes>,
     interfaces: HashMap<(i64, i64), Bytes>,
@@ -26,6 +27,9 @@ pub struct Ledger {
 pub struct Booked {
     pub apps: Bytes,
     pub interfaces: Bytes,
+    /// Bytes of flows to the local network. They crossed the interfaces but are not usage, so
+    /// they are never written.
+    pub local: Bytes,
     /// The apps that moved, with what each added.
     pub by_app: Vec<(App, Bytes)>,
 }
@@ -85,6 +89,11 @@ impl Ledger {
             *self.interfaces.entry((hour, self.network)).or_default() += delta;
             booked.interfaces = delta;
         }
+        booked.local = Bytes {
+            rx: snapshot.local.rx.saturating_sub(self.seen_local.rx),
+            tx: snapshot.local.tx.saturating_sub(self.seen_local.tx),
+        };
+        self.seen_local = snapshot.local;
         booked
     }
 
@@ -187,6 +196,7 @@ mod tests {
             Booked {
                 apps: Bytes { rx: 30, tx: 0 },
                 interfaces: Bytes { rx: 40, tx: 5 },
+                local: Bytes::default(),
                 by_app: vec![(app("Mail"), Bytes { rx: 30, tx: 0 })],
             }
         );
@@ -263,6 +273,20 @@ mod tests {
         assert_eq!(booked.interfaces, Bytes { rx: 80, tx: 0 });
         let (apps, _) = ledger.take();
         assert_eq!(apps, []);
+    }
+
+    #[test]
+    fn local_network_bytes_are_reported_per_booking_and_never_written() {
+        let mut ledger = Ledger::new(1);
+        let mut first = snapshot(&[("Mail", 100, 0)], (1_100, 0));
+        first.local = Bytes { rx: 1_000, tx: 0 };
+        ledger.book(&first, TEN);
+        let mut second = snapshot(&[("Mail", 100, 0)], (1_700, 0));
+        second.local = Bytes { rx: 1_600, tx: 0 };
+        let booked = ledger.book(&second, TEN + 5);
+        assert_eq!(booked.local, Bytes { rx: 600, tx: 0 });
+        let (apps, _) = ledger.take();
+        assert_eq!(apps, [row(TEN, 1, "Mail", 100, 0)]);
     }
 
     #[test]

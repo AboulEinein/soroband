@@ -1,5 +1,6 @@
-//! The engine's self-check: the bytes credited to apps against the bytes that crossed the
-//! interfaces, judged over 10-minute windows.
+//! The engine's self-check: the bytes credited to apps, plus local-network bytes, against the
+//! bytes that crossed the interfaces, judged over 10-minute windows. Local-network flows cross
+//! the same interfaces but are not usage, so they count here as explained and nowhere else.
 //!
 //! Flows carry no packet headers, so the apps sum below the interfaces: 8–10% during a bulk
 //! download, about 22% on an idle minute. The check therefore judges the gap only when a window
@@ -47,7 +48,7 @@ pub struct SelfCheck {
 }
 
 impl SelfCheck {
-    /// Adds what one poll booked at `now`, and closes the window once it is [`WINDOW`] long.
+    /// Adds what one poll booked at `now`, with `apps` including its local-network bytes, and closes the window once it is [`WINDOW`] long.
     pub fn observe(&mut self, apps: Bytes, interfaces: Bytes, now: i64) {
         let start = *self.window_start.get_or_insert(now);
         self.apps += apps.total();
