@@ -63,8 +63,8 @@ def unbroken_tables(
     """Reports each line that is not a row inside a table headed by `header`, and each row outside
     every such table. A table is the log's own form: exactly `header_row`, then a separator of
     one `---` cell per column, then rows, each starting at the line's first character. It
-    ends at the first line `table_end` matches, at the next `## ` heading, or at the end of the
-    file; the blank lines before that end belong to no table."""
+    ends at the first line `table_end` matches or at the end of the file; the blank lines before
+    that end belong to no table."""
     lines = text.splitlines()
     columns = len(cells(header_row))
     separator = "|" + " --- |" * columns
@@ -83,7 +83,7 @@ def unbroken_tables(
             index += 1
             continue
         end = index + 1
-        while end < len(lines) and not table_end.match(lines[end]) and not lines[end].startswith("## "):
+        while end < len(lines) and not table_end.match(lines[end]):
             end += 1
         last = end
         while last > index and not lines[last - 1].strip():
@@ -106,7 +106,7 @@ def unbroken_tables(
 def check_retros(text: str, name: str = "review-retros.md") -> list[str]:
     problems: list[str] = []
     conflict_markers(text, name, problems)
-    unbroken_tables(text, name, "Review", RETROS_HEADER, re.compile(r"\*\*Retro\.\*\*"), problems)
+    unbroken_tables(text, name, "Review", RETROS_HEADER, re.compile(r"\*\*Retro\.\*\*|## "), problems)
     for number, row in table_rows(text, name, "Review", REVIEW_LABEL, "a round number, direct or CodeRabbit", problems):
         if len(row) != 4:
             problems.append(f"{name}:{number}: {len(row)} columns, the table has 4")
@@ -234,6 +234,7 @@ def self_test() -> list[str]:
         "# Title\n\n" + findings_table + row + "=======\n",
         "# Title\n\n=======\n\n" + findings_table + row,
         "# Title\n\n||||||| ---\n\n" + findings_table + row,
+        "# Title\n\n" + findings_table + row + "\n## Notes\n\nProse.\n",
         "# Title\n\n" + row + "\n" + findings_table + row,
         "# Title\n\n| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |\n" + row,
         "# Title\n\n| Date | PR |\n| --- | --- | --- | --- | --- | --- | --- |\n" + row,
