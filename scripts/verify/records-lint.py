@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Checks the review records against the values their own rules allow.
 
-docs/review-retros.md: each review row's findings are counts of a defined severity, or none.
-docs/coderabbit-findings.md: each row has its columns, a defined verdict and a defined miss cause.
-Exits non-zero, listing each bad row, when one does not fit. Run by CI and scripts/verify/prepush.sh.
+docs/review-retros.md: each review row's findings are counts of a defined severity, or none; an entry's
+table has no line that is not a row up to its **Retro.** paragraph.
+docs/coderabbit-findings.md: each row has its columns, a defined verdict and a defined miss cause; the
+table has no line that is not a row to the end of the file.
+Both: no git conflict markers.
+Exits non-zero, listing each bad row or line, when one does not fit. Run by CI and scripts/verify/prepush.sh.
 `--self-test` checks the lint itself on rows it must accept and rows it must refuse.
 """
 
@@ -21,6 +24,10 @@ MISSED = {"not checked", "judged fine", "outside the diff", "not in the requirem
 SEPARATOR = re.compile(r":?-{3,}:?")
 REVIEW_LABEL = re.compile(r"\d+(?: \(.+\))?|direct|CodeRabbit")
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+CONFLICT_MARKER = re.compile(r"(?:<{7}|\|{7}|>{7})(?: .*)?|={7}")
+NEVER = re.compile(r"(?!)")
+RETROS_HEADER = "| Review | Model | Findings | Origins |"
+FINDINGS_HEADER = "| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |"
 
 
 def cells(line: str) -> list[str]:
@@ -43,8 +50,63 @@ def table_rows(text: str, name: str, header: str, first_cell: re.Pattern[str], e
             problems.append(f"{name}:{number}: first cell {row[0]!r} is not {expected}")
 
 
+def conflict_markers(text: str, name: str, problems: list[str]):
+    """Reports each line that is a git conflict marker."""
+    for number, line in enumerate(text.splitlines(), 1):
+        if CONFLICT_MARKER.fullmatch(line):
+            problems.append(f"{name}:{number}: git conflict marker {line!r}")
+
+
+def unbroken_tables(
+    text: str, name: str, header: str, header_row: str, table_end: re.Pattern[str], problems: list[str]
+):
+    """Reports each line that is not a row inside a table headed by `header`, and each row outside
+    every such table. A table is the log's own form: exactly `header_row`, then a separator of
+    one `---` cell per column, then rows, each starting at the line's first character. It
+    ends at the first line `table_end` matches or at the end of the file; the blank lines before
+    that end belong to no table."""
+    lines = text.splitlines()
+    columns = len(cells(header_row))
+    separator = "|" + " --- |" * columns
+    in_table: set[int] = set()
+    index = 0
+    while index < len(lines):
+        if not lines[index].startswith("|") or cells(lines[index])[0] != header:
+            index += 1
+            continue
+        if lines[index].rstrip() != header_row:
+            problems.append(f"{name}:{index + 1}: table header is not {header_row!r}")
+            index += 1
+            continue
+        if index + 1 >= len(lines) or lines[index + 1].rstrip() != separator:
+            problems.append(f"{name}:{index + 1}: table header not followed by its separator {separator!r}")
+            index += 1
+            continue
+        end = index + 1
+        while end < len(lines) and not table_end.match(lines[end]):
+            end += 1
+        last = end
+        while last > index and not lines[last - 1].strip():
+            last -= 1
+        in_table.update(range(index, last))
+        for number in range(index + 1, last):
+            if not lines[number].startswith("|"):
+                what = "blank line" if not lines[number].strip() else "line that is not a row"
+                problems.append(f"{name}:{number + 1}: {what} inside the table that starts at line {index + 1}")
+            elif number > index + 1 and (
+                cells(lines[number])[0] == header or SEPARATOR.fullmatch(cells(lines[number])[0])
+            ):
+                problems.append(f"{name}:{number + 1}: second header or separator in the table at line {index + 1}")
+        index = end
+    for number, line in enumerate(lines):
+        if line.lstrip().startswith("|") and number not in in_table and not CONFLICT_MARKER.fullmatch(line):
+            problems.append(f"{name}:{number + 1}: table row outside every table")
+
+
 def check_retros(text: str, name: str = "review-retros.md") -> list[str]:
     problems: list[str] = []
+    conflict_markers(text, name, problems)
+    unbroken_tables(text, name, "Review", RETROS_HEADER, re.compile(r"\*\*Retro\.\*\*|## "), problems)
     for number, row in table_rows(text, name, "Review", REVIEW_LABEL, "a round number, direct or CodeRabbit", problems):
         if len(row) != 4:
             problems.append(f"{name}:{number}: {len(row)} columns, the table has 4")
@@ -66,6 +128,8 @@ def check_retros(text: str, name: str = "review-retros.md") -> list[str]:
 
 def check_findings(text: str, name: str = "coderabbit-findings.md") -> list[str]:
     problems: list[str] = []
+    conflict_markers(text, name, problems)
+    unbroken_tables(text, name, "Date", FINDINGS_HEADER, NEVER, problems)
     for number, row in table_rows(text, name, "Date", DATE, "a date (YYYY-MM-DD)", problems):
         try:
             datetime.date.fromisoformat(row[0])
@@ -91,8 +155,6 @@ def self_test() -> list[str]:
     """Rows the lint must accept, and rows it must refuse, each on its own."""
     header = "| Review | Model | Findings | Origins |\n"
     retros_ok = [
-        "| --- | --- | --- | --- |",
-        "|----|:---|---:|:---:|",
         "| 1 | Opus | 1 Medium, 3 Low, 1 unrated | x |",
         "| 1 (stopped) | Sonnet | none | x |",
         "| CodeRabbit | CodeRabbit | 1 Major, 2 Minor (review body) | x |",
@@ -101,6 +163,9 @@ def self_test() -> list[str]:
         "| 3 | Opus | 1 Low | separators such as `\\|----\\|` |",
     ]
     retros_bad = [
+        "| --- | --- | --- | --- |",
+        "|----|:---|---:|:---:|",
+        "| Review | Model | Findings | Origins |",
         "| 1 | Opus | 1 Discussion | x |",
         "|1 | Opus | 1 Discussion | x |",
         "| bogus | Opus | none | x |",
@@ -113,12 +178,12 @@ def self_test() -> list[str]:
         "| 2 | Opus | 0 Low | x |",
     ]
     findings_ok = [
-        "| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
         "| 2026-10-29 | #1 | x | correctness | valid | not checked | – |",
         "| 2026-10-29 | #1 | x | correctness | not valid | – | – |",
     ]
     findings_bad = [
+        "| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
         "| 2026-10-29 | #1 | x | correctness | valid | – | – |",
         "| 2026-10-29 | #1 | x | correctness | not valid | not checked | – |",
         "| 2026-10-29 | #1 | x | correctness | bogus | – | – |",
@@ -126,18 +191,82 @@ def self_test() -> list[str]:
         "| 2026-13-45 | #1 | x | correctness | valid | not checked | – |",
         "|2026-10-29 | #1 | x | correctness | valid | not checked |",
     ]
+    entry = "## [#1](https://example.test/1) title (2026-01-01)\n\nPlanned rounds: 1.\n\n"
+    table = header + "| --- | --- | --- | --- |\n| 1 | Opus | none | x |\n"
+    retro = "\n**Retro.** x\n"
+    retros_docs_ok = [
+        entry + table + retro,
+        entry + table,
+        entry + table + "\n\n" + retro,
+        entry + table + retro + "\nprose after the retro\n\n## [#2](u) t (2026-01-02)\n\n" + table + retro,
+        entry + table + "\n## [#2](u) t (2026-01-02)\n\nPlanned rounds: 1.\n",
+        entry + "no table yet\n",
+        entry + table + retro + "a line mentioning ======= or <<<<<<< inside prose\n",
+    ]
+    retros_docs_bad = [
+        entry + table + "\n| 2 | Opus | none | x |\n" + retro,
+        entry + table + "\n| 2 | Opus | none | x |\n",
+        entry + table + "prose\n" + retro,
+        entry + table + "<<<<<<< HEAD\n| 2 | Opus | none | x |\n=======\n| 3 | Opus | none | x |\n>>>>>>> main\n" + retro,
+        entry + table + retro + "=======\n",
+        entry + table + retro + "<<<<<<<\n",
+        entry + table + retro + ">>>>>>> origin/main\n",
+        entry + table + retro + "||||||| merged common ancestors\n",
+        entry + table + retro + "| 2 | Opus | none | x |\n",
+        entry + header + "| 1 | Opus | none | x |\n" + retro,
+        entry + header + "|---|---|---|---|\n| 1 | Opus | none | x |\n" + retro,
+        entry + "| Review | Model |\n| --- | --- | --- | --- |\n| 1 | Opus | none | x |\n" + retro,
+        entry + header + "    | --- | --- | --- | --- |\n| 1 | Opus | none | x |\n" + retro,
+        entry + table + "    | 2 | Opus | none | x |\n" + retro,
+    ]
+    findings_table = "| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |\n| --- | --- | --- | --- | --- | --- | --- |\n"
+    row = "| 2026-10-29 | #1 | x | correctness | valid | not checked | – |\n"
+    findings_docs_ok = [
+        "# Title\n\nProse.\n\n" + findings_table + row,
+        "# Title\n\n" + findings_table + row + row + "\n",
+        "# Title\n\nProse mentioning ======= and <<<<<<< inline.\n",
+    ]
+    findings_docs_bad = [
+        "# Title\n\n" + findings_table + row + "\n" + row,
+        "# Title\n\n" + findings_table + "\n" + row,
+        "# Title\n\n" + findings_table + row + "prose\n" + row,
+        "# Title\n\n" + findings_table + row + "<<<<<<< HEAD\n" + row + "=======\n" + row + ">>>>>>> main\n",
+        "# Title\n\n" + findings_table + row + "=======\n",
+        "# Title\n\n=======\n\n" + findings_table + row,
+        "# Title\n\n||||||| ---\n\n" + findings_table + row,
+        "# Title\n\n" + findings_table + row + "\n## Notes\n\nProse.\n",
+        "# Title\n\n" + row + "\n" + findings_table + row,
+        "# Title\n\n| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |\n" + row,
+        "# Title\n\n| Date | PR |\n| --- | --- | --- | --- | --- | --- | --- |\n" + row,
+        "# Title\n\n| Date | PR | Finding | Category | Missed because | Verdict | Follow-up |\n"
+        + "| --- | --- | --- | --- | --- | --- | --- |\n"
+        + row,
+        "# Title\n\n" + findings_table + row + "||||||| ---\n" + row,
+    ]
     failures = []
+    for text in retros_docs_ok:
+        if problems := check_retros(text):
+            failures.append(f"self-test: refused a valid retros document {text!r}: {problems}")
+    for text in retros_docs_bad:
+        if not check_retros(text):
+            failures.append(f"self-test: accepted a bad retros document {text!r}")
+    for text in findings_docs_ok:
+        if problems := check_findings(text):
+            failures.append(f"self-test: refused a valid findings document {text!r}: {problems}")
+    for text in findings_docs_bad:
+        if not check_findings(text):
+            failures.append(f"self-test: accepted a bad findings document {text!r}")
     for row in retros_ok:
-        if problems := check_retros(header + row):
+        if problems := check_retros(header + "| --- | --- | --- | --- |\n" + row):
             failures.append(f"self-test: refused a valid retros row {row!r}: {problems}")
     for row in retros_bad:
-        if not check_retros(header + row):
+        if not check_retros(header + "| --- | --- | --- | --- |\n" + row):
             failures.append(f"self-test: accepted a bad retros row {row!r}")
     for row in findings_ok:
-        if problems := check_findings(row):
+        if problems := check_findings(findings_table + row):
             failures.append(f"self-test: refused a valid findings row {row!r}: {problems}")
     for row in findings_bad:
-        if not check_findings(row):
+        if not check_findings(findings_table + row):
             failures.append(f"self-test: accepted a bad findings row {row!r}")
     return failures
 
