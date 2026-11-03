@@ -304,3 +304,6 @@ Planned rounds: 1.
 | --- | --- | --- | --- |
 | 1 | Opus | 1 Medium, 1 Low | `first look`: moving the CSV export off the main thread let a window close quit the History process mid-write, leaving a truncated file. `first look`: Settings refreshed an injected `LaunchAtLogin` but showed `.shared`, so the test checked an object the window did not show. |
 | 2 | Opus | 1 Low | `first look`: this entry had no rows for the rounds that had run. |
+| CodeRabbit | CodeRabbit | 1 Major | `first look`: claimed `replaceItemAt` fails for a new destination and that the Debug export should keep the earlier file; not valid (`replaceItemAt` moves the item into place when none exists, checked on this Mac; the Debug path is removed on purpose so a failed export shows). |
+
+**Retro.** Planned 1 round; it took 2, and CodeRabbit raised one finding that did not hold. Round 1's Medium came from the PR's own fix: moving the export off the main thread made the window close race the write, which the CodeRabbit finding had not foreseen either. The fix took both an atomic replace and a quit that waits for exports in flight. Snapshot tests drifted by 1/255 on this Mac during the PR, the existing follow-up about snapshot colors and the main display.
