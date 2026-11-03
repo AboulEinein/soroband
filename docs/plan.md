@@ -133,6 +133,7 @@ Stages, one PR each (the user chose "split + hover prewarm" on 2026-11-03):
 Decided for M6a (2026-11-03, [#35](https://github.com/AboulEinein/soroband/pull/35)):
 - History stays in the UI process with the popover and Settings. With History open after them the UI process reaches 72.9 MB, over design.md's "History window open ≤ 60 MB" row, which the menu bar process meets; one process costs less in total and loads the frameworks once, and it quits 60 s after its last window.
 - The menu bar process ends 1.4 MB above its launch footprint after every window (18.0 to 19.4 MB, Debug), not within 0.5 MB: pages touched during the first popover's live polls, with no growth in live heap and none on later openings. Accepted as measured.
+- `budget.sh 10` in each menu bar layout (today's total, with a live speed, icon only) and History on a synthetic year in a Release build are M6c's evidence, not M6a's: M6b replaces the menu bar process, so they are measured once, after it. M6a measures the default layout in Debug.
 
 Exit criteria:
 - With no window open, after the popover, Settings and History have each opened and closed, the menu bar app is ≤ 25 MB.
