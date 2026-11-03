@@ -25,8 +25,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         if window == nil {
             Usage.shared.reloadRegistry()
             launchAtLogin.refresh()
-            let window = NSWindow(
-                contentViewController: NSHostingController(rootView: SettingsView(selection: selection)))
+            let window = NSWindow(contentViewController: NSHostingController(rootView: view))
             window.title = "Soroband Settings"
             // The sidebar runs the window's full height, under the traffic lights, as in System
             // Settings.
@@ -48,6 +47,9 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     }
 
     var tab: SettingsView.Tab { selection.tab }
+
+    /// What the window shows.
+    var view: SettingsView { SettingsView(selection: selection, launchAtLogin: launchAtLogin) }
 
     /// The user may have approved Soroband in Login Items while Settings was open.
     func windowDidBecomeKey(_ notification: Notification) {
@@ -98,6 +100,7 @@ struct SettingsView: View {
     }
 
     @Bindable var selection: SettingsWindow.Selection
+    var launchAtLogin = LaunchAtLogin.shared
     var usage = Usage.shared
 
     var body: some View {
@@ -124,7 +127,7 @@ struct SettingsView: View {
         } detail: {
             switch selection.tab {
             case .general:
-                GeneralSettings(usage: usage, launchAtLogin: .shared)
+                GeneralSettings(usage: usage, launchAtLogin: launchAtLogin)
             case .menuBar:
                 MenuBarSettings(usage: usage)
             case .networks:

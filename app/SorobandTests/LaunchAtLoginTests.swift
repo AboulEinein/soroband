@@ -66,6 +66,7 @@ struct LaunchAtLoginTests {
         let settings = SettingsWindow(launchAtLogin: launch)
         items.status = .enabled
         settings.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+        #expect(settings.view.launchAtLogin === launch)
         #expect(launch.state == .init(isOn: true, note: nil))
     }
 
