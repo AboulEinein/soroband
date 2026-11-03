@@ -49,7 +49,7 @@ fn load() -> Result<(Settings, std::path::PathBuf), (u8, String)> {
     let settings = Settings::load(&path).map_err(|e| {
         (
             1,
-            format!("{}: {e}. Fix or delete the file.", path.display()),
+            format!("{}: {e}. Fix the file, or delete it and set each value again with `soroband config set`, which tells the app.", path.display()),
         )
     })?;
     Ok((settings, path))
