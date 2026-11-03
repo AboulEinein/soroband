@@ -20,4 +20,15 @@ struct UsageTests {
         #expect(usage.status.state == Core.engine.state)
         #expect(usage.status.state != .starting)
     }
+
+    /// A reread that finds the same settings, as most of a burst of notifications does, leaves
+    /// the menu bar alone.
+    @Test func rereadingUnchangedSettingsDoesNotRedrawTheMenuBar() {
+        let usage = Usage()
+        usage.reloadSettings()
+        var changes = 0
+        usage.onChange = { changes += 1 }
+        usage.reloadSettings()
+        #expect(changes == 0)
+    }
 }
