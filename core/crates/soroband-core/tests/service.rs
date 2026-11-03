@@ -11,7 +11,6 @@ use common::{MAIL, POLL, SAFARI, datagram, en0, mail, safari, start, success, tc
 use soroband_core::meter::record::{Event, Replay};
 use soroband_core::meter::{Bytes, Engine, ntstat};
 use soroband_core::service::{Command, Service, WRITE_INTERVAL};
-use soroband_core::settings::{self, Settings};
 use soroband_core::store::{NetworkKind, NetworkTotal, Store};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -84,7 +83,7 @@ impl Fixture {
         Service::new(
             Engine::start(replay).unwrap(),
             Arc::clone(&self.store),
-            self.dir.join(settings::FILE_NAME),
+            0,
             utc,
             now,
         )
@@ -94,13 +93,6 @@ impl Fixture {
     /// What another process (the `soroband` command) reads from the database file.
     fn reader(&self) -> Store {
         Store::open_read_only(&self.dir.join("usage.sqlite")).unwrap()
-    }
-
-    fn set_reset_hour(&self, hour: &str) {
-        let path = self.dir.join(settings::FILE_NAME);
-        let mut settings = Settings::load(&path).unwrap();
-        settings.set(settings::RESET_HOUR, hour).unwrap();
-        settings.save(&path).unwrap();
     }
 }
 
@@ -247,9 +239,8 @@ fn todays_apps_start_again_at_the_reset_hour() {
     // Mail at 02:00, Safari at 05:00; a 04:00 reset leaves Safari alone.
     tick(&mut service, MIDNIGHT + 2 * H);
     tick(&mut service, MIDNIGHT + 5 * H);
-    f.set_reset_hour("4");
     service
-        .apply(&Command::ReloadSettings, MIDNIGHT + 5 * H)
+        .apply(&Command::ResetHour(4), MIDNIGHT + 5 * H)
         .unwrap();
     assert_eq!(today_apps(&service), [(f.home, "Safari".into(), rx(70))]);
 }
@@ -393,33 +384,18 @@ fn changing_the_reset_hour_recounts_today() {
     assert_eq!(service.today().all.apps, rx(1_070));
 
     // `soroband config set reset_hour 4`: today now starts at 04:00 and holds only Safari's 70.
-    f.set_reset_hour("4");
     service
-        .apply(&Command::ReloadSettings, MIDNIGHT + 5 * H)
+        .apply(&Command::ResetHour(4), MIDNIGHT + 5 * H)
         .unwrap();
     let today = service.today();
     assert_eq!((today.reset_hour, today.start), (4, MIDNIGHT + 4 * H));
     assert_eq!(today.all.apps, rx(70));
 
     // Back to midnight: Mail's bytes count again; they were never deleted.
-    f.set_reset_hour("0");
     service
-        .apply(&Command::ReloadSettings, MIDNIGHT + 5 * H)
+        .apply(&Command::ResetHour(0), MIDNIGHT + 5 * H)
         .unwrap();
     assert_eq!(service.today().all.apps, rx(1_070));
-}
-
-#[test]
-fn unreadable_settings_keep_the_reset_hour_in_use() {
-    let f = Fixture::new("bad-settings");
-    f.set_reset_hour("4");
-    let mut service = f.service(session(&[]), MIDNIGHT + 5 * H);
-    assert_eq!(service.today().reset_hour, 4);
-    std::fs::write(f.dir.join(settings::FILE_NAME), "{ not json").unwrap();
-    service
-        .apply(&Command::ReloadSettings, MIDNIGHT + 5 * H)
-        .unwrap();
-    assert_eq!(service.today().reset_hour, 4);
 }
 
 #[test]
