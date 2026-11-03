@@ -14,12 +14,17 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
 
     private(set) var window: NSWindow?
     private let selection = Selection()
+    private let launchAtLogin: LaunchAtLogin
+
+    init(launchAtLogin: LaunchAtLogin = .shared) {
+        self.launchAtLogin = launchAtLogin
+    }
 
     func show(tab: SettingsView.Tab? = nil) {
         if let tab { selection.tab = tab }
         if window == nil {
             Usage.shared.reloadRegistry()
-            LaunchAtLogin.shared.refresh()
+            launchAtLogin.refresh()
             let window = NSWindow(
                 contentViewController: NSHostingController(rootView: SettingsView(selection: selection)))
             window.title = "Soroband Settings"
@@ -43,6 +48,11 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     }
 
     var tab: SettingsView.Tab { selection.tab }
+
+    /// The user may have approved Soroband in Login Items while Settings was open.
+    func windowDidBecomeKey(_ notification: Notification) {
+        launchAtLogin.refresh()
+    }
 
     func windowWillClose(_ notification: Notification) {
         window = nil

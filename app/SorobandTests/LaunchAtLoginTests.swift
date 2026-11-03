@@ -1,3 +1,4 @@
+import AppKit
 import ServiceManagement
 import Testing
 
@@ -54,6 +55,18 @@ struct LaunchAtLoginTests {
         items.status = .enabled
         launch.refresh()
         #expect(launch.state.isOn)
+    }
+
+    /// "Open Login Items…" leaves Settings open; approving Soroband there shows when the user
+    /// comes back to it.
+    @Test func settingsRereadsTheStateWhenItRegainsFocus() {
+        let items = LoginItems()
+        items.status = .requiresApproval
+        let launch = LaunchAtLogin(service: items.service)
+        let settings = SettingsWindow(launchAtLogin: launch)
+        items.status = .enabled
+        settings.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+        #expect(launch.state == .init(isOn: true, note: nil))
     }
 
     @Test func waitingForApprovalIsOnWithAPointerToLoginItems() {
