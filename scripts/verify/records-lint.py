@@ -59,18 +59,24 @@ def unbroken_tables(
     text: str, name: str, header: str, columns: int, table_end: re.Pattern[str], problems: list[str]
 ):
     """Reports each line that is not a row inside a table headed by `header`, and each row outside
-    every such table. A table is the log's own form: its header row, then a separator of `columns`
-    `---` cells, then rows. It ends at the first line `table_end` matches, at the next `## `
-    heading, or at the end of the file; the blank lines before that end belong to no table."""
+    every such table. A table is the log's own form: its header row of `columns` cells, then a
+    separator of `columns` `---` cells, then rows, each starting at the line's first character. It
+    ends at the first line `table_end` matches, at the next `## ` heading, or at the end of the
+    file; the blank lines before that end belong to no table."""
     lines = text.splitlines()
     separator = "|" + " --- |" * columns
     in_table: set[int] = set()
     index = 0
     while index < len(lines):
-        if not lines[index].lstrip().startswith("|") or cells(lines[index])[0] != header:
+        if not lines[index].startswith("|") or cells(lines[index])[0] != header:
             index += 1
             continue
-        if index + 1 >= len(lines) or lines[index + 1].strip() != separator:
+        if len(cells(lines[index])) != columns:
+            found = len(cells(lines[index]))
+            problems.append(f"{name}:{index + 1}: table header has {found} columns, the table has {columns}")
+            index += 1
+            continue
+        if index + 1 >= len(lines) or lines[index + 1].rstrip() != separator:
             problems.append(f"{name}:{index + 1}: table header not followed by its separator {separator!r}")
             index += 1
             continue
@@ -82,7 +88,7 @@ def unbroken_tables(
             last -= 1
         in_table.update(range(index, last))
         for number in range(index + 1, last):
-            if not lines[number].lstrip().startswith("|"):
+            if not lines[number].startswith("|"):
                 what = "blank line" if not lines[number].strip() else "line that is not a row"
                 problems.append(f"{name}:{number + 1}: {what} inside the table that starts at line {index + 1}")
         index = end
@@ -202,6 +208,9 @@ def self_test() -> list[str]:
         entry + table + retro + "| 2 | Opus | none | x |\n",
         entry + header + "| 1 | Opus | none | x |\n" + retro,
         entry + header + "|---|---|---|---|\n| 1 | Opus | none | x |\n" + retro,
+        entry + "| Review | Model |\n| --- | --- | --- | --- |\n| 1 | Opus | none | x |\n" + retro,
+        entry + header + "    | --- | --- | --- | --- |\n| 1 | Opus | none | x |\n" + retro,
+        entry + table + "    | 2 | Opus | none | x |\n" + retro,
     ]
     findings_table = "| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |\n| --- | --- | --- | --- | --- | --- | --- |\n"
     row = "| 2026-10-29 | #1 | x | correctness | valid | not checked | – |\n"
@@ -220,6 +229,7 @@ def self_test() -> list[str]:
         "# Title\n\n||||||| ---\n\n" + findings_table + row,
         "# Title\n\n" + row + "\n" + findings_table + row,
         "# Title\n\n| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |\n" + row,
+        "# Title\n\n| Date | PR |\n| --- | --- | --- | --- | --- | --- | --- |\n" + row,
         "# Title\n\n" + findings_table + row + "||||||| ---\n" + row,
     ]
     failures = []
