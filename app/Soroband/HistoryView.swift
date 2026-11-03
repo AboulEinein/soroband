@@ -59,10 +59,6 @@ struct HistoryDetail: View {
     @Binding var hoverDate: Date?
     @Binding var showsAllApps: Bool
 
-    private var showsShares: Bool {
-        content.legend.count > 1 || content.title == HistoryContent.allNetworksTitle
-    }
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
@@ -72,7 +68,7 @@ struct HistoryDetail: View {
                 }
                 HStack(alignment: .top, spacing: 14) {
                     HeadlineCard(content: content)
-                    if showsShares {
+                    if content.splitsByNetwork {
                         SharesCard(content: content).frame(width: 340)
                     }
                 }
@@ -222,8 +218,7 @@ private struct UsageChart: View {
             case .day: "Every day"
             case .month: "Every month"
             }
-        return content.legend.count > 1 || content.title == HistoryContent.allNetworksTitle
-            ? "\(every), by network" : every
+        return content.splitsByNetwork ? "\(every), by network" : every
     }
 
     /// The bar that gets a label above it, and the label: the busiest day, and today.
