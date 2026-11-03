@@ -61,7 +61,8 @@ pub struct SorobandEngineStatus {
     /// Unix time today started, and the reset hour that set it.
     pub today_start: i64,
     pub reset_hour: u32,
-    /// Today on the current network: summed over its apps, and crossed its interfaces.
+    /// Today on the current network: summed over its apps, and crossed its interfaces less the
+    /// local-network bytes.
     pub today_network_app_rx: u64,
     pub today_network_app_tx: u64,
     pub today_network_interface_rx: u64,
@@ -71,7 +72,8 @@ pub struct SorobandEngineStatus {
     pub today_app_tx: u64,
     pub today_interface_rx: u64,
     pub today_interface_tx: u64,
-    /// Bytes per second across the interfaces between the last two polls.
+    /// Bytes per second across the interfaces, less the local-network bytes, between the last two
+    /// polls.
     pub speed_rx: u64,
     pub speed_tx: u64,
     /// One of the `SOROBAND_CHECK_*` constants ([`crate::check`]).

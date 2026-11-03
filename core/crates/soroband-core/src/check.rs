@@ -1,6 +1,7 @@
 //! The engine's self-check: the bytes credited to apps, plus local-network bytes, against the
 //! bytes that crossed the interfaces, judged over 10-minute windows. Local-network flows cross
-//! the same interfaces but are not usage, so they count here as explained and nowhere else.
+//! the same interfaces but are not usage, so they count here as explained, and the ledger takes
+//! them off the interface bytes it stores ([`crate::ledger::Booked`]).
 //!
 //! Flows carry no packet headers, so the apps sum below the interfaces: 8–10% during a bulk
 //! download, about 22% on an idle minute. The check therefore judges the gap only when a window
@@ -19,11 +20,11 @@ use crate::meter::Bytes;
 
 /// Length of a judged window, in seconds.
 pub const WINDOW: i64 = 600;
-/// Interface bytes a window needs before its gap is judged.
+/// Bytes a window needs across the interfaces before its gap is judged.
 pub const MIN_WINDOW_BYTES: u64 = 10_000_000;
-/// How far, in percent of the interface bytes, the apps may sum below the interfaces.
+/// How far, in percent of what crossed the interfaces, the apps may sum below it.
 pub const MAX_GAP_PERCENT: u64 = 15;
-/// How far, in percent of the interface bytes, the apps may sum above the interfaces.
+/// How far, in percent of what crossed the interfaces, the apps may sum above it.
 pub const OVERCOUNT_PERCENT: u64 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

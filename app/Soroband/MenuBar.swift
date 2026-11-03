@@ -213,7 +213,7 @@ struct MenuBarDisplay: Equatable {
             && (style == .inline || (style == .stacked && readings.count == 1))
     }
 
-    /// - Today's totals are what crossed the interfaces, the network's true count.
+    /// - Today's totals are interface bytes: what crossed the interfaces, less the local-network bytes.
     /// - The icon is the current network's kind; usage booked to no network shows a plain one.
     /// - An engine that stopped says so instead of showing a count that no longer grows.
     /// - Before the first poll there is no count to show yet.
