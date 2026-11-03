@@ -53,3 +53,4 @@ Columns:
 | 2026-10-29 | [#21](https://github.com/AboulEinein/soroband/pull/21#discussion_r4413117932) | The lint allowed `Critical` for CodeRabbit rows while `review-retros.md` listed only `Major`, `Minor` and `Trivial`. Fixed by listing `Critical`, which CodeRabbit can give. | docs drift | valid | not checked | – |
 | 2026-10-29 | [#21](https://github.com/AboulEinein/soroband/pull/21#discussion_r4415344326) | The handover set #21's merge without saying its review had ended, as it did for #19 and #20, while a thread was still open. | docs drift | valid | after the loop | – |
 
+| 2026-11-03 | [#5](https://github.com/AboulEinein/soroband/pull/5#discussion_r4400314077) | A wake after the engine thread had exited wrote to a pipe with no reader, so `SIGPIPE` killed the app. Fixed in #23 with `F_SETNOSIGPIPE` on the write end and a test that forks with the default `SIGPIPE` action. | correctness | valid | not checked | – |
