@@ -198,15 +198,23 @@ _Avoid_: History button
 The line above the popover's tabs when the engine has failed ("Not counting"), the engine is in interface-only mode, or the self-check is degraded or overcount.
 
 **History window**:
-The window for usage over a range, by network and app: headline card, Where it went (share by network), usage chart, apps and heatmap. It is the only window of the History process.
+The window for usage over a range, by network and app: headline card, Where it went (share by network), usage chart, apps and heatmap. It is a window of the UI process.
 
-**History process**:
-A second instance of Soroband.app, started with `--history`, that shows the History window, reads the database without starting the engine, and quits when the window closes. The menu bar app starts it, so History's memory never stays in the menu bar app.
-_Avoid_: helper, History app
+**Menu bar process**:
+The Soroband process that runs all day: the menu bar item, the engine and the network monitor, and no window.
+_Avoid_: agent, daemon, main app
+
+**UI process**:
+A second instance of Soroband.app, started with `--ui` by the menu bar process, that shows the popover, Settings, History and the Welcome window. It reads the database without starting the engine, gets the engine's numbers from the menu bar process, and sends it the changes the user makes. It quits after the linger, or when the menu bar process quits, so no window's memory stays in the process that runs all day.
+_Avoid_: helper, History process (its earlier, History-only form)
 
 **Standby**:
-A History process started when the popover opens, waiting for options on its standard input, so a click on History… does not wait for a launch. It quits when the popover closes unused.
+A UI process started when the pointer enters the menu bar item, with no window, so a click does not wait for a launch.
 _Avoid_: prewarm, warm process
+
+**Linger**:
+The 60 s a UI process waits after its last window closed before it quits, unless the pointer is over the menu bar item. A popover opened within it opens warm.
+_Avoid_: keep-alive, grace period
 
 **Range**:
 What History shows: a day, week, month or year of the calendar, or all time.

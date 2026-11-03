@@ -28,12 +28,25 @@ The state of the project for whoever picks it up next. Read this file, then the 
 2. The user runs the M0, M2, M3 and M4 hand checklists (below) and starts the daily-use week; each milestone is marked `done` in the ledger once its checklist has passed, and issues go into Follow-ups.
 3. M5 (Dynamic Island moments) starts from `main` in its own worktree, when the user says so. It runs the review experiment in its section of `plan.md`.
 
+### M6a hand checklist
+
+Agents cannot move or click the pointer here, so these need the user, on a build of the M6a branch (`scripts/install.sh`, or `scripts/verify/run-app.sh` for a Debug build).
+
+1. **Hover, then click.** Move the pointer onto the menu bar item, wait a second, click: the popover opens under the item at once, as before. `pgrep -fl Soroband` shows a second process with `--ui` from the moment the pointer is on the item.
+2. **Click with no hover lead.** Quit the UI process (`kill <pid of the --ui process>`), then move the pointer onto the item and click straight away: the popover opens, a little later than in step 1. Click twice quickly while it launches: it opens and stays open.
+3. **Toggle and click-outside.** With the popover open, click the item: it closes and stays closed. Open it and click elsewhere (the desktop, another app's window): it closes. Open it and press Escape: it closes.
+4. **Keyboard and focus.** Open the popover: it takes the keyboard (Escape works; Tab moves between its controls), and the app you were typing in gets the keyboard back when it closes. A hover alone never takes the keyboard from the app you are typing in.
+5. **⌘,.** With the popover or History in front, ⌘, opens Soroband Settings. The gear in the popover opens Settings too; History… opens History in front.
+6. **Settings reach the menu bar.** In Settings › Menu Bar pick another reading and style: the menu bar item follows each change at once. Rename a network in Settings › Networks: the popover shows the new name.
+7. **The item moves.** With the popover open, change the menu bar item's width (Settings › Menu Bar, add a reading) or plug in or unplug a display: the popover stays under the item. On a Mac with several displays, click the item on each display: the popover opens on that display.
+8. **It goes away.** Close every window and move the pointer away from the item: about a minute later the `--ui` process is gone. Quit Soroband with the popover's power button: both processes are gone.
+
 ### M4 hand checklist
 
 1. **History from the popover.** Click the menu bar item, then History…: the History window opens in front, on this month, and takes the keyboard (agents can only open it in the background).
 2. **Ranges and networks by hand.** Click Day, Week, Month, Year, All Time, previous, Today and next; pick a network in the sidebar and All Networks again; hover a bar (tooltip) and a heatmap cell (its value in the card's header); click an app to see its network split.
 3. **Export CSV.** Click the export button, save, and open the file: one line per hour, network and app of the range shown.
-4. **It goes away.** Close the window: no second Soroband process is left (`pgrep -fl Soroband`). Open the popover and close it without clicking History…: no second process either.
+4. **It goes away.** Close the window and move the pointer away from the menu bar item: about a minute later no second Soroband process is left (`pgrep -fl Soroband`).
 
 ### M0 hand checklist
 
@@ -90,6 +103,7 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 | 2026-10-28 | CodeRabbit reviews each PR once the blind loop has ended: PRs open as drafts, which it skips, and are marked ready afterwards. `.coderabbit.yaml` makes it review stacked PRs (any base) and never pause; its docstring-coverage check is off. Every finding goes into `docs/coderabbit-findings.md` with why the blind loop missed it, and a repeated miss becomes a rule (`docs/review.md`). |
 | 2026-10-28 | Every PR records each review (reviewer model, findings, the origin of each) and a retro on why it took the rounds it did in `docs/review-retros.md`; an origin that recurs across PRs for the same reason becomes a rule, read at each milestone's end with the CodeRabbit log. |
 | 2026-10-28 | Agents driving a Debug build keep Soroband out of the front, because the user works on this Mac while they run it: every `open` of a Debug build or a `soroband-debug://` URL passes `-g`. The popover, Settings, Welcome and History still call `NSApp.activate()`, which macOS grants only when the user has just used Soroband, so a command sent then can take the keyboard (Follow-ups). `scripts/install.sh` opens the installed app in front, because the user asked for it. |
+| 2026-11-03 | M6: "split + hover prewarm". The menu bar process holds no window; the popover, Settings, History and the Welcome window run in one UI process (the same binary), started in standby when the pointer enters the menu bar item and quit 60 s after its last window closes. Look and feel must not change. Three stages: M6a (UI process), M6b (thin agent with no SwiftUI), M6c (CPU). |
 | 2026-10-28 | History runs in its own process, which quits when its window closes: AppKit, SwiftUI and Charts kept 13–40 MB in the menu bar app's process after the window closed (freed but fragmented; no API returns it). The popover starts it in standby so History opens without a launch to wait for (the user chose this over keeping History in the app and revising the criterion). |
 | 2026-10-28 | The usage database keeps daily sums (`usage_day`, schema version 2) beside the hourly buckets, so a long History range reads whole UTC days from it: a year's apps read went from 125 ms to 23 ms, at about 3 KB a day more on disk. A build from before it refuses a version 2 database. |
 | 2026-10-28 | History's days, weeks and months follow the calendar (local midnight), not the reset hour; a stored hour belongs to the local day, hour and weekday of its middle. History opens on this month from the popover. |
@@ -144,11 +158,10 @@ Small items for a later nits pass.
 - **Wi‑Fi moves without a path change.** CoreWLAN's SSID-change events are not watched; a Wi‑Fi move that does not change the `NWPath` keeps the old network until the next path update.
 - **App idle CPU headroom.** The Debug app with the engine measured 0.096% of the 0.1% budget over 10 minutes on a busy network (0.023% on a quiet one). M3 adds the popover and menu bar label and must measure again; candidates if it is over: a longer poll interval while the popover is closed, or fewer allocations per poll.
 
-- **Popover reads more than it shows.** The popover's summary uses `Core.history`, which also builds apps, networks, the heatmap and the busiest day it does not need, for up to 31 days, in the menu bar app's process. A bars-only read in the core would cost less; measure first with M6.
+- **Popover reads more than it shows.** The popover's summary uses `Core.history`, which also builds apps, networks, the heatmap and the busiest day it does not need, for up to 31 days, in the UI process. A bars-only read in the core would cost less; measure first with M6.
 - **Test host shares the Debug database.** `xcodebuild test` launches the Debug app as its test host, which starts the engine on `~/Library/Application Support/Soroband Debug` like the running Debug app, so both book the same traffic while tests run and the Debug totals run high. A test host could use its own data directory.
 - **Version-named tools.** An executable named by its version (a command-line tool installed as `~/.local/share/<tool>/versions/1.4.3`) shows in the popover as "1.4.3" with a generic icon. The core could name such a tool by its parent directory.
-- **Memory after a window closes.** The menu bar app does not return to its launch footprint after any SwiftUI window: 18 MB fresh, 36 MB after Settings has opened and closed, 37–45 MB after the popover (M4 measurement). M3's 21.0 MB was measured before the popover first opened. History runs in its own process for this reason; the popover cannot. M6 takes this up. Options: the 25 MB budget measured as it was, or the popover and Settings drawn with less SwiftUI.
-- **Debug commands can still activate the app.** `open-popover`, `open-settings`, `open-onboarding` and `open-history` reach `NSApp.activate()` (`MenuBarController.showPopover`, `SettingsView.swift`, `Onboarding.swift`, `HistoryWindow.swift`), which macOS grants when the user has just used Soroband. A Debug URL command could skip it.
+- **Debug commands can still activate the app.** `open-popover`, `open-settings`, `open-onboarding` and `open-history` make the menu bar process yield activation to the UI process (`UIProcess.write`), which reaches `NSApp.activate()` (`PopoverController.show`, `SettingsView.swift`, `Onboarding.swift`, `HistoryWindow.swift`); macOS grants it when the user has just used Soroband. A Debug URL command could skip it.
 - **History is up to a minute behind.** It reads what the engine has written (once a minute), so it can trail the popover by a minute's usage.
 - **Snapshot colors follow the main display.** `scripts/verify/snapshots.sh` renders in a window on the main display, so a different main display (the external U28E590 instead of the built-in one) changes every baseline's colors slightly. Run snapshots on the display the baselines were recorded on, or pin the render to sRGB.
 - **App CPU headroom.** M3's Debug app measured 0.096% of the 0.1% budget on a busy network, 0.055% with the icon alone. A live speed is over budget by design (it redraws at every poll that changes it): 0.383% with four readings including both speeds (#19).
@@ -192,8 +205,10 @@ Things learned the hard way that no file or config will tell you.
 - A copy of `/usr/bin/curl` outside `/usr/bin` does not run, so `traffic.sh` identifies `/usr/bin/curl` and reports a run without judging it when another curl runs at the same time (other agents on this Mac use curl).
 
 **Working on this Mac**
-- `NSWorkspace.openApplication` with `createsNewApplicationInstance` drops the arguments of a second instance of the same app; `HistoryProcess` starts it with `Process` instead. A History process started with `open` gets `/dev/null` as standard input and quits at once (it quits when its input closes); start it from the app, or with a pipe held open.
-- A second instance of a menu bar (`LSUIElement`) app takes activation at launch, which closes the first instance's transient popover. The standby History process sets `.prohibited` until it shows its window.
+- `NSWorkspace.openApplication` with `createsNewApplicationInstance` drops the arguments of a second instance of the same app; `UIProcess` starts it with `Process` instead. A UI process started with `open` gets `/dev/null` as standard input and quits at once (it quits when its input closes); start it from the menu bar process, or with a pipe held open.
+- A second instance of a menu bar (`LSUIElement`) app takes activation at launch, which would take the keyboard from the user's app on a mere hover. The UI process sets `.prohibited` until it shows a window.
+- The menu bar process and the UI process run the same executable and both answer to its path: `pgrep -f "^<app>/Contents/MacOS/Soroband"` finds both; add `$` for the menu bar process alone. A `soroband-debug://` URL may reach either; the UI process hands it to the menu bar process.
+- Neither process ignores `SIGPIPE`, and each writes to the other's pipe: both pipes' write ends set `F_SETNOSIGPIPE`, so a write to a process that died fails instead of killing the writer.
 - `open -g <app> "soroband-debug://…"` hands the URL to the app as a document, which the app ignores; the URL needs `open -g -a <app> "soroband-debug://…"`.
 - On macOS 27 status items have no window of their own: `MenuBarAgent` draws the whole menu bar, and an `NSStatusBarWindow`'s `windowNumber` (for example `4294967296`) is not a CGWindowID, so `screencapture -l` cannot capture one item. Use `screencapture -R` with the `rect` from `soroband debug state --json`, or `open -g -a <this build's Soroband.app> "soroband-debug://capture-status-item"` when the item is hidden.
 - `NSImageRep.draw(in:)` composites with `.copy`; drawing a transparent bitmap over a fill needs `draw(in:from:operation: .sourceOver …)`.

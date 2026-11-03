@@ -125,6 +125,11 @@ Deliverables:
 - Idle CPU measured in every menu bar layout, including a live speed, with headroom under the budget.
 - History's open time and memory measured in a Release build, next to M4's Debug numbers.
 
+Stages, one PR each (the user chose "split + hover prewarm" on 2026-11-03):
+- M6a: the popover, Settings and History move into the UI process, started in standby when the pointer enters the menu bar item, which quits 60 s after its last window closes; the menu bar process keeps the menu bar item and the engine.
+- M6b: the menu bar process becomes a thin agent with no SwiftUI, drawing the menu bar item itself.
+- M6c: idle CPU work.
+
 Exit criteria:
 - With no window open, after the popover, Settings and History have each opened and closed, the menu bar app is ≤ 25 MB.
 - Idle CPU ≤ 0.1% over 10 minutes in each menu bar layout.
