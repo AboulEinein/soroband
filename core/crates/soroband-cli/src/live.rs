@@ -5,7 +5,7 @@ use soroband_core::meter::record::Recorder;
 use soroband_core::meter::{Bytes, Engine, Host, Mode, Snapshot, SystemHost};
 use std::fmt::Write as _;
 use std::fs::File;
-use std::io::{BufWriter, Write as _};
+use std::io::BufWriter;
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
@@ -69,9 +69,11 @@ pub fn run(args: &[&str]) -> ExitCode {
     let result = SystemHost::connect().and_then(|host| match &options.record {
         Some(path) => {
             let recorder = Recorder::new(host, BufWriter::new(File::create(path)?))?;
-            meter(recorder, &options)?.finish().map(drop)
+            meter(recorder, &options, &mut std::io::stdout().lock())?
+                .finish()
+                .map(drop)
         }
-        None => meter(host, &options).map(drop),
+        None => meter(host, &options, &mut std::io::stdout().lock()).map(drop),
     });
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -82,12 +84,18 @@ pub fn run(args: &[&str]) -> ExitCode {
     }
 }
 
-fn meter<H: Host>(host: H, options: &Options) -> std::io::Result<H> {
-    let started = Instant::now();
+fn meter<H: Host>(host: H, options: &Options, out: &mut impl std::io::Write) -> std::io::Result<H> {
     let mut engine = Engine::start(host)?;
-    let mut out = std::io::stdout().lock();
+    // From the baseline, which the byte totals also count from.
+    let started = Instant::now();
     loop {
-        engine.tick(options.interval)?;
+        // The last update comes when the time limit is reached, not a full interval later.
+        let wait = options.limit.map_or(options.interval, |limit| {
+            options
+                .interval
+                .min(limit.saturating_sub(started.elapsed()))
+        });
+        engine.tick(wait)?;
         let elapsed = started.elapsed();
         let snapshot = engine.snapshot();
         let text = if options.json {
@@ -186,7 +194,75 @@ fn string(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroband_core::meter::App;
+    use soroband_core::meter::interfaces::InterfaceCounter;
+    use soroband_core::meter::{App, ntstat};
+    use std::collections::VecDeque;
+
+    /// A kernel with no flows that answers every poll at once, waits out every other receive, and
+    /// takes `setup` to give its first interface reading, so starting the engine takes that long.
+    struct QuietKernel {
+        setup: Duration,
+        started: bool,
+        replies: VecDeque<Vec<u8>>,
+    }
+
+    impl Host for QuietKernel {
+        fn macos_major(&self) -> u32 {
+            27
+        }
+
+        fn send(&mut self, message: &[u8]) -> std::io::Result<()> {
+            if message[8..12] == ntstat::MSG_GET_UPDATE.to_ne_bytes() {
+                let mut success = message[..16].to_vec();
+                success[8..12].copy_from_slice(&ntstat::MSG_SUCCESS.to_ne_bytes());
+                success[12..14].copy_from_slice(&16u16.to_ne_bytes());
+                success[14..16].copy_from_slice(&0u16.to_ne_bytes());
+                self.replies.push_back(success);
+            }
+            Ok(())
+        }
+
+        fn recv(&mut self, buf: &mut [u8], deadline: Instant) -> std::io::Result<Option<usize>> {
+            if let Some(reply) = self.replies.pop_front() {
+                buf[..reply.len()].copy_from_slice(&reply);
+                return Ok(Some(reply.len()));
+            }
+            std::thread::sleep(deadline.saturating_duration_since(Instant::now()));
+            Ok(None)
+        }
+
+        fn executable_path(&mut self, _pid: u32) -> Option<String> {
+            None
+        }
+
+        fn interface_counters(&mut self) -> std::io::Result<Vec<InterfaceCounter>> {
+            if !self.started {
+                self.started = true;
+                std::thread::sleep(self.setup);
+            }
+            Ok(Vec::new())
+        }
+    }
+
+    #[test]
+    fn time_limit_ends_the_run_on_time_and_elapsed_starts_at_the_baseline() {
+        let host = QuietKernel {
+            setup: Duration::from_secs(2),
+            started: false,
+            replies: VecDeque::new(),
+        };
+        let options = parse(&["--for", "1", "--json"]).unwrap();
+        let mut out = Vec::new();
+        let begun = Instant::now();
+        meter(host, &options, &mut out).unwrap();
+        let took = begun.elapsed();
+        // A full 5 s interval after a 2 s start would take 7 s.
+        assert!(took < Duration::from_secs(4), "took {took:?}");
+        let text = String::from_utf8(out).unwrap();
+        assert_eq!(text.lines().count(), 1, "{text}");
+        // Elapsed counts from the baseline, like the byte totals, not from before the setup.
+        assert!(text.starts_with(r#"{"elapsed":1,"#), "{text}");
+    }
 
     #[test]
     fn json_escapes_quotes_backslashes_and_control_characters() {

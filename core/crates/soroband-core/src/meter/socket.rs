@@ -58,7 +58,8 @@ impl Waker {
     /// Makes the host's current or next `recv` return as if its deadline had passed.
     pub fn wake(&self) {
         let byte = 1u8;
-        // SAFETY: writes one byte from a valid buffer. A full pipe (EAGAIN) already holds a wakeup.
+        // SAFETY: writes one byte from a valid buffer. A full pipe (EAGAIN) already holds a wakeup;
+        // a pipe whose host is gone (EPIPE, without SIGPIPE: see `SystemHost::waker`) has nobody to wake.
         unsafe { libc::write(self.0.as_raw_fd(), (&raw const byte).cast(), 1) };
     }
 }
@@ -133,6 +134,12 @@ impl SystemHost {
                 libc::fcntl(fd.as_raw_fd(), libc::F_SETFL, flags | libc::O_NONBLOCK);
                 libc::fcntl(fd.as_raw_fd(), libc::F_SETFD, libc::FD_CLOEXEC);
             }
+        }
+        // The host app does not ignore SIGPIPE, and this write end outlives the read end once the
+        // engine thread has ended, so a write to it returns EPIPE instead of raising the signal.
+        // SAFETY: fcntl on a descriptor this function owns.
+        if unsafe { libc::fcntl(write.as_raw_fd(), libc::F_SETNOSIGPIPE, 1) } < 0 {
+            return Err(io::Error::last_os_error());
         }
         self.wakeup = Some(read);
         Ok(Waker(Arc::new(write)))
@@ -271,5 +278,33 @@ mod tests {
         let text = String::from_utf8(out.stdout).unwrap();
         let expected: u32 = text.trim().split('.').next().unwrap().parse().unwrap();
         assert_eq!(super::macos_major().unwrap(), expected);
+    }
+
+    /// The Swift app does not ignore `SIGPIPE` the way a Rust binary does, so the wake runs in a
+    /// child with the default action restored.
+    #[test]
+    fn wake_after_the_host_is_dropped_does_not_raise_sigpipe() {
+        let mut host = super::SystemHost::connect().unwrap();
+        let waker = host.waker().unwrap();
+        drop(host);
+        // SAFETY: the child calls only async-signal-safe functions before `_exit`.
+        let pid = unsafe { libc::fork() };
+        assert!(pid >= 0, "fork failed");
+        if pid == 0 {
+            // SAFETY: restores the default action, then exits without unwinding.
+            unsafe {
+                libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+                waker.wake();
+                libc::_exit(0);
+            }
+        }
+        let mut wait_status = 0;
+        // SAFETY: waits for the child forked above.
+        assert_eq!(unsafe { libc::waitpid(pid, &raw mut wait_status, 0) }, pid);
+        assert!(
+            libc::WIFEXITED(wait_status) && libc::WEXITSTATUS(wait_status) == 0,
+            "the wake killed the process: signal {}",
+            libc::WTERMSIG(wait_status)
+        );
     }
 }

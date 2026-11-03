@@ -257,7 +257,7 @@ mod tests {
 
     #[test]
     fn executable_path_of_a_missing_process_is_none() {
-        assert_eq!(executable_path(i32::MAX.cast_unsigned()), None);
+        assert_eq!(executable_path(u32::try_from(i32::MAX).unwrap()), None);
     }
 
     #[test]

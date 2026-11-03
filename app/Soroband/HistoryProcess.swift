@@ -85,6 +85,8 @@ enum HistoryProcess {
     private static var input: Pipe?
     /// Whether the running process waits in standby, with no window yet.
     private static var standing = false
+    /// This app's executable; tests start a stand-in.
+    static var executableURL = Bundle.main.executableURL
 
     /// The History process, while it runs.
     static var processIdentifier: pid_t? {
@@ -94,7 +96,7 @@ enum HistoryProcess {
     /// Starts a History process in standby, unless one runs.
     static func prepare() {
         guard running?.isRunning != true else { return }
-        standing = launch([HistoryOptions.flag, HistoryOptions.standbyFlag])
+        launch([HistoryOptions.flag, HistoryOptions.standbyFlag], standby: true)
     }
 
     /// Quits the standby process, if it was not used.
@@ -126,7 +128,7 @@ enum HistoryProcess {
             }
             close()
         }
-        _ = launch(options.arguments)
+        launch(options.arguments, standby: false)
     }
 
     static func close() {
@@ -138,21 +140,22 @@ enum HistoryProcess {
 
     /// Starts the process directly rather than through Launch Services, which dropped the
     /// arguments of a second instance of the same app. It inherits the environment, so a Debug
-    /// build run on another data directory opens History on the same one.
-    private static func launch(_ arguments: [String]) -> Bool {
+    /// build run on another data directory opens History on the same one. A standby process that
+    /// died without `close` leaves `standing` set, so every launch sets it again.
+    private static func launch(_ arguments: [String], standby: Bool) {
         let process = Process()
         let pipe = Pipe()
-        process.executableURL = Bundle.main.executableURL
+        process.executableURL = executableURL
         process.arguments = arguments
         process.standardInput = pipe
         do {
             try process.run()
             running = process
             input = pipe
-            return true
+            standing = standby
         } catch {
             NSLog("Soroband: cannot open History: %@", String(describing: error))
-            return false
+            standing = false
         }
     }
 }

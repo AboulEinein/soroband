@@ -258,6 +258,57 @@ Planned rounds: 1.
 **Retro.** Planned 1 round; it took 1 and two direct reviews, and CodeRabbit found nothing. The round's finding sat outside the diff: the merges made a hand checklist stale, and REVIEW.md's "what the diff reaches" is what found it. The fix then described History's refresh from memory instead of from `HistoryWindow.swift`, the "docs from evidence" rule in `verification.md`.
 
 
+## [#23](https://github.com/AboulEinein/soroband/pull/23) fix(core): stop a wake after the engine ends from raising SIGPIPE (2026-11-03)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 2 Low | `first look`: the handover's Next action 1 and Follow-ups still said one pull request fixes the CodeRabbit backlog; fixed in #24, which owns those lines. `first look`: the PR had no entry here before round 1, as Rounds step 2 asks. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1, and CodeRabbit found nothing. Both findings were about records, not the fix: the orchestrator's brief told the implementer not to touch `review-retros.md`, so no entry was started before round 1. The brief for the backlog PRs now starts the entry.
+## [#24](https://github.com/AboulEinein/soroband/pull/24) docs: fix CodeRabbit's docs and license findings (2026-11-03)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 2 Low | `first look`: M0 step 2.1 said the Welcome window opens whenever Location is unanswered, but it also needs `onboardingShown` unset, which survives a reinstall. `first look`: the README said earlier versions lose per-app counting, while every version but macOS 27 does. |
+| direct | Haiku | 2 unrated | Checked 48c598e; both findings handled, 2 wording nits left as they are. [Comment](https://github.com/AboulEinein/soroband/pull/24#issuecomment-6602658085). |
+| CodeRabbit | CodeRabbit | none | |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`, on the records commit: a blank line before #23's row ended the findings table. |
+
+**Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found nothing in the change; on the records commit it found a blank line, carried from #23's records, that split the findings table, which `records-lint.py` does not check. Both findings came from describing app behavior from the UI instead of from the code that decides it (`Onboarding.shouldShow`, `KNOWN_LAYOUTS`), the "docs from evidence" rule in `verification.md`. The implementer also found a stale Location menu in `docs/agents/install.md`, fixed here although no review had raised it.
+
+
+## [#27](https://github.com/AboulEinein/soroband/pull/27) fix(core/cli): CodeRabbit core and CLI correctness findings (2026-11-03)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low | `first look`: the PR removed the `rust-version` backlog line without a follow-up saying nothing in CI keeps it true. |
+| direct | Haiku | none | Checked 3505840. [Comment](https://github.com/AboulEinein/soroband/pull/27#issuecomment-6602598166). |
+| CodeRabbit | CodeRabbit | 2 Minor | `first look`: the new unreadable-settings message advised deleting the file, which gives the CLI reset hour 0 while the running app keeps its own and is not told. `first look`: `docs/agents/configure.md` did not say a network's id wins over a network named the same. |
+| CodeRabbit | CodeRabbit | none | Checked the fix. |
+
+**Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found 2 more. Both CodeRabbit findings followed a changed behavior one step further than the blind round did: what the advice in a new error message leads to, and what a new matching rule means for the reader of the guide. The first direct review was lost to a network outage and run again.
+
+
+## [#26](https://github.com/AboulEinein/soroband/pull/26) fix(app): handle the CodeRabbit app Swift findings (2026-11-03)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Medium, 1 Low | `first look`: moving the CSV export off the main thread let a window close quit the History process mid-write, leaving a truncated file. `first look`: Settings refreshed an injected `LaunchAtLogin` but showed `.shared`, so the test checked an object the window did not show. |
+| 2 | Opus | 1 Low | `first look`: this entry had no rows for the rounds that had run. |
+| CodeRabbit | CodeRabbit | 1 Major | `first look`: claimed `replaceItemAt` fails for a new destination and that the Debug export should keep the earlier file; not valid (`replaceItemAt` moves the item into place when none exists, checked on this Mac; the Debug path is removed on purpose so a failed export shows). |
+
+**Retro.** Planned 1 round; it took 2, and CodeRabbit raised one finding that did not hold. Round 1's Medium came from the PR's own fix: moving the export off the main thread made the window close race the write, which the CodeRabbit finding had not foreseen either. The fix took both an atomic replace and a quit that waits for exports in flight. Snapshot tests drifted by 1/255 on this Mac during the PR, the existing follow-up about snapshot colors and the main display.
+
+
 ## [#28](https://github.com/AboulEinein/soroband/pull/28) fix(verify): close false passes and the hang in traffic.sh and budget.sh (2026-11-03)
 
 Planned rounds: 1.
