@@ -199,6 +199,7 @@ def self_test() -> list[str]:
         "# Title\n\n" + findings_table + row + "prose\n" + row,
         "# Title\n\n" + findings_table + row + "<<<<<<< HEAD\n" + row + "=======\n" + row + ">>>>>>> main\n",
         "# Title\n\n" + findings_table + row + "=======\n",
+        "# Title\n\n=======\n\n" + findings_table + row,
     ]
     failures = []
     for text in retros_docs_ok:
