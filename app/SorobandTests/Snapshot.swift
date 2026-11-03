@@ -74,13 +74,13 @@ enum Snapshot {
         return bitmap.cgImage
     }
 
-    /// Number of pixels that differ by more than `channelTolerance`, or every pixel when the sizes differ.
-    static func changedPixels(_ a: CGImage, _ b: CGImage) -> Int {
+    /// Number of pixels that differ by more than `tolerance` in a channel, or every pixel when the sizes differ.
+    static func changedPixels(_ a: CGImage, _ b: CGImage, tolerance: Int = channelTolerance) -> Int {
         guard a.width == b.width, a.height == b.height else { return max(a.width * a.height, b.width * b.height) }
         let (pa, pb) = (rgba(a), rgba(b))
         var changed = 0
         for pixel in stride(from: 0, to: pa.count, by: 4) {
-            if (0..<4).contains(where: { abs(Int(pa[pixel + $0]) - Int(pb[pixel + $0])) > channelTolerance }) {
+            if (0..<4).contains(where: { abs(Int(pa[pixel + $0]) - Int(pb[pixel + $0])) > tolerance }) {
                 changed += 1
             }
         }

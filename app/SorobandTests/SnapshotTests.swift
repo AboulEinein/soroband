@@ -284,7 +284,9 @@ struct SnapshotTests {
         let images = try spaces.map { try #require(Snapshot.render(popover(.apps), size: nil, windowColorSpace: $0)) }
         for (space, image) in zip(spaces, images) {
             #expect(image.colorSpace == Snapshot.colorSpace.cgColorSpace, "rendered in \(space.localizedName ?? "?")")
-            #expect(Snapshot.changedPixels(image, images[0]) == 0, "rendered in \(space.localizedName ?? "?")")
+            #expect(
+                Snapshot.changedPixels(image, images[0], tolerance: 0) == 0,
+                "rendered in \(space.localizedName ?? "?")")
         }
     }
 
