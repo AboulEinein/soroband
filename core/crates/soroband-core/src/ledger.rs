@@ -26,9 +26,12 @@ pub struct Ledger {
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Booked {
     pub apps: Bytes,
+    /// Interface bytes: what crossed the interfaces less the local-network bytes, as written.
     pub interfaces: Bytes,
+    /// What crossed the interfaces, local-network bytes included, for the self-check.
+    pub crossed: Bytes,
     /// Bytes of flows to the local network. They crossed the interfaces but are not usage, so
-    /// they are never written.
+    /// they are never written, and come off the interface bytes.
     pub local: Bytes,
     /// The apps that moved, with what each added.
     pub by_app: Vec<(App, Bytes)>,
@@ -74,7 +77,7 @@ impl Ledger {
                 booked.by_app.push((app.clone(), delta));
             }
         }
-        let delta = Bytes {
+        booked.crossed = Bytes {
             rx: snapshot
                 .interfaces
                 .rx
@@ -85,15 +88,20 @@ impl Ledger {
                 .saturating_sub(self.seen_interfaces.tx),
         };
         self.seen_interfaces = snapshot.interfaces;
-        if delta.total() > 0 {
-            *self.interfaces.entry((hour, self.network)).or_default() += delta;
-            booked.interfaces = delta;
-        }
         booked.local = Bytes {
             rx: snapshot.local.rx.saturating_sub(self.seen_local.rx),
             tx: snapshot.local.tx.saturating_sub(self.seen_local.tx),
         };
         self.seen_local = snapshot.local;
+        // Local-network flows cross the same interfaces, so their bytes are part of `crossed`.
+        let delta = Bytes {
+            rx: booked.crossed.rx.saturating_sub(booked.local.rx),
+            tx: booked.crossed.tx.saturating_sub(booked.local.tx),
+        };
+        if delta.total() > 0 {
+            *self.interfaces.entry((hour, self.network)).or_default() += delta;
+            booked.interfaces = delta;
+        }
         booked
     }
 
@@ -196,6 +204,7 @@ mod tests {
             Booked {
                 apps: Bytes { rx: 30, tx: 0 },
                 interfaces: Bytes { rx: 40, tx: 5 },
+                crossed: Bytes { rx: 40, tx: 5 },
                 local: Bytes::default(),
                 by_app: vec![(app("Mail"), Bytes { rx: 30, tx: 0 })],
             }
@@ -285,8 +294,29 @@ mod tests {
         second.local = Bytes { rx: 1_600, tx: 0 };
         let booked = ledger.book(&second, TEN + 5);
         assert_eq!(booked.local, Bytes { rx: 600, tx: 0 });
-        let (apps, _) = ledger.take();
+        assert_eq!(booked.crossed, Bytes { rx: 600, tx: 0 });
+        assert_eq!(booked.interfaces, Bytes::default());
+        let (apps, interfaces) = ledger.take();
         assert_eq!(apps, [row(TEN, 1, "Mail", 100, 0)]);
+        // The first booking's 1,100 crossed, less its 1,000 local.
+        assert_eq!(
+            interfaces,
+            [InterfaceUsage {
+                hour: TEN,
+                network: 1,
+                bytes: Bytes { rx: 100, tx: 0 },
+            }]
+        );
+    }
+
+    #[test]
+    fn local_network_bytes_beyond_what_crossed_leave_no_interface_bytes() {
+        let mut ledger = Ledger::new(1);
+        let mut only = snapshot(&[], (500, 40));
+        only.local = Bytes { rx: 600, tx: 10 };
+        let booked = ledger.book(&only, TEN);
+        assert_eq!(booked.crossed, Bytes { rx: 500, tx: 40 });
+        assert_eq!(booked.interfaces, Bytes { rx: 0, tx: 30 });
     }
 
     #[test]

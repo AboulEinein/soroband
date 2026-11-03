@@ -391,6 +391,22 @@ Planned rounds: 1.
 **Retro.** Planned 1 round; it took 3, and CodeRabbit raised 1 finding left as it is. Each round found a test that could not fail for one side of a new branch (the coalescer's wait, the layout guard's change path), the "tests verify intent" rule; checking each new branch both ways before round 1 would have saved two rounds. A merge from `main` brought in #33's changes to the same test file, which merged without conflict.
 
 
+## [#32](https://github.com/AboulEinein/soroband/pull/32) fix(core): keep local-network bytes out of stored interface bytes (2026-11-03)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Medium, 1 Low | `first look`: local-network flows' headers and acknowledgements stay in the stored interface bytes, so the docs' "a network's total is its internet traffic" was false. `first look`: eight descriptions still called the value everything that crossed the interfaces. |
+| 2 | Opus | 1 Low | `missed earlier`: five more descriptions of the same value outside round 1's list. |
+| direct | Haiku | 1 unrated | `missed earlier`: six more stale descriptions after f157c61. [Comment](https://github.com/AboulEinein/soroband/pull/32#issuecomment-6610918610). |
+| direct | Sonnet | none | Checked 2f1b14a and a sweep of every description. [Comment](https://github.com/AboulEinein/soroband/pull/32#issuecomment-6610960611). |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: the `soroband today` help said local-network traffic is left out, which interface-only mode cannot do. |
+| CodeRabbit | CodeRabbit | none | Checked the fix and the merge from `main`. |
+
+**Retro.** Planned 1 round; it took 2 and two direct reviews, and CodeRabbit found 1 more. Changing what a stored value means left its description wrong in many files, and each fix covered only the places a reviewer had listed, so three reviews in a row found more; a sweep of every description of the value ended it. Next time a change redefines a value, grep every description of it before the first round. The Medium came from reasoning about what a flow carries (no headers), which the test's numbers had hidden by putting all overhead on the internet flow.
+
+
 ## [#30](https://github.com/AboulEinein/soroband/pull/30) feat(verify): fail records-lint on a broken table or a conflict marker (2026-11-03)
 
 Planned rounds: 1.
