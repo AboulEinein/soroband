@@ -291,7 +291,7 @@ struct DebugState: Encodable {
         let networkInterfaces: Bytes
         let allApps: Bytes
         let allInterfaces: Bytes
-        /// Bytes per second across the interfaces between the last two polls.
+        /// Bytes per second across the interfaces, less the local-network bytes, between the last two polls.
         let speed: Bytes
     }
 
