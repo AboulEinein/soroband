@@ -148,6 +148,7 @@ Small items for a later nits pass.
   The comments themselves are on each PR's review threads (`gh api repos/AboulEinein/soroband/pulls/<n>/comments`); comments outside the diff are in the review bodies (`.../pulls/<n>/reviews`).
 
 - **Unreviewed fix.** The App-cryptex rule groups Apple daemons in the App cryptex (`/System/Volumes/Preboot/Cryptexes/App/usr/libexec/PasswordBreachAgent` and similar) as "macOS & Services". It has a test that failed before the fix, but no review round saw it.
+- **Nothing keeps `rust-version` true.** `core/Cargo.toml` declares `rust-version = "1.85"`, and `cargo +1.85 test --workspace` passes, but CI builds only on `stable`, so code that needs a newer Rust passes CI unnoticed. A CI job on 1.85 would catch it.
 - **`cargo mutants` timeouts.** The last run on the meter module and C API (317 mutants: 255 caught, 22 missed, 34 unviable) had 6 timeouts, all in loops that then never end:
   - `Engine::tick` → `Ok(())`;
   - `messages` `+=` → `*=`;
