@@ -85,6 +85,8 @@ enum UIHost {
             _ = number
             #endif
         }
+        // Each window reports itself too; this keeps the linger right for any path that opens one.
+        if request.showsWindow { windowsChanged() }
     }
 
     /// Whether the process is waiting to quit, for `soroband debug state`.

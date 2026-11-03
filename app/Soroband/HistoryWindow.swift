@@ -70,6 +70,7 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
         window.displayIfNeeded()
+        UIHost.windowsChanged()
         let started = options.requested ?? Self.processStart
         let elapsed = Date.now.timeIntervalSince(started)
         openDuration = elapsed
