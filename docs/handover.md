@@ -24,7 +24,7 @@ The state of the project for whoever picks it up next. Read this file, then the 
 ## Next action
 
 0. When the user asks: install `main` (`scripts/install.sh`), set `menu_bar_readings` as above, and the user checks by eye #17's Location grant, the popover and History on real data (#18), and Settings (#19, #20).
-1. Open one pull request against `main` that fixes the CodeRabbit backlog (Follow-ups), the `SIGPIPE` crash first, with a test wherever behavior changes. It runs the usual loop in `docs/review.md`, and every finding goes in `docs/coderabbit-findings.md` (source: #15, or the PR it was deferred from). Then close #15 and delete its branches `review/empty-base` and `review/full-project-tree`.
+1. The CodeRabbit backlog (Follow-ups) is being fixed in grouped pull requests against `main`, one concern each, the `SIGPIPE` crash first, with a test wherever behavior changes. Each runs the usual loop in `docs/review.md`, and every finding goes in `docs/coderabbit-findings.md` (source: #15, or the PR it was deferred from). Once the backlog is empty, close #15 and delete its branches `review/empty-base` and `review/full-project-tree`.
 2. The user runs the M0, M2, M3 and M4 hand checklists (below) and starts the daily-use week; each milestone is marked `done` in the ledger once its checklist has passed, and issues go into Follow-ups.
 3. M5 (Dynamic Island moments) starts from `main` in its own worktree, when the user says so. It runs the review experiment in its section of `plan.md`.
 
@@ -37,17 +37,19 @@ The state of the project for whoever picks it up next. Read this file, then the 
 
 ### M0 hand checklist
 
-1. **Menu bar item.** Look for "Soroband 0.1.0" in the menu bar. On this Mac it sits behind the notch; hide or quit another menu bar item to make room, then confirm it shows.
+Location access is shown in **Settings › General › Wi‑Fi names**: open Settings with the gear button at the bottom of the popover (click the menu bar item to open the popover). The row reads **Allowed: Wi‑Fi networks show their names** or **Not allowed: Wi‑Fi networks show as “Wi‑Fi”**.
+
+1. **Menu bar item.** Look for the Soroband item in the menu bar: a network icon and today's total on the current network. On this Mac it sits behind the notch; hide or quit another menu bar item to make room, then confirm it shows.
 2. **Location permission across a rebuild, ad hoc signature.** From the repository root:
-   1. `scripts/install.sh --adhoc`, click **Soroband › Allow Location Access…**, click **Allow**; the menu now reads **Location Access: Allowed**.
-   2. `scripts/install.sh --adhoc` again, then open the Soroband menu. Note whether it still reads **Allowed**. Expected: it does not, because an ad hoc designated requirement is the build's cdhash.
+   1. `scripts/install.sh --adhoc`, then open Settings › General › Wi‑Fi names. If it shows **Allow…**, click it, then **Allow** in the macOS prompt. If it shows **Open Location Settings…** (Location was already answered for this build), click it and turn Soroband on in System Settings › Privacy & Security › Location Services. The **Welcome to Soroband** window offers the same button only at a launch where it has never been shown and Location was never answered, which a reinstall on this Mac does not reset. Wi‑Fi names now reads **Allowed**.
+   2. `scripts/install.sh --adhoc` again, then open Settings › General. Note whether Wi‑Fi names still reads **Allowed**. Expected: it does not, because an ad hoc designated requirement is the build's cdhash.
 3. **Location permission across a rebuild, stable signature.**
-   1. `scripts/install.sh`, then allow Location access again as in 2.1 (the signature changed, so this one is expected).
-   2. `scripts/install.sh` again, then open the Soroband menu. Expected: it still reads **Allowed**. If it does not, the stable signature does not carry the permission and M0's signing approach needs rework.
+   1. `scripts/install.sh`, then allow Location access again with **Allow…** (or **Open Location Settings…**) in Settings › General › Wi‑Fi names (the signature changed, so this one is expected).
+   2. `scripts/install.sh` again, then open Settings › General. Expected: Wi‑Fi names still reads **Allowed**. If it does not, the stable signature does not carry the permission and M0's signing approach needs rework.
 
 ### M2 hand checklist
 
-1. **Location permission, so Wi‑Fi is named.** `scripts/install.sh`, then **Soroband › Allow Location Access…** › **Allow**. `soroband today` then lists the Wi‑Fi under its name, within a few seconds. The "Wi-Fi" network seen before the permission is gone: its usage is under the Wi‑Fi's name.
+1. **Location permission, so Wi‑Fi is named.** `scripts/install.sh`, then allow Location access: **Allow Location Access** in the Welcome to Soroband window, **Allow…** under Show Wi‑Fi names in the popover, or **Allow…** in Settings › General › Wi‑Fi names, then **Allow** in the macOS prompt. Within a few seconds `soroband today` lists the Wi‑Fi under its name, and so does Settings › Networks. The "Wi-Fi" network seen before the permission is gone: its usage is under the Wi‑Fi's name.
 2. **Real hotspot switch.** On Wi‑Fi, note `soroband today --json`. Join the iPhone's Personal Hotspot and run `/usr/bin/curl -o /dev/null https://speed.cloudflare.com/__down?bytes=20000000`. Rejoin the Wi‑Fi. Then check:
    - `soroband apps --network "<iPhone's name>" --json` shows curl at about 20,000,000 B.
    - `soroband today --json` lists the iPhone with `"kind": "hotspot"`.
@@ -126,15 +128,11 @@ The state of the project for whoever picks it up next. Read this file, then the 
 
 Small items for a later nits pass.
 
-- **CodeRabbit backlog.** One pull request fixes these (Next action 1). From the whole-project review (#15):
-  - Major: `.claude/skills/pr/LICENSE:3`, keep the upstream copyright notice of the vendored skill.
+- **CodeRabbit backlog.** Grouped pull requests fix these (Next action 1). From the whole-project review (#15):
   - Major: `core/crates/soroband-core/src/service.rs:151`, the self-check counts local-network bytes in its gap.
-  - Major: `README.md:16`, state the current per-app counting limitation.
-  - Major: `docs/handover.md:36`, the M0 hand checklist describes M0's menu ("Soroband 0.1.0", Allow Location Access… in a menu), not the current menu bar item and popover.
   - Minor: `app/Soroband/HistoryProcess.swift:129`, reset `standing` before `open` launches a new process.
   - Minor: `core/crates/soroband-core/src/meter/process.rs:260`, `i32::cast_unsigned` needs a newer Rust than `rust-version = "1.85"`.
   - Minor: `scripts/verify/budget.sh:43`, a run passes when the footprint cannot be read.
-  - Minor: `CONTRIBUTING.md:35`, the prototype commands do not run from the repository root.
   - Minor: `prototypes/meter-probe/src/main.rs:290` (length guard before slicing), `prototypes/ui-spike/snapshot.sh:14` (stop and clean up when the app fails), `prototypes/ui-spike/Sources/Soroband/HistoryDetail.swift:25` (crash on a future period).
   - Trivial: `app/Soroband/HistoryWindow.swift:118`, run `Core.exportCSV` off the main thread; `app/Soroband/HistoryView.swift:62`, detect "all networks" without comparing `content.title` to `allNetworksTitle`.
 
@@ -145,7 +143,6 @@ Small items for a later nits pass.
   - Minor: `docs/verification.md:52` (#4), the engine's 5 MB memory check is missing.
   - Minor: `core/crates/soroband-cli/src/usage.rs:58` and `:228` (#5), totals show after a settings read error, and a numeric network ID is matched as a name.
   - Minor: `app/Soroband/SettingsView.swift:23` (#6), the launch-at-login toggle is not refreshed when Settings regains focus.
-  - Minor: `CONTRIBUTING.md:47` (#8), document the recursive lint command.
 
   The comments themselves are on each PR's review threads (`gh api repos/AboulEinein/soroband/pulls/<n>/comments`); comments outside the diff are in the review bodies (`.../pulls/<n>/reviews`).
 

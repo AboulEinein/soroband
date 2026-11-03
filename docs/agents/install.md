@@ -54,12 +54,12 @@ macOS reveals the Wi‑Fi network name only to apps with Location access, and So
 
 Ask the user to:
 
-1. Click **Soroband** in the menu bar and choose **Allow Location Access…**.
+1. Click **Allow Location Access** in the **Welcome to Soroband** window, which opens at the first launch. If it does not open, click the Soroband item in the menu bar, click the gear button at the bottom of the popover, and click **Allow…** in Settings › General › Wi‑Fi names.
 2. Click **Allow** in the macOS prompt.
-3. Check that the menu now reads **Location Access: Allowed**.
+3. Check that Settings › General › Wi‑Fi names reads **Allowed: Wi‑Fi networks show their names**.
 
-If the menu reads **Location Access: Off**, the user denied it earlier or Location Services is off: choosing that item opens System Settings › Privacy & Security › Location Services, where the user turns on Location Services and Soroband.
+If it reads **Not allowed: Wi‑Fi networks show as “Wi‑Fi”** with an **Open Location Settings…** button, the user denied it earlier or Location Services is off: that button opens System Settings › Privacy & Security › Location Services, where the user turns on Location Services and Soroband.
 
 ## Done
 
-Tell the user Soroband is installed, where the app and command are, and that running `scripts/install.sh` again from the clone updates it.
+Tell the user Soroband is installed, where the app and command are, and that running `scripts/install.sh --replace` again from the clone updates it, when the user asks.
