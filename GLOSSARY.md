@@ -209,7 +209,7 @@ A second instance of Soroband.app, started with `--ui` by the menu bar process, 
 _Avoid_: helper, History process (its earlier, History-only form)
 
 **Standby**:
-A UI process started when the pointer enters the menu bar item, with no window, so a click does not wait for a launch.
+A UI process started when the pointer enters the menu bar item, with no window, that draws the popover once offscreen, so a click does not wait for a launch or a first layout.
 _Avoid_: prewarm, warm process
 
 **Linger**:
