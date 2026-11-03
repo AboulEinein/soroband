@@ -9,7 +9,7 @@ struct PopoverContent: Equatable {
         var kind: NetworkKind?
         var slot: Int?
         var connectedSince: Date?
-        /// What crossed the interfaces on this network today.
+        /// What crossed the interfaces on this network today, less the local-network bytes.
         var today: ByteCounts
         var speed: ByteCounts
     }
@@ -85,7 +85,7 @@ struct PopoverContent: Equatable {
     var appsScale: UInt64
     var networks: [Row]
     var networksScale: UInt64
-    /// What crossed the interfaces today on every network.
+    /// What crossed the interfaces today on every network, less the local-network bytes.
     var allNetworksToday: UInt64
 
     static let unknownNetworkName = "Unknown network"

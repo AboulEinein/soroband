@@ -163,7 +163,7 @@ struct Today: Codable, Equatable {
         let network: Int64
         /// Summed over the network's apps.
         let apps: ByteCounts
-        /// What crossed the interfaces on that network.
+        /// What crossed the interfaces on that network, less the local-network bytes.
         let interfaces: ByteCounts
     }
 

@@ -135,7 +135,7 @@ pub struct AppUsage {
     pub bytes: Bytes,
 }
 
-/// Bytes that crossed the interfaces on one network in one hour.
+/// Bytes that crossed the interfaces on one network in one hour, less the local-network bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InterfaceUsage {
     pub hour: i64,
