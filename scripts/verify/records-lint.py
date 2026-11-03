@@ -93,6 +93,10 @@ def unbroken_tables(
             if not lines[number].startswith("|"):
                 what = "blank line" if not lines[number].strip() else "line that is not a row"
                 problems.append(f"{name}:{number + 1}: {what} inside the table that starts at line {index + 1}")
+            elif number > index + 1 and (
+                cells(lines[number])[0] == header or SEPARATOR.fullmatch(cells(lines[number])[0])
+            ):
+                problems.append(f"{name}:{number + 1}: second header or separator in the table at line {index + 1}")
         index = end
     for number, line in enumerate(lines):
         if line.lstrip().startswith("|") and number not in in_table and not CONFLICT_MARKER.fullmatch(line):
@@ -151,8 +155,6 @@ def self_test() -> list[str]:
     """Rows the lint must accept, and rows it must refuse, each on its own."""
     header = "| Review | Model | Findings | Origins |\n"
     retros_ok = [
-        "| --- | --- | --- | --- |",
-        "|----|:---|---:|:---:|",
         "| 1 | Opus | 1 Medium, 3 Low, 1 unrated | x |",
         "| 1 (stopped) | Sonnet | none | x |",
         "| CodeRabbit | CodeRabbit | 1 Major, 2 Minor (review body) | x |",
@@ -161,6 +163,9 @@ def self_test() -> list[str]:
         "| 3 | Opus | 1 Low | separators such as `\\|----\\|` |",
     ]
     retros_bad = [
+        "| --- | --- | --- | --- |",
+        "|----|:---|---:|:---:|",
+        "| Review | Model | Findings | Origins |",
         "| 1 | Opus | 1 Discussion | x |",
         "|1 | Opus | 1 Discussion | x |",
         "| bogus | Opus | none | x |",
@@ -173,12 +178,12 @@ def self_test() -> list[str]:
         "| 2 | Opus | 0 Low | x |",
     ]
     findings_ok = [
-        "| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
         "| 2026-10-29 | #1 | x | correctness | valid | not checked | – |",
         "| 2026-10-29 | #1 | x | correctness | not valid | – | – |",
     ]
     findings_bad = [
+        "| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
         "| 2026-10-29 | #1 | x | correctness | valid | – | – |",
         "| 2026-10-29 | #1 | x | correctness | not valid | not checked | – |",
         "| 2026-10-29 | #1 | x | correctness | bogus | – | – |",
