@@ -42,8 +42,9 @@ watcher=$!
 trap 'kill $live $watcher 2>/dev/null || true; rm -f $out $curls $size_file' EXIT
 
 sleep $start
-# The system curl, because the attribution check below looks for its path.
-/usr/bin/curl -sS -o /dev/null -w '%{size_download}' --max-time $deadline \
+# The system curl, because the attribution check below looks for its path. -q skips ~/.curlrc, whose
+# retry would restart --max-time on each attempt and run the download past the deadline.
+/usr/bin/curl -q -sS -o /dev/null -w '%{size_download}' --max-time $deadline \
   "https://speed.cloudflare.com/__down?bytes=$bytes" >$size_file &
 download=$!
 curl_status=0
