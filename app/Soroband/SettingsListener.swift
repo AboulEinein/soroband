@@ -2,12 +2,18 @@ import Foundation
 import notify
 
 /// Applies `soroband config set` to the running app: the command posts a Darwin notification named
-/// after the bundle identifier, and the core rereads the settings file.
-/// Must match `core/crates/soroband-cli/src/data.rs`.
+/// after the bundle identifier, and after the data directory when `SOROBAND_DATA_DIR` overrides it,
+/// and the core rereads the settings file. Must match `core/crates/soroband-cli/src/data.rs`.
 @MainActor
 enum SettingsListener {
     static var notification: String {
-        "\(Bundle.main.bundleIdentifier ?? "io.github.abouleinein.soroband").settings-changed"
+        let name = "\(Bundle.main.bundleIdentifier ?? "io.github.abouleinein.soroband").settings-changed"
+        #if DEBUG
+        if let dir = ProcessInfo.processInfo.environment["SOROBAND_DATA_DIR"], !dir.isEmpty {
+            return "\(name):\(dir)"
+        }
+        #endif
+        return name
     }
 
     /// A script setting several values, or a loop of `soroband config set`, posts a burst of

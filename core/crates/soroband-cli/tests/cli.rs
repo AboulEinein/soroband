@@ -225,6 +225,15 @@ impl Drop for Listener {
     }
 }
 
+/// The notification a test build of the command (a debug build) posts for data directory `dir`:
+/// its own name, so a test run never reaches a running Debug app.
+fn settings_changed(dir: &Path) -> String {
+    format!(
+        "io.github.abouleinein.soroband.debug.settings-changed:{}",
+        dir.display()
+    )
+}
+
 /// Held by the tests that watch the notification, so one test's post is not seen by another.
 static NOTIFICATIONS: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -234,8 +243,7 @@ fn config_set_saves_the_value_and_tells_the_app() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let dir = data_dir("config-set");
-    // A test build of the command is a debug build, so it posts the Debug app's notification.
-    let listener = Listener::new("io.github.abouleinein.soroband.debug.settings-changed");
+    let listener = Listener::new(&settings_changed(&dir));
     let set = soroband(&dir, &["config", "set", "reset_hour", "4"]);
     assert!(set.status.success(), "{set:?}");
     assert_eq!(String::from_utf8(set.stdout).unwrap(), "reset_hour = 4\n");
@@ -275,7 +283,7 @@ fn config_set_refuses_a_bad_value_and_leaves_the_file_alone() {
             .status
             .success()
     );
-    let listener = Listener::new("io.github.abouleinein.soroband.debug.settings-changed");
+    let listener = Listener::new(&settings_changed(&dir));
     for (args, expected) in [
         (["config", "set", "reset_hour", "24"], "24 is outside 0-23"),
         (
@@ -314,7 +322,7 @@ fn config_set_menu_bar_readings_takes_words_from_its_options() {
     assert_eq!(described["max"], 4);
     assert_eq!(described["value"], "total");
 
-    let listener = Listener::new("io.github.abouleinein.soroband.debug.settings-changed");
+    let listener = Listener::new(&settings_changed(&dir));
     let set = soroband(
         &dir,
         &["config", "set", "menu_bar_readings", "download, upload"],
