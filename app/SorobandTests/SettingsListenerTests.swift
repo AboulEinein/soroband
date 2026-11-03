@@ -11,9 +11,12 @@ struct SettingsListenerTests {
         var runs = 0
         let coalescer = Coalescer(window: .milliseconds(250)) { runs += 1 }
         for _ in 0..<100 { coalescer.request() }
+        // The run waits out the window, so it reads the settings the burst's last post left.
+        #expect(runs == 0)
         try await Task.sleep(for: .milliseconds(600))
         #expect(runs == 1)
         coalescer.request()
+        #expect(runs == 1)
         try await Task.sleep(for: .milliseconds(600))
         #expect(runs == 2)
     }
