@@ -82,6 +82,26 @@ fn seed(dir: &Path) -> (i64, i64) {
     (home, phone)
 }
 
+/// An empty `SOROBAND_DATA_DIR` is unset, as the app reads it: the command uses the Debug app's
+/// directory under `HOME`, not the working directory.
+#[test]
+fn an_empty_data_dir_variable_means_the_default_directory() {
+    let home = data_dir("empty-dir-home");
+    let cwd = data_dir("empty-dir-cwd");
+    let default = home.join("Library/Application Support/Soroband Debug");
+    std::fs::create_dir_all(&default).unwrap();
+    std::fs::write(default.join("settings.json"), r#"{ "reset_hour": 4 }"#).unwrap();
+    std::fs::write(cwd.join("settings.json"), r#"{ "reset_hour": 9 }"#).unwrap();
+    let get = std::process::Command::new(env!("CARGO_BIN_EXE_soroband"))
+        .args(["config", "get", "reset_hour"])
+        .env("SOROBAND_DATA_DIR", "")
+        .env("HOME", &home)
+        .current_dir(&cwd)
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&get.stdout), "4\n", "{get:?}");
+}
+
 #[test]
 fn today_reports_each_network_and_the_total() {
     let dir = data_dir("today");

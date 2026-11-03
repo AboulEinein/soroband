@@ -21,7 +21,8 @@ const SETTINGS_CHANGED: &str = "io.github.abouleinein.soroband.settings-changed"
 const SETTINGS_CHANGED: &str = "io.github.abouleinein.soroband.debug.settings-changed";
 
 pub fn directory() -> Result<PathBuf, String> {
-    if let Some(dir) = std::env::var_os("SOROBAND_DATA_DIR") {
+    // Empty is unset, as the app reads it.
+    if let Some(dir) = std::env::var_os("SOROBAND_DATA_DIR").filter(|dir| !dir.is_empty()) {
         return Ok(PathBuf::from(dir));
     }
     let home = std::env::var_os("HOME").ok_or("HOME is not set")?;
