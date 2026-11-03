@@ -121,6 +121,8 @@ const LIVE_INTERVAL: Duration = Duration::from_secs(1);
 struct Running {
     store: Arc<Mutex<Store>>,
     settings_path: PathBuf,
+    /// The reset hour last sent to the engine, which reads no settings itself.
+    reset_hour: Mutex<u8>,
     commands: Mutex<Vec<Command>>,
     /// Set once the engine has started; a command sent before then waits for the first poll.
     waker: Mutex<Option<Waker>>,
@@ -129,6 +131,31 @@ struct Running {
 }
 
 impl Running {
+    fn new(store: Store, settings_path: PathBuf) -> Self {
+        let reset_hour = load_reset_hour(&settings_path, 0);
+        Self {
+            store: Arc::new(Mutex::new(store)),
+            settings_path,
+            reset_hour: Mutex::new(reset_hour),
+            commands: Mutex::new(Vec::new()),
+            waker: Mutex::new(None),
+            stopped: Mutex::new(false),
+            stopped_changed: Condvar::new(),
+        }
+    }
+
+    /// Rereads the settings file and wakes the engine only when the reset hour changed: it is the
+    /// one setting a poll depends on, and a wake costs a full poll. The other settings are the
+    /// app's own. Called under the lock, so the engine always ends with the last hour read.
+    fn reload_settings(&self) {
+        let mut reset_hour = lock(&self.reset_hour);
+        let reloaded = load_reset_hour(&self.settings_path, *reset_hour);
+        if reloaded != *reset_hour {
+            *reset_hour = reloaded;
+            self.send(Command::ResetHour(reloaded));
+        }
+    }
+
     fn send(&self, command: Command) {
         lock(&self.commands).push(command);
         self.wake();
@@ -137,6 +164,20 @@ impl Running {
     fn wake(&self) {
         if let Some(waker) = &*lock(&self.waker) {
             waker.wake();
+        }
+    }
+}
+
+/// The reset hour from the settings file; an unreadable file keeps `current`.
+fn load_reset_hour(path: &Path, current: u8) -> u8 {
+    match Settings::load(path) {
+        Ok(settings) => settings.reset_hour(),
+        Err(error) => {
+            eprintln!(
+                "soroband: {}: {error}; keeping the current settings",
+                path.display()
+            );
+            current
         }
     }
 }
@@ -169,20 +210,13 @@ pub unsafe extern "C" fn soroband_engine_start(
     START.call_once(|| match open_store(&data_dir) {
         Ok(store) => {
             let _ = DATABASE.set(data_dir.join(DATABASE_FILE));
-            let settings_path = data_dir.join(settings::FILE_NAME);
-            let running = RUNNING.get_or_init(|| Running {
-                store: Arc::new(Mutex::new(store)),
-                settings_path: settings_path.clone(),
-                commands: Mutex::new(Vec::new()),
-                waker: Mutex::new(None),
-                stopped: Mutex::new(false),
-                stopped_changed: Condvar::new(),
-            });
+            let running =
+                RUNNING.get_or_init(|| Running::new(store, data_dir.join(settings::FILE_NAME)));
             let spawned = thread::Builder::new()
                 .name("soroband-meter".into())
                 .stack_size(256 * 1024)
                 .spawn(move || {
-                    if let Err(error) = meter(interval, running, settings_path) {
+                    if let Err(error) = meter(interval, running) {
                         eprintln!("soroband: meter engine stopped: {error}");
                         fail();
                     }
@@ -369,11 +403,12 @@ pub extern "C" fn soroband_network_set_color(id: i64, color: i32) -> bool {
         })
 }
 
-/// Rereads the settings file; call when `soroband config set` posts its notification.
+/// Rereads the settings file; call when `soroband config set` posts its notification. Wakes the
+/// engine only when the reset hour changed.
 #[unsafe(no_mangle)]
 pub extern "C" fn soroband_settings_reload() {
     if let Some(running) = RUNNING.get() {
-        running.send(Command::ReloadSettings);
+        running.reload_settings();
     }
 }
 
@@ -693,7 +728,7 @@ pub unsafe extern "C" fn soroband_setting_set(key: *const c_char, value: *const 
         eprintln!("soroband: cannot set {key} to {value:?}: {error}");
         return false;
     }
-    running.send(Command::ReloadSettings);
+    running.reload_settings();
     true
 }
 
@@ -755,11 +790,7 @@ pub extern "C" fn soroband_engine_status() -> SorobandEngineStatus {
     *lock(&STATUS)
 }
 
-fn meter(
-    interval: Duration,
-    running: &Running,
-    settings_path: PathBuf,
-) -> Result<(), service::Error> {
+fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
     let mut host = SystemHost::connect()?;
     let waker = host.waker()?;
     let engine = Engine::start(host)?;
@@ -767,7 +798,7 @@ fn meter(
     let mut service = Service::new(
         engine,
         Arc::clone(&running.store),
-        settings_path,
+        *lock(&running.reset_hour),
         day::local_offset,
         day::now(),
     )?;
@@ -1024,6 +1055,52 @@ mod tests {
         assert_eq!(networks[0]["name"], "Office 4th floor");
         assert_eq!(networks[0]["kind"], "hotspot");
         assert_eq!(networks[1]["key"], "wifi:Cafe");
+    }
+
+    /// A burst of `settings-changed` notifications (a script looping `soroband config set`) must
+    /// not cost the engine a poll each: a wake polls every flow and redraws the menu bar.
+    #[test]
+    fn settings_reloads_wake_the_engine_only_when_the_reset_hour_changes() {
+        use super::Running;
+        use crate::service::Command;
+        use crate::settings::{self, Settings};
+        use crate::store::Store;
+
+        let dir = std::env::temp_dir().join(format!("soroband-reload-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(settings::FILE_NAME);
+        let set = |key: &str, value: &str| {
+            let mut settings = Settings::load(&path).unwrap();
+            settings.set(key, value).unwrap();
+            settings.save(&path).unwrap();
+        };
+        set(settings::RESET_HOUR, "4");
+        let running = Running::new(
+            Store::open(&dir.join("usage.sqlite")).unwrap(),
+            path.clone(),
+        );
+        let woken = || std::mem::take(&mut *super::lock(&running.commands));
+        assert_eq!(*super::lock(&running.reset_hour), 4, "read at start");
+
+        // The menu bar layout is the app's: the engine is not woken.
+        set("menu_bar_readings", "speed_down,speed_up");
+        for _ in 0..100 {
+            running.reload_settings();
+        }
+        assert_eq!(woken(), []);
+
+        set(settings::RESET_HOUR, "6");
+        for _ in 0..100 {
+            running.reload_settings();
+        }
+        assert_eq!(woken(), [Command::ResetHour(6)]);
+
+        // An unreadable file keeps the hour in use.
+        std::fs::write(&path, "{ not json").unwrap();
+        running.reload_settings();
+        assert_eq!(woken(), []);
+        assert_eq!(*super::lock(&running.reset_hour), 6);
     }
 
     /// The whole C API in one test, because the engine is started once per process.

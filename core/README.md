@@ -3,7 +3,7 @@
 Rust workspace:
 
 - `soroband-core`: the meter engine (kernel network statistics client, app attribution, interface reconciliation), storage (SQLite, `store`), the app's metering loop (`ledger`, `service`) and settings (`settings`). Built as a static library for the app, with its C API in `src/ffi.rs`.
-- `soroband-cli`: the `soroband` command: `today`, `apps --network`, `config`, and `live`. `soroband debug …` exists in debug builds only. Debug builds read the Debug app's data directory (`~/Library/Application Support/Soroband Debug`), release builds the installed app's; `SOROBAND_DATA_DIR` overrides both.
+- `soroband-cli`: the `soroband` command: `today`, `apps --network`, `config`, and `live`. `soroband debug …` exists in debug builds only. Debug builds read the Debug app's data directory (`~/Library/Application Support/Soroband Debug`), release builds the installed app's; `SOROBAND_DATA_DIR` overrides both, and `config set` then posts its notification under a name of its own, which only a Debug app started with the same `SOROBAND_DATA_DIR` hears.
 
 ```sh
 cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test

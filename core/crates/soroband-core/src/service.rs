@@ -14,12 +14,10 @@ use crate::check::{SelfCheck, Verdict};
 use crate::day::day_start;
 use crate::ledger::{Booked, Ledger};
 use crate::meter::{App, Bytes, Engine, Host, Mode};
-use crate::settings::Settings;
 use crate::store::{self, NetworkTotal, Store};
 use std::collections::BTreeMap;
 use std::fmt;
 use std::io;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
@@ -35,8 +33,8 @@ pub enum Command {
     /// Network `from` turned out to be network `into` ([`Store::join_network_known_as`]): its
     /// bytes, stored and today's, move into `into` and it leaves the registry.
     Merge { from: i64, into: i64 },
-    /// The settings file changed.
-    ReloadSettings,
+    /// The reset hour in the settings changed to this.
+    ResetHour(u8),
     /// Write everything and stop.
     Stop,
 }
@@ -87,7 +85,6 @@ pub struct Service<H: Host> {
     engine: Engine<H>,
     store: Arc<Mutex<Store>>,
     ledger: Ledger,
-    settings_path: PathBuf,
     reset_hour: u8,
     /// The local time zone's offset from UTC at a Unix time.
     zone: fn(i64) -> i64,
@@ -102,11 +99,11 @@ pub struct Service<H: Host> {
 
 impl<H: Host> Service<H> {
     /// A service over an engine that has just started, booking to network 0 until told the
-    /// network. `now` is the current Unix time.
+    /// network, with today starting at `reset_hour`. `now` is the current Unix time.
     pub fn new(
         engine: Engine<H>,
         store: Arc<Mutex<Store>>,
-        settings_path: PathBuf,
+        reset_hour: u8,
         zone: fn(i64) -> i64,
         now: i64,
     ) -> Result<Self, Error> {
@@ -114,8 +111,7 @@ impl<H: Host> Service<H> {
             engine,
             store,
             ledger: Ledger::new(0),
-            settings_path,
-            reset_hour: 0,
+            reset_hour,
             zone,
             day_start: 0,
             today: BTreeMap::new(),
@@ -124,7 +120,6 @@ impl<H: Host> Service<H> {
             check: SelfCheck::default(),
             last_write: now,
         };
-        service.reset_hour = service.load_reset_hour();
         service.read_today(now)?;
         Ok(service)
     }
@@ -186,8 +181,7 @@ impl<H: Host> Service<H> {
                     .merge_network(from, into)?;
                 self.read_today(now)?;
             }
-            Command::ReloadSettings => {
-                let reset_hour = self.load_reset_hour();
+            Command::ResetHour(reset_hour) => {
                 if reset_hour != self.reset_hour {
                     self.reset_hour = reset_hour;
                     self.write(now)?;
@@ -279,19 +273,5 @@ impl<H: Host> Service<H> {
             .map(|(network, app, bytes)| ((network, app), bytes))
             .collect();
         Ok(())
-    }
-
-    /// The reset hour from the settings file; an unreadable file keeps the current one.
-    fn load_reset_hour(&self) -> u8 {
-        match Settings::load(&self.settings_path) {
-            Ok(settings) => settings.reset_hour(),
-            Err(error) => {
-                eprintln!(
-                    "soroband: {}: {error}; keeping the current settings",
-                    self.settings_path.display()
-                );
-                self.reset_hour
-            }
-        }
     }
 }

@@ -365,6 +365,32 @@ Planned rounds: 1.
 **Retro.** Planned 1 round; it took 2 and a direct review, and CodeRabbit found 1 more. The implementer found that the brief's premise was wrong: the 6 failing snapshots came from app icons changing by 1/255 and the comparison converting to sRGB, not from the display, and sRGB would have clipped the app's wide-gamut colors; the fix pins Display P3 instead. CodeRabbit's finding was a test whose assertion was weaker than its name, which a blind reviewer reading the name accepted.
 
 
+## [#33](https://github.com/AboulEinein/soroband/pull/33) fix(cli): wait for notifyd to deliver posts before checking them (2026-11-03)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | none | Checked 24e7814; the `config_set` tests passed 200 of 200. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1, and CodeRabbit found nothing. The implementer reproduced the failure first (20 of 1000 runs) before changing anything, which made the fix and its evidence one step. The fix rests on `notifyd` delivering posts in the order they were queued, which `notify(3)` does not document; 0 of 1000 runs is the evidence.
+
+
+## [#34](https://github.com/AboulEinein/soroband/pull/34) fix(core): coalesce settings-changed notifications and keep tests off the app's name (2026-11-03)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 2 Low | `first look`: the coalescing test passed a Coalescer that runs on the first request. `first look`: an empty `SOROBAND_DATA_DIR` was an override in `directory()` but unset in `settings_changed()`. |
+| 2 | Opus | 1 Low | `missed earlier`: only the unchanged side of `reloadSettings`' layout guard was tested. |
+| 3 | Opus | 1 Low | `first look`: the notification naming was called a second concern; answered as the other half of the same burst problem. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: a Release CLI with `SOROBAND_DATA_DIR` set to a Debug app's directory posts the Release name; not a regression and not a supported setup, left as it is. |
+
+**Retro.** Planned 1 round; it took 3, and CodeRabbit raised 1 finding left as it is. Each round found a test that could not fail for one side of a new branch (the coalescer's wait, the layout guard's change path), the "tests verify intent" rule; checking each new branch both ways before round 1 would have saved two rounds. A merge from `main` brought in #33's changes to the same test file, which merged without conflict.
+
+
 ## [#32](https://github.com/AboulEinein/soroband/pull/32) fix(core): keep local-network bytes out of stored interface bytes (2026-11-03)
 
 Planned rounds: 1.
