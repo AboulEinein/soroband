@@ -355,3 +355,10 @@ Planned rounds: 1.
 ## [#33](https://github.com/AboulEinein/soroband/pull/33) fix(cli): wait for notifyd to deliver posts before checking them (2026-11-03)
 
 Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | none | Checked 24e7814; the `config_set` tests passed 200 of 200. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1, and CodeRabbit found nothing. The implementer reproduced the failure first (20 of 1000 runs) before changing anything, which made the fix and its evidence one step. The fix rests on `notifyd` delivering posts in the order they were queued, which `notify(3)` does not document; 0 of 1000 runs is the evidence.
