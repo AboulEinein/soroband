@@ -56,7 +56,7 @@ How it works:
   - The raw gap always shows as "Other / overhead" in the popover's Apps tab, with no verdict.
   - The gap is judged over consecutive 10-minute windows, and only in a window with at least 10 MB on the interfaces. Such a window fails when the apps and the local-network bytes together cover less than 85% of the interface bytes.
   - "Degraded" shows after two failing windows in a row, and clears at the next judged window that passes. A window under 10 MB is not judged: it breaks a run of failures but keeps a degraded verdict.
-  - Apps summing to more than the interfaces by over 2% flags at once, whatever the volume, because flows never carry more than crossed the wire. The flag stays until a whole window has passed without it.
+  - The apps and the local-network bytes together summing to more than the interfaces by over 2% flags at once, whatever the volume, because flows never carry more than crossed the wire. The flag stays until a whole window has passed without it.
   - On interface totals only (an unknown descriptor layout) nothing is judged; the popover says per-app counting is off.
 
 Risks and how the design handles them:

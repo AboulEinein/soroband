@@ -161,7 +161,7 @@ A self-check window with enough interface bytes for its gap to be judged; it fai
 The verdict after two failing judged windows in a row, cleared by the next judged window that passes.
 
 **Overcount**:
-The verdict when apps sum to more than the interface bytes by over `OVERCOUNT_PERCENT` (`check.rs`), at any volume.
+The verdict when apps and local-network bytes together sum to more than the interface bytes by over `OVERCOUNT_PERCENT` (`check.rs`), at any volume.
 _Avoid_: over-counted, over-count
 
 ## Interface
