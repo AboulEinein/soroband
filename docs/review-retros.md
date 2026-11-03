@@ -271,3 +271,11 @@ Planned rounds: 1.
 ## [#24](https://github.com/AboulEinein/soroband/pull/24) docs: fix CodeRabbit's docs and license findings (2026-11-03)
 
 Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 2 Low | `first look`: M0 step 2.1 said the Welcome window opens whenever Location is unanswered, but it also needs `onboardingShown` unset, which survives a reinstall. `first look`: the README said earlier versions lose per-app counting, while every version but macOS 27 does. |
+| direct | Haiku | 2 unrated | Checked 48c598e; both findings handled, 2 wording nits left as they are. [Comment](https://github.com/AboulEinein/soroband/pull/24#issuecomment-6602658085). |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found nothing. Both findings came from describing app behavior from the UI instead of from the code that decides it (`Onboarding.shouldShow`, `KNOWN_LAYOUTS`), the "docs from evidence" rule in `verification.md`. The implementer also found a stale Location menu in `docs/agents/install.md`, fixed here although no review had raised it.
