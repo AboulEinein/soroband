@@ -4,14 +4,14 @@ import SwiftUI
 /// The popover, in the UI process, under the menu bar item the menu bar process draws.
 ///
 /// An `NSPopover` points at a view; the item lives in another process, so the popover points at a
-/// transparent window laid over the item, which lets every click through. The popover's view is
+/// transparent panel laid over the item, which lets every click through. The popover's view is
 /// created when it opens and released when it closes, so nothing of it redraws while it is closed.
 @MainActor
 final class PopoverController: NSObject, NSPopoverDelegate {
     static let shared = PopoverController()
 
     private let popover = NSPopover()
-    private var anchor: NSWindow?
+    private var anchor: NSPanel?
     private var lastClose = Date.distantPast
     /// History draws once offscreen after the first popover, so History… opens without the first
     /// layout of SwiftUI and Charts in this process.
@@ -81,7 +81,11 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         let window =
             anchor
             ?? {
-                let window = NSWindow(contentRect: rect, styleMask: .borderless, backing: .buffered, defer: false)
+                // A non-activating panel, as a status item's window is: AppKit then lets the popover
+                // become key and draw as active without this app in front, as a status item's
+                // popover does. A plain window leaves it drawn inactive (its default button gray).
+                let window = NSPanel(
+                    contentRect: rect, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
                 window.isOpaque = false
                 window.backgroundColor = .clear
                 window.hasShadow = false
