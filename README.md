@@ -13,7 +13,7 @@ Soroband is a macOS menu bar app that meters your internet usage for every app o
 ## Features
 
 - **Today at a glance.** The menu bar shows today's usage on the network you're on.
-- **Per app and per network.** See which apps used how much, on which network, and how that compares across networks. Per-app counting works on macOS 27 for now; earlier versions count each network's total only (see Install).
+- **Per app and per network.** See which apps used how much, on which network, and how that compares across networks. Per-app counting works on macOS 27 for now; any other version counts each network's total only (see Install).
 - **History kept forever.** Day, week, month, year and all-time views with a usage chart, app breakdown and a weekday-by-hour heatmap.
 - **Hotspot aware.** Hotspots are recognized and metered on their own, so you know exactly what you spent on your phone's data plan.
 - **Dynamic Island moments (optional).** Short updates that grow from the notch: network joined or left, a live hotspot meter, an app hogging data, data moving in the background, large transfers.

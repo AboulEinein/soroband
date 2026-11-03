@@ -41,7 +41,7 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 
 1. **Menu bar item.** Look for the Soroband item in the menu bar: a network icon and today's total on the current network. On this Mac it sits behind the notch; hide or quit another menu bar item to make room, then confirm it shows.
 2. **Location permission across a rebuild, ad hoc signature.** From the repository root:
-   1. `scripts/install.sh --adhoc`. Click **Allow Location Access** in the **Welcome to Soroband** window (it opens only if Location was never answered for the app; otherwise click **Allow…** in Settings › General › Wi‑Fi names), then **Allow** in the macOS prompt. Settings › General › Wi‑Fi names now reads **Allowed**.
+   1. `scripts/install.sh --adhoc`, then open Settings › General › Wi‑Fi names. If it shows **Allow…**, click it, then **Allow** in the macOS prompt. If it shows **Open Location Settings…** (Location was already answered for this build), click it and turn Soroband on in System Settings › Privacy & Security › Location Services. The **Welcome to Soroband** window offers the same button only at a launch where it has never been shown and Location was never answered, which a reinstall on this Mac does not reset. Wi‑Fi names now reads **Allowed**.
    2. `scripts/install.sh --adhoc` again, then open Settings › General. Note whether Wi‑Fi names still reads **Allowed**. Expected: it does not, because an ad hoc designated requirement is the build's cdhash.
 3. **Location permission across a rebuild, stable signature.**
    1. `scripts/install.sh`, then allow Location access again with **Allow…** (or **Open Location Settings…**) in Settings › General › Wi‑Fi names (the signature changed, so this one is expected).
