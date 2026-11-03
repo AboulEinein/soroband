@@ -144,8 +144,11 @@ enum DebugCommands {
         }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try? FileManager.default.removeItem(at: historyCSVFile)
-        let rows = Core.exportCSV(query, to: historyCSVFile)
-        NSLog("soroband-debug: exported %d rows to %@", rows ?? -1, historyCSVFile.path)
+        HistoryWindow.shared.export(
+            query, to: historyCSVFile,
+            done: { rows in
+                NSLog("soroband-debug: exported %d rows to %@", rows ?? -1, historyCSVFile.path)
+            })
     }
 
     /// `open-settings?tab=networks` opens Settings on a tab (`general` unless given).
