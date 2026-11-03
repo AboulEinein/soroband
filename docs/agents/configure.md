@@ -33,9 +33,11 @@ The same command reads the usage the app records:
 
 ```sh
 soroband today --json                  # today per network: apps' bytes and what crossed the network
-soroband apps --network Home --json    # today's apps on one network (by name, any case, or by id)
+soroband apps --network Home --json    # today's apps on one network (by id, or by name in any case)
 soroband apps --json                   # today's apps on all networks
 ```
+
+`--network` takes a network's id or its name. A value that is some network's id selects that network, even when another network is named the same, so pass the other network's id to pick it.
 
 `rx` is bytes received, `tx` bytes sent. In `soroband today`, `interfaces` is what crossed the network and `apps` is the part credited to apps; the difference is packet headers, acknowledgements and system traffic. The app writes to its database once a minute and whenever the network changes, so these commands can be up to a minute behind the menu bar.
 
