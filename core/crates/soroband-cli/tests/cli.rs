@@ -192,36 +192,71 @@ unsafe extern "C" {
     fn notify_register_check(name: *const c_char, token: *mut c_int) -> u32;
     fn notify_check(token: c_int, check: *mut c_int) -> u32;
     fn notify_cancel(token: c_int) -> u32;
+    fn notify_post(name: *const c_char) -> u32;
 }
 
 /// Whether the notification was posted since the last call, like the app's listener sees it.
-struct Listener(c_int);
+///
+/// `notify_post` only queues a post for `notifyd`, so a command can exit before its post is
+/// delivered. Each check first posts a fence of the listener's own and waits until it is
+/// delivered: `notifyd` delivers posts in the order they were queued, so every post queued
+/// before the fence has been delivered too.
+struct Listener {
+    token: c_int,
+    fence_name: CString,
+    fence: c_int,
+}
+
+fn register(name: &CString) -> c_int {
+    let mut token = 0;
+    // SAFETY: valid string and output pointer.
+    let status = unsafe { notify_register_check(name.as_ptr(), &raw mut token) };
+    assert_eq!(status, 0);
+    // The first check after registering always reports a post.
+    check(token);
+    token
+}
+
+fn check(token: c_int) -> bool {
+    let mut check = 0;
+    // SAFETY: valid token and output pointer.
+    assert_eq!(unsafe { notify_check(token, &raw mut check) }, 0);
+    check != 0
+}
 
 impl Listener {
     fn new(name: &str) -> Self {
-        let name = CString::new(name).unwrap();
-        let mut token = 0;
-        // SAFETY: valid string and output pointer.
-        let status = unsafe { notify_register_check(name.as_ptr(), &raw mut token) };
-        assert_eq!(status, 0);
-        let listener = Self(token);
-        // The first check after registering always reports a post.
-        listener.posted();
-        listener
+        let fence_name = CString::new(format!("{name}.test-fence.{}", std::process::id())).unwrap();
+        Self {
+            token: register(&CString::new(name).unwrap()),
+            fence: register(&fence_name),
+            fence_name,
+        }
     }
 
     fn posted(&self) -> bool {
-        let mut check = 0;
-        // SAFETY: valid token and output pointer.
-        assert_eq!(unsafe { notify_check(self.0, &raw mut check) }, 0);
-        check != 0
+        // SAFETY: valid string.
+        assert_eq!(unsafe { notify_post(self.fence_name.as_ptr()) }, 0);
+        // Only bounds a hang: a delivered fence ends the wait, within milliseconds.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while !check(self.fence) {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "notifyd did not deliver the fence"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        check(self.token)
     }
 }
 
 impl Drop for Listener {
     fn drop(&mut self) {
-        // SAFETY: a token from notify_register_check.
-        unsafe { notify_cancel(self.0) };
+        // SAFETY: tokens from notify_register_check.
+        unsafe {
+            notify_cancel(self.token);
+            notify_cancel(self.fence);
+        }
     }
 }
 
