@@ -91,7 +91,7 @@ enum Snapshot {
         var pixels = [UInt8](repeating: 0, count: image.width * image.height * 4)
         let context = CGContext(
             data: &pixels, width: image.width, height: image.height, bitsPerComponent: 8,
-            bytesPerRow: image.width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bytesPerRow: image.width * 4, space: colorSpace.cgColorSpace!,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
         context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
         return pixels
