@@ -256,3 +256,8 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | none | |
 
 **Retro.** Planned 1 round; it took 1 and two direct reviews, and CodeRabbit found nothing. The round's finding sat outside the diff: the merges made a hand checklist stale, and REVIEW.md's "what the diff reaches" is what found it. The fix then described History's refresh from memory instead of from `HistoryWindow.swift`, the "docs from evidence" rule in `verification.md`.
+
+
+## [#26](https://github.com/AboulEinein/soroband/pull/26) fix(app): handle the CodeRabbit app Swift findings (2026-11-03)
+
+Planned rounds: 1.
