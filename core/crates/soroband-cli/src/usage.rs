@@ -48,16 +48,11 @@ impl Today {
         let store = Store::open_read_only(&path)
             .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
         let settings_path = dir.join(settings::FILE_NAME);
-        let reset_hour = match Settings::load(&settings_path) {
-            Ok(settings) => settings.reset_hour(),
-            Err(error) => {
-                eprintln!(
-                    "soroband: {}: {error}; using the default reset hour",
-                    settings_path.display()
-                );
-                0
-            }
-        };
+        // The running app keeps its last reset hour when the file turns unreadable, so no
+        // fallback here is sure to match the day it shows.
+        let reset_hour = Settings::load(&settings_path)
+            .map_err(|e| format!("{}: {e}. Fix or delete the file.", settings_path.display()))?
+            .reset_hour();
         let start = day::day_start(day::now(), reset_hour, day::local_offset);
         Ok(Self {
             store,

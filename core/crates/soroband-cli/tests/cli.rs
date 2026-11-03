@@ -169,6 +169,22 @@ fn today_without_a_database_says_the_app_has_not_run() {
     assert!(message.contains("no usage recorded yet"), "{message}");
 }
 
+#[test]
+fn today_and_apps_refuse_an_unreadable_settings_file() {
+    // The running app keeps the reset hour it last read, so guessing hour 0 would count a
+    // different day from the one the app shows.
+    let dir = data_dir("usage-unreadable");
+    seed(&dir);
+    std::fs::write(dir.join("settings.json"), "{ reset_hour: 4").unwrap();
+    for args in [&["today", "--json"][..], &["apps", "--json"]] {
+        let output = soroband(&dir, args);
+        assert_eq!(output.status.code(), Some(1), "{args:?}: {output:?}");
+        assert!(output.stdout.is_empty(), "{args:?}: {output:?}");
+        let message = String::from_utf8(output.stderr).unwrap();
+        assert!(message.contains("Fix or delete the file"), "{message}");
+    }
+}
+
 unsafe extern "C" {
     fn notify_register_check(name: *const c_char, token: *mut c_int) -> u32;
     fn notify_check(token: c_int, check: *mut c_int) -> u32;
