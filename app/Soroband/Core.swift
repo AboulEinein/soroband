@@ -30,7 +30,7 @@ enum Core {
         }
     }
 
-    /// Opens the usage database for reading only, without the engine, for the History process.
+    /// Opens the usage database for reading only, without the engine, for the UI process.
     /// Returns false when it cannot be read.
     @discardableResult
     static func openDatabase() -> Bool {

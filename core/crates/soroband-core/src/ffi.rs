@@ -575,8 +575,8 @@ fn parse_query(query: &str) -> Result<history::Query, String> {
 }
 
 /// The database opened read-only for one History read, with a 256 KB page cache instead of
-/// SQLite's 2 MB: a year's query then needs about 2 MB less, at no measured cost in time, and the
-/// History process stays inside its memory budget.
+/// SQLite's 2 MB: a year's query then needs about 2 MB less, at no measured cost in time, in the
+/// UI process that shows History.
 fn open_for_history(database: &Path) -> Result<Store, String> {
     let store = Store::open_read_only(database).map_err(|e| e.to_string())?;
     store
