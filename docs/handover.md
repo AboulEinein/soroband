@@ -129,7 +129,6 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 Small items for a later nits pass.
 
 - **CodeRabbit backlog.** Grouped pull requests fix these (Next action 1). From the whole-project review (#15):
-  - Major: `core/crates/soroband-core/src/service.rs:151`, the self-check counts local-network bytes in its gap.
   - Minor: `app/Soroband/HistoryProcess.swift:129`, reset `standing` before `open` launches a new process.
   - Minor: `core/crates/soroband-core/src/meter/process.rs:260`, `i32::cast_unsigned` needs a newer Rust than `rust-version = "1.85"`.
   - Minor: `scripts/verify/budget.sh:43`, a run passes when the footprint cannot be read.
