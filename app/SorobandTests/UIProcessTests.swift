@@ -21,19 +21,29 @@ struct UIProcessTests {
     private final class StandIn {
         let script: URL
         let log: URL
+        let argumentsFile: URL
 
         init(events: [UIEvent] = [.ready]) throws {
             let directory = FileManager.default.temporaryDirectory.appending(path: "ui-stand-in-\(UUID())")
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             script = directory.appending(path: "Soroband")
             log = directory.appending(path: "requests.log")
+            argumentsFile = directory.appending(path: "arguments")
             let lines = try events.map { String(decoding: try JSONEncoder().encode($0), as: UTF8.self) }
             try """
             #!/bin/sh
+            echo "$*" > '\(argumentsFile.path)'
             \(lines.map { "echo '\($0)'" }.joined(separator: "\n"))
             exec cat > '\(log.path)'
             """.write(to: script, atomically: true, encoding: .utf8)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        }
+
+        /// The arguments it was started with.
+        var arguments: [String] {
+            ((try? String(contentsOf: argumentsFile, encoding: .utf8)) ?? "").split(separator: " ").map {
+                $0.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
         }
 
         /// The requests read so far.
@@ -71,6 +81,7 @@ struct UIProcessTests {
         #expect(requests.first == .pointer(inside: true), "it knows the pointer is over the item, so it stays")
         #expect(requests.contains(.snapshot(Self.snapshot)), "it has the numbers before the first click")
         #expect(!requests.contains { $0.showsWindow }, "standby shows nothing")
+        #expect(standIn.arguments == ["--ui", "--standby"], "standby draws the popover once offscreen")
     }
 
     @Test func clicksWhileItLaunchesOpenThePopoverOnceItIsReady() async throws {
@@ -90,6 +101,7 @@ struct UIProcessTests {
         ui.send(.toggle(popover(5)))
         try await until { standIn.requests.contains(.toggle(popover(5))) }
         #expect(standIn.requests.last == .toggle(popover(5)), "once ready, a click toggles")
+        #expect(standIn.arguments == ["--ui"], "a click must not wait for an offscreen popover first")
     }
 
     @Test func closingWithNoUIProcessStartsNone() {

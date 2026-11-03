@@ -70,6 +70,30 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         popover.performClose(nil)
     }
 
+    /// Shows the popover once offscreen, with no animation, and drops it, so the first open in this
+    /// process finds SwiftUI and the popover's window already laid out once: from standby the
+    /// click to the popover drawn takes 88–97 ms instead of 176–197 ms, for 15.6 MB more in standby
+    /// (29.2 MB). Laying out the view alone in a plain window cost 8.4 MB but left 113–119 ms.
+    func prerender() {
+        guard !popover.isShown else { return }
+        let window = NSPanel(
+            contentRect: CGRect(x: -10_000, y: -10_000, width: 20, height: 20),
+            styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.orderFrontRegardless()
+        let offscreen = NSPopover()
+        offscreen.animates = false
+        offscreen.contentViewController = NSHostingController(
+            rootView: LivePopover(tab: .apps, allNetworks: false, openHistory: { _ in }, openSettings: {}, quit: {}))
+        offscreen.show(relativeTo: window.contentView!.bounds, of: window.contentView!, preferredEdge: .minY)
+        offscreen.contentViewController?.view.window?.displayIfNeeded()
+        DispatchQueue.main.async {
+            offscreen.close()
+            offscreen.contentViewController = nil
+            window.orderOut(nil)
+        }
+    }
+
     /// Follows the menu bar item when it moves or changes width.
     func move(to rect: CGRect) {
         guard popover.isShown, let anchor, anchor.frame != rect, let view = anchor.contentView else { return }

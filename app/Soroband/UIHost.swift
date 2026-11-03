@@ -9,6 +9,8 @@ enum UIHost {
     /// Whether this process is the UI process.
     private(set) static var isUIProcess = false
     private static let linger = Linger(delay: .seconds(60)) { NSApp.terminate(nil) }
+    /// A standby process draws the popover once offscreen, with the first snapshot's numbers.
+    private static var prerenders = CommandLine.arguments.contains(UIProcess.standbyFlag)
 
     static func start() {
         isUIProcess = true
@@ -59,6 +61,10 @@ enum UIHost {
         case .snapshot(let snapshot):
             Usage.shared.mirror(snapshot)
             NetworkMonitor.shared.mirror(current: snapshot.current, connectedSince: snapshot.connectedSince)
+            if prerenders {
+                prerenders = false
+                PopoverController.shared.prerender()
+            }
         case .toggle(let popover): PopoverController.shared.toggle(popover)
         case .showPopover(let popover): PopoverController.shared.show(popover)
         case .closePopover: PopoverController.shared.close()

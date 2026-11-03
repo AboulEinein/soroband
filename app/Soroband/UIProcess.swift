@@ -142,6 +142,9 @@ extension UIRequest {
 final class UIProcess {
     static let shared = UIProcess()
     nonisolated static let flag = "--ui"
+    /// Started by the pointer on the item, ahead of any window: it draws the popover once offscreen
+    /// (`PopoverController.prerender`).
+    nonisolated static let standbyFlag = "--standby"
 
     enum Phase: Equatable {
         case stopped, launching, ready
@@ -195,7 +198,7 @@ final class UIProcess {
         case .stopped:
             guard request.showsWindow else { return }
             queue.add(request)
-            launch()
+            launch(standby: false)
         }
     }
 
@@ -206,7 +209,7 @@ final class UIProcess {
         switch phase {
         case .ready: write(.pointer(inside: inside))
         case .launching: break
-        case .stopped: if inside { launch() }
+        case .stopped: if inside { launch(standby: true) }
         }
     }
 
@@ -241,13 +244,13 @@ final class UIProcess {
     /// Starts the process directly rather than through Launch Services, which drops the arguments
     /// of a second instance of the same app. It inherits the environment, so a Debug build run on
     /// another data directory shows the same data.
-    private func launch() {
+    private func launch(standby: Bool) {
         guard let executableURL else { return }
         let process = Process()
         let input = Pipe()
         let output = Pipe()
         process.executableURL = executableURL
-        process.arguments = [Self.flag]
+        process.arguments = standby ? [Self.flag, Self.standbyFlag] : [Self.flag]
         process.standardInput = input
         process.standardOutput = output
         // A UI process gone before this process knows it must not kill it with SIGPIPE.
