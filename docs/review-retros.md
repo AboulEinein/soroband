@@ -273,3 +273,12 @@ Planned rounds: 1.
 ## [#27](https://github.com/AboulEinein/soroband/pull/27) fix(core/cli): CodeRabbit core and CLI correctness findings (2026-11-03)
 
 Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low | `first look`: the PR removed the `rust-version` backlog line without a follow-up saying nothing in CI keeps it true. |
+| direct | Haiku | none | Checked 3505840. [Comment](https://github.com/AboulEinein/soroband/pull/27#issuecomment-6602598166). |
+| CodeRabbit | CodeRabbit | 2 Minor | `first look`: the new unreadable-settings message advised deleting the file, which gives the CLI reset hour 0 while the running app keeps its own and is not told. `first look`: `docs/agents/configure.md` did not say a network's id wins over a network named the same. |
+| CodeRabbit | CodeRabbit | none | Checked the fix. |
+
+**Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found 2 more. Both CodeRabbit findings followed a changed behavior one step further than the blind round did: what the advice in a new error message leads to, and what a new matching rule means for the reader of the guide. The first direct review was lost to a network outage and run again.
