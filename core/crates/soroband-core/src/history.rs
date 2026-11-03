@@ -2,8 +2,8 @@
 //!
 //! Every total comes from `GROUP BY` queries over the hours of the range; no stored row is held in
 //! memory. The chart, the share by network, the busiest day and the heatmap count interface bytes,
-//! what crossed the network, as the menu bar does; the apps list counts app bytes, and the gap
-//! between the two is the app list's "Other / overhead".
+//! what crossed the network less the local-network bytes, as the menu bar does; the apps list
+//! counts app bytes, and the gap between the two is the app list's "Other / overhead".
 //!
 //! Local days, months, weekdays and hours come from the time zone offset at the middle of each
 //! stored hour, so in a time zone with a half-hour offset an hour belongs to the local day its

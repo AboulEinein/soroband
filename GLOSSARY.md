@@ -175,7 +175,7 @@ What the menu bar item shows next to its icon: up to four readings in order, cou
 _Avoid_: display mode, menu bar mode, menu bar count, menu bar line
 
 **Reading**:
-One value the menu bar item can show: today's total, download or upload as crossed the interfaces, or the live download or upload speed.
+One value the menu bar item can show: today's total, download or upload as crossed the interfaces less the local-network bytes, or the live download or upload speed.
 
 **Menu bar style**:
 How the readings are drawn: **stacked** (in pairs, the first on top, in a smaller size; a reading without a partner at full size), **labeled** (each value under a small caption) or **inline** (one line at the menu bar's size).

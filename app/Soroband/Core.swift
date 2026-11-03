@@ -246,13 +246,13 @@ struct EngineStatus: Equatable {
     let networkID: Int64
     let todayStart: Date
     let resetHour: Int
-    /// Today on the current network, summed over its apps and as crossed its interfaces.
+    /// Today on the current network, summed over its apps and as crossed its interfaces less the local-network bytes.
     let todayNetworkApps: Bytes
     let todayNetworkInterfaces: Bytes
     /// Today on every network.
     let todayApps: Bytes
     let todayInterfaces: Bytes
-    /// Bytes per second across the interfaces between the last two polls.
+    /// Bytes per second across the interfaces, less the local-network bytes, between the last two polls.
     let speed: Bytes
     let check: Check
 
