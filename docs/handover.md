@@ -129,12 +129,6 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 Small items for a later nits pass.
 
 - **CodeRabbit backlog.** Grouped pull requests fix these (Next action 1). From the whole-project review (#15):
-  - Minor: `scripts/verify/budget.sh:43`, a run passes when the footprint cannot be read.
-
-  Deferred while merging the stack (from #4, #5, #6, #8):
-  - Major: `scripts/verify/traffic.sh:39` (#4), other curls are counted with the test download.
-  - Minor: `scripts/verify/traffic.sh:31` (#4), curl has no deadline.
-  - Minor: `docs/verification.md:52` (#4), the engine's 5 MB memory check is missing.
 
   The comments themselves are on each PR's review threads (`gh api repos/AboulEinein/soroband/pulls/<n>/comments`); comments outside the diff are in the review bodies (`.../pulls/<n>/reviews`).
 
@@ -195,7 +189,7 @@ Things learned the hard way that no file or config will tell you.
 
 **Verifying**
 - Each worktree's Debug build registers the `soroband-debug://` scheme. `open "soroband-debug://…"` can launch another worktree's build, and every running Debug app answers `soroband debug state` and writes the same state file. Send URLs with `open -g -a <this build's Soroband.app>`, check the `pid` in `debug state`. `run-app.sh` stops only this worktree's `Soroband.app` and leaves other worktrees' Debug apps running. `networks.sh` ignores answers without a `network`.
-- A copy of `/usr/bin/curl` outside `/usr/bin` does not run, so `traffic.sh` identifies `/usr/bin/curl` and fails if another curl runs at the same time (other agents on this Mac use curl).
+- A copy of `/usr/bin/curl` outside `/usr/bin` does not run, so `traffic.sh` identifies `/usr/bin/curl` and reports a run without judging it when another curl runs at the same time (other agents on this Mac use curl).
 
 **Working on this Mac**
 - `NSWorkspace.openApplication` with `createsNewApplicationInstance` drops the arguments of a second instance of the same app; `HistoryProcess` starts it with `Process` instead. A History process started with `open` gets `/dev/null` as standard input and quits at once (it quits when its input closes); start it from the app, or with a pipe held open.

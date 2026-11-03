@@ -40,6 +40,7 @@ for (( i = 0; i < minutes * 6; i++ )); do
   sleep 10
   kill -0 $pid 2>/dev/null || { print -u2 "budget.sh: pid $pid exited"; exit 1; }
   now=$(footprint_mb)
+  [[ -n $now ]] || { print -u2 "budget.sh: cannot read the footprint of pid $pid"; exit 1; }
   (( now > peak )) && peak=$now
 done
 cpu_percent=$(( (($(cpu_seconds) - start_cpu) / ($EPOCHREALTIME - start_time)) * 100 ))
