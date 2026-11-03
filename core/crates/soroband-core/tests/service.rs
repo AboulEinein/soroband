@@ -359,6 +359,44 @@ fn local_network_bytes_stay_out_of_the_stored_interface_bytes() {
 }
 
 #[test]
+fn a_local_network_flows_headers_stay_in_the_interface_bytes() {
+    let f = Fixture::new("interfaces-local-headers");
+    let t = MIDNIGHT + 10 * H;
+    // A Time Machine backup to a NAS: Mail's local flow (3) moves 900 MB and en0 carries it with
+    // 45 MB (5%) of headers and acknowledgements; Mail's internet flow (1) moves 10 MB with none.
+    // Flows carry no headers, so only the 900 MB comes off: the 45 MB stays in the interface
+    // bytes and in "Other / overhead" (design.md, Ground truth). No header share is estimated.
+    let mut events = start(
+        &[],
+        &[
+            tcp_update(1, 0, 0, MAIL, false, 360),
+            tcp_update(3, 0, 0, MAIL, true, 360),
+        ],
+    );
+    events.extend([
+        Event::Timeout,
+        Event::Send(ntstat::poll_all(POLL + 1)),
+        datagram(&[
+            tcp_update(1, 10_000_000, 0, MAIL, false, 360),
+            tcp_update(3, 900_000_000, 0, MAIL, true, 360),
+            success(POLL + 1, false),
+        ]),
+        en0(1_000_000 + 955_000_000, 1_000_000),
+    ]);
+    let mut service = f.service(Replay::new(events), t);
+    service.apply(&Command::Network(f.home), t).unwrap();
+    tick(&mut service, t + 5);
+    service.apply(&Command::Stop, t + 6).unwrap();
+    let total = NetworkTotal {
+        network: f.home,
+        apps: rx(10_000_000),
+        interfaces: rx(55_000_000),
+    };
+    assert_eq!(service.today().network, total);
+    assert_eq!(f.reader().network_totals(0).unwrap(), [total]);
+}
+
+#[test]
 fn bytes_are_written_once_a_minute() {
     let f = Fixture::new("minute");
     let t = MIDNIGHT + 10 * H;

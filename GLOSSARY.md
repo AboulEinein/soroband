@@ -141,14 +141,14 @@ The span from the most recent reset hour to now, rounded down to a whole UTC hou
 ## Self-check
 
 **Gap**:
-How far the apps' sum falls below the interface bytes. Mostly packet headers and acknowledgements, which flows do not carry; local-network bytes are not part of it.
+How far the apps' sum falls below the interface bytes. Mostly packet headers and acknowledgements, which flows do not carry, of internet and local-network flows alike; local-network flows' own bytes are not part of it.
 _Avoid_: overhead (alone)
 
 **Other / overhead**:
-The row of the popover's and History's app lists that shows the gap, always and without a verdict. Local-network bytes never show in it.
+The row of the popover's and History's app lists that shows the gap, always and without a verdict. Local-network bytes never show in it, but their packet headers and acknowledgements do: a large LAN transfer leaves roughly 8–10% of its size there.
 
 **Local-network bytes**:
-Bytes of flows the kernel marks local (`Snapshot::local`): LAN traffic such as Time Machine, AirPlay or a NAS. They cross the interfaces but are not internet traffic, so they are never usage: each poll takes them off the interface bytes it stores, and the self-check counts them as explained.
+Bytes of flows the kernel marks local (`Snapshot::local`): LAN traffic such as Time Machine, AirPlay or a NAS. They cross the interfaces but are not internet traffic, so they are never usage: each poll takes them off the interface bytes it stores, and the self-check counts them as explained. Their packet headers and acknowledgements are not flow bytes, so they stay in the interface bytes.
 
 **Self-check**:
 The continuous comparison of the apps' sum plus local-network bytes with what crossed the interfaces, which gives a verdict: ok, degraded or overcount.
