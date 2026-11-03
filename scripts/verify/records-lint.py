@@ -26,6 +26,8 @@ REVIEW_LABEL = re.compile(r"\d+(?: \(.+\))?|direct|CodeRabbit")
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 CONFLICT_MARKER = re.compile(r"(?:<{7}|\|{7}|>{7})(?: .*)?|={7}")
 NEVER = re.compile(r"(?!)")
+RETROS_HEADER = "| Review | Model | Findings | Origins |"
+FINDINGS_HEADER = "| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |"
 
 
 def cells(line: str) -> list[str]:
@@ -56,14 +58,15 @@ def conflict_markers(text: str, name: str, problems: list[str]):
 
 
 def unbroken_tables(
-    text: str, name: str, header: str, columns: int, table_end: re.Pattern[str], problems: list[str]
+    text: str, name: str, header: str, header_row: str, table_end: re.Pattern[str], problems: list[str]
 ):
     """Reports each line that is not a row inside a table headed by `header`, and each row outside
-    every such table. A table is the log's own form: its header row of `columns` cells, then a
-    separator of `columns` `---` cells, then rows, each starting at the line's first character. It
+    every such table. A table is the log's own form: exactly `header_row`, then a separator of
+    one `---` cell per column, then rows, each starting at the line's first character. It
     ends at the first line `table_end` matches, at the next `## ` heading, or at the end of the
     file; the blank lines before that end belong to no table."""
     lines = text.splitlines()
+    columns = len(cells(header_row))
     separator = "|" + " --- |" * columns
     in_table: set[int] = set()
     index = 0
@@ -71,9 +74,8 @@ def unbroken_tables(
         if not lines[index].startswith("|") or cells(lines[index])[0] != header:
             index += 1
             continue
-        if len(cells(lines[index])) != columns:
-            found = len(cells(lines[index]))
-            problems.append(f"{name}:{index + 1}: table header has {found} columns, the table has {columns}")
+        if lines[index].rstrip() != header_row:
+            problems.append(f"{name}:{index + 1}: table header is not {header_row!r}")
             index += 1
             continue
         if index + 1 >= len(lines) or lines[index + 1].rstrip() != separator:
@@ -100,7 +102,7 @@ def unbroken_tables(
 def check_retros(text: str, name: str = "review-retros.md") -> list[str]:
     problems: list[str] = []
     conflict_markers(text, name, problems)
-    unbroken_tables(text, name, "Review", 4, re.compile(r"\*\*Retro\.\*\*"), problems)
+    unbroken_tables(text, name, "Review", RETROS_HEADER, re.compile(r"\*\*Retro\.\*\*"), problems)
     for number, row in table_rows(text, name, "Review", REVIEW_LABEL, "a round number, direct or CodeRabbit", problems):
         if len(row) != 4:
             problems.append(f"{name}:{number}: {len(row)} columns, the table has 4")
@@ -123,7 +125,7 @@ def check_retros(text: str, name: str = "review-retros.md") -> list[str]:
 def check_findings(text: str, name: str = "coderabbit-findings.md") -> list[str]:
     problems: list[str] = []
     conflict_markers(text, name, problems)
-    unbroken_tables(text, name, "Date", 7, NEVER, problems)
+    unbroken_tables(text, name, "Date", FINDINGS_HEADER, NEVER, problems)
     for number, row in table_rows(text, name, "Date", DATE, "a date (YYYY-MM-DD)", problems):
         try:
             datetime.date.fromisoformat(row[0])
@@ -230,6 +232,9 @@ def self_test() -> list[str]:
         "# Title\n\n" + row + "\n" + findings_table + row,
         "# Title\n\n| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |\n" + row,
         "# Title\n\n| Date | PR |\n| --- | --- | --- | --- | --- | --- | --- |\n" + row,
+        "# Title\n\n| Date | PR | Finding | Category | Missed because | Verdict | Follow-up |\n"
+        + "| --- | --- | --- | --- | --- | --- | --- |\n"
+        + row,
         "# Title\n\n" + findings_table + row + "||||||| ---\n" + row,
     ]
     failures = []
