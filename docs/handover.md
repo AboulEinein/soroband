@@ -151,6 +151,7 @@ Small items for a later nits pass.
 - **Debug commands can still activate the app.** `open-popover`, `open-settings`, `open-onboarding` and `open-history` reach `NSApp.activate()` (`MenuBarController.showPopover`, `SettingsView.swift`, `Onboarding.swift`, `HistoryWindow.swift`), which macOS grants when the user has just used Soroband. A Debug URL command could skip it.
 - **History is up to a minute behind.** It reads what the engine has written (once a minute), so it can trail the popover by a minute's usage.
 - **Snapshots draw the installed apps' icons.** Popover and History snapshots show Safari's, Music's, Messages' and Mail's icons from this Mac (`NSWorkspace.icon(forFile:)`), so a macOS update that changes them changes the baselines. A 1/255 change in them fits the snapshot tolerance; a redrawn icon needs a re-record, or fixed icons in the tests.
+- **Snapshots on a 1x display are untested.** `Snapshot.render` draws into a fixed 2x Display P3 bitmap so a display's scale or color space cannot change the image; `renderingIgnoresTheDisplayColorSpace` checks the color space only, and no run has been made with a 1x main display.
 - **App CPU headroom.** M3's Debug app measured 0.096% of the 0.1% budget on a busy network, 0.055% with the icon alone. A live speed is over budget by design (it redraws at every poll that changes it): 0.383% with four readings including both speeds (#19).
 
 ## Gotchas
