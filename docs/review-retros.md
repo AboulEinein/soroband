@@ -405,3 +405,26 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | none | Checked the fix and the merge from `main`. |
 
 **Retro.** Planned 1 round; it took 2 and two direct reviews, and CodeRabbit found 1 more. Changing what a stored value means left its description wrong in many files, and each fix covered only the places a reviewer had listed, so three reviews in a row found more; a sweep of every description of the value ended it. Next time a change redefines a value, grep every description of it before the first round. The Medium came from reasoning about what a flow carries (no headers), which the test's numbers had hidden by putting all overhead on the internet flow.
+
+
+## [#30](https://github.com/AboulEinein/soroband/pull/30) feat(verify): fail records-lint on a broken table or a conflict marker (2026-11-03)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low | `first look`: the self-test did not pin the findings log's conflict-marker check. |
+| 2 | Opus | 1 Low | `fix regression`: the handover still said the lint skips rows without an opening pipe, which the new table check made false. |
+| direct | Haiku | none | Checked a3fc266. [Comment](https://github.com/AboulEinein/soroband/pull/30#issuecomment-6610499391). |
+| CodeRabbit | CodeRabbit | 2 Minor | `first look`: diff3 `\|\|\|\|\|\|\|` markers were missed. `first look`: a `##` heading ended the findings table, which runs to the end of the file. |
+| 3 | Opus | 1 Low | `first look`: a table row outside every table passed. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: a header row with no separator counted as a table. |
+| CodeRabbit | CodeRabbit | 2 Minor | `first look`: a header of the wrong width, and indented table lines, counted as a table. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: a header with columns swapped passed. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: a second header or separator inside a table passed. |
+| 4 | Opus | 2 Low | `fix regression`: a compiled `.pyc` from the orchestrator's before/after checks was committed. `first look`: this entry had no rows. |
+| direct | Haiku | 1 unrated | `missed earlier`: the 17:18 CodeRabbit review's second finding (a `##` heading ending the findings table) was neither counted nor fixed; CodeRabbit had resolved its thread. [Comment](https://github.com/AboulEinein/soroband/pull/30#issuecomment-6612949740). |
+| 5 | Opus | none | Checked bb1585f, with mutations of every new check. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: MD038, a code span with a trailing space in this entry; reworded in the records commit. |
+
+**Retro.** Planned 1 round; it took 5, two direct reviews and seven CodeRabbit reviews, the same pattern #21's retro describes for this lint: each review found another way a Markdown table can be malformed. After the fifth such finding the approach was reassessed on the PR: the lint now accepts only each log's exact form (its header row, its separator, rows from the first character, nothing else), and later findings were all inside that form, so they were fixed rather than declined. Two process slips cost rounds: a `.pyc` swept in by `git add -A` after importing the lint, and a CodeRabbit finding whose thread CodeRabbit resolved without a fix, which only a reviewer counting findings against the record caught. Next time: list every finding of a CodeRabbit review from its review body and threads before replying, and stage named files only.
