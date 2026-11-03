@@ -71,6 +71,23 @@ struct HistoryModelTests {
         #expect(model.registry == [repicked], "a failed read keeps the registry")
     }
 
+    /// An All Time export can take a while; it is written off the main thread, so the window keeps
+    /// drawing, and a failed write is reported.
+    @Test func csvIsWrittenOffTheMainThread() async {
+        let query = HistoryQuery.make(
+            range: .all, anchor: .now, network: nil, firstHour: nil, now: .now, calendar: .current)
+        let file = URL(filePath: "/tmp/usage.csv")
+        final class Seen: @unchecked Sendable { var onMain: Bool? }
+        let seen = Seen()
+        let written = await HistoryWindow.writeCSV(query, to: file) { _, _ in
+            seen.onMain = Thread.isMainThread
+            return 10
+        }
+        #expect(written)
+        #expect(seen.onMain == false)
+        #expect(await !HistoryWindow.writeCSV(query, to: file) { _, _ in nil })
+    }
+
     /// While History is open, the next period or range it loads brings the registry as it is now.
     @Test func anOpenWindowTakesTheRegistryWithItsNextAnswer() async throws {
         final class Answer: @unchecked Sendable { var registry: [RegisteredNetwork] = [] }

@@ -118,13 +118,24 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
         let query = model.query
         panel.beginSheetModal(for: window) { response in
             guard response == .OK, let file = panel.url else { return }
-            if Core.exportCSV(query, to: file) == nil {
+            Task {
+                guard await !Self.writeCSV(query, to: file) else { return }
                 let alert = NSAlert()
                 alert.messageText = "The CSV could not be written."
                 alert.informativeText = file.path
-                alert.beginSheetModal(for: window)
+                alert.beginSheetModal(for: window, completionHandler: nil)
             }
         }
+    }
+
+    /// Writes `query`'s usage to `file` off the main thread, so a long range does not stall the
+    /// window; false when it could not be written. `write` is `Core.exportCSV`, or a stand-in in
+    /// tests.
+    nonisolated static func writeCSV(
+        _ query: HistoryQuery, to file: URL,
+        write: @escaping @Sendable (HistoryQuery, URL) -> Int? = Core.exportCSV
+    ) async -> Bool {
+        await Task.detached(priority: .userInitiated) { write(query, file) != nil }.value
     }
 
     func windowWillClose(_ notification: Notification) {
