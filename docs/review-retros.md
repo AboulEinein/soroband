@@ -299,3 +299,13 @@ Planned rounds: 1.
 ## [#25](https://github.com/AboulEinein/soroband/pull/25) fix(prototypes): fix CodeRabbit findings in meter-probe and ui-spike (2026-11-03)
 
 Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 2 Low | `first look`: the short-item test used 300 bytes, so a guard weakened to 400 still passed. `first look`: this entry was not started before round 1. |
+| 2 | Opus | none | Checked b24e902. |
+| CodeRabbit | CodeRabbit | 1 Major, 1 Minor | `first look`: the spike ignored a failed window-list write, so `snapshot.sh` waited forever. `first look`: `snapshot.sh` set its cleanup trap after launching the app. |
+| 3 | Opus | 1 Low | `first look`: this entry had no rows for the rounds that had run. |
+| CodeRabbit | CodeRabbit | none | Checked the fixes and the merge from `main`. |
+
+**Retro.** Planned 1 round; it took 3, and CodeRabbit found 2 more. Round 2 came from a test that did not pin its limit, and round 3 from CodeRabbit's fixes changing behavior; neither found a defect in the fixes. CodeRabbit's Major was in `Snapshot.swift`, a file the PR did not touch, which the blind rounds did not read. CI did not run on one commit during a GitHub outage; an empty commit started it, after a conflict with `main` turned out to be the real cause.
