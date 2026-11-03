@@ -133,17 +133,13 @@ Small items for a later nits pass.
   - Major: `docs/handover.md:36`, the M0 hand checklist describes M0's menu ("Soroband 0.1.0", Allow Location Access… in a menu), not the current menu bar item and popover.
   - Minor: `app/Soroband/HistoryProcess.swift:129`, reset `standing` before `open` launches a new process.
   - Minor: `core/crates/soroband-core/src/meter/process.rs:260`, `i32::cast_unsigned` needs a newer Rust than `rust-version = "1.85"`.
-  - Minor: `scripts/verify/budget.sh:43`, a run passes when the footprint cannot be read.
   - Minor: `CONTRIBUTING.md:35`, the prototype commands do not run from the repository root.
   - Minor: `prototypes/meter-probe/src/main.rs:290` (length guard before slicing), `prototypes/ui-spike/snapshot.sh:14` (stop and clean up when the app fails), `prototypes/ui-spike/Sources/Soroband/HistoryDetail.swift:25` (crash on a future period).
   - Trivial: `app/Soroband/HistoryWindow.swift:118`, run `Core.exportCSV` off the main thread; `app/Soroband/HistoryView.swift:62`, detect "all networks" without comparing `content.title` to `allNetworksTitle`.
 
   Deferred while merging the stack (from #4, #5, #6, #8):
   - Major: `core/crates/soroband-core/src/meter/socket.rs:62` (#5), a wake after the engine thread has exited writes to a closed pipe and `SIGPIPE` kills the app; keep the read end in `Waker` or set `F_SETNOSIGPIPE`.
-  - Major: `scripts/verify/traffic.sh:39` (#4), other curls are counted with the test download.
   - Minor: `core/crates/soroband-cli/src/live.rs:86` and `:90` (#4), the elapsed timer starts before the baseline, and the last tick is not bounded by the remaining time.
-  - Minor: `scripts/verify/traffic.sh:31` (#4), curl has no deadline.
-  - Minor: `docs/verification.md:52` (#4), the engine's 5 MB memory check is missing.
   - Minor: `core/crates/soroband-cli/src/usage.rs:58` and `:228` (#5), totals show after a settings read error, and a numeric network ID is matched as a name.
   - Minor: `app/Soroband/SettingsView.swift:23` (#6), the launch-at-login toggle is not refreshed when Settings regains focus.
   - Minor: `CONTRIBUTING.md:47` (#8), document the recursive lint command.
@@ -206,7 +202,7 @@ Things learned the hard way that no file or config will tell you.
 
 **Verifying**
 - Each worktree's Debug build registers the `soroband-debug://` scheme. `open "soroband-debug://…"` can launch another worktree's build, and every running Debug app answers `soroband debug state` and writes the same state file. Send URLs with `open -g -a <this build's Soroband.app>`, check the `pid` in `debug state`. `run-app.sh` stops only this worktree's `Soroband.app` and leaves other worktrees' Debug apps running. `networks.sh` ignores answers without a `network`.
-- A copy of `/usr/bin/curl` outside `/usr/bin` does not run, so `traffic.sh` identifies `/usr/bin/curl` and fails if another curl runs at the same time (other agents on this Mac use curl).
+- A copy of `/usr/bin/curl` outside `/usr/bin` does not run, so `traffic.sh` identifies `/usr/bin/curl` and reports a run without judging it when another curl runs at the same time (other agents on this Mac use curl).
 
 **Working on this Mac**
 - `NSWorkspace.openApplication` with `createsNewApplicationInstance` drops the arguments of a second instance of the same app; `HistoryProcess` starts it with `Process` instead. A History process started with `open` gets `/dev/null` as standard input and quits at once (it quits when its input closes); start it from the app, or with a pipe held open.
