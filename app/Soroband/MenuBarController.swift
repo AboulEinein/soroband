@@ -9,6 +9,7 @@ final class MenuBarController: NSObject {
     static let shared = MenuBarController()
 
     private var item: NSStatusItem?
+    private let renderer = MenuBarRenderer()
     private var drawn: MenuBarDisplay.Drawn?
     var display: MenuBarDisplay? { drawn?.display }
     private var lastRedraw = Date.distantPast
@@ -75,7 +76,7 @@ final class MenuBarController: NSObject {
                 textColor = NSColor(cgColor: NSColor.labelColor.cgColor) ?? .labelColor
             }
             let scale = NSScreen.screens.map(\.backingScaleFactor).max() ?? 2
-            button.image = display.itemImage(textColor: textColor).map { MenuBarDisplay.rasterized($0, scale: scale) }
+            button.image = renderer.image(display, textColor: textColor, scale: scale)
             button.title = ""
         }
         button.setAccessibilityLabel(display.accessibilityLabel())
