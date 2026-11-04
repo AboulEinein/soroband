@@ -404,9 +404,10 @@ struct MenuBarDisplay: Equatable {
         return image
     }
 
-    /// The icon and the readings as the one image the status item draws when its title cannot
-    /// show them (`drawsTitle`), and Settings' preview always. `textColor` is the menu bar's text
-    /// color for a Debug build, whose image is not a template.
+    /// The icon and the readings as one image, drawn by Settings' preview. The status item draws
+    /// `MenuBarRenderer.image`, which the renderer tests compare byte for byte with this image
+    /// rasterized. `textColor` is the menu bar's text color for a Debug build, whose image is not
+    /// a template.
     @MainActor func itemImage(debug: Bool = isDebugBuild, textColor: NSColor = .labelColor) -> NSImage? {
         guard let icon = image(debug: debug) else { return nil }
         guard !readings.isEmpty else { return icon }
@@ -424,9 +425,8 @@ struct MenuBarDisplay: Equatable {
         return composite
     }
 
-    /// `image` drawn once into a bitmap at `scale`. The menu bar draws its item again for every
-    /// display, and an image with a drawing handler lays its text out again each time; a bitmap
-    /// is only copied.
+    /// `image` drawn once into a bitmap at `scale`: how the status item was drawn before
+    /// `MenuBarRenderer`, kept as the reference the renderer tests compare its bitmap with.
     @MainActor static func rasterized(_ image: NSImage, scale: CGFloat) -> NSImage {
         guard
             let bitmap = NSBitmapImageRep(
