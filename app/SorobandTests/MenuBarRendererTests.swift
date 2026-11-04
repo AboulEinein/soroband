@@ -74,7 +74,7 @@ struct MenuBarRendererTests {
 
     /// Every order of readings in every style and scope, light and dark, installed and Debug
     /// (orange); one renderer throughout, so its kept icons are drawn in each appearance.
-    @Test func drawsTheSamePixelsAsSettingsPreviewForEveryLayout() async throws {
+    @Test func drawsTheSamePixelsAsTheRasterizedItemImageForEveryLayout() async throws {
         let renderer = MenuBarRenderer()
         var compared = 0
         for appearance in Self.appearances {

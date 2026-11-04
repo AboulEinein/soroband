@@ -76,7 +76,8 @@ final class MenuBarController: NSObject {
                 textColor = NSColor(cgColor: NSColor.labelColor.cgColor) ?? .labelColor
             }
             let scale = NSScreen.screens.map(\.backingScaleFactor).max() ?? 2
-            // The renderer returns nil only if it cannot make a bitmap; the vector image still draws.
+            // If the renderer cannot make its bitmap, the vector image draws instead (both are nil
+            // only if the SF Symbol cannot be made).
             button.image =
                 renderer.image(display, textColor: textColor, scale: scale)
                 ?? display.itemImage(textColor: textColor)

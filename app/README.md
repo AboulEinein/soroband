@@ -1,6 +1,6 @@
 # app
 
-The SwiftUI menu bar app (`LSUIElement`, no Dock icon). It links the Rust core from `core/` as `build/SorobandCore.xcframework`, which `scripts/build-core.sh` produces; build the core before opening `Soroband.xcodeproj` in Xcode.
+The menu bar app (`LSUIElement`, no Dock icon): its menu bar process runs AppKit alone, and its UI process runs the SwiftUI windows. It links the Rust core from `core/` as `build/SorobandCore.xcframework`, which `scripts/build-core.sh` produces; build the core before opening `Soroband.xcodeproj` in Xcode.
 
 | Path | Contents |
 | --- | --- |
