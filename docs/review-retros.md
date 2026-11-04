@@ -488,3 +488,7 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | 3 Minor | `first look`: the live-speed redraw claim contradicted design.md. Not valid: rewrite a dated decision row; a "trailing comma" that is the ⌘, shortcut. |
 
 **Retro.** Planned 1 round; it took 2 and a direct review, and CodeRabbit found 1 valid finding. This was the first PR in the run where the CodeRabbit CLI ran before every push, and the hosted review found one valid finding instead of several pushes' worth. Round 1's finding was a decision the orchestrator had made without recording it (narrowing M6c), which the user then took (the live-speed exception); round 2's findings were the places that still stated the old rule, as on #32: when a rule changes, grep every statement of it before the first round. The orchestrator also dated two decisions a day ahead; the local CLI caught it.
+
+## [#38](https://github.com/AboulEinein/soroband/pull/38) docs: close the CodeRabbit backlog and record the run's review lessons (2026-11-05)
+
+Planned rounds: 1.
