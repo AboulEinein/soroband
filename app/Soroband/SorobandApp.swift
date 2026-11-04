@@ -32,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // A second instance takes activation at launch, which would take the keyboard from the
-        // app the user is in, though it may start on a mere hover. It may once it shows a window
+        // app the user is in, before it shows anything. It may once it shows a window
         // (`UIHost`).
         if isUIProcess {
             NSApp.setActivationPolicy(.prohibited)

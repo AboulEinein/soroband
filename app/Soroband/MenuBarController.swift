@@ -3,8 +3,7 @@ import AppKit
 /// The menu bar item. Its popover is in the UI process (`UIProcess`), so no window ever lives in
 /// this process.
 ///
-/// The item's icon and text change only when the displayed text does. The pointer entering the
-/// item starts the UI process in standby, so a click finds it ready.
+/// The item's icon and text change only when the displayed text does.
 @MainActor
 final class MenuBarController: NSObject {
     static let shared = MenuBarController()
@@ -27,9 +26,6 @@ final class MenuBarController: NSObject {
         item.button?.imagePosition = .imageLeading
         // Digits of one width, so a changing count or speed does not shift the menu bar.
         item.button?.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
-        item.button?.addTrackingArea(
-            NSTrackingArea(
-                rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
         self.item = item
         Usage.shared.onChange = { [weak self] in
             self?.update()
@@ -103,14 +99,6 @@ final class MenuBarController: NSObject {
 
     func closePopover() {
         UIProcess.shared.send(.closePopover)
-    }
-
-    @objc func mouseEntered(with event: NSEvent) {
-        UIProcess.shared.pointer(inside: true)
-    }
-
-    @objc func mouseExited(with event: NSEvent) {
-        UIProcess.shared.pointer(inside: false)
     }
 
     @objc private func itemMoved() {

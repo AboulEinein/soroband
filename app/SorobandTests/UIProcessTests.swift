@@ -18,22 +18,34 @@ struct UIProcessTests {
         menuBarLayout: .default, resetHour: 0, current: nil, connectedSince: nil)
 
     /// A stand-in that prints `events` once started, then logs what it reads. With `stateAnswer`,
-    /// it answers each `dumpState` with it after `answerDelay` seconds.
+    /// it answers each `dumpState` with it after `answerDelay` seconds. With `firstStopsReading`,
+    /// the first one started says it is ready, then closes its standard input and stays alive, as a
+    /// UI process that hung or is dying.
     private final class StandIn {
         let script: URL
         let log: URL
-        let argumentsFile: URL
 
-        init(events: [UIEvent] = [.ready], stateAnswer: String? = nil, answerDelay: Double = 0) throws {
+        init(
+            events: [UIEvent] = [.ready], stateAnswer: String? = nil, answerDelay: Double = 0,
+            firstStopsReading: Bool = false
+        ) throws {
             let directory = FileManager.default.temporaryDirectory.appending(path: "ui-stand-in-\(UUID())")
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             script = directory.appending(path: "Soroband")
             log = directory.appending(path: "requests.log")
-            argumentsFile = directory.appending(path: "arguments")
             let lines = try events.map { String(decoding: try JSONEncoder().encode($0), as: UTF8.self) }
+            let started = directory.appending(path: "started")
+            let stopsReading = """
+                if [ ! -e '\(started.path)' ]; then
+                  touch '\(started.path)'
+                  echo '\(lines[0])'
+                  exec 0<&-
+                  exec sleep 10
+                fi
+                """
             try """
             #!/bin/sh
-            echo "$*" > '\(argumentsFile.path)'
+            \(firstStopsReading ? stopsReading : "")
             \(lines.map { "echo '\($0)'" }.joined(separator: "\n"))
             \(reader(stateAnswer: stateAnswer, delay: answerDelay))
             """.write(to: script, atomically: true, encoding: .utf8)
@@ -49,13 +61,6 @@ struct UIProcessTests {
                   case "$line" in *dumpState*) (sleep \(delay); echo '\(answer)') & ;; esac
                 done
                 """
-        }
-
-        /// The arguments it was started with.
-        var arguments: [String] {
-            ((try? String(contentsOf: argumentsFile, encoding: .utf8)) ?? "").split(separator: " ").map {
-                $0.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
         }
 
         /// The requests read so far.
@@ -75,27 +80,6 @@ struct UIProcessTests {
         }
     }
 
-    @Test func thePointerOnTheItemStartsOneStandbyProcessWithNoWindow() async throws {
-        let standIn = try StandIn()
-        let ui = UIProcess(executableURL: standIn.script, snapshot: { Self.snapshot }, handle: { _ in })
-        defer { ui.stop() }
-
-        ui.pointer(inside: true)
-        #expect(ui.phase == .launching, "the hover starts it before any click")
-        let pid = try #require(ui.processIdentifier)
-        ui.pointer(inside: false)
-        ui.pointer(inside: true)
-        #expect(ui.processIdentifier == pid, "a second hover does not start a second process")
-        try await until { ui.phase == .ready }
-        try await until { standIn.requests.contains(.pointer(inside: true)) }
-
-        let requests = standIn.requests
-        #expect(requests.first == .pointer(inside: true), "it knows the pointer is over the item, so it stays")
-        #expect(requests.contains(.snapshot(Self.snapshot)), "it has the numbers before the first click")
-        #expect(!requests.contains { $0.showsWindow }, "standby shows nothing")
-        #expect(standIn.arguments == ["--ui", "--standby"], "standby draws the popover once offscreen")
-    }
-
     @Test func clicksWhileItLaunchesOpenThePopoverOnceItIsReady() async throws {
         let standIn = try StandIn()
         let ui = UIProcess(executableURL: standIn.script, snapshot: { Self.snapshot }, handle: { _ in })
@@ -113,7 +97,6 @@ struct UIProcessTests {
         ui.send(.toggle(popover(5)))
         try await until { standIn.requests.contains(.toggle(popover(5))) }
         #expect(standIn.requests.last == .toggle(popover(5)), "once ready, a click toggles")
-        #expect(standIn.arguments == ["--ui"], "a click must not wait for an offscreen popover first")
     }
 
     @Test func closingWithNoUIProcessStartsNone() {
@@ -154,7 +137,7 @@ struct UIProcessTests {
             executableURL: standIn.script, snapshot: { Self.snapshot }, handle: { _ in },
             debugStateWait: .milliseconds(400))
         defer { ui.stop() }
-        ui.pointer(inside: true)
+        ui.send(.showSettings(tab: nil))
         try await until { ui.phase == .ready }
 
         var first: String?? = .none
@@ -167,6 +150,59 @@ struct UIProcessTests {
         #expect(second == .some(#"{"pid":1}"#), "the first request's timeout must not end the second's wait")
     }
 
+    @Test func aWindowAskedOfAUIProcessThatStoppedReadingOpensInANewOne() async throws {
+        let standIn = try StandIn(firstStopsReading: true)
+        let ui = UIProcess(executableURL: standIn.script, snapshot: { Self.snapshot }, handle: { _ in })
+        var exits = 0
+        ui.onExit = { exits += 1 }
+        defer { ui.stop() }
+
+        ui.send(.showSettings(tab: "general"))
+        let stalled = try #require(ui.processIdentifier)
+        try await until { standIn.requests.contains(.showSettings(tab: "general")) }
+
+        #expect(
+            standIn.requests.contains(.showSettings(tab: "general")),
+            "the request reached a UI process that reads, not a pipe nobody reads")
+        #expect(ui.processIdentifier != stalled)
+        #expect(exits >= 1, "the menu bar process turned the live polls off for the one it dropped")
+    }
+
+    @Test func theMenuBarProcessQuitsTheUIProcessWhenTheLingerRunsOut() async throws {
+        // The stand-in shows Settings and closes it at once.
+        let standIn = try StandIn(events: [.ready, .windows(open: true), .windows(open: false)])
+        let ui = UIProcess(
+            executableURL: standIn.script, snapshot: { Self.snapshot }, handle: { _ in },
+            lingerDelay: .milliseconds(200))
+        defer { ui.stop() }
+        ui.send(.showSettings(tab: nil))
+        let first = try #require(ui.processIdentifier)
+        try await until { standIn.requests.contains(.quit) }
+        #expect(standIn.requests.last == .quit)
+        #expect(ui.phase == .stopped, "gone from the moment it was asked to quit")
+
+        ui.send(.toggle(popover()))
+        try await until { ui.phase == .ready }
+        #expect(ui.processIdentifier != first, "a click after the linger starts a new UI process")
+    }
+
+    @Test func aClickJustBeforeTheLingerRunsOutKeepsTheUIProcess() async throws {
+        let standIn = try StandIn(events: [.ready, .windows(open: true), .windows(open: false)])
+        let ui = UIProcess(
+            executableURL: standIn.script, snapshot: { Self.snapshot }, handle: { _ in },
+            lingerDelay: .milliseconds(300))
+        defer { ui.stop() }
+        ui.send(.showSettings(tab: nil))
+        try await until { ui.phase == .ready }
+        try await Task.sleep(for: .milliseconds(250))
+
+        ui.send(.toggle(popover()))
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(!standIn.requests.contains(.quit), "the popover the click asked for counts as open")
+        #expect(standIn.requests.last == .toggle(popover()))
+        #expect(ui.phase == .ready)
+    }
+
     @Test func changesMadeInTheUIProcessReachTheMenuBarProcess() async throws {
         let changes: [UIEvent] = [
             .live(true), .setResetHour(4), .updateNetwork(id: 2, name: "Desk", kind: .ethernet),
@@ -177,7 +213,7 @@ struct UIProcessTests {
         let ui = UIProcess(executableURL: standIn.script, snapshot: { Self.snapshot }, handle: { handled.append($0) })
         defer { ui.stop() }
 
-        ui.pointer(inside: true)
+        ui.send(.showSettings(tab: nil))
         try await until { handled.count == changes.count }
         #expect(handled == changes)
     }
@@ -187,7 +223,7 @@ struct UIProcessTests {
         var snapshot = Self.snapshot
         let ui = UIProcess(executableURL: standIn.script, snapshot: { snapshot }, handle: { _ in })
         defer { ui.stop() }
-        ui.pointer(inside: true)
+        ui.send(.showSettings(tab: nil))
         try await until { ui.phase == .ready }
 
         ui.publish()
@@ -213,7 +249,7 @@ struct UIHostTests {
         #expect(PopoverToggle.decide(isShown: false, lastClose: now.addingTimeInterval(-1), now: now) == .open)
     }
 
-    @Test func itQuitsOnlyAfterTheLingerWithNoWindowAndThePointerAway() async throws {
+    @Test func itQuitsOnlyAfterTheLingerWithNoWindowOpen() async throws {
         var quits = 0
         let linger = Linger(delay: .milliseconds(100)) { quits += 1 }
         linger.windowsOpen = true
@@ -223,18 +259,18 @@ struct UIHostTests {
         linger.windowsOpen = false
         #expect(linger.isCounting)
         try await Task.sleep(for: .milliseconds(50))
-        linger.pointerInside = true
+        linger.windowsOpen = true
         try await Task.sleep(for: .milliseconds(200))
-        #expect(quits == 0, "the pointer came back over the item before the linger ran out")
+        #expect(quits == 0, "a window opened again before the linger ran out")
 
-        linger.pointerInside = false
+        linger.windowsOpen = false
         try await Task.sleep(for: .milliseconds(50))
-        #expect(quits == 0, "leaving starts the full linger again")
+        #expect(quits == 0, "closing it starts the full linger again")
         try await Task.sleep(for: .milliseconds(200))
         #expect(quits == 1)
     }
 
-    @Test func aStandbyProcessThatNeverOpensAWindowQuitsToo() async throws {
+    @Test func aUIProcessWhoseFirstWindowNeverOpenedQuitsToo() async throws {
         var quits = 0
         _ = Linger(delay: .milliseconds(50)) { quits += 1 }
         try await Task.sleep(for: .milliseconds(200))

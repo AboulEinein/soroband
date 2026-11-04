@@ -2,15 +2,14 @@ import AppKit
 
 /// The UI process's side of `UIProcess`: reads the menu bar process's requests on standard input,
 /// shows the windows, and sends the changes the user makes to the menu bar process, which runs
-/// the engine. It quits when its standard input closes (the menu bar process is gone) or 60 s
-/// after its last window closed (`Linger`).
+/// the engine. It quits when the menu bar process asks (`UIRequest.quit`, at the end of the
+/// linger) or when its standard input closes (the menu bar process is gone).
 @MainActor
 enum UIHost {
     /// Whether this process is the UI process.
     private(set) static var isUIProcess = false
-    private static let linger = Linger(delay: .seconds(60)) { NSApp.terminate(nil) }
-    /// A standby process draws the popover once offscreen, with the first snapshot's numbers.
-    private static var prerenders = CommandLine.arguments.contains(UIProcess.standbyFlag)
+    /// Whether a window was open at the last report to the menu bar process, which runs the linger.
+    private static var reportedWindowsOpen: Bool?
 
     static func start() {
         isUIProcess = true
@@ -45,26 +44,26 @@ enum UIHost {
         try? FileHandle.standardOutput.write(contentsOf: line)
     }
 
-    /// Called whenever a window opens or closes: the process lingers once none is open.
+    /// Called whenever a window opens or closes: the menu bar process starts the linger once none
+    /// is open.
     static func windowsChanged() {
-        linger.windowsOpen =
+        let open =
             PopoverController.shared.isShown || SettingsWindow.shared.window != nil
             || HistoryWindow.shared.window != nil || OnboardingWindow.shared.window != nil
+        guard open != reportedWindowsOpen else { return }
+        reportedWindowsOpen = open
+        send(.windows(open: open))
     }
 
     private static func handle(_ request: UIRequest) {
         if request.showsWindow {
-            // Started with activation prohibited, so a standby process never takes the keyboard.
+            // Started with activation prohibited, so a launch never takes the keyboard by itself.
             NSApp.setActivationPolicy(.accessory)
         }
         switch request {
         case .snapshot(let snapshot):
             Usage.shared.mirror(snapshot)
             NetworkMonitor.shared.mirror(current: snapshot.current, connectedSince: snapshot.connectedSince)
-            if prerenders {
-                prerenders = false
-                PopoverController.shared.prerender()
-            }
         case .toggle(let popover): PopoverController.shared.toggle(popover)
         case .showPopover(let popover): PopoverController.shared.show(popover)
         case .closePopover: PopoverController.shared.close()
@@ -77,7 +76,7 @@ enum UIHost {
                 HistoryWindow.shared.show(options, replacing: replacing)
             }
         case .closeHistory: HistoryWindow.shared.close()
-        case .pointer(let inside): linger.pointerInside = inside
+        case .quit: NSApp.terminate(nil)
         case .dumpState:
             #if DEBUG
             send(.debugState(DebugCommands.uiState()))
@@ -91,46 +90,8 @@ enum UIHost {
             _ = number
             #endif
         }
-        // Each window reports itself too; this keeps the linger right for any path that opens one.
+        // Each window reports itself too; this keeps the report right for any path that opens one.
         if request.showsWindow { windowsChanged() }
-    }
-
-    /// Whether the process is waiting to quit, for `soroband debug state`.
-    static var isLingering: Bool { linger.isCounting }
-}
-
-/// When the UI process quits: `delay` after the last of its windows closed, unless the pointer
-/// is over the menu bar item then, which may be about to open one again.
-@MainActor
-final class Linger {
-    var windowsOpen = false {
-        didSet { if windowsOpen != oldValue { update() } }
-    }
-    var pointerInside = false {
-        didSet { if pointerInside != oldValue { update() } }
-    }
-    private let delay: Duration
-    private let quit: () -> Void
-    private var countdown: Task<Void, Never>?
-
-    /// Counts from the start: a standby process that never opens a window quits too.
-    init(delay: Duration, quit: @escaping () -> Void) {
-        self.delay = delay
-        self.quit = quit
-        update()
-    }
-
-    var isCounting: Bool { countdown != nil }
-
-    private func update() {
-        countdown?.cancel()
-        countdown = nil
-        guard !windowsOpen, !pointerInside else { return }
-        countdown = Task { [delay, quit] in
-            try? await Task.sleep(for: delay)
-            guard !Task.isCancelled else { return }
-            quit()
-        }
     }
 }
 

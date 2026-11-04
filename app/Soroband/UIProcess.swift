@@ -20,8 +20,8 @@ enum UIRequest: Codable, Equatable {
     /// as it is, unless `replacing` it.
     case showHistory(arguments: [String], replacing: Bool)
     case closeHistory
-    /// Whether the pointer is over the menu bar item, which keeps the UI process from quitting.
-    case pointer(inside: Bool)
+    /// The linger ran out: quit, after any History export in flight.
+    case quit
     /// Debug builds: answer with `UIEvent.debugState`, or render window `number`.
     case dumpState
     case captureWindow(number: Int)
@@ -31,7 +31,8 @@ enum UIRequest: Codable, Equatable {
     var showsWindow: Bool {
         switch self {
         case .toggle, .showPopover, .showSettings, .showOnboarding, .showHistory: true
-        case .snapshot, .closePopover, .anchor, .closeSettings, .closeHistory, .pointer, .dumpState, .captureWindow:
+        case .snapshot, .closePopover, .anchor, .closeSettings, .closeHistory, .quit, .dumpState,
+            .captureWindow:
             false
         }
     }
@@ -54,6 +55,8 @@ enum UIEvent: Codable, Equatable {
     /// It reads its requests from now on.
     case ready
     case popover(shown: Bool)
+    /// Whether any of its windows is open, for the linger.
+    case windows(open: Bool)
     // Changes the engine's process makes, as `Usage` and `NetworkMonitor` make them there.
     case live(Bool)
     case setMenuBarLayout(MenuBarLayout)
@@ -109,7 +112,7 @@ struct UIQueue: Equatable {
         case .showPopover:
             guard !requests.contains(where: \.opensPopover) else { return }
             requests.append(request)
-        case .snapshot, .anchor, .pointer:
+        case .snapshot, .anchor:
             // The UI process gets the latest of these when it is ready.
             break
         default:
@@ -134,17 +137,13 @@ extension UIRequest {
 
 /// The UI process, from the menu bar process: a second instance of Soroband.app started with
 /// `--ui`, which shows the popover, Settings, History and the Welcome window, so the menu bar
-/// process never holds a window and keeps its launch footprint. It starts when the pointer enters
-/// the menu bar item (in standby, with no window) or at the first request, and quits by itself
-/// 60 s after its last window closes (`Linger`), or when this process quits and its standard
-/// input closes.
+/// process never holds a window and keeps its launch footprint. It starts at the first request for
+/// a window. This process quits it 10 minutes after its last window closed (`Linger`), and it quits
+/// by itself when this process quits and its standard input closes.
 @MainActor
 final class UIProcess {
     static let shared = UIProcess()
     nonisolated static let flag = "--ui"
-    /// Started by the pointer on the item, ahead of any window: it draws the popover once offscreen
-    /// (`PopoverController.prerender`).
-    nonisolated static let standbyFlag = "--standby"
 
     enum Phase: Equatable {
         case stopped, launching, ready
@@ -156,7 +155,6 @@ final class UIProcess {
     private var process: Process?
     private var input: FileHandle?
     private var queue = UIQueue()
-    private var pointerInside = false
     /// The last snapshot sent; the next is sent only when it differs.
     private var sent: UISnapshot?
     /// Writes in a queue of their own, so a UI process that stops reading never blocks the menu
@@ -164,9 +162,14 @@ final class UIProcess {
     private let writer = DispatchQueue(label: "io.github.abouleinein.soroband.ui-process")
     private var waitingWrites = 0
     private var debugStateReply: ((String?) -> Void)?
+    /// When a request for a window was last sent again after a failed write (`writeFailed`).
+    private var lastReplay: Date?
     /// Ends the wait of the request in `debugStateReply`, and only that one.
     private var debugStateTimeout: Task<Void, Never>?
 
+    /// Counts down to quitting the UI process while none of its windows is open (`Linger`).
+    private var linger: Linger?
+    private let lingerDelay: Duration
     private let debugStateWait: Duration
     private let executableURL: URL?
     private let snapshot: @MainActor () -> UISnapshot
@@ -180,8 +183,10 @@ final class UIProcess {
         executableURL: URL? = Bundle.main.executableURL,
         snapshot: @escaping @MainActor () -> UISnapshot = UISnapshot.current,
         handle: @escaping @MainActor (UIEvent) -> Void = UIProcess.apply,
+        lingerDelay: Duration = .seconds(600),
         debugStateWait: Duration = .seconds(1)
     ) {
+        self.lingerDelay = lingerDelay
         self.debugStateWait = debugStateWait
         self.executableURL = executableURL
         self.snapshot = snapshot
@@ -195,6 +200,9 @@ final class UIProcess {
     /// Sends `request`, starting the UI process when it needs one. Until the UI process is ready,
     /// requests wait in `UIQueue`.
     func send(_ request: UIRequest) {
+        // Counted as open from now, before the UI process says so, so the linger cannot run out
+        // while the request is on its way.
+        if request.showsWindow { linger?.windowsOpen = true }
         switch phase {
         case .ready:
             write(request)
@@ -203,18 +211,7 @@ final class UIProcess {
         case .stopped:
             guard request.showsWindow else { return }
             queue.add(request)
-            launch(standby: false)
-        }
-    }
-
-    /// The pointer entered or left the menu bar item: entering starts the UI process in standby,
-    /// so a click does not wait for a launch.
-    func pointer(inside: Bool) {
-        pointerInside = inside
-        switch phase {
-        case .ready: write(.pointer(inside: inside))
-        case .launching: break
-        case .stopped: if inside { launch(standby: true) }
+            launch()
         }
     }
 
@@ -231,6 +228,9 @@ final class UIProcess {
     func stop() {
         process?.terminate()
     }
+
+    /// Whether the UI process waits to quit, for `soroband debug state`.
+    var isLingering: Bool { linger?.isCounting ?? false }
 
     /// Asks the UI process for its part of `soroband debug state`; nil when none runs, it does not
     /// answer within `debugStateWait` (a second), or a newer request takes over.
@@ -257,13 +257,13 @@ final class UIProcess {
     /// Starts the process directly rather than through Launch Services, which drops the arguments
     /// of a second instance of the same app. It inherits the environment, so a Debug build run on
     /// another data directory shows the same data.
-    private func launch(standby: Bool) {
+    private func launch() {
         guard let executableURL else { return }
         let process = Process()
         let input = Pipe()
         let output = Pipe()
         process.executableURL = executableURL
-        process.arguments = standby ? [Self.flag, Self.standbyFlag] : [Self.flag]
+        process.arguments = [Self.flag]
         process.standardInput = input
         process.standardOutput = output
         // A UI process gone before this process knows it must not kill it with SIGPIPE.
@@ -281,6 +281,9 @@ final class UIProcess {
             self.process = process
             self.input = input.fileHandleForWriting
             phase = .launching
+            let linger = Linger(delay: lingerDelay) { [weak self] in self?.lingerRanOut() }
+            linger.windowsOpen = !queue.requests.isEmpty
+            self.linger = linger
         } catch {
             NSLog("Soroband: cannot start the UI process: %@", String(describing: error))
             queue = UIQueue()
@@ -292,11 +295,12 @@ final class UIProcess {
         case .ready:
             phase = .ready
             sent = nil
-            write(.pointer(inside: pointerInside))
             publish()
             queue.take().forEach(write)
         case .popover(let shown):
             isPopoverShown = shown
+        case .windows(let open):
+            linger?.windowsOpen = open
         case .debugState(let json):
             answerDebugState(json)
         default:
@@ -307,14 +311,41 @@ final class UIProcess {
 
     private func exited(_ ended: Process) {
         guard ended === process else { return }
+        forget()
+        onExit?()
+    }
+
+    /// Asks the UI process to quit, and from now on counts it as gone: a click a moment later
+    /// starts another one rather than reaching one that is quitting.
+    private func lingerRanOut() {
+        guard phase != .stopped else { return }
+        write(.quit)
+        forget()
+    }
+
+    /// A write that failed found the UI process no longer reading, though it has not been seen to
+    /// exit yet: it is stopped and forgotten, and a request for a window goes to a new one, once in
+    /// 5 s at most, so a UI process that never reads cannot start a launch loop.
+    private func writeFailed(_ request: UIRequest, to failed: FileHandle) {
+        if failed === input {
+            process?.terminate()
+            forget()
+            onExit?()
+        }
+        guard request.showsWindow, lastReplay.map({ Date.now.timeIntervalSince($0) > 5 }) ?? true else { return }
+        lastReplay = .now
+        send(request)
+    }
+
+    private func forget() {
         process = nil
         input = nil
         phase = .stopped
         isPopoverShown = false
         queue = UIQueue()
         sent = nil
+        linger = nil
         answerDebugState(nil)
-        onExit?()
     }
 
     private func write(_ request: UIRequest) {
@@ -326,9 +357,13 @@ final class UIProcess {
         }
         waitingWrites += 1
         writer.async { [weak self] in
-            // An error means the UI process is gone; its termination handler resets the state.
-            try? input.write(contentsOf: line)
-            DispatchQueue.main.async { MainActor.assumeIsolated { self?.waitingWrites -= 1 } }
+            let failed = (try? input.write(contentsOf: line)) == nil
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    self?.waitingWrites -= 1
+                    if failed { self?.writeFailed(request, to: input) }
+                }
+            }
         }
     }
 
@@ -351,7 +386,39 @@ final class UIProcess {
             #else
             NSLog("Soroband: ignoring %@", text)
             #endif
-        case .ready, .popover, .debugState: break
+        case .ready, .popover, .windows, .debugState: break
+        }
+    }
+}
+
+/// When the UI process quits: `delay` after the last of its windows closed. The menu bar process
+/// runs it, so a request it sends can never meet a UI process that already decided to quit.
+@MainActor
+final class Linger {
+    var windowsOpen = false {
+        didSet { if windowsOpen != oldValue { update() } }
+    }
+    private let delay: Duration
+    private let quit: () -> Void
+    private var countdown: Task<Void, Never>?
+
+    /// Counts from the start: a UI process whose first window never opened quits too.
+    init(delay: Duration, quit: @escaping () -> Void) {
+        self.delay = delay
+        self.quit = quit
+        update()
+    }
+
+    var isCounting: Bool { countdown != nil }
+
+    private func update() {
+        countdown?.cancel()
+        countdown = nil
+        guard !windowsOpen else { return }
+        countdown = Task { [delay, quit] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            quit()
         }
     }
 }

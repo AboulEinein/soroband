@@ -55,32 +55,12 @@ enum DebugCommands {
         case "close-history": UIProcess.shared.send(.closeHistory)
         case "export-history": notify_post(exportHistoryNotification)
         case "open-onboarding": UIProcess.shared.send(.showOnboarding)
-        case "hover": hover(url)
         case "quit-ui": UIProcess.shared.stop()
         case "capture-status-item": captureStatusItem()
         case "capture-window": captureWindow(url)
         case "simulate-network": simulateNetwork(url)
         case "update-network": updateNetwork(url)
         default: NSLog("soroband-debug: unknown command %@", url.absoluteString)
-        }
-    }
-
-    /// `hover?inside=1` and `hover?inside=0` act as the pointer entering and leaving the menu bar
-    /// item.
-    private static func hover(_ url: URL) {
-        guard let inside = pointerInside(queryItems(url)["inside"]) else {
-            NSLog("soroband-debug: hover needs inside=1 or inside=0 in %@", url.absoluteString)
-            return
-        }
-        UIProcess.shared.pointer(inside: inside)
-    }
-
-    /// `hover`'s `inside` value: true for "1", false for "0", nil for anything else.
-    nonisolated static func pointerInside(_ value: String?) -> Bool? {
-        switch value {
-        case "1": true
-        case "0": false
-        default: nil
         }
     }
 
@@ -250,7 +230,8 @@ enum DebugCommands {
     /// Writes the menu bar process's state with the UI process's, once it has answered.
     static func writeState() {
         UIProcess.shared.debugState { json in
-            let ui = json.flatMap { try? JSONDecoder().decode(UIState.self, from: Data($0.utf8)) }
+            var ui = json.flatMap { try? JSONDecoder().decode(UIState.self, from: Data($0.utf8)) }
+            ui?.lingering = UIProcess.shared.isLingering
             write(DebugState.current(ui: ui), to: stateFile)
         }
     }
@@ -430,8 +411,9 @@ struct UIState: Codable {
     let settingsTab: String?
     let historyShown: Bool
     let welcomeShown: Bool
-    /// Whether it waits to quit, with no window open and the pointer away from the menu bar item.
-    let lingering: Bool
+    /// Whether it waits to quit, with no window open; the menu bar process, which runs the linger,
+    /// fills it in.
+    var lingering: Bool
     let windows: [DebugState.Window]
 
     @MainActor
@@ -443,7 +425,7 @@ struct UIState: Codable {
             settingsTab: SettingsWindow.shared.window == nil ? nil : SettingsWindow.shared.tab.rawValue,
             historyShown: HistoryWindow.shared.window != nil,
             welcomeShown: OnboardingWindow.shared.window != nil,
-            lingering: UIHost.isLingering,
+            lingering: false,
             windows: DebugState.windows())
     }
 }
