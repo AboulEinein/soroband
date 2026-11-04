@@ -6,7 +6,10 @@ import AppKit
 if CommandLine.arguments.contains(UIProcess.flag) {
     SorobandApp.main()
 } else {
+    // `NSApplication.delegate` is weak: keep the delegate alive for as long as the app runs.
     let delegate = AppDelegate()
     NSApplication.shared.delegate = delegate
-    NSApplication.shared.run()
+    withExtendedLifetime(delegate) {
+        NSApplication.shared.run()
+    }
 }
