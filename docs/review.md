@@ -29,7 +29,7 @@ The PR is not a milestone. Its requirements are the user's request quoted in the
 
 ## Rounds
 
-1. **Open the pull request as a draft** (`gh pr create --draft`). CodeRabbit skips drafts (`.coderabbit.yaml`), so it does not review each round's commits.
+1. **Run the CodeRabbit CLI, then open the pull request as a draft.** Before opening it, and again before each later push, run `coderabbit review --agent --base <base branch>` on the branch (installed as the handover says) and handle its findings first, judged as in CodeRabbit step 3; the hosted review stays the last check. Open with `gh pr create --draft`. CodeRabbit skips drafts (`.coderabbit.yaml`), so it does not review each round's commits.
 2. **Plan the rounds before round 1** and write the number in the PR description: 1 for a small fix, 2 for a typical change, 3 for a milestone or a risky change. The plan is a budget for judgment, not a stop: what ends the loop is below. Start the pull request's entry in [`review-retros.md`](review-retros.md) with its heading and planned rounds.
 3. **Each round:**
    - Push all commits first; nothing is pushed while the review runs. If the branch moves mid-review, the skill keeps its review as a draft instead of posting it.
@@ -66,6 +66,7 @@ CodeRabbit reviews each pull request, whatever its base, once the blind loop has
    - **Valid, but left as it is:** only when fixing it would contradict a decision recorded in `design.md`, `plan.md` or the handover, or when it is outside the pull request's scope and becomes a follow-up in the handover. The reply quotes the decision or names the follow-up.
    - **Not valid:** reply with the evidence.
    - **Findings without a thread** (the nitpicks and the comments outside the diff that CodeRabbit lists in its review body, and the warnings of its pre-merge checks in its summary comment) get one PR comment listing each with its verdict and the fix commit or the evidence.
+   - **Read every review body, not only the threads.** Each review lists outside-diff comments, nitpicks and additional comments in its body (`gh api repos/AboulEinein/soroband/pulls/<number>/reviews`); each is a finding. A thread CodeRabbit resolves itself is not a fixed finding until its fix is checked.
 4. **Fixes are reviewed too.** The pull request stays ready, so CodeRabbit reviews each new commit on its own; wait for that review as in step 2, then take its new findings through step 3. That is enough for a fix to comments or wording. A fix that changes behavior or a documented rule also gets a blind round, or a direct review if it qualifies (see Rounds).
 5. **Resolve each thread** once its finding is handled: a valid one after the review of its fix (CodeRabbit's, or the blind round's) raises nothing about it, the others after the reply. CodeRabbit often resolves its own thread when it reviews the fix; the session lead resolves any it leaves open.
 6. **Note each review and finding** as you go, outside the branch: CodeRabbit's reviews, and any blind round or direct review run after the pull request is ready, with their findings and why the blind loop missed each valid CodeRabbit finding. Every commit CodeRabbit reviews gets reviewed and waited for, so nothing is committed for the records until step 7.
@@ -102,4 +103,5 @@ The approach is in question, not the last fix, when a fixed finding comes back, 
 
 ## Checklist
 
+- **Timing claims.** A timing the pull request reports must end when the result is on screen, as the user sees it, not when the code returns, and must compare builds in paired, interleaved runs in one session, not against an earlier session's numbers. A timing measured otherwise is a finding.
 - **Retired terms.** When the pull request renames or retires a term (in `GLOSSARY.md`'s _Avoid_ lists, or a setting, type or view it removes), search the whole repository for the old words, docs included; each hit outside the glossary's _Avoid_ list, the review logs, dated decisions and `docs/mockups/` (frozen designs) is a finding.
