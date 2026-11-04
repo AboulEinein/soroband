@@ -272,9 +272,9 @@ final class UIProcess {
         process.terminationHandler = { [weak self] ended in
             DispatchQueue.main.async { MainActor.assumeIsolated { self?.exited(ended) } }
         }
-        LineReader.listen(output.fileHandleForReading) { [weak self] line in
+        LineReader.listen(output.fileHandleForReading) { [weak self, process] line in
             guard let event = try? JSONDecoder().decode(UIEvent.self, from: Data(line.utf8)) else { return }
-            self?.received(event)
+            self?.received(event, from: process)
         } ended: {
         }
         do {
@@ -291,7 +291,11 @@ final class UIProcess {
         }
     }
 
-    private func received(_ event: UIEvent) {
+    /// Events count only from the UI process this process still knows: one it forgot (it exited,
+    /// the linger ended it, or a write to it failed) can still send a line it had written, and its
+    /// `ready` would mark a process ready that has no input.
+    private func received(_ event: UIEvent, from sender: Process) {
+        guard sender === process else { return }
         switch event {
         case .ready:
             phase = .ready

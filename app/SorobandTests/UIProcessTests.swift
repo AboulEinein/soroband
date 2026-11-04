@@ -29,7 +29,8 @@ struct UIProcessTests {
 
         init(
             events: [UIEvent] = [.ready], stateAnswer: String? = nil, answerDelay: Double = 0,
-            firstStopsReading: Bool = false, firstExitsBeforeReady: Bool = false, answers: [String: UIEvent] = [:]
+            firstStopsReading: Bool = false, firstExitsBeforeReady: Bool = false,
+            firstSaysReadyAfterItExits: Bool = false, answers: [String: UIEvent] = [:]
         ) throws {
             self.answers = try answers.mapValues { String(decoding: try JSONEncoder().encode($0), as: UTF8.self) }
             let directory = FileManager.default.temporaryDirectory.appending(path: "ui-stand-in-\(UUID())")
@@ -52,8 +53,16 @@ struct UIProcessTests {
                   exit 1
                 fi
                 """
+            let saysReadyAfterItExits = """
+                if [ ! -e '\(started.path)' ]; then
+                  touch '\(started.path)'
+                  trap '(sleep 0.3; echo '"'"'\(lines[0])'"'"') & exit 0' TERM
+                  while true; do sleep 0.05; done
+                fi
+                """
             try """
             #!/bin/sh
+            \(firstSaysReadyAfterItExits ? saysReadyAfterItExits : "")
             \(firstStopsReading ? stopsReading : "")
             \(firstExitsBeforeReady ? exitsBeforeReady : "")
             \(lines.map { "echo '\($0)'" }.joined(separator: "\n"))
@@ -133,6 +142,26 @@ struct UIProcessTests {
             standIn.requests.filter { $0.showsWindow } == [.showPopover(moved)],
             "the second click, made before anything showed, meant open too: it opens once, under the item where it is now"
         )
+    }
+
+    @Test func aReadyFromAUIProcessAlreadyGoneIsIgnored() async throws {
+        let standIn = try StandIn(firstSaysReadyAfterItExits: true)
+        let ui = UIProcess(executableURL: standIn.script, snapshot: { Self.snapshot }, handle: { _ in })
+        defer { ui.stop() }
+
+        ui.send(.showSettings(tab: "general"))
+        try await Task.sleep(for: .milliseconds(200))
+        ui.stop()
+        try await until { ui.phase == .stopped }
+        // Its child says ready 0.3 s after it exited.
+        try await Task.sleep(for: .milliseconds(1000))
+        #expect(ui.phase == .stopped, "a ready from a process already gone must not count")
+
+        ui.send(.toggle(popover()))
+        try await until { standIn.requests.contains(.showPopover(popover())) }
+        #expect(
+            standIn.requests.filter { $0.showsWindow } == [.showSettings(tab: "general"), .showPopover(popover())],
+            "the next click starts a new UI process, which gets both")
     }
 
     @Test func closingWithNoUIProcessStartsNone() {
