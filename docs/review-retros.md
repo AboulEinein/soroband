@@ -475,3 +475,7 @@ Planned rounds: 3.
 | direct | Sonnet | 1 unrated | `first look`: the PR body still used the test's old name. [Comment](https://github.com/AboulEinein/soroband/pull/36#issuecomment-6639005535). |
 
 **Retro.** Planned 3 rounds; it took 4 and two direct reviews, and CodeRabbit found 2 more. The blind rounds found only stale comments left by moving the menu bar's drawing to a new renderer; the one real defect, a delegate held only weakly once SwiftUI's app lifecycle no longer kept it, came from CodeRabbit, and shows in an optimized build only, which no local check here runs (a local Release build does not link the arm64-only core). The byte-for-byte renderer test over 9,584 layouts made the drawing change safe to review by reading.
+
+## [#37](https://github.com/AboulEinein/soroband/pull/37) docs: M6c closing measurements (2026-11-04)
+
+Planned rounds: 1.
