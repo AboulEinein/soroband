@@ -314,7 +314,11 @@ final class UIProcess {
 
     private func exited(_ ended: Process) {
         guard ended === process else { return }
+        // A UI process that died before it was ready read none of its requests: they wait for the
+        // next launch, which the next request starts, so a click made then still opens the popover.
+        let unread = phase == .launching ? queue : UIQueue()
         forget()
+        queue = unread
         onExit?()
     }
 

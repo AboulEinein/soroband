@@ -29,7 +29,7 @@ struct UIProcessTests {
 
         init(
             events: [UIEvent] = [.ready], stateAnswer: String? = nil, answerDelay: Double = 0,
-            firstStopsReading: Bool = false, answers: [String: UIEvent] = [:]
+            firstStopsReading: Bool = false, firstExitsBeforeReady: Bool = false, answers: [String: UIEvent] = [:]
         ) throws {
             self.answers = try answers.mapValues { String(decoding: try JSONEncoder().encode($0), as: UTF8.self) }
             let directory = FileManager.default.temporaryDirectory.appending(path: "ui-stand-in-\(UUID())")
@@ -46,9 +46,16 @@ struct UIProcessTests {
                   exec sleep 10
                 fi
                 """
+            let exitsBeforeReady = """
+                if [ ! -e '\(started.path)' ]; then
+                  touch '\(started.path)'
+                  exit 1
+                fi
+                """
             try """
             #!/bin/sh
             \(firstStopsReading ? stopsReading : "")
+            \(firstExitsBeforeReady ? exitsBeforeReady : "")
             \(lines.map { "echo '\($0)'" }.joined(separator: "\n"))
             \(reader(stateAnswer: stateAnswer, delay: answerDelay))
             """.write(to: script, atomically: true, encoding: .utf8)
@@ -104,6 +111,25 @@ struct UIProcessTests {
         ui.send(.toggle(popover(5)))
         try await until { standIn.requests.contains(.toggle(popover(5))) }
         #expect(standIn.requests.last == .toggle(popover(5)), "once ready, a click toggles")
+    }
+
+    @Test func aClickWhoseUIProcessDiedBeforeReadyOpensThePopoverAtTheNextLaunch() async throws {
+        let standIn = try StandIn(firstExitsBeforeReady: true)
+        let ui = UIProcess(executableURL: standIn.script, snapshot: { Self.snapshot }, handle: { _ in })
+        defer { ui.stop() }
+
+        ui.send(.toggle(popover()))
+        try await until { ui.phase == .stopped }
+        try #require(ui.phase == .stopped, "the first UI process died before it was ready")
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(ui.phase == .stopped, "nothing starts another one by itself")
+
+        ui.send(.toggle(popover(1)))
+        try await until { standIn.requests.contains { $0.showsWindow } }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(
+            standIn.requests.filter { $0.showsWindow } == [.showPopover(popover())],
+            "the first click opens the popover once; the second, made before anything showed, meant open too")
     }
 
     @Test func closingWithNoUIProcessStartsNone() {
@@ -316,6 +342,17 @@ struct UIHostTests {
         #expect(
             DebugCommands.captureTarget(number: 9, here: [3, 7], uiProcessRuns: false) == .none,
             "with no UI process the miss is logged here, not sent to a process that does not exist")
+    }
+
+    @Test func anExportRequestDropsTheLastCSVFirst() throws {
+        let file = FileManager.default.temporaryDirectory.appending(path: "history-\(UUID()).csv")
+        try Data("stale".utf8).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+        var existedWhenAsked: Bool?
+        DebugCommands.requestHistoryExport(to: file) {
+            existedWhenAsked = FileManager.default.fileExists(atPath: file.path)
+        }
+        #expect(existedWhenAsked == false, "an export that writes nothing leaves no file to read as this one")
     }
 
     @Test func itQuitsOnlyAfterTheLingerWithNoWindowOpen() async throws {

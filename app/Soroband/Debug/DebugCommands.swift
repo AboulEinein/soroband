@@ -53,7 +53,7 @@ enum DebugCommands {
         case "close-settings": UIProcess.shared.send(.closeSettings)
         case "open-history": openHistory(url)
         case "close-history": UIProcess.shared.send(.closeHistory)
-        case "export-history": notify_post(exportHistoryNotification)
+        case "export-history": requestHistoryExport()
         case "open-onboarding": UIProcess.shared.send(.showOnboarding)
         case "quit-ui": UIProcess.shared.stop()
         case "capture-status-item": captureStatusItem()
@@ -133,6 +133,16 @@ enum DebugCommands {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = text.contains("T") ? "yyyy-MM-dd'T'HH:mm" : "yyyy-MM-dd"
         return formatter.date(from: text)
+    }
+
+    /// Asks the UI process to export what History shows to `file` (`historyCSVFile`), deleting the
+    /// last export first, so an export that writes nothing (no History open, no UI process) leaves
+    /// no file to be read as this one. `post` is the notification, or a stand-in in tests.
+    static func requestHistoryExport(
+        to file: URL = historyCSVFile, post: () -> Void = { notify_post(exportHistoryNotification) }
+    ) {
+        try? FileManager.default.removeItem(at: file)
+        post()
     }
 
     /// Exports what History shows to `historyCSVFile`, as its Export button does to the file the
