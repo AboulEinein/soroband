@@ -4,7 +4,7 @@ import Testing
 @testable import Soroband
 
 /// The menu bar item must look exactly as before `MenuBarRenderer` drew it: the same pixels as
-/// `MenuBarDisplay.rasterized(itemImage)`, which Settings' preview draws.
+/// `MenuBarDisplay.rasterized(itemImage)`, the image the menu bar item drew before.
 @MainActor
 struct MenuBarRendererTests {
     /// Every order of up to four readings, and none.

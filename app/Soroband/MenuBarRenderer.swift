@@ -1,10 +1,10 @@
 import AppKit
 
 /// Draws the menu bar item's image when its title cannot show the readings (`drawsTitle`): the
-/// pixels of `MenuBarDisplay.rasterized(itemImage)`, which Settings' preview draws, at less cost
-/// for a live speed redrawn at every poll. The icon is made once per symbol, and
-/// the icon and the readings are drawn once, straight into the bitmap, instead of through two
-/// images with drawing handlers drawn again into it.
+/// pixels of `MenuBarDisplay.rasterized(itemImage)`, the image the menu bar item drew before, at
+/// less cost for a live speed redrawn at every poll. The icon is made once per symbol, and the
+/// icon and the readings are drawn once, straight into the bitmap, instead of through two images
+/// with drawing handlers drawn again into it.
 @MainActor
 final class MenuBarRenderer {
     private var icons: [String: NSImage] = [:]
