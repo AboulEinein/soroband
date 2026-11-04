@@ -30,11 +30,11 @@ The state of the project for whoever picks it up next. Read this file, then the 
 1. The CodeRabbit backlog (Follow-ups) is being fixed in grouped pull requests against `main`, one concern each, the `SIGPIPE` crash first, with a test wherever behavior changes. Each runs the usual loop in `docs/review.md`, and every finding goes in `docs/coderabbit-findings.md` (source: #15, or the PR it was deferred from). Once the backlog is empty, close #15 and delete its branches `review/empty-base` and `review/full-project-tree`.
 2. The user runs the M0, M2, M3 and M4 hand checklists (below) and starts the daily-use week; each milestone is marked `done` in the ledger once its checklist has passed, and issues go into Follow-ups.
 3. M5 (Dynamic Island moments) starts from `main` in its own worktree, when the user says so. It runs the review experiment in its section of `plan.md`.
-4. M6 stays `blocked`: M6a's hand checklist (below), run on `main`, since M6b's menu bar process starts without the SwiftUI app; and the user decides what to do about a live speed's idle CPU (0.265–0.304%, over the 0.1% budget), which redraws the item at every poll.
+4. M6 stays `blocked`: M6a's hand checklist (below), run on `main`, since M6b's menu bar process starts without the SwiftUI app; and the user decides what to do about a live speed's idle CPU (0.265–0.304%, over the 0.1% budget), which redraws the item at every poll, and about History's open with no UI process running (363–423 ms, over M4's 300 ms).
 
 ### M6a hand checklist
 
-Agents cannot move or click the pointer here, so these need the user, on a build of the M6a branch (`scripts/install.sh`, or `scripts/verify/run-app.sh` for a Debug build).
+Agents cannot move or click the pointer here, so these need the user, on a build of `main` (`scripts/install.sh`, or `scripts/verify/run-app.sh` for a Debug build).
 
 1. **Click.** Click the menu bar item: the popover opens under it; close it and click again within 10 minutes: it opens as fast as before.
 2. **Click after the linger.** Quit the UI process (`kill <pid of the --ui process>`, as after 10 idle minutes) and click the item: the popover opens, later than in step 1. Close it, quit the UI process again, and click twice quickly: it opens, and the second click closes it, as on `main`.

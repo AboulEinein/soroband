@@ -146,7 +146,7 @@ Exit criteria:
 Measured in M6c (Debug, each beside `main` before M6, cc87d1c, in the same run):
 - Criterion 1 is met: the menu bar process 15.7–15.9 MB after the popover, Settings and History have each opened and closed and at rest once the UI process quit (cc87d1c: 47.1–47.5 MB), 14.3–14.5 MB at launch (two runs, `vmmap`).
 - Criterion 2 is met in 7 of 10 layouts and not with a live speed: today's total 0.071%, icon only 0.041%, download 0.068%, upload 0.058%, download and upload stacked 0.061%, labeled 0.065% and inline 0.078%; live download 0.270%, live upload 0.265% and both 0.304% (cc87d1c: 0.318%, 0.341% and 0.369%). A live speed redraws the item at every poll (`design.md`, Menu bar label).
-- History in a Release-optimized build opens in 151–211 ms within a running UI process and 363–416 ms with none (Year), as in Debug (149–211 and 373–423 ms); the UI process holds 55.2–56.1 MB with History open.
+- History in a Release-optimized build opens in 151–211 ms within a running UI process and 363–416 ms with none (Year), as in Debug (149–211 and 373–423 ms); the UI process holds 55.2–56.1 MB with History open. With no UI process running, History is over M4's 300 ms exit criterion, as it has been since M6a (417 ms); the user has not decided whether that is accepted.
 - The hand checklist (M6a's, run on `main`) needs the user.
 
 ### M7: Release v0.1.0
