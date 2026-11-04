@@ -46,7 +46,7 @@ prototypes/ui-spike/run.sh
 - Tests go red when the behavior breaks, and a change to the app is shown running. [`docs/verification.md`](docs/verification.md) has the tools and what each milestone must show.
 - CI runs `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test`, `xcrun swift-format lint --strict --recursive app` (`xcrun swift-format format -i -r app` fixes the formatting; any finding `lint` still reports after that needs a hand edit), the Swift tests other than the snapshot tests, and an unsigned universal build. Snapshot tests depend on the Mac's fonts and macOS version, so run `scripts/verify/snapshots.sh` locally when a view changes.
 - A domain term that is added, renamed or retired is updated in [`GLOSSARY.md`](GLOSSARY.md) in the same pull request.
-- Soroband runs all day, so every change respects the budget in [`docs/design.md`](docs/design.md#performance-budget): idle CPU ≤ 0.1%, memory ≤ 25 MB with no window open. If your change touches the engine or a long-lived view, include before and after measurements.
+- Soroband runs all day, so every change respects the budget in [`docs/design.md`](docs/design.md#performance-budget): idle CPU ≤ 0.1% (a live speed in the menu bar is an accepted exception, see `docs/plan.md` M6), memory ≤ 25 MB with no window open. If your change touches the engine or a long-lived view, include before and after measurements.
 - Soroband reads counters and metadata only. Changes that inspect packet contents or send data off the Mac will not be accepted.
 - Kernel recordings used as test fixtures are anonymized before they are committed (see `core/README.md`).
 - Maintainer work is reviewed by a fresh blind reviewer each round, as [`docs/review.md`](docs/review.md) describes.

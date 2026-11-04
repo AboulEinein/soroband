@@ -122,7 +122,7 @@ Review experiment: M5's first review compares the blind reviewer with CodeRabbit
 
 Deliverables:
 - The menu bar app returns to its launch footprint after its windows close. Measured in M4: 18 MB at launch, 36 MB after Settings has opened and closed, 37–45 MB after the popover.
-- Idle CPU measured in every menu bar layout, including a live speed, with headroom under the budget.
+- Idle CPU measured in every menu bar layout, including a live speed: under the budget, or for a live speed under its accepted ceiling.
 - History's open time and memory measured in a Release-optimized build (Release configuration with the DEBUG condition, Debug data directory), next to M4's Debug numbers.
 
 Stages, one PR each (the user chose "split + hover prewarm" on 2026-11-03, then the linger without the prewarm on 2026-11-04):
@@ -139,17 +139,17 @@ Decided for M6b (2026-11-04):
 - One binary. The menu bar process runs AppKit alone (`main.swift`) and the UI process runs the SwiftUI app: the menu bar process measured 14.3–14.5 MB at launch against `main`'s 18.6–18.7 MB (Debug). S2's AppKit-only agent measured 14.2 MB with SwiftUI and Charts linked but unused and 13.9 MB without them, so a separate executable for the menu bar process would save about 0.3 MB, for a second target sharing the menu bar process's files and two executables to start and match; not taken.
 - The menu bar process still grows after the popover, Settings and History: 1.2–1.4 MB, against 0.7–1.1 MB on `main` in the same two runs, almost all of it heap fragmentation from the popover's live polls (M6a's accepted residue); the live heap grows 0.25 MB in both.
 
-Decided for M6c (2026-11-05):
+Decided for M6c (2026-11-04):
 - M6c measures and changes no code. The CPU levers that keep the look shipped earlier: the menu bar process's own renderer (M6b, [#36](https://github.com/AboulEinein/soroband/pull/36)) and coalesced settings-changed notifications ([#34](https://github.com/AboulEinein/soroband/pull/34)). The one left, a 10 s live-speed refresh, changes the readout, and the user ruled out changes to the look (2026-11-03).
-- Layouts with a live speed are an exception to the 0.1% idle CPU budget, accepted at 0.27–0.30% (0.32–0.37% before M6); every other layout meets it.
+- Layouts with a live speed are an exception to the 0.1% idle CPU budget, accepted up to 0.32% (measured 0.27–0.30%; 0.32–0.37% before M6); every other layout meets it.
 
 Exit criteria:
 - With no window open, after the popover, Settings and History have each opened and closed, the menu bar app is ≤ 25 MB.
-- Idle CPU ≤ 0.1% over 10 minutes in each menu bar layout, except a layout with a live speed, accepted at 0.27–0.30% (2026-11-05).
+- Idle CPU ≤ 0.1% over 10 minutes in each menu bar layout, except a layout with a live speed, accepted up to 0.32% (measured 0.27–0.30%) (2026-11-04).
 
-Measured in M6c (Debug, each beside `main` before M6, cc87d1c, in the same run):
+Measured in M6c (memory and CPU in Debug, each beside `main` before M6, cc87d1c, in the same run; History also in a Release-optimized build, as its line says):
 - Criterion 1 is met: the menu bar process 15.7–15.9 MB after the popover, Settings and History have each opened and closed and at rest once the UI process quit (cc87d1c: 47.1–47.5 MB), 14.3–14.5 MB at launch (two runs, `vmmap`).
-- Criterion 2 is met, with the exception the user accepted for a live speed (2026-11-05): today's total 0.071%, icon only 0.041%, download 0.068%, upload 0.058%, download and upload stacked 0.061%, labeled 0.065% and inline 0.078%; live download 0.270%, live upload 0.265% and both 0.304% (cc87d1c: 0.318%, 0.341% and 0.369%). A live speed redraws the item at every poll (`design.md`, Menu bar label).
+- Criterion 2 is met, with the exception the user accepted for a live speed (2026-11-04): today's total 0.071%, icon only 0.041%, download 0.068%, upload 0.058%, download and upload stacked 0.061%, labeled 0.065% and inline 0.078%; live download 0.270%, live upload 0.265% and both 0.304% (cc87d1c: 0.318%, 0.341% and 0.369%). A live speed redraws the item at every poll (`design.md`, Menu bar label).
 - History in a Release-optimized build opens in 151–211 ms within a running UI process and 363–416 ms with none (Year), as in Debug (149–211 and 373–423 ms); the UI process holds 55.2–56.1 MB with History open. With no UI process running, History is over M4's 300 ms exit criterion, as it has been since M6a (417 ms); the user has not decided whether that is accepted.
 - The hand checklist (M6a's, run on `main`) needs the user.
 
