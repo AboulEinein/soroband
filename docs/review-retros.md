@@ -475,3 +475,16 @@ Planned rounds: 3.
 | direct | Sonnet | 1 unrated | `first look`: the PR body still used the test's old name. [Comment](https://github.com/AboulEinein/soroband/pull/36#issuecomment-6639005535). |
 
 **Retro.** Planned 3 rounds; it took 4 and two direct reviews, and CodeRabbit found 2 more. The blind rounds found only stale comments left by moving the menu bar's drawing to a new renderer; the one real defect, a delegate held only weakly once SwiftUI's app lifecycle no longer kept it, came from CodeRabbit, and shows in an optimized build only, which no local check here runs (a local Release build does not link the arm64-only core). The byte-for-byte renderer test over 9,584 layouts made the drawing change safe to review by reading.
+
+## [#37](https://github.com/AboulEinein/soroband/pull/37) docs: M6c closing measurements (2026-11-04)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Medium, 1 Low | `unclear requirement`: M6c became measurements only with no recorded decision while the live-speed CPU criterion was unmet. `first look`: two lines said "Release build" for the Release-optimized measurement. |
+| 2 | Opus | 1 Medium, 3 Low, 1 unrated | `fix regression`: M6's deliverable still asked a live speed for headroom under the budget; the exception was a range, not a ceiling; CONTRIBUTING.md lacked it; the handover's Follow-ups still proposed CPU headroom work. `first look`: the PR description was stale. |
+| direct | Sonnet | none | Checked 9969013. [Comment](https://github.com/AboulEinein/soroband/pull/37#issuecomment-6642883331). |
+| CodeRabbit | CodeRabbit | 3 Minor | `first look`: the live-speed redraw claim contradicted design.md. Not valid: rewrite a dated decision row; a "trailing comma" that is the ⌘, shortcut. |
+
+**Retro.** Planned 1 round; it took 2 and a direct review, and CodeRabbit found 1 valid finding. This was the first PR in the run where the CodeRabbit CLI ran before every push, and the hosted review found one valid finding instead of several pushes' worth. Round 1's finding was a decision the orchestrator had made without recording it (narrowing M6c), which the user then took (the live-speed exception); round 2's findings were the places that still stated the old rule, as on #32: when a rule changes, grep every statement of it before the first round. The orchestrator also dated two decisions a day ahead; the local CLI caught it.
