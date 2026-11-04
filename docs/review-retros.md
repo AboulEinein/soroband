@@ -433,3 +433,21 @@ Planned rounds: 1.
 ## [#35](https://github.com/AboulEinein/soroband/pull/35) feat(app): M6a popover and Settings in a UI process (2026-11-03)
 
 Planned rounds: 3.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 3 Low, 1 unrated | `first look`: "History process" still named the retired process in three files; the handover's M4 bullet named the deleted `HistoryProcess.swift`; an earlier `debugState` timeout could end a later request's wait. `unclear requirement`: no stage owned the M6 row's per-layout `budget.sh 10` and Release History run (assigned to M6c). |
+| 2 | Opus | 1 Low, 1 unrated | `first look`: the `hover` debug URL took any value but 0 as inside. `unclear requirement`: the side-by-side captures were kept local. |
+| direct | Haiku | none | Checked the Settings and History captures on `evidence/pr-35`. [Comment](https://github.com/AboulEinein/soroband/pull/35#issuecomment-6614524153). |
+| 3 | Opus | none | Checked b4e50ed. |
+| CodeRabbit | CodeRabbit | 2 Minor | `first look`: the app README left out the pointer's hold on the linger; the M4 checklist's `pgrep -fl Soroband` also listed other builds. |
+| CodeRabbit | CodeRabbit | 2 Minor | `first look`, in the review body: the handover's start paths and linger described only hover; the handover's date was not refreshed. |
+| 4 | Opus | 1 Medium, 2 Low | `new evidence`, after a real-pointer run showed cold opens near 800 ms and the design changed to a 10-minute linger: a window request that opened nothing kept the UI process alive for good; 72.9 MB against the newer 74.3 MB; `capture-window` missed silently. |
+| CodeRabbit | CodeRabbit | 2 Minor | `missed earlier`: the same stuck-linger finding as round 4. `first look`: the double-click step started with the popover open. |
+| 5 | Opus | 2 Low | `first look`: retired "agent" and "standby" left in current text. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`, in the review body: a failed reset-hour save left the UI process showing the unsaved hour. |
+| direct | Haiku | none | Checked 045fc13. [Comment](https://github.com/AboulEinein/soroband/pull/35#issuecomment-6624751888). |
+| CodeRabbit | CodeRabbit | 2 Minor | `first look`, in the review body: keep queued window requests after a failed launch (not valid: it would replay a toggle); the shutdown checks still asked to move the pointer away. |
+| 6 | Opus | none | Checked d8731cf. |
+
+**Retro.** Planned 3 rounds; it took 6, two direct reviews and five CodeRabbit reviews. The rounds before the pointer run converged; what reopened the PR was new evidence, not review: a run with a real pointer (cliclick, from the menu bar's overflow) and a timer that waits for the popover on screen found cold opens near 800 ms where the in-app metric, which stopped at `displayIfNeeded`, said 250 ms, and found that the hover start never fired. Measuring the pointer monitor that would replace it (about 14% CPU under constant movement) made the user choose a 10-minute linger with no prewarm. Lessons: time what the user sees (on screen), not a step inside the app; test any pointer-driven design with a real pointer before building on it; and read CodeRabbit's review bodies, not only its threads, since three of its findings here were only there.
