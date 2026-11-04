@@ -470,5 +470,8 @@ Planned rounds: 3.
 | direct | Haiku | none | Checked 19f8563. [Comment](https://github.com/AboulEinein/soroband/pull/36#issuecomment-6629056761). |
 | CodeRabbit | CodeRabbit | 1 Minor | `first look`: `NSApplication.delegate` is weak, so an optimized build could release the menu bar process's delegate before launch. |
 | 3 | Opus | none | Checked c2c57b8. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`, in the review body: a nil from `MenuBarRenderer.image` left the status item blank. |
+| 4 | Opus | 2 Minor | `fix regression`: the fallback's comment overstated when the vector image draws. `first look`: the renderer test's name named Settings' preview, not its reference. |
+| direct | Sonnet | 1 unrated | `first look`: the PR body still used the test's old name. [Comment](https://github.com/AboulEinein/soroband/pull/36#issuecomment-6639005535). |
 
-**Retro.** Planned 3 rounds; it took 3 and a direct review, and CodeRabbit found 1 more. The blind rounds found only stale comments left by moving the menu bar's drawing to a new renderer; the one real defect, a delegate held only weakly once SwiftUI's app lifecycle no longer kept it, came from CodeRabbit, and shows in an optimized build only, which no local check here runs (a local Release build does not link the arm64-only core). The byte-for-byte renderer test over 9,584 layouts made the drawing change safe to review by reading.
+**Retro.** Planned 3 rounds; it took 4 and two direct reviews, and CodeRabbit found 2 more. The blind rounds found only stale comments left by moving the menu bar's drawing to a new renderer; the one real defect, a delegate held only weakly once SwiftUI's app lifecycle no longer kept it, came from CodeRabbit, and shows in an optimized build only, which no local check here runs (a local Release build does not link the arm64-only core). The byte-for-byte renderer test over 9,584 layouts made the drawing change safe to review by reading.
