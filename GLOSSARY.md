@@ -208,12 +208,8 @@ _Avoid_: agent, daemon, main app
 A second instance of Soroband.app, started with `--ui` by the menu bar process, that shows the popover, Settings, History and the Welcome window. It reads the database without starting the engine, gets the engine's numbers from the menu bar process, and sends it the changes the user makes. It quits after the linger, or when the menu bar process quits, so no window's memory stays in the process that runs all day.
 _Avoid_: helper, History process (its earlier, History-only form)
 
-**Standby**:
-A UI process started when the pointer enters the menu bar item, with no window, that draws the popover once offscreen, so a click does not wait for a launch or a first layout.
-_Avoid_: prewarm, warm process
-
 **Linger**:
-The 60 s a UI process waits after its last window closed before it quits, unless the pointer is over the menu bar item. A popover opened within it opens warm.
+The 10 minutes the menu bar process lets a UI process wait after its last window closed before it quits it. A popover opened within it opens warm.
 _Avoid_: keep-alive, grace period
 
 **Range**:

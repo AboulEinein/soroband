@@ -11,7 +11,7 @@ The SwiftUI menu bar app (`LSUIElement`, no Dock icon). It links the Rust core f
 
 Debug builds use the bundle identifier `io.github.abouleinein.soroband.debug`, so they run next to an installed Release build.
 
-The menu bar process holds the menu bar item and the engine, and never a window. The popover, Settings, History and the Welcome window run in the UI process, a second instance of the same app started with `--ui` by the menu bar process (`Soroband/UIProcess.swift`, its side in `Soroband/UIHost.swift`): it starts when the pointer enters the menu bar item or at the first click, gets the engine's numbers from the menu bar process over its standard input, and quits 60 s after its last window closes and the pointer has left the item (the wait restarts each time the pointer leaves), or with the menu bar process. A Debug build started with `SOROBAND_DATA_DIR` set (`open -g --env SOROBAND_DATA_DIR=<dir> -a <app>`) uses that data directory, and so does its UI process; it hears `soroband config set` only from a command run with the same `SOROBAND_DATA_DIR`.
+The menu bar process holds the menu bar item and the engine, and never a window. The popover, Settings, History and the Welcome window run in the UI process, a second instance of the same app started with `--ui` by the menu bar process (`Soroband/UIProcess.swift`, its side in `Soroband/UIHost.swift`): it starts at the first click, gets the engine's numbers from the menu bar process over its standard input, and is quit by the menu bar process 10 minutes after its last window closes, or with the menu bar process. A Debug build started with `SOROBAND_DATA_DIR` set (`open -g --env SOROBAND_DATA_DIR=<dir> -a <app>`) uses that data directory, and so does its UI process; it hears `soroband config set` only from a command run with the same `SOROBAND_DATA_DIR`.
 
 Debug URL commands (`open -g -a <this build's Soroband.app> "soroband-debug://<command>"`):
 
@@ -26,7 +26,6 @@ Debug URL commands (`open -g -a <this build's Soroband.app> "soroband-debug://<c
 | `close-history` | Closes History. |
 | `export-history` | History exports what it shows to `history.csv` in `~/Library/Caches/io.github.abouleinein.soroband.debug`. |
 | `open-onboarding` | Opens the first-run window that asks for the Location permission. |
-| `hover?inside=1` | Acts as the pointer entering the menu bar item (`inside=0`: leaving it): entering starts the UI process in standby, and while the pointer is inside it does not quit. |
 | `quit-ui` | Quits the UI process, so the next window opens cold. |
 | `capture-status-item` | Renders the menu bar item to `~/Library/Caches/io.github.abouleinein.soroband.debug/status-item.png`, for when the item is hidden behind the notch. |
 | `capture-window?number=<n>` | Renders window `n` (a number from `soroband debug state`, of either process) as the app draws it to `window.png` in the same directory, for a window `screencapture` cannot see. |

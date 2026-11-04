@@ -125,14 +125,14 @@ Deliverables:
 - Idle CPU measured in every menu bar layout, including a live speed, with headroom under the budget.
 - History's open time and memory measured in a Release build, next to M4's Debug numbers.
 
-Stages, one PR each (the user chose "split + hover prewarm" on 2026-11-03):
-- M6a: the popover, Settings and History move into the UI process, started in standby when the pointer enters the menu bar item, which quits 60 s after its last window closes; the menu bar process keeps the menu bar item and the engine.
+Stages, one PR each (the user chose "split + hover prewarm" on 2026-11-03, then the linger without the prewarm on 2026-11-04):
+- M6a: the popover, Settings and History move into the UI process, started at the first click, which quits 10 minutes after its last window closes; the menu bar process keeps the menu bar item and the engine.
 - M6b: the menu bar process becomes a thin agent with no SwiftUI, drawing the menu bar item itself.
 - M6c: idle CPU work.
 
 Decided for M6a (2026-11-03, [#35](https://github.com/AboulEinein/soroband/pull/35)):
-- History stays in the UI process with the popover and Settings. With History open after them the UI process reaches 72.9 MB, over design.md's "History window open ≤ 60 MB" row, which the menu bar process meets; one process costs less in total and loads the frameworks once, and it quits 60 s after its last window.
-- The menu bar process ends 1.4 MB above its launch footprint after every window (18.0 to 19.4 MB, Debug), not within 0.5 MB: pages touched during the first popover's live polls, with no growth in live heap and none on later openings. Accepted as measured.
+- History stays in the UI process with the popover and Settings. With History open after them the UI process reaches 72.9 MB, over design.md's "History window open ≤ 60 MB" row, which the menu bar process meets; one process costs less in total and loads the frameworks once, and it quits 10 minutes after its last window.
+- The menu bar process ends about 1 MB above its launch footprint after every window (18.2 to 19.1 MB, 19.3 MB at rest once the UI process quit, Debug; 1.4 MB in an earlier run), not within 0.5 MB: pages touched during the first popover's live polls, with no growth in live heap and none on later openings. Accepted as measured.
 - `budget.sh 10` in each menu bar layout (today's total, with a live speed, icon only) and History on a synthetic year in a Release build are M6c's evidence, not M6a's: M6b replaces the menu bar process, so they are measured once, after it. M6a measures the default layout in Debug.
 
 Exit criteria:
