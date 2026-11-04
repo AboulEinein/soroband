@@ -1,7 +1,8 @@
 //! `soroband debug`: talks to a running Debug build of the app.
 //!
 //! The command posts a Darwin notification; the app answers by writing its state as JSON to a
-//! file. `state` asks the menu bar app, `history` the History window's own process. The names must
+//! file. `state` asks the menu bar process, which adds its UI process's part; `history` asks the UI
+//! process, which shows the History window. The names must
 //! match `app/Soroband/Debug/DebugCommands.swift`.
 
 use std::ffi::{CString, c_char};

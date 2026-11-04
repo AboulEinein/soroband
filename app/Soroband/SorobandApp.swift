@@ -4,15 +4,22 @@ import SwiftUI
 struct SorobandApp: App {
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
-    // The menu bar item, its popover and the windows are AppKit objects owned by the delegate, so
-    // the app can open them itself (and Debug builds on an agent's command). SwiftUI needs a scene.
+    // The menu bar item, its popover and the windows are AppKit objects, so the app can open them
+    // itself (and Debug builds on an agent's command). SwiftUI needs a scene.
     var body: some Scene {
         Settings { EmptyView() }
             .commands {
-                // ⌘, opens the app's own Settings window, not this empty scene.
+                // ⌘, opens the app's own Settings window, not this empty scene; the UI process
+                // shows it.
                 CommandGroup(replacing: .appSettings) {
-                    Button("Settings…") { SettingsWindow.shared.show() }
-                        .keyboardShortcut(",")
+                    Button("Settings…") {
+                        if UIHost.isUIProcess {
+                            SettingsWindow.shared.show()
+                        } else {
+                            UIProcess.shared.send(.showSettings(tab: nil))
+                        }
+                    }
+                    .keyboardShortcut(",")
                 }
             }
     }
@@ -21,17 +28,20 @@ struct SorobandApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var terminateSignal: DispatchSourceSignal?
 
+    private var isUIProcess: Bool { CommandLine.arguments.contains(UIProcess.flag) }
+
     func applicationWillFinishLaunching(_ notification: Notification) {
-        // A standby History process must not take activation from the menu bar app, which would
-        // close the popover that started it. It may once it shows its window.
-        if CommandLine.arguments.contains(HistoryOptions.standbyFlag) {
+        // A second instance takes activation at launch, which would take the keyboard from the
+        // app the user is in, before it shows anything. It may once it shows a window
+        // (`UIHost`).
+        if isUIProcess {
             NSApp.setActivationPolicy(.prohibited)
         }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if let options = HistoryOptions(arguments: CommandLine.arguments) {
-            startHistory(options)
+        if isUIProcess {
+            startUI()
             return
         }
         if !Core.startEngine() {
@@ -39,6 +49,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         Usage.shared.start()
         MenuBarController.shared.start()
+        // A UI process gone with the popover open leaves nobody to turn the live polls off.
+        UIProcess.shared.onExit = { Usage.shared.isLive = false }
         NetworkMonitor.shared.start()
         SettingsListener.start()
         // `kill` quits like the Quit button, so the last minute of usage is written.
@@ -55,29 +67,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
     }
 
-    /// The History process: the History window and nothing else (`HistoryOptions`).
+    /// The UI process: the popover, Settings, History and the Welcome window (`UIHost`). It reads
+    /// the database, and the engine's numbers come from the menu bar process.
     @MainActor
-    private func startHistory(_ options: HistoryOptions) {
+    private func startUI() {
         if !Core.openDatabase() {
             NSLog("Soroband: the usage database in %@ cannot be read", Core.dataDirectory.path)
         }
         #if DEBUG
-        DebugCommands.startHistory()
+        DebugCommands.startUI()
         #endif
-        // Standard input closing means the menu bar app is gone or dropped this process.
-        HistoryStandby.listen(
-            show: { HistoryWindow.shared.show($0) },
-            ended: { NSApp.terminate(nil) })
-        if CommandLine.arguments.contains(HistoryOptions.standbyFlag) {
-            HistoryWindow.shared.warmUp()
-        } else {
-            HistoryWindow.shared.show(options)
-        }
+        UIHost.start()
     }
 
     @MainActor
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        HistoryWindow.shared.shouldTerminate { sender.reply(toApplicationShouldTerminate: true) }
+        guard isUIProcess else { return .terminateNow }
+        return HistoryWindow.shared.shouldTerminate { sender.reply(toApplicationShouldTerminate: true) }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -85,8 +91,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     #if DEBUG
+    /// macOS may hand a URL to either instance; the menu bar process runs every command.
+    @MainActor
     func application(_ application: NSApplication, open urls: [URL]) {
-        urls.forEach(DebugCommands.handle)
+        if isUIProcess {
+            for url in urls { UIHost.send(.url(url.absoluteString)) }
+        } else {
+            urls.forEach(DebugCommands.handle)
+        }
     }
     #endif
 }

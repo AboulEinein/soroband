@@ -1,4 +1,4 @@
-//! The C API as the History process uses it: the database opened read-only, no engine.
+//! The C API as the UI process uses it: the database opened read-only, no engine.
 //!
 //! A test binary of its own, because the C API keeps one database and one engine per process.
 

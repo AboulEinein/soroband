@@ -1,25 +1,23 @@
 import AppKit
-import SwiftUI
 
-/// The menu bar item and its popover.
+/// The menu bar item. Its popover is in the UI process (`UIProcess`), so no window ever lives in
+/// this process.
 ///
-/// The item's icon and text change only when the displayed text does. The popover's view is
-/// created when it opens and released when it closes, so nothing of it stays in memory or redraws
-/// while it is closed.
+/// The item's icon and text change only when the displayed text does.
 @MainActor
-final class MenuBarController: NSObject, NSPopoverDelegate {
+final class MenuBarController: NSObject {
     static let shared = MenuBarController()
 
     private var item: NSStatusItem?
-    private let popover = NSPopover()
     private var drawn: MenuBarDisplay.Drawn?
     var display: MenuBarDisplay? { drawn?.display }
     private var lastRedraw = Date.distantPast
-    private var lastClose = Date.distantPast
     /// A redraw put off by `MenuBarDisplay.redrawDelay`.
     private var pendingRedraw: Task<Void, Never>?
+    /// The item's frame last sent to the UI process.
+    private var sentAnchor: CGRect?
 
-    var isPopoverShown: Bool { popover.isShown }
+    var isPopoverShown: Bool { UIProcess.shared.isPopoverShown }
 
     func start() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -29,9 +27,18 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         // Digits of one width, so a changing count or speed does not shift the menu bar.
         item.button?.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         self.item = item
-        popover.behavior = .transient
-        popover.delegate = self
-        Usage.shared.onChange = { [weak self] in self?.update() }
+        Usage.shared.onChange = { [weak self] in
+            self?.update()
+            UIProcess.shared.publish()
+        }
+        // The open popover follows the item when it moves, changes width or changes display.
+        for name in [NSWindow.didMoveNotification, NSWindow.didResizeNotification] {
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(itemMoved), name: name, object: item.button?.window)
+        }
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(itemMoved), name: NSApplication.didChangeScreenParametersNotification,
+            object: nil)
         update()
     }
 
@@ -72,120 +79,40 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             button.title = ""
         }
         button.setAccessibilityLabel(display.accessibilityLabel())
+        // A new width moves the item's frame once the menu bar has laid it out.
+        DispatchQueue.main.async { self.itemMoved() }
     }
 
     @objc func togglePopover() {
-        if popover.isShown {
-            popover.performClose(nil)
-        } else if Date.now.timeIntervalSince(lastClose) > 0.3 {
-            // A transient popover closes on the mouse-down of a click on the item, before the
-            // item's action runs; that click meant "close", not "open again".
-            showPopover()
-        }
+        guard let anchor else { return }
+        UIProcess.shared.send(.toggle(PopoverRequest(anchor: anchor, requested: .now)))
+        sentAnchor = anchor
     }
 
     /// Opens the popover on `tab`, with the Apps tab's toggle set to `allNetworks`.
-    func showPopover(tab: PopoverView.Tab = .apps, allNetworks: Bool = false) {
-        guard !popover.isShown, let button = item?.button else { return }
-        Usage.shared.isLive = true
-        HistoryProcess.prepare()
-        popover.contentViewController = NSHostingController(
-            rootView: LivePopover(
-                tab: tab, allNetworks: allNetworks,
-                openHistory: { [weak self] network in
-                    // Before the close, which dismisses an unused standby process.
-                    HistoryProcess.open(
-                        HistoryOptions(
-                            range: .month, network: network, current: NetworkMonitor.shared.current?.id))
-                    self?.popover.performClose(nil)
-                },
-                openSettings: { [weak self] in
-                    self?.popover.performClose(nil)
-                    SettingsWindow.shared.show()
-                },
-                quit: { NSApp.terminate(nil) }))
-        // A menu bar app is never frontmost by itself; the popover takes keys and clicks only once
-        // the app is active.
-        NSApp.activate()
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        popover.contentViewController?.view.window?.makeKey()
+    func showPopover(tab: String = "Apps", allNetworks: Bool = false) {
+        guard let anchor else { return }
+        UIProcess.shared.send(
+            .showPopover(PopoverRequest(anchor: anchor, tab: tab, allNetworks: allNetworks, requested: .now)))
+        sentAnchor = anchor
     }
 
     func closePopover() {
-        popover.performClose(nil)
+        UIProcess.shared.send(.closePopover)
     }
 
-    /// Set as the close starts, not after its animation, which can end after the click's action.
-    func popoverWillClose(_ notification: Notification) {
-        lastClose = .now
+    @objc private func itemMoved() {
+        guard isPopoverShown, let anchor, anchor != sentAnchor else { return }
+        sentAnchor = anchor
+        UIProcess.shared.send(.anchor(anchor))
     }
 
-    func popoverDidClose(_ notification: Notification) {
-        popover.contentViewController = nil
-        AppIcons.clear()
-        Usage.shared.isLive = false
-        HistoryProcess.dismissStandby()
+    /// The item's frame on screen, which the popover points at.
+    private var anchor: CGRect? {
+        guard let button = item?.button, let window = button.window else { return nil }
+        return window.convertToScreen(button.convert(button.bounds, to: nil))
     }
 
     /// The status item's view, for `soroband-debug://capture-status-item`.
     var buttonView: NSView? { item?.button }
-}
-
-/// The popover's content, following `Usage` while it is open.
-private struct LivePopover: View {
-    var usage = Usage.shared
-    var monitor = NetworkMonitor.shared
-    var location = LocationAccess.shared
-    /// Read from the database once the popover has drawn, and again on another network or hour.
-    @State private var summary: PopoverSummary?
-    @State var tab: PopoverView.Tab
-    @State var allNetworks: Bool
-    /// Opens History on this month, on `network` or on every network when nil.
-    let openHistory: (_ network: Int64?) -> Void
-    let openSettings: () -> Void
-    let quit: () -> Void
-
-    /// The network History opens on, which the History card's numbers follow: the current one
-    /// while the Apps tab shows only it, every network otherwise.
-    private var historyNetwork: Int64? {
-        allNetworks || tab == .networks ? nil : monitor.current?.id
-    }
-
-    var body: some View {
-        PopoverView(
-            content: PopoverContent.make(
-                status: usage.status, today: usage.today, registry: usage.registry,
-                current: monitor.current, connectedSince: monitor.connectedSince, allNetworks: allNetworks,
-                locationAllowed: location.isAllowed, summary: summary),
-            tab: $tab, allNetworks: $allNetworks,
-            openHistory: { openHistory(historyNetwork) },
-            allowLocation: { location.allow() },
-            openSettings: openSettings, quit: quit
-        )
-        .onChange(of: monitor.current) { usage.reloadRegistry() }
-        .task(
-            id: SummaryKey(
-                network: usage.status.networkID, historyNetwork: historyNetwork, todayStart: usage.status.todayStart,
-                hour: Int(Date.now.timeIntervalSince1970 / 3600))
-        ) {
-            guard usage.status.state != .starting else { return }
-            let (network, history, todayStart) = (usage.status.networkID, historyNetwork, usage.status.todayStart)
-            summary = await Task.detached(priority: .userInitiated) {
-                PopoverSummary.load(network: network, historyNetwork: history, todayStart: todayStart)
-            }.value
-        }
-        .onAppear {
-            // macOS may reveal the Wi‑Fi name later than `refreshUntilNamed` looked for it.
-            if location.isAllowed, monitor.current?.key.hasPrefix("wifi-router:") == true { monitor.refresh() }
-        }
-    }
-}
-
-/// What the popover's summary depends on.
-private struct SummaryKey: Equatable {
-    var network: Int64
-    var historyNetwork: Int64?
-    var todayStart: Date
-    /// A new hour stores the last one, which the summary then reads.
-    var hour: Int
 }

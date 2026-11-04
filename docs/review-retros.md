@@ -428,3 +428,33 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | 1 Minor | `first look`: MD038, a code span with a trailing space in this entry; reworded in the records commit. |
 
 **Retro.** Planned 1 round; it took 5, two direct reviews and seven CodeRabbit reviews, the same pattern #21's retro describes for this lint: each review found another way a Markdown table can be malformed. After the fifth such finding the approach was reassessed on the PR: the lint now accepts only each log's exact form (its header row, its separator, rows from the first character, nothing else), and later findings were all inside that form, so they were fixed rather than declined. Two process slips cost rounds: a `.pyc` swept in by `git add -A` after importing the lint, and a CodeRabbit finding whose thread CodeRabbit resolved without a fix, which only a reviewer counting findings against the record caught. Next time: list every finding of a CodeRabbit review from its review body and threads before replying, and stage named files only.
+
+
+## [#35](https://github.com/AboulEinein/soroband/pull/35) feat(app): M6a popover and Settings in a UI process (2026-11-03)
+
+Planned rounds: 3.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 3 Low, 1 unrated | `first look`: "History process" still named the retired process in three files; the handover's M4 bullet named the deleted `HistoryProcess.swift`; an earlier `debugState` timeout could end a later request's wait. `unclear requirement`: no stage owned the M6 row's per-layout `budget.sh 10` and Release History run (assigned to M6c). |
+| 2 | Opus | 1 Low, 1 unrated | `first look`: the `hover` debug URL took any value but 0 as inside. `unclear requirement`: the side-by-side captures were kept local. |
+| direct | Haiku | none | Checked the Settings and History captures on `evidence/pr-35`. [Comment](https://github.com/AboulEinein/soroband/pull/35#issuecomment-6614524153). |
+| 3 | Opus | none | Checked b4e50ed. |
+| CodeRabbit | CodeRabbit | 2 Minor | `first look`: the app README left out the pointer's hold on the linger; the M4 checklist's `pgrep -fl Soroband` also listed other builds. |
+| CodeRabbit | CodeRabbit | 2 Minor | `first look`, in the review body: the handover's start paths and linger described only hover; the handover's date was not refreshed. |
+| 4 | Opus | 1 Medium, 2 Low | `new evidence`, after a real-pointer run showed cold opens near 800 ms and the design changed to a 10-minute linger: a window request that opened nothing kept the UI process alive for good; 72.9 MB against the newer 74.3 MB; `capture-window` missed silently. |
+| CodeRabbit | CodeRabbit | 2 Minor | `missed earlier`: the same stuck-linger finding as round 4. `first look`: the double-click step started with the popover open. |
+| 5 | Opus | 2 Low | `first look`: retired "agent" and "standby" left in current text. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`, in the review body: a failed reset-hour save left the UI process showing the unsaved hour. |
+| direct | Haiku | none | Checked 045fc13. [Comment](https://github.com/AboulEinein/soroband/pull/35#issuecomment-6624751888). |
+| CodeRabbit | CodeRabbit | 2 Minor | `first look`, in the review body: keep queued window requests after a failed launch (not valid: it would replay a toggle); the shutdown checks still asked to move the pointer away. |
+| 6 | Opus | none | Checked d8731cf. |
+| CodeRabbit | CodeRabbit | 2 Minor | `first look`, in the review body: a click queued during startup was lost when the UI process died before `ready`; `export-history` left an old CSV in place. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`, on the records commit: the retro gave the wrong count of findings found only in review bodies. |
+| 7 | Opus | 1 Medium | `fix regression`: the kept request opened the popover at the dead launch's anchor. |
+| 8 | Opus | 1 Low | `first look`: a late `ready` from a forgotten UI process stopped every later click. |
+| 9 | Opus | none | Checked 688a797. |
+| CodeRabbit | CodeRabbit | 3 Minor | `first look`: a click during launch replaced the tab an `open-popover?tab=` request had asked for. `missed earlier`: `writeCSV` with no existing file (not valid, as on #26). `first look`, on the records commit: the retro's last sentence had no main clause. |
+| 10 | Opus | none | Checked 249f89a. |
+
+**Retro.** Planned 3 rounds; it took 10, two direct reviews and eight CodeRabbit reviews. The rounds before the pointer run converged; what reopened the PR was new evidence, not review: a run with a real pointer (cliclick, from the menu bar's overflow) and a timer that waits for the popover on screen found cold opens near 800 ms where the in-app metric, which stopped at `displayIfNeeded`, said 250 ms, and found that the hover start never fired. Measuring the pointer monitor that would replace it (about 14% CPU under constant movement) made the user choose a 10-minute linger with no prewarm. Lessons: time what the user sees (on screen), not a step inside the app; test any pointer-driven design with a real pointer before building on it; and read CodeRabbit's review bodies, not only its threads: seven of CodeRabbit's findings on this pull request appeared only in review bodies. Rounds 7 and 8 came from the queue's handling of a UI process that dies during launch; each fix exposed a further edge there, until every message from the UI process was checked against the current process. A last real-pointer run at the head first read warm opens near 360 ms; a paired, interleaved run of `main`, 09c6cf6 and the head in one session put them at medians of 250, 266 and 271 ms, so a single unpaired run is not evidence of a regression.

@@ -3,8 +3,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 import os
 
-/// The History window, the only window of the History process (`HistoryOptions`), which quits
-/// when it closes.
+/// The History window, in the UI process (`UIHost`).
 @MainActor
 final class HistoryWindow: NSObject, NSWindowDelegate {
     static let shared = HistoryWindow()
@@ -18,9 +17,17 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
     /// (`log show --predicate 'subsystem BEGINSWITH "io.github.abouleinein.soroband"'`).
     private(set) var openDuration: TimeInterval?
 
-    func show(_ options: HistoryOptions) {
-        guard window == nil else { return }
-        NSApp.setActivationPolicy(.accessory)
+    /// Opens History on `options`. A History already open comes forward as it is, unless
+    /// `replacing` it, which closes it and opens a new one.
+    func show(_ options: HistoryOptions, replacing: Bool = false) {
+        if let window {
+            guard replacing else {
+                NSApp.activate()
+                window.makeKeyAndOrderFront(nil)
+                return
+            }
+            window.close()
+        }
         let model = HistoryModel(
             range: options.range, anchor: options.date ?? .now, network: options.network,
             // The registry comes with the first answer, read off the main thread.
@@ -63,14 +70,15 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
         window.displayIfNeeded()
+        UIHost.windowsChanged()
         let started = options.requested ?? Self.processStart
         let elapsed = Date.now.timeIntervalSince(started)
         openDuration = elapsed
         Self.log.notice("History opened in \(Int(elapsed * 1000), privacy: .public) ms")
     }
 
-    /// Draws a small History offscreen once, in standby: the first layout of SwiftUI and Charts
-    /// in a process cost about 65 ms of the click's wait (measured on Month and Year).
+    /// Draws a small History offscreen once: the first layout of SwiftUI and Charts in a process
+    /// cost about 65 ms of the click's wait (measured on Month and Year).
     func warmUp() {
         let now = Date.now
         let query = HistoryQuery.make(
@@ -153,8 +161,7 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
         }
     }
 
-    /// Closing the window quits the process; an export in flight finishes first, and `reply` is
-    /// called then.
+    /// The UI process quits once an export in flight has finished, and `reply` is called then.
     func shouldTerminate(reply: @escaping () -> Void) -> NSApplication.TerminateReply {
         guard !exports.isEmpty else { return .terminateNow }
         let pending = Array(exports.values)
@@ -187,8 +194,15 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
         }.value
     }
 
+    func close() {
+        window?.close()
+    }
+
     func windowWillClose(_ notification: Notification) {
-        NSApp.terminate(nil)
+        window = nil
+        model = nil
+        toolbar = nil
+        UIHost.windowsChanged()
     }
 }
 

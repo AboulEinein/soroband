@@ -44,13 +44,21 @@ final class NetworkMonitor {
 
     /// Looks again at the current path, for when the Wi‑Fi name became readable.
     func refresh() {
+        if UIHost.forward(.refreshNetwork) { return }
         update(monitor.currentPath)
+    }
+
+    /// In the UI process: takes the menu bar process's network.
+    func mirror(current: Network?, connectedSince: Date?) {
+        if current != self.current { self.current = current }
+        if connectedSince != self.connectedSince { self.connectedSince = connectedSince }
     }
 
     /// Looks again at the current path each second for a few seconds until the Wi‑Fi name shows:
     /// after Location access is granted, macOS can take seconds to reveal it, and no path change
     /// follows when it does.
     func refreshUntilNamed() {
+        if UIHost.forward(.refreshUntilNamed) { return }
         nameWait?.cancel()
         nameWait = Task { @MainActor in
             for _ in 0..<10 {

@@ -1,7 +1,7 @@
 import AppKit
 
 /// Whose usage today the menu bar item counts: the core's `menu_bar_scope` setting.
-enum MenuBarScope: String, CaseIterable, Identifiable {
+enum MenuBarScope: String, Codable, CaseIterable, Identifiable {
     case network
     case all
 
@@ -18,7 +18,7 @@ enum MenuBarScope: String, CaseIterable, Identifiable {
 }
 
 /// One reading the menu bar item can show: an item of the core's `menu_bar_readings`.
-enum MenuBarReading: String, CaseIterable, Identifiable {
+enum MenuBarReading: String, Codable, CaseIterable, Identifiable {
     case total
     case download
     case upload
@@ -108,7 +108,7 @@ enum MenuBarReading: String, CaseIterable, Identifiable {
 }
 
 /// How the menu bar item draws its readings: the core's `menu_bar_style`.
-enum MenuBarStyle: String, CaseIterable, Identifiable {
+enum MenuBarStyle: String, Codable, CaseIterable, Identifiable {
     /// In pairs, the first on top, in a smaller size; a reading without a partner at full size.
     case stacked
     /// Each value under a small caption.
@@ -129,7 +129,7 @@ enum MenuBarStyle: String, CaseIterable, Identifiable {
 
 /// What the menu bar item shows: up to four readings beside the network icon, in order, counting
 /// today on the current network or on all of them, drawn in a style.
-struct MenuBarLayout: Equatable {
+struct MenuBarLayout: Codable, Equatable {
     static let maxReadings = 4
 
     var scope: MenuBarScope = .network
