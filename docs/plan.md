@@ -13,7 +13,7 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | M3 | Menu bar and popover (first dogfood build) | 1 | blocked (hand checklist and daily-use week) | [#6](https://github.com/AboulEinein/soroband/pull/6) |
 | M4 | History window | 2 | blocked (hand checklist) | [#13](https://github.com/AboulEinein/soroband/pull/13) |
 | M5 | Dynamic Island moments | 2 | planned | – |
-| M6 | Memory and performance | 3 | in progress (M6a merged; M6b in review) | [#35](https://github.com/AboulEinein/soroband/pull/35) |
+| M6 | Memory and performance | 3 | in progress (M6a merged; M6b in review) | [#35](https://github.com/AboulEinein/soroband/pull/35), [#36](https://github.com/AboulEinein/soroband/pull/36) |
 | M7 | Release v0.1.0 | 3 | planned | – |
 
 M0–M4 are merged to `main`. A milestone with a hand checklist stays `blocked` until the user has run it; the checklists are in [`handover.md`](handover.md#next-action).

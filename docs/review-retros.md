@@ -458,3 +458,7 @@ Planned rounds: 3.
 | 10 | Opus | none | Checked 249f89a. |
 
 **Retro.** Planned 3 rounds; it took 10, two direct reviews and eight CodeRabbit reviews. The rounds before the pointer run converged; what reopened the PR was new evidence, not review: a run with a real pointer (cliclick, from the menu bar's overflow) and a timer that waits for the popover on screen found cold opens near 800 ms where the in-app metric, which stopped at `displayIfNeeded`, said 250 ms, and found that the hover start never fired. Measuring the pointer monitor that would replace it (about 14% CPU under constant movement) made the user choose a 10-minute linger with no prewarm. Lessons: time what the user sees (on screen), not a step inside the app; test any pointer-driven design with a real pointer before building on it; and read CodeRabbit's review bodies, not only its threads: seven of CodeRabbit's findings on this pull request appeared only in review bodies. Rounds 7 and 8 came from the queue's handling of a UI process that dies during launch; each fix exposed a further edge there, until every message from the UI process was checked against the current process. A last real-pointer run at the head first read warm opens near 360 ms; a paired, interleaved run of `main`, 09c6cf6 and the head in one session put them at medians of 250, 266 and 271 ms, so a single unpaired run is not evidence of a regression.
+
+## [#36](https://github.com/AboulEinein/soroband/pull/36) feat(app): M6b lean menu bar process (2026-11-04)
+
+Planned rounds: 3.
