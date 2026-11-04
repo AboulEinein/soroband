@@ -16,8 +16,10 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     /// History draws once offscreen after the first popover, so History… opens without the first
     /// layout of SwiftUI and Charts in this process.
     private var warmedHistory = false
-    /// From the click in the menu bar process to the popover drawn, for `soroband debug state`.
+    /// From the click in the menu bar process to the popover's window on screen, as WindowServer
+    /// reports it (its occlusion state turning visible), for `soroband debug state`.
     private(set) var openDuration: TimeInterval?
+    private var occlusion: NSObjectProtocol?
 
     var isShown: Bool { popover.isShown }
 
@@ -39,9 +41,15 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     func show(_ request: PopoverRequest) {
         guard !popover.isShown else { return }
         Usage.shared.isLive = true
-        popover.contentViewController = NSHostingController(
+        popover.contentViewController = makeContent(
+            tab: PopoverView.Tab(rawValue: request.tab) ?? .apps, allNetworks: request.allNetworks)
+        presentBuilt(request)
+    }
+
+    private func makeContent(tab: PopoverView.Tab, allNetworks: Bool) -> NSViewController {
+        NSHostingController(
             rootView: LivePopover(
-                tab: PopoverView.Tab(rawValue: request.tab) ?? .apps, allNetworks: request.allNetworks,
+                tab: tab, allNetworks: allNetworks,
                 openHistory: { [weak self] network in
                     HistoryWindow.shared.show(
                         HistoryOptions(
@@ -54,14 +62,16 @@ final class PopoverController: NSObject, NSPopoverDelegate {
                     SettingsWindow.shared.show()
                 },
                 quit: { UIHost.send(.quit) }))
+    }
+
+    private func presentBuilt(_ request: PopoverRequest) {
         let view = anchorView(at: request.anchor)
         // The popover takes keys and clicks only once the app is active.
         NSApp.activate()
         popover.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
         let window = popover.contentViewController?.view.window
         window?.makeKey()
-        window?.displayIfNeeded()
-        openDuration = Date.now.timeIntervalSince(request.requested)
+        if let window { timeUntilOnScreen(window, from: request.requested) }
         UIHost.send(.popover(shown: true))
         UIHost.windowsChanged()
     }
@@ -70,27 +80,17 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         popover.performClose(nil)
     }
 
-    /// Shows the popover once offscreen, with no animation, and drops it, so the first open in this
-    /// process finds SwiftUI and the popover's window already laid out once: from standby the
-    /// click to the popover drawn takes 88–97 ms instead of 176–197 ms, for 15.6 MB more in standby
-    /// (29.2 MB). Laying out the view alone in a plain window cost 8.4 MB but left 113–119 ms.
-    func prerender() {
-        guard !popover.isShown else { return }
-        let window = NSPanel(
-            contentRect: CGRect(x: -10_000, y: -10_000, width: 20, height: 20),
-            styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
-        window.orderFrontRegardless()
-        let offscreen = NSPopover()
-        offscreen.animates = false
-        offscreen.contentViewController = NSHostingController(
-            rootView: LivePopover(tab: .apps, allNetworks: false, openHistory: { _ in }, openSettings: {}, quit: {}))
-        offscreen.show(relativeTo: window.contentView!.bounds, of: window.contentView!, preferredEdge: .minY)
-        offscreen.contentViewController?.view.window?.displayIfNeeded()
-        DispatchQueue.main.async {
-            offscreen.close()
-            offscreen.contentViewController = nil
-            window.orderOut(nil)
+    private func timeUntilOnScreen(_ window: NSWindow, from requested: Date) {
+        if let occlusion { NotificationCenter.default.removeObserver(occlusion) }
+        occlusion = NotificationCenter.default.addObserver(
+            forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, window.occlusionState.contains(.visible) else { return }
+                self.openDuration = Date.now.timeIntervalSince(requested)
+                if let occlusion = self.occlusion { NotificationCenter.default.removeObserver(occlusion) }
+                self.occlusion = nil
+            }
         }
     }
 
