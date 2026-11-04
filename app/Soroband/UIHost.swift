@@ -44,15 +44,25 @@ enum UIHost {
         try? FileHandle.standardOutput.write(contentsOf: line)
     }
 
-    /// Called whenever a window opens or closes: the menu bar process starts the linger once none
-    /// is open.
-    static func windowsChanged() {
+    /// Called whenever a window opens or closes, and after each request for one: the menu bar
+    /// process starts the linger once none is open.
+    static func windowsChanged(after request: UIRequest? = nil) {
         let open =
             PopoverController.shared.isShown || SettingsWindow.shared.window != nil
             || HistoryWindow.shared.window != nil || OnboardingWindow.shared.window != nil
-        guard open != reportedWindowsOpen else { return }
+        guard let report = windowsReport(open: open, reported: reportedWindowsOpen, after: request) else { return }
         reportedWindowsOpen = open
-        send(.windows(open: open))
+        send(report)
+    }
+
+    /// What to tell the menu bar process about the windows: a change, and the state after every
+    /// request for a window even when nothing changed. The menu bar process counts a window as
+    /// open from the moment it asks for one, so a request that opens nothing (a click within
+    /// 0.3 s of a close, History options it cannot read) must still be answered, or the linger
+    /// never runs.
+    nonisolated static func windowsReport(open: Bool, reported: Bool?, after request: UIRequest?) -> UIEvent? {
+        guard open != reported || request?.showsWindow == true else { return nil }
+        return .windows(open: open)
     }
 
     private static func handle(_ request: UIRequest) {
@@ -90,8 +100,7 @@ enum UIHost {
             _ = number
             #endif
         }
-        // Each window reports itself too; this keeps the report right for any path that opens one.
-        if request.showsWindow { windowsChanged() }
+        if request.showsWindow { windowsChanged(after: request) }
     }
 }
 

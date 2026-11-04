@@ -24,11 +24,14 @@ struct UIProcessTests {
     private final class StandIn {
         let script: URL
         let log: URL
+        /// An event to answer each request whose line contains the key.
+        private let answers: [String: String]
 
         init(
             events: [UIEvent] = [.ready], stateAnswer: String? = nil, answerDelay: Double = 0,
-            firstStopsReading: Bool = false
+            firstStopsReading: Bool = false, answers: [String: UIEvent] = [:]
         ) throws {
+            self.answers = try answers.mapValues { String(decoding: try JSONEncoder().encode($0), as: UTF8.self) }
             let directory = FileManager.default.temporaryDirectory.appending(path: "ui-stand-in-\(UUID())")
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             script = directory.appending(path: "Soroband")
@@ -53,12 +56,16 @@ struct UIProcessTests {
         }
 
         private func reader(stateAnswer: String?, delay: Double) throws -> String {
-            guard let stateAnswer else { return "exec cat > '\(log.path)'" }
-            let answer = String(decoding: try JSONEncoder().encode(UIEvent.debugState(stateAnswer)), as: UTF8.self)
+            guard stateAnswer != nil || !answers.isEmpty else { return "exec cat > '\(log.path)'" }
+            var cases = answers.map { "*\($0.key)*) echo '\($0.value)' ;;" }
+            if let stateAnswer {
+                let answer = String(decoding: try JSONEncoder().encode(UIEvent.debugState(stateAnswer)), as: UTF8.self)
+                cases.append("*dumpState*) (sleep \(delay); echo '\(answer)') & ;;")
+            }
             return """
                 while IFS= read -r line; do
                   printf '%s\\n' "$line" >> '\(log.path)'
-                  case "$line" in *dumpState*) (sleep \(delay); echo '\(answer)') & ;; esac
+                  case "$line" in \(cases.joined(separator: " ")) esac
                 done
                 """
         }
@@ -186,8 +193,10 @@ struct UIProcessTests {
         #expect(ui.processIdentifier != first, "a click after the linger starts a new UI process")
     }
 
-    @Test func aClickWhileTheLingerCountsKeepsTheUIProcess() async throws {
-        let standIn = try StandIn(events: [.ready, .windows(open: true), .windows(open: false)])
+    @Test func aClickWhileTheLingerCountsHoldsItUntilThePopoverCloses() async throws {
+        let standIn = try StandIn(
+            events: [.ready, .windows(open: true), .windows(open: false)],
+            answers: ["toggle": .windows(open: true), "closePopover": .windows(open: false)])
         let ui = UIProcess(
             executableURL: standIn.script, snapshot: { Self.snapshot }, handle: { _ in },
             lingerDelay: .milliseconds(500))
@@ -198,9 +207,25 @@ struct UIProcessTests {
 
         ui.send(.toggle(popover()))
         try await Task.sleep(for: .seconds(1))
-        #expect(!standIn.requests.contains(.quit), "the popover the click asked for counts as open")
-        #expect(standIn.requests.last == .toggle(popover()))
+        #expect(!standIn.requests.contains(.quit), "the popover the click opened holds the linger")
         #expect(ui.phase == .ready)
+
+        ui.send(.closePopover)
+        try await until { standIn.requests.contains(.quit) }
+        #expect(standIn.requests.last == .quit, "closing the popover lets the linger run again")
+    }
+
+    @Test func aWindowRequestThatOpensNothingLetsTheLingerRun() async throws {
+        // The UI process answers a request that opened nothing (a click within 0.3 s of a close)
+        // with no window open; a click made while it launched arrives as `showPopover`.
+        let standIn = try StandIn(answers: ["showPopover": .windows(open: false)])
+        let ui = UIProcess(
+            executableURL: standIn.script, snapshot: { Self.snapshot }, handle: { _ in },
+            lingerDelay: .milliseconds(300))
+        defer { ui.stop() }
+        ui.send(.toggle(popover()))
+        try await until { standIn.requests.contains(.quit) }
+        #expect(standIn.requests.last == .quit)
     }
 
     @Test func changesMadeInTheUIProcessReachTheMenuBarProcess() async throws {
@@ -254,6 +279,31 @@ struct UIHostTests {
         for _ in 0..<300 where !condition() {
             try await Task.sleep(for: .milliseconds(10))
         }
+    }
+
+    @Test func everyRequestForAWindowIsAnsweredWithTheWindowsOpen() {
+        let popover = PopoverRequest(anchor: .zero, requested: .distantPast)
+        #expect(
+            UIHost.windowsReport(open: false, reported: false, after: .toggle(popover)) == .windows(open: false),
+            "a click ignored within 0.3 s of a close opened nothing, and must say so")
+        #expect(
+            UIHost.windowsReport(
+                open: false, reported: false, after: .showHistory(arguments: ["--range"], replacing: false))
+                == .windows(open: false),
+            "History options it cannot read open nothing either")
+        #expect(UIHost.windowsReport(open: true, reported: false, after: nil) == .windows(open: true))
+        #expect(
+            UIHost.windowsReport(open: true, reported: true, after: nil) == nil, "no change, no request: nothing to say"
+        )
+        #expect(UIHost.windowsReport(open: false, reported: false, after: .closePopover) == nil)
+    }
+
+    @Test func aWindowCaptureGoesToTheProcessThatHasTheWindow() {
+        #expect(DebugCommands.captureTarget(number: 7, here: [3, 7], uiProcessRuns: true) == .here)
+        #expect(DebugCommands.captureTarget(number: 9, here: [3, 7], uiProcessRuns: true) == .uiProcess)
+        #expect(
+            DebugCommands.captureTarget(number: 9, here: [3, 7], uiProcessRuns: false) == .none,
+            "with no UI process the miss is logged here, not sent to a process that does not exist")
     }
 
     @Test func itQuitsOnlyAfterTheLingerWithNoWindowOpen() async throws {
