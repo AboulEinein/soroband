@@ -243,6 +243,18 @@ struct UIProcessTests {
         #expect(handled == changes)
     }
 
+    @Test func aChangeTheMenuBarProcessDidNotMakeIsAnsweredWithItsState() async throws {
+        // The UI process shows a new reset hour at once; the menu bar process failed to save it,
+        // so nothing changed there, and the UI process must still hear the hour that holds.
+        let standIn = try StandIn(events: [.ready, .setResetHour(4)])
+        let ui = UIProcess(executableURL: standIn.script, snapshot: { Self.snapshot }, handle: { _ in })
+        defer { ui.stop() }
+        ui.send(.showSettings(tab: nil))
+        let snapshots = { standIn.requests.filter { if case .snapshot = $0 { true } else { false } } }
+        try await until { snapshots().count == 2 }
+        #expect(snapshots() == [.snapshot(Self.snapshot), .snapshot(Self.snapshot)])
+    }
+
     @Test func aSnapshotIsSentOnlyWhenItChanged() async throws {
         let standIn = try StandIn()
         var snapshot = Self.snapshot

@@ -305,6 +305,9 @@ final class UIProcess {
             answerDebugState(json)
         default:
             handle(event)
+            // Sent even when nothing changed here: the UI process already shows a reset hour or
+            // layout it asked for, and a save that failed must take it back.
+            sent = nil
             publish()
         }
     }
