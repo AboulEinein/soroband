@@ -183,17 +183,32 @@ enum DebugCommands {
     /// `capture-window?number=<window number>` renders that window's content, as the app draws
     /// it, to `windowFile`: for windows `screencapture` cannot see (behind the notch, or a
     /// popover). A window of the UI process is rendered there. The output path is fixed for the
-    /// same reason as `statusItemFile`'s.
+    /// same reason as `statusItemFile`'s. The last capture is deleted first, so a capture that
+    /// finds no window leaves no file to be read as this one.
     private static func captureWindow(_ url: URL) {
+        try? FileManager.default.removeItem(at: windowFile)
         guard let number = queryItems(url)["number"].flatMap(Int.init) else {
             NSLog("soroband-debug: capture-window needs a window number in %@", url.absoluteString)
             return
         }
-        if NSApp.windows.contains(where: { $0.windowNumber == number }) {
-            captureWindow(number: number)
-        } else {
-            UIProcess.shared.send(.captureWindow(number: number))
+        switch captureTarget(
+            number: number, here: NSApp.windows.map(\.windowNumber), uiProcessRuns: UIProcess.shared.phase != .stopped)
+        {
+        case .here: captureWindow(number: number)
+        case .uiProcess: UIProcess.shared.send(.captureWindow(number: number))
+        case .none: NSLog("soroband-debug: capture-window found no window %d", number)
         }
+    }
+
+    enum CaptureTarget: Equatable {
+        case here, uiProcess, none
+    }
+
+    /// Which process renders window `number`: this one if it has it, else the UI process while one
+    /// runs, else none.
+    nonisolated static func captureTarget(number: Int, here: [Int], uiProcessRuns: Bool) -> CaptureTarget {
+        if here.contains(number) { return .here }
+        return uiProcessRuns ? .uiProcess : .none
     }
 
     static func captureWindow(number: Int) {
