@@ -101,17 +101,28 @@ struct UISnapshot: Codable, Equatable {
 
 /// Requests made before the UI process reads them. Every click while it launches meant "open",
 /// because nothing showed yet, so they open the popover once, however many there were, under the
-/// item where the latest one found it.
+/// item where the latest one found it, on the tab the queued request asked for.
 struct UIQueue: Equatable {
     private(set) var requests: [UIRequest] = []
 
     mutating func add(_ request: UIRequest) {
         switch request {
-        case .toggle(let popover), .showPopover(let popover):
-            if let opener = requests.firstIndex(where: \.opensPopover) {
-                requests[opener] = .showPopover(popover)
+        case .toggle(let click):
+            if let opener = requests.firstIndex(where: \.opensPopover), case .showPopover(var queued) = requests[opener]
+            {
+                // A click brings the item's frame and its time, not a tab: an `open-popover` with
+                // a tab keeps it.
+                queued.anchor = click.anchor
+                queued.requested = click.requested
+                requests[opener] = .showPopover(queued)
             } else {
-                requests.append(.showPopover(popover))
+                requests.append(.showPopover(click))
+            }
+        case .showPopover(let popover):
+            if let opener = requests.firstIndex(where: \.opensPopover) {
+                requests[opener] = request
+            } else {
+                requests.append(request)
             }
         case .snapshot, .anchor:
             // The UI process gets the latest of these when it is ready.

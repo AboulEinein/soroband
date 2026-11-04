@@ -24,6 +24,8 @@ struct UIProcessTests {
     private final class StandIn {
         let script: URL
         let log: URL
+        /// Made by the first one started (once its signal handling is set, where it has any).
+        let started: URL
         /// An event to answer each request whose line contains the key.
         private let answers: [String: String]
 
@@ -38,7 +40,7 @@ struct UIProcessTests {
             script = directory.appending(path: "Soroband")
             log = directory.appending(path: "requests.log")
             let lines = try events.map { String(decoding: try JSONEncoder().encode($0), as: UTF8.self) }
-            let started = directory.appending(path: "started")
+            started = directory.appending(path: "started")
             let stopsReading = """
                 if [ ! -e '\(started.path)' ]; then
                   touch '\(started.path)'
@@ -55,8 +57,9 @@ struct UIProcessTests {
                 """
             let saysReadyAfterItExits = """
                 if [ ! -e '\(started.path)' ]; then
-                  touch '\(started.path)'
                   trap '(sleep 0.3; echo '"'"'\(lines[0])'"'"') & exit 0' TERM
+                  touch '\(started.path)'
+
                   while true; do sleep 0.05; done
                 fi
                 """
@@ -150,7 +153,7 @@ struct UIProcessTests {
         defer { ui.stop() }
 
         ui.send(.showSettings(tab: "general"))
-        try await Task.sleep(for: .milliseconds(200))
+        try await until { FileManager.default.fileExists(atPath: standIn.started.path) }
         ui.stop()
         try await until { ui.phase == .stopped }
         // Its child says ready 0.3 s after it exited.
@@ -162,6 +165,28 @@ struct UIProcessTests {
         #expect(
             standIn.requests.filter { $0.showsWindow } == [.showSettings(tab: "general"), .showPopover(popover())],
             "the next click starts a new UI process, which gets both")
+    }
+
+    @Test func aClickWhileItLaunchesKeepsTheTabTheQueuedPopoverAskedFor() {
+        let first = CGRect(x: 1090, y: 1329, width: 87, height: 22)
+        let moved = CGRect(x: 40, y: 1329, width: 120, height: 22)
+        var queue = UIQueue()
+        queue.add(
+            .showPopover(
+                PopoverRequest(anchor: first, tab: "Networks", allNetworks: true, requested: .distantPast)))
+        queue.add(.toggle(PopoverRequest(anchor: moved, requested: .distantFuture)))
+        #expect(
+            queue.requests
+                == [
+                    .showPopover(
+                        PopoverRequest(anchor: moved, tab: "Networks", allNetworks: true, requested: .distantFuture))
+                ],
+            "a click brings the item's frame and time, not a tab: `open-popover?tab=networks` still opens on Networks")
+
+        queue.add(.showPopover(PopoverRequest(anchor: first, requested: .distantPast)))
+        #expect(
+            queue.requests == [.showPopover(PopoverRequest(anchor: first, requested: .distantPast))],
+            "a later request that names its options replaces them")
     }
 
     @Test func closingWithNoUIProcessStartsNone() {
