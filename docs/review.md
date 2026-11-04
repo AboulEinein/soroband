@@ -103,5 +103,5 @@ The approach is in question, not the last fix, when a fixed finding comes back, 
 
 ## Checklist
 
-- **Timing claims.** A timing the pull request reports must end when the result is on screen, as the user sees it, not when the code returns, and must compare builds in paired, interleaved runs in one session, not against an earlier session's numbers. A timing measured otherwise is a finding.
+- **Timing claims.** A latency the user sees (a window or popover opening, a menu bar update) is timed until the result is on screen, not until the code returns, and two builds are compared in paired, interleaved runs in one session, not against an earlier session's numbers. A latency claim measured otherwise is a finding. Durations that are limits or windows (a download's deadline, a 10-minute CPU sample) are not latency claims.
 - **Retired terms.** When the pull request renames or retires a term (in `GLOSSARY.md`'s _Avoid_ lists, or a setting, type or view it removes), search the whole repository for the old words, docs included; each hit outside the glossary's _Avoid_ list, the review logs, dated decisions and `docs/mockups/` (frozen designs) is a finding.
