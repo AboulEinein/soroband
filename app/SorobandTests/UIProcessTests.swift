@@ -106,8 +106,8 @@ struct UIProcessTests {
 
         let shown = standIn.requests.filter { $0.showsWindow }
         #expect(
-            shown == [.showPopover(popover()), .showSettings(tab: "networks")],
-            "nothing showed before the second click, so it meant open too, not close")
+            shown == [.showPopover(popover(0.4)), .showSettings(tab: "networks")],
+            "nothing showed before the second click, so it meant open too, not close, and its anchor is the latest")
         ui.send(.toggle(popover(5)))
         try await until { standIn.requests.contains(.toggle(popover(5))) }
         #expect(standIn.requests.last == .toggle(popover(5)), "once ready, a click toggles")
@@ -124,12 +124,15 @@ struct UIProcessTests {
         try await Task.sleep(for: .milliseconds(200))
         #expect(ui.phase == .stopped, "nothing starts another one by itself")
 
-        ui.send(.toggle(popover(1)))
+        // The item moved meanwhile (another display, a wider reading).
+        let moved = PopoverRequest(anchor: CGRect(x: 40, y: 1329, width: 120, height: 22), requested: .distantPast)
+        ui.send(.toggle(moved))
         try await until { standIn.requests.contains { $0.showsWindow } }
         try await Task.sleep(for: .milliseconds(200))
         #expect(
-            standIn.requests.filter { $0.showsWindow } == [.showPopover(popover())],
-            "the first click opens the popover once; the second, made before anything showed, meant open too")
+            standIn.requests.filter { $0.showsWindow } == [.showPopover(moved)],
+            "the second click, made before anything showed, meant open too: it opens once, under the item where it is now"
+        )
     }
 
     @Test func closingWithNoUIProcessStartsNone() {
