@@ -127,7 +127,7 @@ Deliverables:
 
 Stages, one PR each (the user chose "split + hover prewarm" on 2026-11-03, then the linger without the prewarm on 2026-11-04):
 - M6a: the popover, Settings and History move into the UI process, started at the first click, which quits 10 minutes after its last window closes; the menu bar process keeps the menu bar item and the engine.
-- M6b: the menu bar process becomes a thin agent with no SwiftUI, drawing the menu bar item itself.
+- M6b: the menu bar process drops SwiftUI and draws the menu bar item itself.
 - M6c: idle CPU work.
 
 Decided for M6a (2026-11-03, [#35](https://github.com/AboulEinein/soroband/pull/35)):
