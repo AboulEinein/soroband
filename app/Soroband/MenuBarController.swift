@@ -76,7 +76,10 @@ final class MenuBarController: NSObject {
                 textColor = NSColor(cgColor: NSColor.labelColor.cgColor) ?? .labelColor
             }
             let scale = NSScreen.screens.map(\.backingScaleFactor).max() ?? 2
-            button.image = renderer.image(display, textColor: textColor, scale: scale)
+            // The renderer returns nil only if it cannot make a bitmap; the vector image still draws.
+            button.image =
+                renderer.image(display, textColor: textColor, scale: scale)
+                ?? display.itemImage(textColor: textColor)
             button.title = ""
         }
         button.setAccessibilityLabel(display.accessibilityLabel())

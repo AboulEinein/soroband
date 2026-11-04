@@ -404,7 +404,8 @@ struct MenuBarDisplay: Equatable {
         return image
     }
 
-    /// The icon and the readings as one image, drawn by Settings' preview. The status item draws
+    /// The icon and the readings as one image, drawn by Settings' preview, and by the status item
+    /// if `MenuBarRenderer.image` cannot make its bitmap. The status item draws
     /// `MenuBarRenderer.image`, which the renderer tests compare byte for byte with this image
     /// rasterized. `textColor` is the menu bar's text color for a Debug build, whose image is not
     /// a template.
