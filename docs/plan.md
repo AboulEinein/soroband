@@ -145,7 +145,7 @@ Decided for M6c (2026-11-05):
 
 Exit criteria:
 - With no window open, after the popover, Settings and History have each opened and closed, the menu bar app is ≤ 25 MB.
-- Idle CPU ≤ 0.1% over 10 minutes in each menu bar layout.
+- Idle CPU ≤ 0.1% over 10 minutes in each menu bar layout, except a layout with a live speed, accepted at 0.27–0.30% (2026-11-05).
 
 Measured in M6c (Debug, each beside `main` before M6, cc87d1c, in the same run):
 - Criterion 1 is met: the menu bar process 15.7–15.9 MB after the popover, Settings and History have each opened and closed and at rest once the UI process quit (cc87d1c: 47.1–47.5 MB), 14.3–14.5 MB at launch (two runs, `vmmap`).

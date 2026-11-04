@@ -2,7 +2,7 @@
 
 The state of the project for whoever picks it up next. Read this file, then the ledger in [`plan.md`](plan.md), before starting work. At the end of a session, update **Current state**, **Next action** and the ledger.
 
-## Current state (2026-11-04)
+## Current state (2026-11-05)
 
 - M0–M4, the fix in [#14](https://github.com/AboulEinein/soroband/pull/14) and the work after the first install, [#17](https://github.com/AboulEinein/soroband/pull/17) to [#21](https://github.com/AboulEinein/soroband/pull/21), are merged to `main`. On `main`: 164 Rust and 95 Swift tests pass and `scripts/verify/prepush.sh` passes. The milestones with a hand checklist stay `blocked` in the ledger until the user has run it.
 - M0 (repository foundation): the Rust workspace, the universal XCFramework bridge, the menu bar app showing "Soroband <core version>", the build, install and verification scripts, the agent install guide and CI. Its hand checklist (below) has not been run.
@@ -30,7 +30,7 @@ The state of the project for whoever picks it up next. Read this file, then the 
 1. The CodeRabbit backlog (Follow-ups) is being fixed in grouped pull requests against `main`, one concern each, the `SIGPIPE` crash first, with a test wherever behavior changes. Each runs the usual loop in `docs/review.md`, and every finding goes in `docs/coderabbit-findings.md` (source: #15, or the PR it was deferred from). Once the backlog is empty, close #15 and delete its branches `review/empty-base` and `review/full-project-tree`.
 2. The user runs the M0, M2, M3 and M4 hand checklists (below) and starts the daily-use week; each milestone is marked `done` in the ledger once its checklist has passed, and issues go into Follow-ups.
 3. M5 (Dynamic Island moments) starts from `main` in its own worktree, when the user says so. It runs the review experiment in its section of `plan.md`.
-4. M6 stays `blocked` on M6a's hand checklist (below), run on `main`, since M6b's menu bar process starts without the SwiftUI app. The user also decides about History's open with no UI process running (363–423 ms, over M4's 300 ms).
+4. M6 stays `blocked` on M6a's hand checklist (below), run on `main`, since M6b's menu bar process starts without the SwiftUI app. The user also decides about History's open with no UI process running (363–416 ms in a Release-optimized build, 373–423 ms in Debug, over M4's 300 ms).
 
 ### M6a hand checklist
 
