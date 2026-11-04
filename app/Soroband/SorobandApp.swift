@@ -1,6 +1,6 @@
 import SwiftUI
 
-@main
+/// The UI process's app (`main.swift`).
 struct SorobandApp: App {
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
@@ -9,17 +9,10 @@ struct SorobandApp: App {
     var body: some Scene {
         Settings { EmptyView() }
             .commands {
-                // ⌘, opens the app's own Settings window, not this empty scene; the UI process
-                // shows it.
+                // ⌘, opens the app's own Settings window, not this empty scene.
                 CommandGroup(replacing: .appSettings) {
-                    Button("Settings…") {
-                        if UIHost.isUIProcess {
-                            SettingsWindow.shared.show()
-                        } else {
-                            UIProcess.shared.send(.showSettings(tab: nil))
-                        }
-                    }
-                    .keyboardShortcut(",")
+                    Button("Settings…") { SettingsWindow.shared.show() }
+                        .keyboardShortcut(",")
                 }
             }
     }

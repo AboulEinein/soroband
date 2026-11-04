@@ -302,11 +302,21 @@ struct MenuBarDisplay: Equatable {
     /// The menu bar's height, which the readings are drawn to fit.
     static let height: CGFloat = 22
 
-    /// The readings as one image, `height` high, columns 7 pt apart. A template image takes the
-    /// menu bar's text color; `color` draws it in a fixed one instead (a Debug build, whose item is
-    /// not a template).
-    @MainActor func readingsImage(color: NSColor? = nil) -> NSImage {
-        let ink = color ?? .black
+    /// One column of the readings: its width, and how to draw it from its left edge into a flipped
+    /// context `height` high.
+    struct ReadingColumn {
+        var width: CGFloat
+        var draw: (CGFloat) -> Void
+    }
+
+    /// The gap between columns.
+    static let columnGap: CGFloat = 7
+    /// The gap between the icon and the readings.
+    static let iconGap: CGFloat = 4
+
+    /// The readings laid out in columns, drawn in `ink`. Text narrower than its column is
+    /// right-aligned, so digits stay in place as a number shrinks.
+    @MainActor func readingColumns(ink: NSColor) -> [ReadingColumn] {
         let string = { (text: String, font: NSFont, kern: CGFloat) in
             NSAttributedString(string: text, attributes: [.font: font, .foregroundColor: ink, .kern: kern])
         }
@@ -315,85 +325,95 @@ struct MenuBarDisplay: Equatable {
             ceil(max(string(text, font, 0).size().width, string(widest, font, 0).size().width))
         }
         let height = Self.height
-        // Each column's width, and how to draw it from a left edge. Text narrower than its column
-        // is right-aligned, so digits stay in place as a number shrinks.
-        var parts: [(width: CGFloat, draw: (CGFloat) -> Void)] = []
+        var drawn: [ReadingColumn] = []
         let full = { (text: String, widest: String) in
             let line = string(text, Self.fullFont, 0)
+            let size = line.size()
             let columnWidth = fitted(text, widest, Self.fullFont)
-            parts.append(
-                (
-                    columnWidth,
-                    { x in
-                        line.draw(
-                            at: NSPoint(x: x + columnWidth - line.size().width, y: (height - line.size().height) / 2))
-                    }
-                ))
+            drawn.append(
+                ReadingColumn(width: columnWidth) { x in
+                    line.draw(at: NSPoint(x: x + columnWidth - size.width, y: (height - size.height) / 2))
+                })
         }
         switch style {
         case .inline:
             if let text { full(text, readings.map(\.widestText).joined(separator: "  ")) }
         case .stacked:
-            for column in columns {
+            for column in self.columns {
                 guard column.count == 2 else {
                     full(column[0].text, column[0].widestText)
                     continue
                 }
                 let lines = column.map { string($0.text, Self.stackedFont, 0) }
+                let widths = lines.map { $0.size().width }
                 let width = column.map { fitted($0.text, $0.widestText, Self.stackedFont) }.max() ?? 0
                 let lineHeight: CGFloat = 10.5
-                parts.append(
-                    (
-                        width,
-                        { x in
-                            let top = (height - lineHeight * 2) / 2
-                            for (index, line) in lines.enumerated() {
-                                // Each line's box is taller than its digits; draw it up by the difference.
-                                let y = top + lineHeight * CGFloat(index) - 1
-                                line.draw(at: NSPoint(x: x + width - line.size().width, y: y))
-                            }
+                drawn.append(
+                    ReadingColumn(width: width) { x in
+                        let top = (height - lineHeight * 2) / 2
+                        for (index, line) in lines.enumerated() {
+                            // Each line's box is taller than its digits; draw it up by the difference.
+                            let y = top + lineHeight * CGFloat(index) - 1
+                            line.draw(at: NSPoint(x: x + width - widths[index], y: y))
                         }
-                    ))
+                    })
             }
         case .labeled:
             for reading in readings {
                 let caption = string(reading.caption, Self.captionFont, 0.5)
                 let value = string(reading.value, Self.labeledFont, 0)
+                let captionWidth = caption.size().width
+                let valueWidth = value.size().width
                 let width = max(
-                    ceil(caption.size().width),
+                    ceil(captionWidth),
                     fitted(reading.value, reading.widestValue ?? reading.value, Self.labeledFont))
-                parts.append(
-                    (
-                        width,
-                        { x in
-                            caption.draw(at: NSPoint(x: x + (width - caption.size().width) / 2, y: 1.5))
-                            value.draw(at: NSPoint(x: x + (width - value.size().width) / 2, y: 7.5))
-                        }
-                    ))
+                drawn.append(
+                    ReadingColumn(width: width) { x in
+                        caption.draw(at: NSPoint(x: x + (width - captionWidth) / 2, y: 1.5))
+                        value.draw(at: NSPoint(x: x + (width - valueWidth) / 2, y: 7.5))
+                    })
             }
         }
-        let gap: CGFloat = 7
-        let width = parts.map(\.width).reduce(0, +) + gap * CGFloat(max(parts.count - 1, 0))
-        let image = NSImage(size: NSSize(width: width, height: height), flipped: true) { _ in
-            var x: CGFloat = 0
-            for part in parts {
-                part.draw(x)
-                x += part.width + gap
-            }
+        return drawn
+    }
+
+    /// The width of `columns` side by side, `columnGap` apart.
+    static func width(of columns: [ReadingColumn]) -> CGFloat {
+        columns.map(\.width).reduce(0, +) + columnGap * CGFloat(max(columns.count - 1, 0))
+    }
+
+    /// Draws `columns` side by side from x = 0 into the current flipped context.
+    static func draw(_ columns: [ReadingColumn]) {
+        var x: CGFloat = 0
+        for column in columns {
+            column.draw(x)
+            x += column.width + columnGap
+        }
+    }
+
+    /// The readings as one image, `height` high. A template image takes the menu bar's text
+    /// color; `color` draws it in a fixed one instead (a Debug build, whose item is not a
+    /// template).
+    @MainActor func readingsImage(color: NSColor? = nil) -> NSImage {
+        let columns = readingColumns(ink: color ?? .black)
+        let image = NSImage(size: NSSize(width: Self.width(of: columns), height: Self.height), flipped: true) { _ in
+            Self.draw(columns)
             return true
         }
         image.isTemplate = color == nil
         return image
     }
 
-    /// The icon and the readings as the one image the status item draws when its title cannot
-    /// show them (`drawsTitle`), and Settings' preview always. `textColor` is the menu bar's text
-    /// color for a Debug build, whose image is not a template.
+    /// The icon and the readings as one image, drawn by Settings' preview, and by the status item
+    /// if `MenuBarRenderer.image` cannot make its bitmap. The status item draws
+    /// `MenuBarRenderer.image`, which the renderer tests compare byte for byte with this image
+    /// rasterized. `textColor` is the menu bar's text color for a Debug build, whose image is not
+    /// a template.
     @MainActor func itemImage(debug: Bool = isDebugBuild, textColor: NSColor = .labelColor) -> NSImage? {
         guard let icon = image(debug: debug) else { return nil }
         guard !readings.isEmpty else { return icon }
         let text = readingsImage(color: debug ? textColor : nil)
-        let gap: CGFloat = 4
+        let gap = Self.iconGap
         let size = NSSize(width: icon.size.width + gap + text.size.width, height: text.size.height)
         let composite = NSImage(size: size, flipped: false) { _ in
             icon.draw(
@@ -406,9 +426,8 @@ struct MenuBarDisplay: Equatable {
         return composite
     }
 
-    /// `image` drawn once into a bitmap at `scale`. The menu bar draws its item again for every
-    /// display, and an image with a drawing handler lays its text out again each time; a bitmap
-    /// is only copied.
+    /// `image` drawn once into a bitmap at `scale`: how the status item was drawn before
+    /// `MenuBarRenderer`, kept as the reference the renderer tests compare its bitmap with.
     @MainActor static func rasterized(_ image: NSImage, scale: CGFloat) -> NSImage {
         guard
             let bitmap = NSBitmapImageRep(

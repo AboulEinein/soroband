@@ -458,3 +458,20 @@ Planned rounds: 3.
 | 10 | Opus | none | Checked 249f89a. |
 
 **Retro.** Planned 3 rounds; it took 10, two direct reviews and eight CodeRabbit reviews. The rounds before the pointer run converged; what reopened the PR was new evidence, not review: a run with a real pointer (cliclick, from the menu bar's overflow) and a timer that waits for the popover on screen found cold opens near 800 ms where the in-app metric, which stopped at `displayIfNeeded`, said 250 ms, and found that the hover start never fired. Measuring the pointer monitor that would replace it (about 14% CPU under constant movement) made the user choose a 10-minute linger with no prewarm. Lessons: time what the user sees (on screen), not a step inside the app; test any pointer-driven design with a real pointer before building on it; and read CodeRabbit's review bodies, not only its threads: seven of CodeRabbit's findings on this pull request appeared only in review bodies. Rounds 7 and 8 came from the queue's handling of a UI process that dies during launch; each fix exposed a further edge there, until every message from the UI process was checked against the current process. A last real-pointer run at the head first read warm opens near 360 ms; a paired, interleaved run of `main`, 09c6cf6 and the head in one session put them at medians of 250, 266 and 271 ms, so a single unpaired run is not evidence of a regression.
+
+## [#36](https://github.com/AboulEinein/soroband/pull/36) feat(app): M6b lean menu bar process (2026-11-04)
+
+Planned rounds: 3.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 2 Low, 1 Minor | `first look`: the ⌘, command kept a branch only the menu bar process could take. `first look`: the plan and handover were said not to link #36; they already did at the head. `first look`: the renderer's doc comment named the wrong reference image. |
+| 2 | Opus | 1 Low | `fix regression`: `itemImage` and `rasterized` were still described as what the status item draws. |
+| direct | Haiku | none | Checked 19f8563. [Comment](https://github.com/AboulEinein/soroband/pull/36#issuecomment-6629056761). |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: `NSApplication.delegate` is weak, so an optimized build could release the menu bar process's delegate before launch. |
+| 3 | Opus | none | Checked c2c57b8. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`, in the review body: a nil from `MenuBarRenderer.image` left the status item blank. |
+| 4 | Opus | 2 Minor | `fix regression`: the fallback's comment overstated when the vector image draws. `first look`: the renderer test's name named Settings' preview, not its reference. |
+| direct | Sonnet | 1 unrated | `first look`: the PR body still used the test's old name. [Comment](https://github.com/AboulEinein/soroband/pull/36#issuecomment-6639005535). |
+
+**Retro.** Planned 3 rounds; it took 4 and two direct reviews, and CodeRabbit found 2 more. The blind rounds found only stale comments left by moving the menu bar's drawing to a new renderer; the one real defect, a delegate held only weakly once SwiftUI's app lifecycle no longer kept it, came from CodeRabbit, and shows in an optimized build only, which no local check here runs (a local Release build does not link the arm64-only core). The byte-for-byte renderer test over 9,584 layouts made the drawing change safe to review by reading.
