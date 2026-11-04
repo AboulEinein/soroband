@@ -1,6 +1,6 @@
 import SwiftUI
 
-@main
+/// The UI process's app (`main.swift`).
 struct SorobandApp: App {
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
