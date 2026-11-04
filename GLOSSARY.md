@@ -201,7 +201,7 @@ The line above the popover's tabs when the engine has failed ("Not counting"), t
 The window for usage over a range, by network and app: headline card, Where it went (share by network), usage chart, apps and heatmap. It is a window of the UI process.
 
 **Menu bar process**:
-The Soroband process that runs all day: the menu bar item, the engine and the network monitor, and no window.
+The Soroband process that runs all day: the menu bar item, the engine and the network monitor, and no window. It runs AppKit alone; the UI process runs the SwiftUI app.
 _Avoid_: agent, daemon, main app
 
 **UI process**:
