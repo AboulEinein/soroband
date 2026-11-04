@@ -462,3 +462,13 @@ Planned rounds: 3.
 ## [#36](https://github.com/AboulEinein/soroband/pull/36) feat(app): M6b lean menu bar process (2026-11-04)
 
 Planned rounds: 3.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 2 Low, 1 Minor | `first look`: the ⌘, command kept a branch only the menu bar process could take. `first look`: the plan and handover were said not to link #36; they already did at the head. `first look`: the renderer's doc comment named the wrong reference image. |
+| 2 | Opus | 1 Low | `fix regression`: `itemImage` and `rasterized` were still described as what the status item draws. |
+| direct | Haiku | none | Checked 19f8563. [Comment](https://github.com/AboulEinein/soroband/pull/36#issuecomment-6629056761). |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: `NSApplication.delegate` is weak, so an optimized build could release the menu bar process's delegate before launch. |
+| 3 | Opus | none | Checked c2c57b8. |
+
+**Retro.** Planned 3 rounds; it took 3 and a direct review, and CodeRabbit found 1 more. The blind rounds found only stale comments left by moving the menu bar's drawing to a new renderer; the one real defect, a delegate held only weakly once SwiftUI's app lifecycle no longer kept it, came from CodeRabbit, and shows in an optimized build only, which no local check here runs (a local Release build does not link the arm64-only core). The byte-for-byte renderer test over 9,584 layouts made the drawing change safe to review by reading.
