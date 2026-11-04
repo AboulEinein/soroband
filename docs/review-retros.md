@@ -492,3 +492,11 @@ Planned rounds: 1.
 ## [#38](https://github.com/AboulEinein/soroband/pull/38) docs: close the CodeRabbit backlog and record the run's review lessons (2026-11-05)
 
 Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 2 Low | `first look`: Current state's first bullet was stale (milestones merged, test counts); M4's ledger row did not record the open History decision. |
+| direct | Haiku | none | Checked 5e3785c. [Comment](https://github.com/AboulEinein/soroband/pull/38#issuecomment-6643919801). |
+| CodeRabbit | CodeRabbit | 3 Minor | `first look`: the timing rule reached durations that are limits, not latencies; AGENTS.md did not tell the local CLI review from the hosted one. Not valid: complete the retro entry before its records commit. |
+
+**Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found 2 valid findings, both on the new rules this PR wrote: a rule written from one run's lesson needs its limits stated (what it does not cover) and every place that states the old rule updated, the same lesson as #32 and #37.
