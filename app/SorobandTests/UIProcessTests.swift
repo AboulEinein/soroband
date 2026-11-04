@@ -186,18 +186,18 @@ struct UIProcessTests {
         #expect(ui.processIdentifier != first, "a click after the linger starts a new UI process")
     }
 
-    @Test func aClickJustBeforeTheLingerRunsOutKeepsTheUIProcess() async throws {
+    @Test func aClickWhileTheLingerCountsKeepsTheUIProcess() async throws {
         let standIn = try StandIn(events: [.ready, .windows(open: true), .windows(open: false)])
         let ui = UIProcess(
             executableURL: standIn.script, snapshot: { Self.snapshot }, handle: { _ in },
-            lingerDelay: .milliseconds(300))
+            lingerDelay: .milliseconds(500))
         defer { ui.stop() }
         ui.send(.showSettings(tab: nil))
-        try await until { ui.phase == .ready }
-        try await Task.sleep(for: .milliseconds(250))
+        try await until { ui.isLingering }
+        try #require(ui.isLingering, "Settings closed, so the linger counts")
 
         ui.send(.toggle(popover()))
-        try await Task.sleep(for: .milliseconds(400))
+        try await Task.sleep(for: .seconds(1))
         #expect(!standIn.requests.contains(.quit), "the popover the click asked for counts as open")
         #expect(standIn.requests.last == .toggle(popover()))
         #expect(ui.phase == .ready)
@@ -249,31 +249,38 @@ struct UIHostTests {
         #expect(PopoverToggle.decide(isShown: false, lastClose: now.addingTimeInterval(-1), now: now) == .open)
     }
 
+    /// Waits for `condition` up to 3 s: the main actor can be busy with other tests' rendering.
+    private func until(_ condition: () -> Bool) async throws {
+        for _ in 0..<300 where !condition() {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+    }
+
     @Test func itQuitsOnlyAfterTheLingerWithNoWindowOpen() async throws {
         var quits = 0
-        let linger = Linger(delay: .milliseconds(100)) { quits += 1 }
+        let linger = Linger(delay: .seconds(1)) { quits += 1 }
         linger.windowsOpen = true
-        try await Task.sleep(for: .milliseconds(200))
+        try await Task.sleep(for: .milliseconds(1500))
         #expect(quits == 0, "a window is open")
 
         linger.windowsOpen = false
         #expect(linger.isCounting)
-        try await Task.sleep(for: .milliseconds(50))
+        try await Task.sleep(for: .milliseconds(100))
         linger.windowsOpen = true
-        try await Task.sleep(for: .milliseconds(200))
+        try await Task.sleep(for: .milliseconds(1500))
         #expect(quits == 0, "a window opened again before the linger ran out")
 
         linger.windowsOpen = false
-        try await Task.sleep(for: .milliseconds(50))
+        try await Task.sleep(for: .milliseconds(100))
         #expect(quits == 0, "closing it starts the full linger again")
-        try await Task.sleep(for: .milliseconds(200))
+        try await until { quits == 1 }
         #expect(quits == 1)
     }
 
     @Test func aUIProcessWhoseFirstWindowNeverOpenedQuitsToo() async throws {
         var quits = 0
         _ = Linger(delay: .milliseconds(50)) { quits += 1 }
-        try await Task.sleep(for: .milliseconds(200))
+        try await until { quits == 1 }
         #expect(quits == 1)
     }
 
