@@ -697,3 +697,10 @@ The same origin for the same reason as #9's retro (each fix to the wait loop bro
 ## [#53](https://github.com/AboulEinein/soroband/pull/53) docs: record M5 as merged (2026-11-05)
 
 Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | none | Checked fc8d44b; the skill posts no review on no findings, so its verdict is a [PR comment](https://github.com/AboulEinein/soroband/pull/53#issuecomment-6670743076). |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. A docs-only change that a blind reviewer could check line by line against the code and the ledger left nothing to find.
