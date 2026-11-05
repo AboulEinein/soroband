@@ -281,7 +281,8 @@ impl Watch {
         via: &dyn Fn(&App) -> Option<&'static str>,
         frontmost: Option<&str>,
     ) -> Vec<Event> {
-        let elapsed = self.last_poll.map_or(1, |last| (now - last).max(1));
+        // The first poll's span is unknown, so it rates no transfer.
+        let elapsed = self.last_poll.map(|last| (now - last).max(1));
         self.last_poll = Some(now);
         for (app, bytes) in booked {
             if bytes.total() == 0 || self.limits.ignored.contains(&app.id) {
@@ -319,7 +320,9 @@ impl Watch {
             if !fired_hog {
                 check_background(recent, sum, limits, frontmost, &mut events);
             }
-            check_transfer(recent, this_poll, elapsed, limits, via, &mut events);
+            if let Some(elapsed) = elapsed {
+                check_transfer(recent, this_poll, elapsed, limits, via, &mut events);
+            }
         }
         self.apps
             .retain(|_, recent| !recent.polls.is_empty() || recent.run.is_some());
@@ -615,8 +618,9 @@ mod tests {
 
     #[test]
     fn a_transfer_is_announced_at_the_threshold_reported_each_poll_and_done_when_quiet() {
-        // 10 MB every 5 s (2 MB/s) from t = 0: 50 MB at t = 20. Then 0 at t = 35 and t = 40: done
-        // at the second quiet poll, with every byte of the run.
+        // 10 MB every 5 s (2 MB/s). The first poll (t = 0) rates nothing, so the run starts at
+        // t = 5 and reaches 50 MB at t = 25. Then 0 at t = 35 and t = 40: done at the second quiet
+        // poll, with every byte of the run.
         let xcode = app("Xcode");
         let limits = Limits {
             hog_bytes: u64::MAX,
@@ -632,9 +636,8 @@ mod tests {
             vec![
                 (50, 2, false),
                 (60, 2, false),
-                (70, 2, false),
-                (70, 0, false),
-                (70, 0, true)
+                (60, 0, false),
+                (60, 0, true)
             ]
         );
     }
@@ -651,6 +654,28 @@ mod tests {
         let trickle = Bytes { rx: 400_000, tx: 0 };
         let polls: Vec<_> = (0..20).map(|i| (i * 5, trickle)).collect();
         assert_eq!(transfers(&feed(&mut watch, &mail, &polls, None)), []);
+    }
+
+    #[test]
+    fn the_first_poll_rates_no_transfer() {
+        // 400 KB in the first poll, whose span is unknown: rated over 1 s it would pass the
+        // 100 KB/s floor. At 5 s polls it is 80 KB/s, under it.
+        let mail = app("Mail");
+        let limits = Limits {
+            transfer_bytes: 1,
+            ..Limits::default()
+        };
+        let mut watch = Watch::new(limits);
+        let trickle = Bytes { rx: 400_000, tx: 0 };
+        assert_eq!(
+            transfers(&feed(
+                &mut watch,
+                &mail,
+                &[(0, trickle), (5, trickle)],
+                None
+            )),
+            []
+        );
     }
 
     #[test]
@@ -729,7 +754,8 @@ mod tests {
         let xcode = app("Xcode");
         let mut watch = Watch::new(Limits::default());
         let via = |a: &App| (a.name == "Xcode").then_some("App Store");
-        let events = watch.observe(0, &[(xcode.clone(), down(60))], &via, None);
+        watch.observe(0, &[], &via, None);
+        let events = watch.observe(5, &[(xcode.clone(), down(60))], &via, None);
         assert!(events.iter().any(|e| matches!(
             e,
             Event::Transfer {
