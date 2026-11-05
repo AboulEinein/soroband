@@ -514,6 +514,17 @@ Planned rounds: 1.
 
 **Retro.** Planned 1 round; it took 1, a direct review and 6 local CodeRabbit CLI rounds (13 findings, 11 fixed, 1 declined twice because it reversed an earlier one). The cost was out of proportion to a docs-gap PR: moving two working tools into the repo became a rewrite of the measurement lock, and each CLI round found a narrower edge case on a script only agents run, until the CLI quota ran out and the waits outlasted the work. Move a working tool as it is, and on internal tooling fix the findings that would bite in use and stop.
 
+## [#40](https://github.com/AboulEinein/soroband/pull/40) fix(core): name a version-named tool by its directory (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | none | Checked e2845ca. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: today's usage read back under the old name keeps that label until the daily reset (accepted). |
+
+**Retro.** Planned 1 round; it took 1. A narrow, tested naming rule with a real `soroband live` run before the first round left the blind round nothing to find; CodeRabbit's one finding was a one-day label effect on the update's day, accepted as the PR had stated it.
+
 ## [#42](https://github.com/AboulEinein/soroband/pull/42) test(app): cover the registry-failure fallback (2026-11-05)
 
 Planned rounds: 1.
