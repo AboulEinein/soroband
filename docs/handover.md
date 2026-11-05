@@ -146,16 +146,9 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 
 Small items for a later nits pass.
 
-- **Unreviewed fix.** The App-cryptex rule groups Apple daemons in the App cryptex (`/System/Volumes/Preboot/Cryptexes/App/usr/libexec/PasswordBreachAgent` and similar) as "macOS & Services". It has a test that failed before the fix, but no review round saw it.
-- **`cargo mutants` timeouts.** The last run on the meter module and C API (317 mutants: 255 caught, 22 missed, 34 unviable) had 6 timeouts, all in loops that then never end:
-  - `Engine::tick` → `Ok(())`;
-  - `messages` `+=` → `*=`;
-  - `Recorder` and `Replay` `recv` → `Ok(Some(0))` / `Ok(Some(1))` (4 mutants).
-  None is on the `HDR_FLAG_CONTINUATION` check. A per-test timeout would turn them into plain kills.
-- **`cargo mutants` miss.** `Meter::update` `rx_duplicate > 0` → `>=` adds zero entries to the duplicates map. No caller can see the difference, but a test asserting `Snapshot::rx_duplicates` exactly would kill it.
+- **Timing-dependent mutant.** `soroband_engine_stop` with its wait condition inverted (`cargo mutants`: `delete !`) was caught in one run and missed in the next: no test reliably sees whether stop waits for the final write.
 - **Wi‑Fi moves without a path change.** CoreWLAN's SSID-change events are not watched; a Wi‑Fi move that does not change the `NWPath` keeps the old network until the next path update.
 
-- **Popover reads more than it shows.** The popover's summary uses `Core.history`, which also builds apps, networks, the heatmap and the busiest day it does not need, for up to 31 days, in the UI process. A bars-only read in the core would cost less; measure first with M6.
 - **Debug commands can still activate the app.** `open-popover`, `open-settings`, `open-onboarding` and `open-history` make the menu bar process yield activation to the UI process (`UIProcess.write`), which reaches `NSApp.activate()` (`PopoverController.show`, `SettingsView.swift`, `Onboarding.swift`, `HistoryWindow.swift`); macOS grants it when the user has just used Soroband. A Debug URL command could skip it.
 - **History is up to a minute behind.** It reads what the engine has written (once a minute), so it can trail the popover by a minute's usage.
 - **Snapshots on a 1x display are untested.** `Snapshot.render` draws into a fixed 2x Display P3 bitmap so a display's scale or color space cannot change the image; `renderingIgnoresTheDisplayColorSpace` checks the color space only, and no run has been made with a 1x main display.
@@ -195,6 +188,7 @@ Things learned the hard way that no file or config will tell you.
 - `xcodebuild test` launches the app as the test host, so a test run shows a second Soroband item for a moment. Unless `SOROBAND_DATA_DIR` is set, the test host keeps its database and settings in a new `Soroband Tests <UUID>` directory under the temporary directory (`Core.isolateTestHost`).
 - Linking the core built with Homebrew's `rust` warns that its standard library objects were built for macOS 27 while the app targets 14; rustup's standard library does not. Use rustup for anything that ships.
 - `cargo-mutants` is in `~/.cargo/bin`, which is not on `PATH` by default.
+- `cargo mutants` on the meter module and the C API reports 8 or 9 timeouts, which it counts apart from caught and missed: 8 mutants make a loop never end (`Engine::tick`, `ntstat::messages`, the `Recorder` and `Replay` `recv`, `SystemHost::drain_wakeups`, `copy_c_string`), and Rust tests have no per-test timeout to fail them. The ninth, `SystemHost::set_wakeable` → `()`, is caught after about 48 s, at the auto-set timeout (48–49 s with `-j 4`), so it lands on either side. Keep that timeout: a lower one turns slow misses, such as `Running::wake` (20 s), into timeouts.
 - Homebrew's `rust` is first on `PATH`, so `rustup run 1.85.0 cargo` still builds with Homebrew's newer `rustc`. To build on the declared `rust-version`, put that toolchain's directory first: `PATH="$(dirname "$(rustup which --toolchain 1.85.0 rustc)"):$PATH" cargo test --workspace --manifest-path core/Cargo.toml` from the repository root.
 
 **Verifying**

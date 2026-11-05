@@ -43,7 +43,7 @@ struct PopoverSummary: Equatable {
     }
 
     /// Reads the summary; nil when the database cannot be read. Runs off the main thread: on a
-    /// long history the two reads take tens of milliseconds.
+    /// year's history the two reads take about 6 ms (`docs/design.md`, Popover).
     static func load(
         network: Int64, historyNetwork: Int64?, todayStart: Date, now: Date = .now, calendar: Calendar = .current
     ) -> PopoverSummary? {

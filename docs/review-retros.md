@@ -576,6 +576,29 @@ Planned rounds: 1.
 
 **Retro.** Planned 1 round; it took 1 and a direct review. The one finding was a name: a new type reused a glossary word for something else. Checking a new type's name against `GLOSSARY.md` before the first round would have caught it.
 
+## [#46](https://github.com/AboulEinein/soroband/pull/46) docs: record what the popover's summary read costs (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | none | Checked 3d4ccd7. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. The follow-up said "measure first", and the measurement (a bars-only read would save about 4.7 ms per open, off the main thread) settled it as docs only, so there was little to review.
+
+## [#47](https://github.com/AboulEinein/soroband/pull/47) test(meter): kill the rx_duplicates mutant and record the mutant timeouts (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Medium | `first look`: a commit added before the round (the `/System/Cryptexes/OS` test case and retiring "Unreviewed fix") was missing from the Summary, and the review behind the retirement was not recorded. Answered: same concern, Summary rewritten with the evidence. |
+| direct | Opus | none | Accepted the answer; two wording fixes to the PR body. [Comment](https://github.com/AboulEinein/soroband/pull/47#issuecomment-6657484114). |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1 and a direct review. The one finding came from the orchestrator adding a commit to a delegate's PR without updating its Summary: whoever adds to a PR updates its description in the same push. The timeouts follow-up could not be fixed by configuration; the evidence (cargo-mutants never counts a timeout as caught, and a lower limit would hide a real miss) replaced it with a gotcha.
+
 ## [#48](https://github.com/AboulEinein/soroband/pull/48) test(app): draw fixed app icons in snapshots (2026-11-05)
 
 Planned rounds: 1.
