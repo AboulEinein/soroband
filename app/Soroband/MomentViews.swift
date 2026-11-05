@@ -231,7 +231,7 @@ enum MomentViews {
     static func appIcon(_ app: MomentApp, size: CGFloat) -> NSImageView {
         let image: NSImage
         if app.id.hasPrefix("/") {
-            image = NSWorkspace.shared.icon(forFile: app.id)
+            image = rasterized(NSWorkspace.shared.icon(forFile: app.id), size: size)
         } else if app.id.hasPrefix("process:") {
             image = NSImage(systemSymbolName: "terminal", accessibilityDescription: nil) ?? NSImage()
         } else {
@@ -246,6 +246,26 @@ enum MomentViews {
             view.widthAnchor.constraint(equalToConstant: size), view.heightAnchor.constraint(equalToConstant: size),
         ])
         return view
+    }
+
+    /// `icon` drawn once into a bitmap `size` points square at 2x: a file's icon from
+    /// `NSWorkspace` can decode its 1024-pixel image when an image view draws it, 4 MB that the
+    /// menu bar process would keep after the moment closes.
+    private static func rasterized(_ icon: NSImage, size: CGFloat) -> NSImage {
+        let pixels = Int(size * 2)
+        guard
+            let bitmap = NSBitmapImageRep(
+                bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8, samplesPerPixel: 4,
+                hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)
+        else { return icon }
+        bitmap.size = NSSize(width: size, height: size)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
+        icon.draw(in: NSRect(x: 0, y: 0, width: size, height: size))
+        NSGraphicsContext.restoreGraphicsState()
+        let image = NSImage(size: bitmap.size)
+        image.addRepresentation(bitmap)
+        return image
     }
 
     private static func button(_ title: String, prominent: Bool = false, action: @escaping () -> Void) -> NSView {
