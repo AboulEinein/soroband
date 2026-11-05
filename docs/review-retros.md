@@ -652,3 +652,15 @@ Planned rounds: 2.
 | CodeRabbit | CodeRabbit | 1 Minor, 1 Trivial | Not valid: yield activation before `activate()` (verified without it). Accepted: a caller-level test of the window comparison. |
 
 **Retro.** Planned 2 rounds; it took 4 and a direct review. Every finding was about one decision, when to give the keyboard back as the popover closes, and three rounds patched it with a flag before round 2's reassessment moved it to the state at close and the real pointer exposed the click into a window behind the popover. Deciding from state rather than from flags set by each caller, and running every path that closes the popover with the real pointer before round 1, would have saved two rounds. A pointer helper left ⌘ held for 20 minutes on the user's Mac: event-posting tools must release every key they press, and pointer runs stop at the first sign of a changed window layout.
+
+## [#52](https://github.com/AboulEinein/soroband/pull/52) docs(handover): record the follow-up fixes and what they left (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low, 1 Minor | `first look`: the Current state list lost its commas. Not changed: a dated decision row still names a retired follow-up (a later row records the change). |
+| direct | Opus | none | Checked 1094fbe. [Comment](https://github.com/AboulEinein/soroband/pull/52#issuecomment-6662904321). |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1 and a direct review. The run as a whole: 11 PRs for the agent-fixable follow-ups, most in one round. The two that took more (#45, 2 rounds; #51, 4) were the popover's pointer behavior, where each fix reached a case only the real pointer shows; a pointer helper also left ⌘ held on the user's Mac, now a Gotcha. Most of the run's time went to waiting: the CodeRabbit CLI's shared quota, and each merge putting the next branch behind `main`, which `main`'s up-to-date rule then sent back through CI and CodeRabbit.
