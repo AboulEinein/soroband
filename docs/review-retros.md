@@ -533,5 +533,6 @@ Planned rounds: 1.
 | --- | --- | --- | --- |
 | 1 | Opus | none | Checked 9e25d9c. |
 | CodeRabbit | CodeRabbit | 1 Minor | `first look`: the overcount notice's comparison was incomplete ("more than crossed the network"). |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`, on the records commit: the degraded notice's "For 20 minutes" outlasts 20 minutes, because the verdict holds until a judged window passes. |
 
-**Retro.** Planned 1 round; it took 1. The blind round checked the copy against what `check.rs` compares and found nothing; CodeRabbit caught a grammar slip in the new user-facing sentence, fixed and reviewed by CodeRabbit as a wording fix. The local CLI also pointed at the degraded notice's fixed "For 20 minutes", outside this PR's request; it is a follow-up in the handover.
+**Retro.** Planned 1 round; it took 1. The blind round checked the copy against what `check.rs` compares and found nothing; CodeRabbit caught a grammar slip in the new user-facing sentence, fixed and reviewed by CodeRabbit as a wording fix. The local CLI and then the hosted review pointed at the degraded notice's fixed "For 20 minutes", which predates this PR; first recorded as a follow-up, it was fixed here once the hosted review raised it, being the same notice's copy. A copy fix should read the whole sentence it touches against the code, not only the word it was asked to change.
