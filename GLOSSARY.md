@@ -34,7 +34,7 @@ The one app that groups every process from macOS's own system directories.
 _Avoid_: system, daemons
 
 **Command-line tool**:
-An app that is a lone executable outside any bundle or system directory, named by its file name (`curl`).
+An app that is a lone executable outside any bundle or system directory, named by its file name (`curl`), or by its directory when it is installed as `<tool>/versions/1.4.3`.
 
 **Delegated traffic**:
 Bytes a system daemon or WebKit's networking process moves on behalf of an app, credited to that app.

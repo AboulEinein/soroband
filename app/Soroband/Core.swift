@@ -20,6 +20,23 @@ enum Core {
         return URL.applicationSupportDirectory.appending(path: name, directoryHint: .isDirectory)
     }()
 
+    #if DEBUG
+    /// `xcodebuild test` launches the Debug app as its test host. Unless `SOROBAND_DATA_DIR` is
+    /// set, points it at a new directory under the temporary directory, so its engine and its
+    /// tests' settings stay out of the running Debug app's data, and test runs in other worktrees
+    /// stay out of each other's. Call before anything reads the data directory: the environment
+    /// carries it to `SettingsListener` and to a UI process the test host starts.
+    static func isolateTestHost() {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["XCTestConfigurationFilePath"] != nil,
+            environment["SOROBAND_DATA_DIR"]?.isEmpty ?? true
+        else { return }
+        let dir = FileManager.default.temporaryDirectory.appending(
+            path: "Soroband Tests \(UUID().uuidString)", directoryHint: .isDirectory)
+        setenv("SOROBAND_DATA_DIR", dir.path, 1)
+    }
+    #endif
+
     /// Starts the meter engine on its own thread. Later calls do nothing. Returns false when the
     /// usage database cannot be opened.
     @discardableResult
@@ -269,7 +286,7 @@ struct EngineStatus: Codable, Equatable {
         case starting, perApp, interfaceOnly, failed
     }
 
-    /// The self-check's verdict on the apps' sum against the interfaces (`core/.../check.rs`).
+    /// The self-check's verdict on the apps' sum plus local-network bytes against the interfaces (`core/.../check.rs`).
     enum Check: String, Codable {
         case ok, degraded, overcount
     }

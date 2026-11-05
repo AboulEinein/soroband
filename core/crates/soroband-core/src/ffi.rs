@@ -35,9 +35,10 @@ pub const SOROBAND_ENGINE_FAILED: u32 = 3;
 
 /// The self-check's verdict, for [`SorobandEngineStatus::check`]: nothing wrong seen.
 pub const SOROBAND_CHECK_OK: u32 = 0;
-/// Two 10-minute windows in a row with at least 10 MB credited too little to apps.
+/// Two 10-minute windows in a row with at least 10 MB in which apps and local-network bytes
+/// covered too little of the interfaces.
 pub const SOROBAND_CHECK_DEGRADED: u32 = 1;
-/// Apps summed to more than crossed the interfaces.
+/// Apps and local-network bytes summed to more than crossed the interfaces.
 pub const SOROBAND_CHECK_OVERCOUNT: u32 = 2;
 
 /// The engine's health and totals since it started.
