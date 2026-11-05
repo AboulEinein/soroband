@@ -31,6 +31,22 @@ pub fn tcp_update(srcref: u64, rx: u64, tx: u64, pid: u32, local: bool, size: us
     m
 }
 
+/// An update for a flow owned by process `pid`, named `pname`, moving bytes for `epid`.
+pub fn delegated_update(
+    srcref: u64,
+    rx: u64,
+    tx: u64,
+    pid: u32,
+    epid: u32,
+    pname: &str,
+) -> Vec<u8> {
+    let mut m = tcp_update(srcref, rx, tx, pid, false, 360);
+    let d = &mut m[152..];
+    d[120..124].copy_from_slice(&epid.to_ne_bytes());
+    d[196..196 + pname.len()].copy_from_slice(pname.as_bytes());
+    m
+}
+
 pub fn removed(srcref: u64) -> Vec<u8> {
     let mut m = vec![0u8; 24];
     m[8..12].copy_from_slice(&MSG_SRC_REMOVED.to_ne_bytes());

@@ -60,6 +60,8 @@ enum DebugCommands {
         case "capture-window": captureWindow(url)
         case "simulate-network": simulateNetwork(url)
         case "update-network": updateNetwork(url)
+        case "fire-moment": fireMoment(url)
+        case "hover-island": hoverIsland(url)
         default: NSLog("soroband-debug: unknown command %@", url.absoluteString)
         }
     }
@@ -77,6 +79,62 @@ enum DebugCommands {
             return
         }
         NetworkMonitor.shared.simulated = NetworkIdentity(key: "simulated:\(id)", name: id, kind: kind)
+    }
+
+    /// `fire-moment?kind=hog` shows a moment with sample numbers, as if the engine had found it
+    /// (`peek`, `joined`, `left`, `hog`, `background`, `transfer`, `recap`); `done=1` ends a
+    /// transfer. Real traffic fires them through the engine; this is for captures.
+    private static func fireMoment(_ url: URL) {
+        let query = queryItems(url)
+        let network = NetworkMonitor.shared.current ?? Network(id: 0, key: "", name: "Office", kind: .wifi)
+        let app = MomentApp(id: "/System/Applications/Music.app", name: "Music")
+        let mb: UInt64 = 1_000_000
+        let content: MomentContent
+        switch MomentKind(rawValue: query["kind"] ?? "") {
+        case .peek:
+            content = .peek(
+                network: network, today: 1_400 * mb, down: 1_190 * mb, up: 210 * mb, speed: 1_200_000,
+                apps: [
+                    MomentApp(id: "/Applications/Safari.app", name: "Safari", bytes: 620 * mb),
+                    MomentApp(id: app.id, name: app.name, bytes: 410 * mb),
+                    MomentApp(id: "/System/Applications/Mail.app", name: "Mail", bytes: 96 * mb),
+                ])
+        case .joined: content = .joined(network: network, week: 1_200 * mb, today: 412 * mb, lastSeen: .now - 86_400)
+        case .left:
+            content = .left(
+                network: network, since: .now - 4_320, bytes: 318 * mb,
+                top: MomentApp(id: "/Applications/Safari.app", name: "Safari", bytes: 120 * mb))
+        case .hog: content = .hog(app: app, bytes: 214 * mb, minutes: 5, network: network)
+        case .background:
+            content = .background(
+                app: MomentApp(id: "/System/Applications/Mail.app", name: "Mail"), bytes: 86 * mb, uploading: false)
+        case .transfer:
+            content = .transfer(
+                app: MomentApp(id: "/Applications/Safari.app", name: "Safari"), via: "App Store", bytes: 640 * mb,
+                rate: 12_400_000, done: query["done"] == "1")
+        case .recap: content = .recap(bytes: 2_100 * mb, networks: 2, top: app)
+        case .hotspot, nil:
+            NSLog("soroband-debug: fire-moment needs a kind in %@", url.absoluteString)
+            return
+        }
+        IslandController.shared.post(content, source: "debug")
+    }
+
+    /// `hover-island?at=notch` puts the pointer, for the island, on the middle of the notch;
+    /// `hover-island?x=280&y=10` at a point in the island's view (origin at its bottom left);
+    /// `hover-island` alone takes it away. The real pointer does not move.
+    private static func hoverIsland(_ url: URL) {
+        let query = queryItems(url)
+        guard let island = IslandController.shared.debugIsland else { return }
+        if query["at"] == "notch" {
+            let bounds = island.bounds
+            IslandController.shared.debugHover(
+                at: CGPoint(x: bounds.midX, y: bounds.maxY - island.geometry.menuBarHeight / 2))
+        } else if let x = query["x"].flatMap(Double.init), let y = query["y"].flatMap(Double.init) {
+            IslandController.shared.debugHover(at: CGPoint(x: x, y: y))
+        } else {
+            IslandController.shared.debugHover(at: nil)
+        }
     }
 
     /// `update-network?name=Desk&kind=ethernet` renames the current network and sets its kind, as
@@ -363,6 +421,7 @@ struct DebugState: Encodable {
     let engine: Engine
     let network: Network?
     let today: Today
+    let island: IslandController.DebugState
     let dataDirectory: String
     let windows: [Window]
 
@@ -404,6 +463,7 @@ struct DebugState: Encodable {
                 allApps: Bytes(engine.todayApps),
                 allInterfaces: Bytes(engine.todayInterfaces),
                 speed: Bytes(engine.speed)),
+            island: IslandController.shared.debugState,
             dataDirectory: Core.dataDirectory.path,
             windows: windows())
     }

@@ -10,6 +10,7 @@ mod common;
 use common::{MAIL, POLL, SAFARI, datagram, en0, mail, safari, start, success, tcp_update};
 use soroband_core::meter::record::{Event, Replay};
 use soroband_core::meter::{Bytes, Engine, ntstat};
+use soroband_core::moments;
 use soroband_core::service::{Command, Service, WRITE_INTERVAL};
 use soroband_core::store::{NetworkKind, NetworkTotal, Store};
 use std::path::PathBuf;
@@ -449,6 +450,28 @@ fn a_new_day_starts_today_from_zero_and_keeps_yesterday_stored() {
         [(mail(), rx(1_400))]
     );
     assert_eq!(reader.app_totals(t, None).unwrap(), [(mail(), rx(400))]);
+}
+
+#[test]
+fn a_new_day_recaps_the_day_that_ended_once() {
+    // Mail 1,000 and Safari 300 before midnight (en0 1,500); 400 more for Mail and 200 on en0
+    // after it. The recap holds the day before only.
+    let f = Fixture::new("recap");
+    let t = MIDNIGHT + 24 * H;
+    let mut service = f.service(session(&[(1_000, 300, 1_500), (1_400, 300, 1_700)]), t - 10);
+    service.apply(&Command::Network(f.home), t - 10).unwrap();
+    tick(&mut service, t - 2);
+    assert_eq!(service.take_finished_day(), None, "the day goes on");
+    tick(&mut service, t + 3);
+    assert_eq!(
+        service.take_finished_day(),
+        Some(moments::Event::Recap {
+            bytes: 1_500,
+            networks: 1,
+            top: Some((mail(), 1_000)),
+        })
+    );
+    assert_eq!(service.take_finished_day(), None, "taken once");
 }
 
 #[test]

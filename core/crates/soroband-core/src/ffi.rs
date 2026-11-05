@@ -4,6 +4,7 @@ use crate::check::Verdict;
 use crate::day;
 use crate::history;
 use crate::meter::{Bytes, Engine, Mode, SystemHost, Waker};
+use crate::moments::{self, Limits, Pending, Session, Watch};
 use crate::service::{self, Command, Service};
 use crate::settings::{self, Settings};
 use crate::store::{NetworkKind, Store};
@@ -114,6 +115,20 @@ static LIVE: AtomicBool = AtomicBool::new(false);
 /// Today's networks and apps as JSON, published after each poll while [`LIVE`] is set.
 static TODAY: Mutex<String> = Mutex::new(String::new());
 static ON_POLL: Mutex<Option<extern "C" fn()>> = Mutex::new(None);
+/// Set while the app shows moments or sends their notifications ([`soroband_moments_watch`]).
+static WATCHING: AtomicBool = AtomicBool::new(false);
+/// The frontmost app's id ([`soroband_moments_frontmost`]); empty when none is known.
+static FRONTMOST: Mutex<String> = Mutex::new(String::new());
+/// Moments found since the app last took them ([`soroband_moments_json`]), at most 64, so an app
+/// that stops taking them holds no more than that.
+static MOMENTS: Mutex<Pending> = Mutex::new(Pending::new(64));
+/// Set while the peek can open ([`soroband_top_apps_watch`]).
+static WATCHING_TOP_APPS: AtomicBool = AtomicBool::new(false);
+/// Today's top apps on the current network as JSON, published after each poll while
+/// [`WATCHING_TOP_APPS`] is set.
+static TOP_APPS: Mutex<String> = Mutex::new(String::new());
+/// Apps [`TOP_APPS`] lists.
+const TOP_APP_COUNT: usize = 3;
 
 /// Seconds between polls while the popover is open, for its live speed.
 const LIVE_INTERVAL: Duration = Duration::from_secs(1);
@@ -124,6 +139,8 @@ struct Running {
     settings_path: PathBuf,
     /// The reset hour last sent to the engine, which reads no settings itself.
     reset_hour: Mutex<u8>,
+    /// When the moments fire, from the settings, read by the engine at each poll.
+    limits: Mutex<Limits>,
     commands: Mutex<Vec<Command>>,
     /// Set once the engine has started; a command sent before then waits for the first poll.
     waker: Mutex<Option<Waker>>,
@@ -134,10 +151,14 @@ struct Running {
 impl Running {
     fn new(store: Store, settings_path: PathBuf) -> Self {
         let reset_hour = load_reset_hour(&settings_path, 0);
+        let limits = Settings::load(&settings_path)
+            .map(|settings| limits(&settings))
+            .unwrap_or_default();
         Self {
             store: Arc::new(Mutex::new(store)),
             settings_path,
             reset_hour: Mutex::new(reset_hour),
+            limits: Mutex::new(limits),
             commands: Mutex::new(Vec::new()),
             waker: Mutex::new(None),
             stopped: Mutex::new(false),
@@ -146,9 +167,13 @@ impl Running {
     }
 
     /// Rereads the settings file and wakes the engine only when the reset hour changed: it is the
-    /// one setting a poll depends on, and a wake costs a full poll. The other settings are the
-    /// app's own. Called under the lock, so the engine always ends with the last hour read.
+    /// one setting a poll depends on, and a wake costs a full poll. The moments' limits apply from
+    /// the next poll; the other settings are the app's own. Called under the lock, so the engine
+    /// always ends with the last hour read.
     fn reload_settings(&self) {
+        if let Ok(settings) = Settings::load(&self.settings_path) {
+            *lock(&self.limits) = limits(&settings);
+        }
         let mut reset_hour = lock(&self.reset_hour);
         let reloaded = load_reset_hour(&self.settings_path, *reset_hour);
         if reloaded != *reset_hour {
@@ -166,6 +191,27 @@ impl Running {
         if let Some(waker) = &*lock(&self.waker) {
             waker.wake();
         }
+    }
+}
+
+/// When the moments fire, as the island's settings say. A moment turned off never fires, so it
+/// cannot take the place of one that is on (a hog in the background is otherwise the one alert).
+fn limits(settings: &Settings) -> Limits {
+    const MB: u64 = 1_000_000;
+    let moments = settings.words(settings::ISLAND_MOMENTS);
+    let threshold = |kind: &str, key: &str| {
+        if moments.iter().any(|m| m == kind) {
+            settings.number(key) * MB
+        } else {
+            u64::MAX
+        }
+    };
+    Limits {
+        hog_bytes: threshold("hog", settings::ISLAND_HOG_MB),
+        window: i64::try_from(settings.number(settings::ISLAND_HOG_MINUTES) * 60).unwrap_or(300),
+        background_bytes: threshold("background", settings::ISLAND_BACKGROUND_MB),
+        transfer_bytes: threshold("transfer", settings::ISLAND_TRANSFER_MB),
+        ignored: settings.words(settings::ISLAND_IGNORED_APPS),
     }
 }
 
@@ -437,6 +483,63 @@ pub extern "C" fn soroband_engine_live(live: bool) {
 #[unsafe(no_mangle)]
 pub extern "C" fn soroband_engine_on_poll(callback: Option<extern "C" fn()>) {
     *lock(&ON_POLL) = callback;
+}
+
+/// While `on`, the engine looks for moments after each poll ([`crate::moments`]); turned on, it
+/// starts from no history. Off, it does not, and drops any moment not taken.
+#[unsafe(no_mangle)]
+pub extern "C" fn soroband_moments_watch(on: bool) {
+    WATCHING.store(on, Ordering::Relaxed);
+    if !on {
+        lock(&MOMENTS).clear();
+    }
+}
+
+/// While `on` (the island can show the peek), the engine publishes today's top apps after each
+/// poll for [`soroband_top_apps_json`]; off, it does not, and forgets them.
+#[unsafe(no_mangle)]
+pub extern "C" fn soroband_top_apps_watch(on: bool) {
+    WATCHING_TOP_APPS.store(on, Ordering::Relaxed);
+    if !on {
+        lock(&TOP_APPS).clear();
+    }
+}
+
+/// Tells the engine which app is in front, by its id: the path of its outermost `.app` bundle,
+/// as the engine names apps. Null when none is known.
+///
+/// # Safety
+/// `id` must be null or a valid NUL-terminated string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn soroband_moments_frontmost(id: *const c_char) {
+    let id = if id.is_null() {
+        String::new()
+    } else {
+        // SAFETY: not null, so a valid NUL-terminated string.
+        unsafe { text(id) }
+    };
+    *lock(&FRONTMOST) = id;
+}
+
+/// The moments found since the last call, oldest first, as a JSON array of
+/// [`Event::to_json`] objects, and forgets them. At most the last 64 are kept between calls.
+///
+/// The caller owns the string and frees it with [`soroband_string_free`].
+#[unsafe(no_mangle)]
+pub extern "C" fn soroband_moments_json() -> *mut c_char {
+    let moments = lock(&MOMENTS).take();
+    owned_c_string(&moments.to_string())
+}
+
+/// Today's top apps on the current network as of the last poll, most bytes first, as JSON:
+/// `[{"id": "/Applications/Safari.app", "name": "Safari", "bytes": 0}]`, at most 3. Empty
+/// unless [`soroband_top_apps_watch`] is on and a poll has run since.
+///
+/// The caller owns the string and frees it with [`soroband_string_free`].
+#[unsafe(no_mangle)]
+pub extern "C" fn soroband_top_apps_json() -> *mut c_char {
+    let top = lock(&TOP_APPS);
+    owned_c_string(if top.is_empty() { "[]" } else { &top })
 }
 
 /// Today's usage as of the last poll, as JSON:
@@ -805,11 +908,16 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
     )?;
     let mut speed = Bytes::default();
     let mut last_poll = Instant::now();
+    let mut moments = Moments {
+        started: day::now(),
+        ..Moments::default()
+    };
     loop {
         // Commands sent during the last tick cut its wait short, so the tick has already polled:
         // what moved before a network change is booked to the previous network.
         let commands = std::mem::take(&mut *lock(&running.commands));
         for command in &commands {
+            let left = service.today().network.network;
             let applied = service.apply(command, day::now());
             if *command == Command::Stop {
                 if let Err(error) = applied {
@@ -818,6 +926,12 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
                 return Ok(());
             }
             outlive_database_errors(applied.map(drop))?;
+            // A plain `if let`, not a let chain: the crate builds on Rust 1.85 (`rust-version`).
+            if let Command::Network(joined) = *command {
+                if joined != left {
+                    moments.network_changed(&service, &running.store, joined, day::now());
+                }
+            }
         }
         publish(&service, speed);
         let wait = if LIVE.load(Ordering::Relaxed) {
@@ -829,6 +943,83 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
         let polled = Instant::now();
         speed = per_second(service.last_booked().interfaces, polled - last_poll);
         last_poll = polled;
+        moments.polled(&mut service, &running.limits, day::now());
+    }
+}
+
+/// The engine thread's side of the island: the watch over each poll, and the session on the
+/// current network.
+#[derive(Default)]
+struct Moments {
+    watch: Option<Watch>,
+    session: Option<Session>,
+    /// Whether a network was found since the engine started ([`moments::opens_joined`]).
+    seen_network: bool,
+    /// When the engine started.
+    started: i64,
+}
+
+impl Moments {
+    fn polled(&mut self, service: &mut Service<SystemHost>, limits: &Mutex<Limits>, now: i64) {
+        let finished_day = service.take_finished_day();
+        let booked = service.last_booked();
+        if let Some(session) = &mut self.session {
+            session.add(booked.interfaces, &booked.by_app);
+        }
+        if !WATCHING.load(Ordering::Relaxed) {
+            self.watch = None;
+            return;
+        }
+        let limits = lock(limits).clone();
+        let watch = self.watch.get_or_insert_with(|| Watch::new(limits.clone()));
+        watch.set_limits(limits);
+        let frontmost = lock(&FRONTMOST).clone();
+        let frontmost = (!frontmost.is_empty()).then_some(frontmost.as_str());
+        let engine = service.engine();
+        let events = watch.observe(now, &booked.by_app, &|app| engine.via(app), frontmost);
+        let mut pending = lock(&MOMENTS);
+        for event in events.iter().chain(&finished_day) {
+            pending.push(event);
+        }
+        drop(pending);
+        if WATCHING_TOP_APPS.load(Ordering::Relaxed) {
+            let network = service.today().network.network;
+            let top: Vec<Value> = moments::top_apps(service.today_apps(), network, TOP_APP_COUNT)
+                .into_iter()
+                .map(|(app, bytes)| json!({ "id": app.id, "name": app.name, "bytes": bytes }))
+                .collect();
+            *lock(&TOP_APPS) = Value::from(top).to_string();
+        }
+    }
+
+    /// The Mac moved to network `joined`: the receipt for the network it left, and what the
+    /// island says about the one it joined.
+    fn network_changed(
+        &mut self,
+        service: &Service<SystemHost>,
+        store: &Mutex<Store>,
+        joined: i64,
+        now: i64,
+    ) {
+        let receipt = self.session.take().and_then(Session::receipt);
+        self.session = Some(Session::new(joined, now));
+        let opens_joined = moments::opens_joined(!self.seen_network, self.started, now);
+        self.seen_network |= joined != 0;
+        if !WATCHING.load(Ordering::Relaxed) {
+            return;
+        }
+        let mut pending = lock(&MOMENTS);
+        if let Some(receipt) = receipt {
+            pending.push(&receipt);
+        }
+        if joined != 0 && opens_joined {
+            pending.push(&moments::joined(
+                &lock(store),
+                service.today_networks(),
+                joined,
+                now,
+            ));
+        }
     }
 }
 
@@ -943,7 +1134,26 @@ fn today_json(service: &Service<SystemHost>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::soroband_core_version;
+    use super::{limits, soroband_core_version};
+    use crate::settings::{ISLAND_MOMENTS, Settings};
+
+    #[test]
+    fn a_moment_turned_off_never_fires_so_it_cannot_take_an_alert_that_is_on() {
+        let mut settings = Settings::default();
+        let on = limits(&settings);
+        assert_eq!(on.hog_bytes, 100_000_000, "the default 100 MB");
+        settings.set(ISLAND_MOMENTS, "background,transfer").unwrap();
+        let no_hog = limits(&settings);
+        assert_eq!(no_hog.hog_bytes, u64::MAX, "the hog is off");
+        assert_eq!(no_hog.background_bytes, 50_000_000);
+        settings.set(ISLAND_MOMENTS, "none").unwrap();
+        let none = limits(&settings);
+        assert_eq!(
+            (none.background_bytes, none.transfer_bytes),
+            (u64::MAX, u64::MAX)
+        );
+    }
+
     use std::ffi::CStr;
     use std::time::{Duration, Instant};
 

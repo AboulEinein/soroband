@@ -68,6 +68,7 @@ struct SettingsView: View {
     enum Tab: String, CaseIterable, Identifiable {
         case general
         case menuBar = "menu-bar"
+        case island
         case networks
         case about
 
@@ -77,6 +78,7 @@ struct SettingsView: View {
             switch self {
             case .general: "General"
             case .menuBar: "Menu Bar"
+            case .island: "Island"
             case .networks: "Networks"
             case .about: "About"
             }
@@ -86,6 +88,7 @@ struct SettingsView: View {
             switch self {
             case .general: "gearshape.fill"
             case .menuBar: "menubar.rectangle"
+            case .island: "capsule.tophalf.filled"
             case .networks: "wifi"
             case .about: "info"
             }
@@ -96,6 +99,7 @@ struct SettingsView: View {
             switch self {
             case .general: .gray
             case .menuBar: .blue
+            case .island: Color(white: 0.12)
             case .networks: .green
             case .about: Color(white: 0.4)
             }
@@ -133,6 +137,8 @@ struct SettingsView: View {
                 GeneralSettings(usage: usage, launchAtLogin: launchAtLogin)
             case .menuBar:
                 MenuBarSettings(usage: usage)
+            case .island:
+                IslandSettingsView(settings: usage.island, set: { usage.setSetting($0, to: $1) })
             case .networks:
                 NetworkSettings(
                     networks: usage.registry, current: NetworkMonitor.shared.current?.id,

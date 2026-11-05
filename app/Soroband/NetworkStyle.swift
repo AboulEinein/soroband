@@ -26,13 +26,23 @@ let unknownNetworkSymbol = "network"
 /// Networks take the categorical color slots in the order they were first seen unless the user
 /// picked one, so a network keeps its color in every view (docs/design.md, Visual language).
 enum NetworkColor {
-    static let slots: [Color] = [
-        Color(light: 0x2A78D6, dark: 0x3987E5),  // blue
-        Color(light: 0xEB6834, dark: 0xD95926),  // orange
-        Color(light: 0x1BAF7A, dark: 0x199E70),  // aqua
-        Color(light: 0xEDA100, dark: 0xC98500),  // yellow
-        Color(light: 0xE87BA4, dark: 0xD55181),  // magenta
+    /// Each slot's light and dark step.
+    static let steps: [(light: UInt32, dark: UInt32)] = [
+        (0x2A78D6, 0x3987E5),  // blue
+        (0xEB6834, 0xD95926),  // orange
+        (0x1BAF7A, 0x199E70),  // aqua
+        (0xEDA100, 0xC98500),  // yellow
+        (0xE87BA4, 0xD55181),  // magenta
     ]
+
+    static let slots: [Color] = steps.map { Color(light: $0.light, dark: $0.dark) }
+
+    /// Slot `slot`'s color in AppKit, for the island, which the menu bar process draws without
+    /// SwiftUI.
+    static func nsColor(slot: Int) -> NSColor {
+        let step = steps[slot % steps.count]
+        return NSColor(light: step.light, dark: step.dark)
+    }
 
     static let names = ["Blue", "Orange", "Aqua", "Yellow", "Magenta"]
 
@@ -50,12 +60,17 @@ enum NetworkColor {
 
 extension Color {
     init(light: UInt32, dark: UInt32) {
-        self.init(
-            nsColor: NSColor(name: nil) { appearance in
-                let hex = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
-                return NSColor(
-                    srgbRed: CGFloat(hex >> 16 & 0xFF) / 255, green: CGFloat(hex >> 8 & 0xFF) / 255,
-                    blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
-            })
+        self.init(nsColor: NSColor(light: light, dark: dark))
+    }
+}
+
+extension NSColor {
+    convenience init(light: UInt32, dark: UInt32) {
+        self.init(name: nil) { appearance in
+            let hex = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+            return NSColor(
+                srgbRed: CGFloat(hex >> 16 & 0xFF) / 255, green: CGFloat(hex >> 8 & 0xFF) / 255,
+                blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+        }
     }
 }

@@ -182,6 +182,7 @@ mod tests {
             },
             flows: 0,
             rx_duplicates: Vec::new(),
+            via: Vec::new(),
         }
     }
 

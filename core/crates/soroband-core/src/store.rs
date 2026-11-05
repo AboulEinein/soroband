@@ -571,7 +571,7 @@ fn u64_from_sql(value: i64) -> u64 {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::{AppUsage, InterfaceUsage, NetworkKind, NetworkTotal, Store};
     use crate::meter::{App, Bytes};
     use std::path::PathBuf;
@@ -767,7 +767,7 @@ mod tests {
         assert_eq!((studio.id, studio.name.as_str()), (renamed.id, "Studio"));
     }
 
-    /// The name was readable on an earlier visit, so both networks exist: the router's moves into
+    /// The name was readable when the Mac was on it before, so both networks exist: the router's moves into
     /// the named one, adding up where both have the same hour and app.
     #[test]
     fn merging_a_network_adds_its_usage_into_the_other_and_removes_it() {

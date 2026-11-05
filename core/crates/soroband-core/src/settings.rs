@@ -36,6 +36,43 @@ pub const MENU_BAR_STYLE: &str = "menu_bar_style";
 /// The values of [`MENU_BAR_STYLE`].
 pub const MENU_BAR_STYLE_OPTIONS: &[&str] = &["stacked", "labeled", "inline"];
 
+/// Key of the island's master switch: off makes Soroband a plain menu bar app.
+pub const ISLAND: &str = "island";
+pub const ON_OFF: &[&str] = &["on", "off"];
+/// Key of how the island opens: seamless (over the menu bar beside the notch) or clear (notch-wide
+/// in the menu bar, widening only below it).
+pub const ISLAND_STYLE: &str = "island_style";
+pub const ISLAND_STYLE_OPTIONS: &[&str] = &["seamless", "clear"];
+/// Key of the moments the island shows.
+pub const ISLAND_MOMENTS: &str = "island_moments";
+pub const ISLAND_MOMENT_OPTIONS: &[&str] = &[
+    "peek",
+    "joined",
+    "left",
+    "hotspot",
+    "hog",
+    "background",
+    "transfer",
+    "recap",
+];
+pub const ISLAND_HOG_MB: &str = "island_hog_mb";
+pub const ISLAND_HOG_MINUTES: &str = "island_hog_minutes";
+pub const ISLAND_BACKGROUND_MB: &str = "island_background_mb";
+pub const ISLAND_TRANSFER_MB: &str = "island_transfer_mb";
+/// Key of whether a data hog on a hotspot offers Pause until off hotspot.
+pub const ISLAND_PAUSE: &str = "island_pause";
+/// Key of what the island shows while an app is full screen.
+pub const ISLAND_FULL_SCREEN: &str = "island_full_screen";
+pub const ISLAND_FULL_SCREEN_OPTIONS: &[&str] = &["hide", "alerts", "all"];
+/// Key of the displays the island shows on.
+pub const ISLAND_DISPLAYS: &str = "island_displays";
+pub const ISLAND_DISPLAYS_OPTIONS: &[&str] = &["builtin", "all"];
+/// Key of whether alerts become notifications while the island is off.
+pub const ISLAND_NOTIFICATIONS: &str = "island_notifications";
+/// Key of the apps that raise no moment, by app id.
+pub const ISLAND_IGNORED_APPS: &str = "island_ignored_apps";
+pub const ISLAND_MAX_IGNORED_APPS: usize = 100;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
     /// A whole number from `min` to `max`, inclusive.
@@ -51,6 +88,9 @@ pub enum Kind {
         max: usize,
         default: &'static str,
     },
+    /// Up to `max` different names of any text without a comma, separated by commas; `none` for
+    /// no name.
+    Names { max: usize },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,6 +106,7 @@ impl Setting {
         match self.kind {
             Kind::Integer { default, .. } => Value::from(default),
             Kind::Choice { default, .. } | Kind::List { default, .. } => Value::from(default),
+            Kind::Names { .. } => Value::from("none"),
         }
     }
 }
@@ -111,6 +152,116 @@ pub const SCHEMA: &[Setting] = &[
         description: "How the menu bar item draws its readings: stacked (in pairs, the first \
                       on top, in a smaller size), labeled (each under a small caption) or inline \
                       (one line).",
+    },
+    Setting {
+        key: ISLAND,
+        kind: Kind::Choice {
+            options: ON_OFF,
+            default: "off",
+        },
+        description: "Whether the island at the notch shows moments: on, or off for a plain menu bar \
+                      app.",
+    },
+    Setting {
+        key: ISLAND_STYLE,
+        kind: Kind::Choice {
+            options: ISLAND_STYLE_OPTIONS,
+            default: "seamless",
+        },
+        description: "How the island opens: seamless (over the menu bar beside the notch) or clear \
+                      (notch-wide in the menu bar, widening only below it).",
+    },
+    Setting {
+        key: ISLAND_MOMENTS,
+        kind: Kind::List {
+            options: ISLAND_MOMENT_OPTIONS,
+            max: ISLAND_MOMENT_OPTIONS.len(),
+            default: "peek,joined,left,hotspot,hog,background,transfer",
+        },
+        description: "The moments the island shows, separated by commas: peek, joined, left, \
+                      hotspot, hog, background, transfer, recap; none for no moment.",
+    },
+    Setting {
+        key: ISLAND_HOG_MB,
+        kind: Kind::Integer {
+            min: 1,
+            max: 100_000,
+            default: 100,
+        },
+        description: "Megabytes one app must use within island_hog_minutes to be a data hog.",
+    },
+    Setting {
+        key: ISLAND_HOG_MINUTES,
+        kind: Kind::Integer {
+            min: 1,
+            max: 60,
+            default: 5,
+        },
+        description: "Minutes the data hog and background activity look back over.",
+    },
+    Setting {
+        key: ISLAND_BACKGROUND_MB,
+        kind: Kind::Integer {
+            min: 1,
+            max: 100_000,
+            default: 50,
+        },
+        description: "Megabytes an app not in front must use within island_hog_minutes to show \
+                      background activity.",
+    },
+    Setting {
+        key: ISLAND_TRANSFER_MB,
+        kind: Kind::Integer {
+            min: 1,
+            max: 100_000,
+            default: 50,
+        },
+        description: "Megabytes a transfer reaches before the island shows its progress.",
+    },
+    Setting {
+        key: ISLAND_PAUSE,
+        kind: Kind::Choice {
+            options: ON_OFF,
+            default: "on",
+        },
+        description: "Whether a data hog on a hotspot offers Pause until off hotspot, which quits the \
+                      app and opens it again on the next network that is not a hotspot.",
+    },
+    Setting {
+        key: ISLAND_FULL_SCREEN,
+        kind: Kind::Choice {
+            options: ISLAND_FULL_SCREEN_OPTIONS,
+            default: "alerts",
+        },
+        description: "What the island shows while an app is full screen: hide (nothing), alerts \
+                      (data hog and background activity only) or all.",
+    },
+    Setting {
+        key: ISLAND_DISPLAYS,
+        kind: Kind::Choice {
+            options: ISLAND_DISPLAYS_OPTIONS,
+            default: "builtin",
+        },
+        description: "Where the island shows: builtin (the built-in display) or all (every \
+                      display).",
+    },
+    Setting {
+        key: ISLAND_NOTIFICATIONS,
+        kind: Kind::Choice {
+            options: ON_OFF,
+            default: "on",
+        },
+        description: "Whether data hog and background activity alerts become notifications while \
+                      the island is off.",
+    },
+    Setting {
+        key: ISLAND_IGNORED_APPS,
+        kind: Kind::Names {
+            max: ISLAND_MAX_IGNORED_APPS,
+        },
+        description: "Apps that raise no moment, by app id (a bundle path such as \
+                      /Applications/Music.app, or a tool's path), separated by commas; none for \
+                      no app.",
     },
 ];
 
@@ -242,7 +393,9 @@ impl Settings {
                         reason: format!("{text:?} is not a whole number"),
                     })?
             }
-            Kind::Choice { .. } | Kind::List { .. } => Value::from(text.trim()),
+            Kind::Choice { .. } | Kind::List { .. } | Kind::Names { .. } => {
+                Value::from(text.trim())
+            }
         };
         let value = check(setting, &value).map_err(|reason| Error::InvalidValue {
             key: key.into(),
@@ -301,12 +454,64 @@ fn check(setting: &Setting, value: &Value) -> Result<Value, String> {
             }
             Ok(Value::from(words.join(",")))
         }
+        Kind::Names { max } => {
+            let text = value
+                .as_str()
+                .ok_or_else(|| format!("{value} is not a list of names"))?;
+            if text.trim() == "none" {
+                return Ok(Value::from("none"));
+            }
+            let names: Vec<&str> = text.split(',').map(str::trim).collect();
+            if names.iter().any(|name| name.is_empty()) {
+                return Err("an empty name".into());
+            }
+            if names.len() > max {
+                return Err(format!("{} names, at most {max}", names.len()));
+            }
+            if let Some(index) = (1..names.len()).find(|&i| names[..i].contains(&names[i])) {
+                return Err(format!("{:?} is listed twice", names[index]));
+            }
+            Ok(Value::from(names.join(",")))
+        }
+    }
+}
+
+impl Settings {
+    /// The value of the `on`/`off` setting `key`.
+    #[must_use]
+    pub fn is_on(&self, key: &str) -> bool {
+        self.get(key)
+            .is_ok_and(|current| current.value.as_str() == Some("on"))
+    }
+
+    /// The value of the whole-number setting `key`, or 0 for a key that is not one.
+    #[must_use]
+    pub fn number(&self, key: &str) -> u64 {
+        self.get(key)
+            .ok()
+            .and_then(|current| current.value.as_u64())
+            .unwrap_or(0)
+    }
+
+    /// The words or names of the list setting `key`; none for `none`.
+    #[must_use]
+    pub fn words(&self, key: &str) -> Vec<String> {
+        let Ok(current) = self.get(key) else {
+            return Vec::new();
+        };
+        match current.value.as_str() {
+            None | Some("none") => Vec::new(),
+            Some(text) => text.split(',').map(str::to_owned).collect(),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Error, MENU_BAR_READINGS, MENU_BAR_SCOPE, MENU_BAR_STYLE, RESET_HOUR, Settings};
+    use super::{
+        Error, ISLAND, ISLAND_IGNORED_APPS, ISLAND_MOMENTS, MENU_BAR_READINGS, MENU_BAR_SCOPE,
+        MENU_BAR_STYLE, RESET_HOUR, Settings,
+    };
     use std::path::PathBuf;
 
     fn temp_file(name: &str) -> PathBuf {
@@ -314,6 +519,55 @@ mod tests {
             std::env::temp_dir().join(format!("soroband-settings-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         dir.join("settings.json")
+    }
+
+    #[test]
+    fn a_fresh_install_has_the_island_off_and_every_moment_but_the_recap() {
+        // The user decided (2026-10-28) that the first run is a plain menu bar app; the daily
+        // recap is off by default (design.md, Dynamic Island moments).
+        let settings = Settings::load(&temp_file("island-defaults")).unwrap();
+        assert!(!settings.is_on(ISLAND));
+        let moments = settings.words(ISLAND_MOMENTS);
+        assert_eq!(moments.len(), 7);
+        assert!(!moments.contains(&"recap".to_owned()));
+    }
+
+    #[test]
+    fn ignored_apps_take_any_name_without_a_comma() {
+        let mut settings = Settings::default();
+        settings
+            .set(
+                ISLAND_IGNORED_APPS,
+                " /Applications/Music.app , macOS & Services",
+            )
+            .unwrap();
+        assert_eq!(
+            settings.words(ISLAND_IGNORED_APPS),
+            ["/Applications/Music.app", "macOS & Services"]
+        );
+        for bad in ["/Applications/Music.app,,curl", "curl,curl"] {
+            assert!(
+                matches!(
+                    settings.set(ISLAND_IGNORED_APPS, bad),
+                    Err(Error::InvalidValue { .. })
+                ),
+                "{bad:?} is refused"
+            );
+        }
+        let hundred_and_one: Vec<String> = (0..=100).map(|i| format!("/tmp/tool{i}")).collect();
+        assert!(
+            settings
+                .set(ISLAND_IGNORED_APPS, &hundred_and_one.join(","))
+                .is_err()
+        );
+        let hundred = &hundred_and_one[..100];
+        assert!(
+            settings
+                .set(ISLAND_IGNORED_APPS, &hundred.join(","))
+                .is_ok()
+        );
+        settings.set(ISLAND_IGNORED_APPS, "none").unwrap();
+        assert_eq!(settings.words(ISLAND_IGNORED_APPS), Vec::<String>::new());
     }
 
     #[test]

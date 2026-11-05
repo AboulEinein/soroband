@@ -8,6 +8,7 @@ pub mod ffi;
 pub mod history;
 pub mod ledger;
 pub mod meter;
+pub mod moments;
 pub mod service;
 pub mod settings;
 pub mod store;

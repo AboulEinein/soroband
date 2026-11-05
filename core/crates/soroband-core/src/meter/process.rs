@@ -129,6 +129,22 @@ pub fn attribute(
     }
 }
 
+/// The system service a flow's bytes moved through for another app, by the name of the process
+/// that owns the flow (`pname`), when the kernel credits an effective pid (`epid`) other than its
+/// own: "App Store" for an app the App Store downloads. Only services a person knows by name are
+/// listed; for any other process, a web view's networking process included, there is none.
+#[must_use]
+pub fn service_name(pid: u32, epid: u32, pname: &str) -> Option<&'static str> {
+    if epid == 0 || epid == pid {
+        return None;
+    }
+    match pname {
+        "appstoreagent" | "appstored" | "storedownloadd" => Some("App Store"),
+        "softwareupdated" => Some("Software Update"),
+        _ => None,
+    }
+}
+
 /// The executable path of a running process, from `proc_pidpath(3)`.
 #[must_use]
 pub fn executable_path(pid: u32) -> Option<String> {
@@ -312,5 +328,25 @@ mod tests {
             std::path::Path::new(&path),
             std::env::current_exe().unwrap()
         );
+    }
+
+    #[test]
+    fn a_service_is_named_only_when_it_moves_bytes_for_another_app() {
+        assert_eq!(service_name(300, 812, "appstoreagent"), Some("App Store"));
+        assert_eq!(
+            service_name(300, 812, "softwareupdated"),
+            Some("Software Update")
+        );
+        assert_eq!(
+            service_name(300, 300, "appstoreagent"),
+            None,
+            "its own bytes"
+        );
+        assert_eq!(
+            service_name(300, 0, "appstoreagent"),
+            None,
+            "no effective pid"
+        );
+        assert_eq!(service_name(300, 812, "com.apple.WebKit.Networking"), None);
     }
 }

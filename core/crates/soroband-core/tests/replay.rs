@@ -24,7 +24,8 @@
 mod common;
 
 use common::{
-    MAIL, MAIL_PATH, POLL, SAFARI, datagram, en0, mail, removed, start, success, tcp_update,
+    MAIL, MAIL_PATH, POLL, SAFARI, datagram, delegated_update, en0, mail, removed, safari, start,
+    success, tcp_update,
 };
 use soroband_core::meter::ntstat;
 use soroband_core::meter::process::SERVICES;
@@ -220,6 +221,63 @@ fn only_bytes_after_the_baseline_are_booked() {
     // the baseline, so it is not listed.
     assert_eq!(snapshot.apps, vec![(mail(), Bytes { rx: 700, tx: 100 })]);
     assert_eq!(snapshot.interfaces, Bytes { rx: 900, tx: 200 });
+}
+
+#[test]
+fn a_download_a_service_makes_for_an_app_names_the_service() {
+    // appstoreagent (pid 600) downloads 4,000 bytes for Safari: credited to Safari, via the App
+    // Store. Mail's own flow names no service.
+    const AGENT: u32 = 600;
+    let mut events = start(
+        &[],
+        &[
+            delegated_update(1, 0, 0, AGENT, SAFARI, "appstoreagent"),
+            tcp_update(2, 0, 0, MAIL, false, 360),
+        ],
+    );
+    events.extend([
+        Event::Timeout,
+        Event::Send(ntstat::poll_all(POLL + 1)),
+        datagram(&[
+            delegated_update(1, 4_000, 0, AGENT, SAFARI, "appstoreagent"),
+            tcp_update(2, 300, 0, MAIL, false, 360),
+            success(POLL + 1, false),
+        ]),
+        en0(1_004_300, 1_000_000),
+    ]);
+    let (snapshot, _) = run(Replay::new(events));
+    assert_eq!(app(&snapshot, "Safari"), Some(&Bytes { rx: 4_000, tx: 0 }));
+    assert_eq!(snapshot.via(&safari()), Some("App Store"));
+    assert_eq!(snapshot.via(&mail()), None);
+}
+
+#[test]
+fn an_app_moving_its_own_bytes_after_a_service_names_no_service() {
+    // appstoreagent downloads for Safari, then Safari's own flow moves bytes: its latest bytes
+    // are its own, so no service is named.
+    const AGENT: u32 = 600;
+    let mut events = start(
+        &[],
+        &[
+            delegated_update(1, 0, 0, AGENT, SAFARI, "appstoreagent"),
+            tcp_update(2, 0, 0, SAFARI, false, 360),
+        ],
+    );
+    for (poll, agent_rx, own_rx) in [(POLL + 1, 4_000, 0), (POLL + 2, 4_000, 2_000)] {
+        events.extend([
+            Event::Timeout,
+            Event::Send(ntstat::poll_all(poll)),
+            datagram(&[
+                delegated_update(1, agent_rx, 0, AGENT, SAFARI, "appstoreagent"),
+                tcp_update(2, own_rx, 0, SAFARI, false, 360),
+                success(poll, false),
+            ]),
+            en0(1_000_000 + agent_rx + own_rx, 1_000_000),
+        ]);
+    }
+    let (snapshot, _) = run(Replay::new(events));
+    assert_eq!(app(&snapshot, "Safari"), Some(&Bytes { rx: 6_000, tx: 0 }));
+    assert_eq!(snapshot.via(&safari()), None);
 }
 
 #[test]

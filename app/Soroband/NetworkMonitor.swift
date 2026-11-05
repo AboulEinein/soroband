@@ -18,6 +18,7 @@ final class NetworkMonitor {
         didSet {
             if current?.id != oldValue?.id { connectedSince = current == nil ? nil : .now }
             Usage.shared.onChange?()
+            if current != oldValue { IslandController.shared.networkChanged() }
         }
     }
     /// When the Mac joined `current`, as seen by this run of the app.

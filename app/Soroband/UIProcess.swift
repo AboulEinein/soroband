@@ -76,6 +76,8 @@ enum UIEvent: Codable, Equatable {
     case live(Bool)
     case setMenuBarLayout(MenuBarLayout)
     case setResetHour(Int)
+    /// A setting the core stores as `soroband config set` would: the island's, from Settings.
+    case setSetting(key: String, value: String)
     case setNetworkColor(id: Int64, color: Int?)
     case updateNetwork(id: Int64, name: String, kind: NetworkKind)
     case reloadRegistry
@@ -102,6 +104,7 @@ struct UISnapshot: Codable, Equatable {
     var resetHour: Int
     var current: Network?
     var connectedSince: Date?
+    var island = IslandSettings()
 
     @MainActor
     static func current() -> UISnapshot {
@@ -110,7 +113,7 @@ struct UISnapshot: Codable, Equatable {
             status: usage.status, todayJSON: usage.todayJSON, registry: usage.registry,
             menuBarLayout: usage.menuBarLayout,
             resetHour: usage.resetHour, current: NetworkMonitor.shared.current,
-            connectedSince: NetworkMonitor.shared.connectedSince)
+            connectedSince: NetworkMonitor.shared.connectedSince, island: IslandController.shared.settings)
     }
 }
 
@@ -415,6 +418,7 @@ final class UIProcess {
         case .live(let live): usage.isLive = live
         case .setMenuBarLayout(let layout): usage.setMenuBarLayout(layout)
         case .setResetHour(let hour): usage.setResetHour(hour)
+        case .setSetting(let key, let value): usage.setSetting(key, to: value)
         case .setNetworkColor(let id, let color): usage.setNetworkColor(id: id, color: color)
         case .updateNetwork(let id, let name, let kind): usage.updateNetwork(id: id, name: name, kind: kind)
         case .reloadRegistry: usage.reloadRegistry()

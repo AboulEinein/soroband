@@ -21,7 +21,7 @@ enum MomentKind: String, CaseIterable, Identifiable {
     var detail: String {
         switch self {
         case .notchPeek: "Hover the notch to see today's total and top apps."
-        case .networkJoined: "This network's recent usage and your last visit."
+        case .networkJoined: "This network's recent usage and when you were last on it."
         case .networkLeft: "A receipt for the session you just ended."
         case .hotspotMeter: "A small live counter under the notch while on a hotspot."
         case .dataHog: "One app uses a lot of data in a short time."

@@ -45,6 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // A UI process gone with the popover open leaves nobody to turn the live polls off.
         UIProcess.shared.onExit = { Usage.shared.isLive = false }
         NetworkMonitor.shared.start()
+        IslandController.shared.start()
         SettingsListener.start()
         // `kill` quits like the Quit button, so the last minute of usage is written.
         signal(SIGTERM, SIG_IGN)

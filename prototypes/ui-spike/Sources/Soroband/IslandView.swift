@@ -233,7 +233,7 @@ private struct MomentView: View {
         let week = store.records(in: Calendar.current.dateInterval(of: .weekOfYear, for: .now)!, network: net.id).totals.total
         let lastSeen = store.lastSeenBefore(net.id, store.connectedSince)
         return Row(title: "Joined \(net.name)",
-                   subtitle: "\(formatBytes(week)) this week" + (lastSeen.map { " · last here \($0.formatted(.relative(presentation: .named)))" } ?? " · first visit")) {
+                   subtitle: "\(formatBytes(week)) this week" + (lastSeen.map { " · last here \($0.formatted(.relative(presentation: .named)))" } ?? " · first time here")) {
             NetworkTile(net: net)
         } trailing: {
             Stat(label: "Today here", value: formatBytes(store.records(in: store.todayInterval, network: net.id).totals.total))

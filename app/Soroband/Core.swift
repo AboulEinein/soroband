@@ -158,6 +158,39 @@ enum Core {
         return rows < 0 ? nil : Int(rows)
     }
 
+    /// While on, the engine looks for the island's moments after each poll; off, it does not.
+    static func watchMoments(_ on: Bool) {
+        soroband_moments_watch(on)
+    }
+
+    /// While on, the engine publishes today's top apps after each poll, for the peek.
+    static func watchTopApps(_ on: Bool) {
+        soroband_top_apps_watch(on)
+    }
+
+    /// Tells the engine which app is in front, by its bundle path, for background activity.
+    static func setFrontmost(_ id: String?) {
+        guard let id else { return soroband_moments_frontmost(nil) }
+        soroband_moments_frontmost(id)
+    }
+
+    /// The moments the engine found since the last call, oldest first.
+    static func moments() -> [CoreMoment] {
+        guard let json = take(soroband_moments_json()), json != "[]" else { return [] }
+        do {
+            return try JSONDecoder().decode([CoreMoment].self, from: Data(json.utf8))
+        } catch {
+            NSLog("Soroband: cannot read the island's moments from the core: %@", String(describing: error))
+            return []
+        }
+    }
+
+    /// Today's top apps on the current network, most bytes first, as of the last poll; empty
+    /// unless `watchTopApps` is on.
+    static func topApps() -> [MomentApp] {
+        decode([MomentApp].self, soroband_top_apps_json()) ?? []
+    }
+
     private static func take(_ string: UnsafeMutablePointer<CChar>?) -> String? {
         guard let string else { return nil }
         defer { soroband_string_free(string) }

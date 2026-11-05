@@ -23,6 +23,9 @@ final class Usage {
     private(set) var registry: [RegisteredNetwork] = []
     private(set) var menuBarLayout = MenuBarLayout.default
     private(set) var resetHour = 0
+    /// The island's settings, read in the UI process for Settings; the menu bar process's
+    /// `IslandController` holds its own.
+    private(set) var island = IslandSettings()
 
     /// Set by the popover: polls every second and publishes today's lists while true.
     var isLive = false {
@@ -67,6 +70,7 @@ final class Usage {
             reloadRegistry()
         }
         onChange?()
+        IslandController.shared.polled()
     }
 
     /// The engine merges a network after the change that asked for it, so the registry the popover
@@ -91,6 +95,7 @@ final class Usage {
         if snapshot.registry != registry { registry = snapshot.registry }
         if snapshot.menuBarLayout != menuBarLayout { menuBarLayout = snapshot.menuBarLayout }
         if snapshot.resetHour != resetHour { resetHour = snapshot.resetHour }
+        if snapshot.island != island { island = snapshot.island }
     }
 
     /// Rereads the settings the app shows, after `soroband config set` or a change in Settings.
@@ -123,6 +128,22 @@ final class Usage {
             && Core.setSetting(MenuBarLayout.styleKey, to: layout.style.rawValue)
         if !saved { NSLog("Soroband: the menu bar layout was not saved") }
         reloadSettings()
+    }
+
+    /// Sets `key` as `soroband config set` would, for the island's settings. A value that does not
+    /// fit the setting is not saved.
+    func setSetting(_ key: String, to value: String) {
+        if UIHost.forward(.setSetting(key: key, value: value)) {
+            // Shown at once; the menu bar process's snapshot confirms it.
+            island = island.setting(key, to: value)
+            return
+        }
+        guard Core.setSetting(key, to: value) else {
+            NSLog("Soroband: %@ = %@ was not saved", key, value)
+            return
+        }
+        Core.reloadSettings()
+        IslandController.shared.reloadSettings()
     }
 
     func setResetHour(_ hour: Int) {
