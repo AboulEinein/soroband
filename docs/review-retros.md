@@ -552,3 +552,10 @@ Planned rounds: 1.
 ## [#46](https://github.com/AboulEinein/soroband/pull/46) docs: record what the popover's summary read costs (2026-11-05)
 
 Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | none | Checked 3d4ccd7. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. The follow-up said "measure first", and the measurement (a bars-only read would save about 4.7 ms per open, off the main thread) settled it as docs only, so there was little to review.
