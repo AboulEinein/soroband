@@ -306,9 +306,14 @@ struct SnapshotTests {
             return Self.fixedIcon(forPath: $0)
         }
         _ = try #require(Snapshot.render(popover(.apps), size: nil))
+        let popoverApps = Set(Self.today.apps.map(\.id).filter { $0.hasPrefix("/") })
+        #expect(popoverApps.isSubset(of: asked), "popover: \(popoverApps.subtracting(asked).sorted())")
+        // The popover's icons are cached; History must ask for its own.
+        AppIcons.clear()
+        asked = []
         _ = try #require(Snapshot.render(history(.month), size: CGSize(width: 780, height: 1180)))
-        let shown = Set(Self.today.apps.map(\.id).filter { $0.hasPrefix("/") })
-        #expect(shown.isSubset(of: asked), "not drawn by the loader: \(shown.subtracting(asked).sorted())")
+        let historyApps = Set(Self.october.apps.map(\.id).filter { $0.hasPrefix("/") })
+        #expect(historyApps.isSubset(of: asked), "History: \(historyApps.subtracting(asked).sorted())")
     }
 
     /// A snapshot must not depend on the display it runs on, or a baseline recorded on one display
