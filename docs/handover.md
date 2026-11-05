@@ -147,7 +147,6 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 Small items for a later nits pass.
 
 - **Unreviewed fix.** The App-cryptex rule groups Apple daemons in the App cryptex (`/System/Volumes/Preboot/Cryptexes/App/usr/libexec/PasswordBreachAgent` and similar) as "macOS & Services". It has a test that failed before the fix, but no review round saw it.
-- **Nothing keeps `rust-version` true.** `core/Cargo.toml` declares `rust-version = "1.85"`, and `cargo +1.85 test --workspace` passes, but CI builds only on `stable`, so code that needs a newer Rust passes CI unnoticed. A CI job on 1.85 would catch it.
 - **`cargo mutants` timeouts.** The last run on the meter module and C API (317 mutants: 255 caught, 22 missed, 34 unviable) had 6 timeouts, all in loops that then never end:
   - `Engine::tick` → `Ok(())`;
   - `messages` `+=` → `*=`;
@@ -198,6 +197,7 @@ Things learned the hard way that no file or config will tell you.
 - `xcodebuild test` launches the app as the test host, so a test run shows a second Soroband item for a moment. Unless `SOROBAND_DATA_DIR` is set, the test host keeps its database and settings in a new `Soroband Tests <UUID>` directory under the temporary directory (`Core.isolateTestHost`).
 - Linking the core built with Homebrew's `rust` warns that its standard library objects were built for macOS 27 while the app targets 14; rustup's standard library does not. Use rustup for anything that ships.
 - `cargo-mutants` is in `~/.cargo/bin`, which is not on `PATH` by default.
+- Homebrew's `rust` is first on `PATH`, so `rustup run 1.85.0 cargo` still builds with Homebrew's newer `rustc`. To build on the declared `rust-version`, put that toolchain's directory first: `PATH="$(dirname "$(rustup which --toolchain 1.85.0 rustc)"):$PATH" cargo test --workspace --manifest-path core/Cargo.toml` from the repository root.
 
 **Verifying**
 - Each worktree's Debug build registers the `soroband-debug://` scheme. `open "soroband-debug://…"` can launch another worktree's build, and every running Debug app answers `soroband debug state` and writes the same state file. Send URLs with `open -g -a <this build's Soroband.app>`, check the `pid` in `debug state`. `run-app.sh` stops only this worktree's `Soroband.app` and leaves other worktrees' Debug apps running. `networks.sh` ignores answers without a `network`.
