@@ -124,6 +124,10 @@ struct IslandSettings: Codable, Equatable {
 
     /// The ignored apps with `app` added; past the limit the oldest makes room, so Ignore always
     /// takes.
+    /// Whether `app` can be ignored: the setting separates names with commas, so an app whose id
+    /// holds one cannot be stored.
+    static func canIgnore(_ app: String) -> Bool { !app.contains(",") }
+
     func ignoring(_ app: String) -> [String] {
         guard !ignoredApps.contains(app) else { return ignoredApps }
         return Array((ignoredApps + [app]).suffix(Self.maxIgnoredApps))

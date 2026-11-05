@@ -67,7 +67,9 @@ enum MomentViews {
             if context.offersPause && app.id.hasSuffix(".app") {
                 buttons.append(button("Pause until off hotspot", prominent: true) { context.act(.pause(app)) })
             }
-            buttons.append(button("Ignore \(app.name)") { context.act(.ignore(app)) })
+            if IslandSettings.canIgnore(app.id) {
+                buttons.append(button("Ignore \(app.name)") { context.act(.ignore(app)) })
+            }
             buttons.append(button("Details") { context.act(.details(app)) })
             body = stack([top, packed(buttons)], vertical: true, spacing: 10)
         case .background(let app, let bytes, let uploading):
@@ -75,10 +77,10 @@ enum MomentViews {
                 tile: appIcon(app, size: 34), title: "\(app.name) · background \(uploading ? "upload" : "download")",
                 subtitle: "\(Format.bytes(bytes)) in the last few minutes, while not in front",
                 trailing: symbol("moon.zzz.fill", color: .secondaryLabelColor))
-            let buttons = [
-                button("Details", prominent: true) { context.act(.details(app)) },
-                button("Ignore \(app.name)") { context.act(.ignore(app)) },
-            ]
+            var buttons = [button("Details", prominent: true) { context.act(.details(app)) }]
+            if IslandSettings.canIgnore(app.id) {
+                buttons.append(button("Ignore \(app.name)") { context.act(.ignore(app)) })
+            }
             body = stack([top, packed(buttons)], vertical: true, spacing: 10)
         case .transfer(let app, let via, let bytes, let rate, let done):
             let title = via.map { "\(app.name) via \($0)" } ?? app.name

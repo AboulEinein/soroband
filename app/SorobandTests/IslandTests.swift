@@ -326,6 +326,12 @@ struct IslandSettingsTests {
         #expect(IslandSettingsView.moments([.hog], .peek, true) == "peek,hog", "in the schema's order")
     }
 
+    @Test func anAppWhoseIdHoldsACommaIsNotOfferedIgnore() {
+        // Its id would be stored as two names, neither of them the app.
+        #expect(!IslandSettings.canIgnore("/Applications/Foo, Bar.app"))
+        #expect(IslandSettings.canIgnore("/Applications/Safari.app"))
+    }
+
     @Test func ignoringTheHundredAndFirstAppDropsTheOldest() {
         var settings = IslandSettings()
         settings.ignoredApps = (1...100).map { "/tools/t\($0)" }
