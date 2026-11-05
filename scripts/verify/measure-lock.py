@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Runs a command while holding this Mac's measurement lock, so that only one CPU, memory,
-traffic or timing measurement runs at a time across worktrees and agents.
+traffic or timing measurement runs at a time across worktrees and agents of this macOS user.
 
 Usage: scripts/verify/measure-lock.py <label> <command> [args...]
   label: who holds the lock, shown to anyone waiting for it
@@ -43,8 +43,21 @@ while True:
 
 os.ftruncate(fd, 0)
 os.write(fd, f"{label} pid {os.getpid()} since {time.strftime('%H:%M:%S')}\n".encode())
-child = subprocess.Popen(command, start_new_session=True)
+child = None
+pending = []  # signals that arrive before the command has started
+
+
+def forward(signum, _frame):
+    if child is None:
+        pending.append(signum)
+    else:
+        os.killpg(child.pid, signum)
+
+
 for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
-    signal.signal(sig, lambda signum, _: os.killpg(child.pid, signum))
+    signal.signal(sig, forward)
+child = subprocess.Popen(command, start_new_session=True)
+for signum in pending:
+    os.killpg(child.pid, signum)
 returncode = child.wait()
 sys.exit(128 - returncode if returncode < 0 else returncode)
