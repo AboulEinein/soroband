@@ -146,16 +146,19 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         HistoryWindow.shared.warmUp()
     }
 
-    /// Gives the keyboard back to the app that had it when the popover opened, unless the user
-    /// went to another app meanwhile or a window of Soroband is still open (Settings or History
-    /// from the popover).
+    /// Gives the keyboard back to the app that had it when the popover opened, when
+    /// `KeyboardReturn` says so.
     private func returnKeyboard() {
         defer { previousApp = nil }
-        guard let previousApp, NSWorkspace.shared.frontmostApplication == .current,
-            SettingsWindow.shared.window == nil, HistoryWindow.shared.window == nil,
-            OnboardingWindow.shared.window == nil
+        let windowOpen =
+            SettingsWindow.shared.window != nil || HistoryWindow.shared.window != nil
+            || OnboardingWindow.shared.window != nil
+        guard
+            KeyboardReturn.givesBack(
+                hasPreviousApp: previousApp != nil,
+                sorobandIsFront: NSWorkspace.shared.frontmostApplication == .current, windowOpen: windowOpen)
         else { return }
-        previousApp.activate()
+        previousApp?.activate()
     }
 
     func popoverDidClose(_ notification: Notification) {

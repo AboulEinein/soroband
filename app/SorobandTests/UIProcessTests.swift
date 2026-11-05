@@ -396,6 +396,21 @@ struct UIHostTests {
         #expect(PopoverToggle.decide(isShown: false, lastClose: now.addingTimeInterval(-1), now: now) == .open)
     }
 
+    @Test func closingThePopoverGivesTheKeyboardBackOnlyToTheAppTheClickTookItFrom() {
+        #expect(
+            KeyboardReturn.givesBack(hasPreviousApp: true, sorobandIsFront: true, windowOpen: false),
+            "Escape or a click on the item: the app the user was in gets the keyboard back")
+        #expect(
+            !KeyboardReturn.givesBack(hasPreviousApp: false, sorobandIsFront: true, windowOpen: false),
+            "Soroband was already in front when the popover opened: nothing to give back")
+        #expect(
+            !KeyboardReturn.givesBack(hasPreviousApp: true, sorobandIsFront: false, windowOpen: false),
+            "the user clicked into another app, which keeps the keyboard")
+        #expect(
+            !KeyboardReturn.givesBack(hasPreviousApp: true, sorobandIsFront: true, windowOpen: true),
+            "Settings or History opened from the popover keeps the keyboard")
+    }
+
     /// Waits for `condition` up to 3 s: the main actor can be busy with other tests' rendering.
     private func until(_ condition: () -> Bool) async throws {
         for _ in 0..<300 where !condition() {

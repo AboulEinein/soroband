@@ -152,7 +152,7 @@ Small items for a later nits pass.
 
 - **History is up to a minute behind.** It reads what the engine has written (once a minute), so it can trail the popover by a minute's usage.
 - **Snapshots on a 1x display are untested.** `Snapshot.render` draws into a fixed 2x Display P3 bitmap so a display's scale or color space cannot change the image; `renderingIgnoresTheDisplayColorSpace` checks the color space only, and no run has been made with a 1x main display.
-- **The popover from the menu bar's overflow.** A click on the empty menu bar leaves the popover open, as on `main` before M6 (M6a hand checklist step 3; [#35](https://github.com/AboulEinein/soroband/pull/35)'s real-pointer comments).
+- **A click on the empty menu bar.** It leaves the popover open, as on `main` before M6 (M6a hand checklist step 3; [#35](https://github.com/AboulEinein/soroband/pull/35)'s real-pointer comments).
 - **Evidence branches.** `evidence/pr-35` and `evidence/m6b` hold only screenshots, linked from [#35](https://github.com/AboulEinein/soroband/pull/35)'s comments and [#36](https://github.com/AboulEinein/soroband/pull/36)'s description. Keeping or deleting them is the user's call; deleting them breaks those images.
 
 ## Gotchas
