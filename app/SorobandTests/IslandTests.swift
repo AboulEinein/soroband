@@ -167,6 +167,40 @@ struct IslandOutlineTests {
     }
 }
 
+/// Full screen: an app in front with a window exactly over a display the island is on.
+struct IslandFullScreenTests {
+    /// The main display 1512 × 982 pt; a second one above it, 1920 × 1080 pt, whose bottom
+    /// edge is the main display's top.
+    let main = CGRect(x: 0, y: 0, width: 1512, height: 982)
+    let above = CGRect(x: -200, y: 982, width: 1920, height: 1080)
+
+    func window(pid: pid_t, layer: Int = 0, _ x: CGFloat, _ y: CGFloat, _ width: CGFloat, _ height: CGFloat)
+        -> [String: Any]
+    {
+        [
+            kCGWindowOwnerPID as String: pid, kCGWindowLayer as String: layer,
+            kCGWindowBounds as String: CGRect(x: x, y: y, width: width, height: height).dictionaryRepresentation,
+        ]
+    }
+
+    func covers(_ windows: [[String: Any]], displays: [CGRect]) -> Bool {
+        IslandController.coversADisplay(windows: windows, owner: 42, displays: displays, mainDisplayHeight: 982)
+    }
+
+    @Test func aWindowOverTheWholeDisplayIsFullScreen() {
+        #expect(covers([window(pid: 42, 0, 0, 1512, 982)], displays: [main]))
+        // The display above starts 1080 pt above the main display's top (y = -1080 from it).
+        #expect(covers([window(pid: 42, -200, -1080, 1920, 1080)], displays: [main, above]))
+    }
+
+    @Test func aZoomedWindowAnotherAppsWindowOrAPanelIsNot() {
+        #expect(!covers([window(pid: 42, 0, 33, 1512, 949)], displays: [main]), "zoomed, below the menu bar")
+        #expect(!covers([window(pid: 7, 0, 0, 1512, 982)], displays: [main]), "another app in front")
+        #expect(!covers([window(pid: 42, layer: 25, 0, 0, 1512, 982)], displays: [main]), "not a document window")
+        #expect(!covers([window(pid: 42, -200, -1080, 1920, 1080)], displays: [main]), "a display without the island")
+    }
+}
+
 /// The island's settings as the core stores them, and the moments as the core reports them.
 struct IslandSettingsTests {
     @Test func settingsReadEveryKeyAndKeepDefaultsForMissingOnes() {

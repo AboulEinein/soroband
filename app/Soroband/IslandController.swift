@@ -304,19 +304,28 @@ final class IslandController {
         let windows =
             CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
             as? [[String: Any]] ?? []
-        let screens = panels.compactMap(\.screen).map(\.frame)
-        let main = NSScreen.screens.first?.frame ?? .zero
-        let covers = windows.contains { window in
-            guard (window[kCGWindowOwnerPID as String] as? pid_t) == front.processIdentifier,
+        setFullScreen(
+            Self.coversADisplay(
+                windows: windows, owner: front.processIdentifier, displays: panels.compactMap(\.screen).map(\.frame),
+                mainDisplayHeight: NSScreen.screens.first?.frame.maxY ?? 0))
+    }
+
+    /// Whether one of `owner`'s windows in `windows` (as `CGWindowListCopyWindowInfo` describes
+    /// them: bounds from the main display's top left) lies exactly over one of `displays` (frames
+    /// from its bottom left, as `NSScreen` gives them), at the normal window level.
+    nonisolated static func coversADisplay(
+        windows: [[String: Any]], owner: pid_t, displays: [CGRect], mainDisplayHeight: CGFloat
+    ) -> Bool {
+        windows.contains { window in
+            guard (window[kCGWindowOwnerPID as String] as? pid_t) == owner,
                 (window[kCGWindowLayer as String] as? Int) == 0,
                 let bounds = window[kCGWindowBounds as String] as? NSDictionary,
                 let rect = CGRect(dictionaryRepresentation: bounds)
             else { return false }
-            // Window bounds have their origin at the top left of the main display.
-            let frame = CGRect(x: rect.minX, y: main.maxY - rect.maxY, width: rect.width, height: rect.height)
-            return screens.contains { $0 == frame }
+            let frame = CGRect(
+                x: rect.minX, y: mainDisplayHeight - rect.maxY, width: rect.width, height: rect.height)
+            return displays.contains(frame)
         }
-        setFullScreen(covers)
     }
 
     private func setFullScreen(_ value: Bool) {
