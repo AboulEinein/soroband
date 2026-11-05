@@ -247,7 +247,7 @@ The glance shown while the Mac is on a hotspot: today on it and the live speed, 
 One app that used more than a threshold within a window (default 100 MB in 5 minutes).
 
 **Background activity**:
-An app that is not the frontmost app and used more than a threshold within the data hog's window (default 50 MB).
+An app that used more than a threshold within the data hog's window (default 50 MB) while it was not the frontmost app.
 
 **Large transfer**:
 An app moving at least 100 KB/s poll after poll, shown once its run passes a threshold (default 50 MB) and again when it stops. It names the system service that moved the bytes for the app ("Xcode via App Store").

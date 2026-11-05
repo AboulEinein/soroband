@@ -120,18 +120,18 @@ The popover and History follow the "Warm" direction (`mockups/warm.html`), chose
 - Style setting: **Seamless** (default) covers the menu bar next to the notch while a moment is open, like other notch apps. **Keep menu bar clear** keeps the shape notch-wide inside the menu bar and widens it only below, so no menu bar item is ever covered.
 - Moments, each switchable in Settings:
   - **Peek on hover:** rest the pointer on the notch for 0.4 s: today on this network, live speed and the top 3 apps, following each poll while open.
-  - **Network joined:** this network's usage over the last 7 days, the last hour it was used before, today here.
+  - **Network joined:** this network's usage over the last 7 days, the last hour it was used before, today here. Not for the network the Mac is on when Soroband starts.
   - **Network left:** session receipt: what crossed the network's interfaces since the Mac joined it, how long, the top app.
   - **Hotspot meter:** a glance while on a hotspot: today on it beside the hotspot symbol on the left of the notch, the live speed on the right (seamless), or a small band below the notch (keep menu bar clear).
   - **Data hog:** one app over a threshold within a window (default 100 MB in 5 min). Actions: Pause until off hotspot (on a hotspot, when the setting allows it: quits the app and opens it again, in the background, on the next network that is not a hotspot), Ignore app, Details (History on today, with the app expanded).
-  - **Background activity:** an app that is not the frontmost app over a threshold within the same window (default 50 MB). Actions: Details, Ignore app. An app over both thresholds in one burst is one alert, the data hog.
+  - **Background activity:** an app over a threshold within the same window (default 50 MB) counting only the bytes it moved while it was not the frontmost app. Actions: Details, Ignore app. An app over both thresholds in one burst is one alert, the data hog.
   - **Large transfer:** an app moving at least 100 KB/s poll after poll, shown once the run passes a threshold (default 50 MB) with its bytes and speed, and again with a checkmark once the app has moved less than 100 KB/s for two polls. A transfer a system service makes for an app names it ("Xcode via App Store"; the App Store and Software Update are named).
   - **Daily recap:** one line at the reset hour: the day that ended on every network, how many networks, the top app. Off by default.
 - One moment opens at a time; the others wait in the moment queue, alerts (data hog, background activity) first, then large transfers, then the rest, at most 8. A moment closes on its own (alerts after 8 s, a transfer after 6 s, the peek 0.4 s after the pointer leaves, the others after 5 s) and the next opens 0.45 s later. The pointer on the island's outline keeps a moment open; a pointer resting where a moment opened counts only once it moves, so a moment that opens under it still closes. A transfer is one moment per app: its progress updates it, and once it has shown, only its end opens it again.
 - Hover and clicks are tested against the island's outline, not its panel; the panel tracks the pointer only over the outline's bounds.
 - Full screen: an app in front with a window covering a display the island is on. By default only alerts show then; the island can hide entirely or show every moment.
-- Displays: the built-in display (default) or every display; on a display without a notch the island grows from the top edge.
-- Island off: alerts become notifications (`island_notifications`, on by default; macOS asks for permission once), and nothing is drawn.
+- Displays: the built-in display (default) or every display; on a display without a notch the island grows from the top edge, or, keeping the menu bar clear, from just below the menu bar.
+- Island off, or on with no display to show on (the built-in display only, with the lid closed): alerts become notifications (`island_notifications`, on by default; macOS asks for permission once).
 - Apps can be ignored: they raise no moment (`island_ignored_apps`).
 
 How the island is built and what it costs:
