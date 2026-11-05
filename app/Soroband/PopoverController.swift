@@ -20,6 +20,9 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     /// reports it (its occlusion state turning visible), for `soroband debug state`.
     private(set) var openDuration: TimeInterval?
     private var occlusion: NSObjectProtocol?
+    /// Closes the popover on a click in another app or on the menu bar, which a transient popover
+    /// misses; installed only while it is shown.
+    private var outsideClicks: Any?
 
     var isShown: Bool { popover.isShown }
 
@@ -72,6 +75,14 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         let window = popover.contentViewController?.view.window
         window?.makeKey()
         if let window { timeUntilOnScreen(window, from: request.requested) }
+        // A click on the menu bar item closes it here too, and its toggle then finds it just
+        // closed (`PopoverToggle`). Clicks in this process's windows never reach a global monitor.
+        if let outsideClicks { NSEvent.removeMonitor(outsideClicks) }
+        outsideClicks = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.popover.performClose(nil) }
+        }
         UIHost.send(.popover(shown: true))
         UIHost.windowsChanged()
     }
@@ -137,6 +148,8 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     }
 
     func popoverDidClose(_ notification: Notification) {
+        if let outsideClicks { NSEvent.removeMonitor(outsideClicks) }
+        outsideClicks = nil
         popover.contentViewController = nil
         anchor?.orderOut(nil)
         AppIcons.clear()
