@@ -517,3 +517,10 @@ Planned rounds: 1.
 ## [#40](https://github.com/AboulEinein/soroband/pull/40) fix(core): name a version-named tool by its directory (2026-11-05)
 
 Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | none | Checked e2845ca. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: today's usage read back under the old name keeps that label until the daily reset (accepted). |
+
+**Retro.** Planned 1 round; it took 1. A narrow, tested naming rule with a real `soroband live` run before the first round left the blind round nothing to find; CodeRabbit's one finding was a one-day label effect on the update's day, accepted as the PR had stated it.
