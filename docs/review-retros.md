@@ -615,6 +615,14 @@ Planned rounds: 1.
 
 Planned rounds: 1.
 
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low, 1 Minor | `first look`: the window openers defaulted `activates` to true, so a caller that dropped the flag would activate again with every test passing; two doc comments said a Debug URL command is what activates. |
+| direct | Opus | none | Checked eb66113. [Comment](https://github.com/AboulEinein/soroband/pull/49#issuecomment-6658590672). |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1 and a direct review. The Low finding is a pattern worth keeping: a flag that guards a side effect (here, taking the keyboard) should have no default, so the compiler makes every caller choose, rather than a default that silently restores the bug.
+
 ## [#51](https://github.com/AboulEinein/soroband/pull/51) fix(app): let the popover take the keyboard when opened from the overflow (2026-11-05)
 
 Planned rounds: 2.
