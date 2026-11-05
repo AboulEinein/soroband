@@ -84,7 +84,8 @@ switch() {
 }
 
 download() {
-  local size=$(/usr/bin/curl -sS -o /dev/null -w '%{size_download}' "https://speed.cloudflare.com/__down?bytes=$1")
+  # A stalled download must not hold the measurement lock: it fails the step instead.
+  local size=$(/usr/bin/curl -sS --max-time 90 -o /dev/null -w '%{size_download}' "https://speed.cloudflare.com/__down?bytes=$1" || true)
   print "curl downloaded $size bytes"
 }
 

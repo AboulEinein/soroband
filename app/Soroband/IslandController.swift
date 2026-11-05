@@ -137,6 +137,9 @@ final class IslandController {
     private func makePanels() {
         for panel in panels { panel.close() }
         panels = []
+        // The new panels' views start with no pointer on them.
+        queue.hover(false, now: now)
+        peekWait?.cancel()
         guard settings.enabled else {
             shown = .rest
             return

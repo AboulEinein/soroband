@@ -152,6 +152,16 @@ final class IslandView: NSView {
         CATransaction.commit()
     }
 
+    /// A view leaving its window (its panel closed) stops its timers.
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        super.viewWillMove(toWindow: newWindow)
+        guard newWindow == nil else { return }
+        link?.invalidate()
+        link = nil
+        leaveCheck?.invalidate()
+        leaveCheck = nil
+    }
+
     // MARK: Pointer
 
     /// Whether `point`, in this view's coordinates, is on the island's outline as it is going to
