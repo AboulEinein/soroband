@@ -33,8 +33,8 @@ struct UsageTests {
     }
 
     /// `soroband config set menu_bar_readings` must reach the menu bar: a changed layout is kept
-    /// and redraws once. The test host shares the Debug app's settings file, so the value is
-    /// put back.
+    /// and redraws once. Other tests share the test host's settings file, so the value is put
+    /// back.
     @Test func rereadingAChangedLayoutRedrawsTheMenuBarOnce() throws {
         let original = try #require(Core.setting(MenuBarLayout.readingsKey))
         defer { Core.setSetting(MenuBarLayout.readingsKey, to: original) }
