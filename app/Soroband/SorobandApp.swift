@@ -11,7 +11,7 @@ struct SorobandApp: App {
             .commands {
                 // ⌘, opens the app's own Settings window, not this empty scene.
                 CommandGroup(replacing: .appSettings) {
-                    Button("Settings…") { SettingsWindow.shared.show() }
+                    Button("Settings…") { SettingsWindow.shared.show(activates: true) }
                         .keyboardShortcut(",")
                 }
             }

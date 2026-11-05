@@ -54,12 +54,12 @@ final class PopoverController: NSObject, NSPopoverDelegate {
                     HistoryWindow.shared.show(
                         HistoryOptions(
                             range: .month, network: network, current: NetworkMonitor.shared.current?.id,
-                            requested: .now))
+                            requested: .now), activates: true)
                     self?.popover.performClose(nil)
                 },
                 openSettings: { [weak self] in
                     self?.popover.performClose(nil)
-                    SettingsWindow.shared.show()
+                    SettingsWindow.shared.show(activates: true)
                 },
                 quit: { UIHost.send(.quit) }))
     }
@@ -67,10 +67,10 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     private func presentBuilt(_ request: PopoverRequest) {
         let view = anchorView(at: request.anchor)
         // The popover takes keys and clicks only once the app is active.
-        NSApp.activate()
+        if request.activates { NSApp.activate() }
         popover.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
         let window = popover.contentViewController?.view.window
-        window?.makeKey()
+        if request.activates { window?.makeKey() }
         if let window { timeUntilOnScreen(window, from: request.requested) }
         UIHost.send(.popover(shown: true))
         UIHost.windowsChanged()

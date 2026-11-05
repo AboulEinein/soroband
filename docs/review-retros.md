@@ -549,6 +549,80 @@ Planned rounds: 1.
 
 **Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found 1 valid finding. Both findings came from one gap: the tests were written for the directory the fix makes, not for one a run supplies, which the fix also supports. A test of an override should cover each way the value can arrive.
 
+## [#41](https://github.com/AboulEinein/soroband/pull/41) ci: build and test the core on its declared rust-version (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low | `first look`: the version guard rejected a declared version with a patch part ("1.85.0"). |
+| direct | Opus | none | Checked afe7d53. [Comment](https://github.com/AboulEinein/soroband/pull/41#issuecomment-6656653435). |
+| CodeRabbit | CodeRabbit | 2 Minor | `first look`: "1.85" tested the newest 1.85 patch release instead of 1.85.0; the handover's command needed `--manifest-path core/Cargo.toml` from the root. |
+| direct | Opus | none | Checked b7a8610. [Comment](https://github.com/AboulEinein/soroband/pull/41#issuecomment-6657219106). |
+| CodeRabbit | CodeRabbit | 1 Minor | Not valid, on the records commit: put the toolchain first on `PATH` before the guard (the runner already has it first). |
+
+**Retro.** Planned 1 round; it took 1 and two direct reviews, and CodeRabbit found 2 valid findings. All three findings were about what a version string means (a patch part, the minimum patch release) or where a command runs; the implementer's own check, that a too-new feature fails, was right, but the guard's inputs were not tested beyond today's "1.85". A check that parses a declared value should be tried on each form the value can take.
+
+## [#42](https://github.com/AboulEinein/soroband/pull/42) test(app): cover the registry-failure fallback (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low | `first look`: the new enum was named `Booking`, a glossary term with another meaning. |
+| direct | Opus | none | Checked 159745e. [Comment](https://github.com/AboulEinein/soroband/pull/42#issuecomment-6657011614). |
+| CodeRabbit | CodeRabbit | 1 Trivial | Accepted: monitor-level coverage needs a seam the follow-up chose not to add. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`, on the records commit: that finding was recorded as not valid rather than accepted. |
+
+**Retro.** Planned 1 round; it took 1 and a direct review. The one finding was a name: a new type reused a glossary word for something else. Checking a new type's name against `GLOSSARY.md` before the first round would have caught it.
+
+## [#46](https://github.com/AboulEinein/soroband/pull/46) docs: record what the popover's summary read costs (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | none | Checked 3d4ccd7. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. The follow-up said "measure first", and the measurement (a bars-only read would save about 4.7 ms per open, off the main thread) settled it as docs only, so there was little to review.
+
+## [#47](https://github.com/AboulEinein/soroband/pull/47) test(meter): kill the rx_duplicates mutant and record the mutant timeouts (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Medium | `first look`: a commit added before the round (the `/System/Cryptexes/OS` test case and retiring "Unreviewed fix") was missing from the Summary, and the review behind the retirement was not recorded. Answered: same concern, Summary rewritten with the evidence. |
+| direct | Opus | none | Accepted the answer; two wording fixes to the PR body. [Comment](https://github.com/AboulEinein/soroband/pull/47#issuecomment-6657484114). |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1 and a direct review. The one finding came from the orchestrator adding a commit to a delegate's PR without updating its Summary: whoever adds to a PR updates its description in the same push. The timeouts follow-up could not be fixed by configuration; the evidence (cargo-mutants never counts a timeout as caught, and a lower limit would hide a real miss) replaced it with a gotcha.
+
+## [#48](https://github.com/AboulEinein/soroband/pull/48) test(app): draw fixed app icons in snapshots (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low | `first look`: History's icon check could not fail, because the popover had already cached every icon. |
+| direct | Opus | none | Checked a394355. [Comment](https://github.com/AboulEinein/soroband/pull/48#issuecomment-6657706305). |
+| CodeRabbit | CodeRabbit | 1 Trivial | Not valid: restore the icon loader after each test (no other test reads it). |
+
+**Retro.** Planned 1 round; it took 1 and a direct review. The one valid finding was a check made vacuous by a cache: a test that asserts something was asked for must clear any cache between the two things it checks.
+
+## [#49](https://github.com/AboulEinein/soroband/pull/49) fix(app): keep debug URL commands from activating the app (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low, 1 Minor | `first look`: the window openers defaulted `activates` to true, so a caller that dropped the flag would activate again with every test passing; two doc comments said a Debug URL command is what activates. |
+| direct | Opus | none | Checked eb66113. [Comment](https://github.com/AboulEinein/soroband/pull/49#issuecomment-6658590672). |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1 and a direct review. The Low finding is a pattern worth keeping: a flag that guards a side effect (here, taking the keyboard) should have no default, so the compiler makes every caller choose, rather than a default that silently restores the bug.
+
 ## [#50](https://github.com/AboulEinein/soroband/pull/50) feat: M5 Dynamic Island moments (2026-11-05)
 
 Planned rounds: 3. Round 1 is the review experiment in `plan.md` (M5): not posted, compared with CodeRabbit on the same commit. Before the draft, the CodeRabbit CLI found 4 valid issues, fixed before round 1: paused apps reopening while the network was unidentified, a transfer's service label kept after the app moved its own bytes, a watch's first poll rated over 1 s, and an unbounded wait in `moments.sh`.

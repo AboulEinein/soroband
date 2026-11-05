@@ -90,7 +90,7 @@ final class MenuBarController: NSObject {
 
     @objc func togglePopover() {
         guard let anchor else { return }
-        UIProcess.shared.send(.toggle(PopoverRequest(anchor: anchor, requested: .now)))
+        UIProcess.shared.send(.toggle(PopoverRequest(anchor: anchor, activates: true, requested: .now)))
         sentAnchor = anchor
     }
 
