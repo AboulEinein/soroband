@@ -117,6 +117,13 @@ struct MomentQueue: Equatable {
         if kind == .transfer { shownTransfers.removeAll() }
     }
 
+    /// Drops the waiting moments about `app` and forgets its transfer: the user ignored it, or
+    /// quit it until off the hotspot.
+    mutating func remove(app: String) {
+        waiting.removeAll { $0.content.app?.id == app }
+        shownTransfers[app] = nil
+    }
+
     private mutating func close(now: TimeInterval) {
         if case .transfer(let app, _, _, _, true) = current?.content { shownTransfers[app.id] = nil }
         current = nil

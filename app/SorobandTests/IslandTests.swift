@@ -117,6 +117,19 @@ struct MomentQueueTests {
         #expect(next, "its end never came, so the next transfer is a new moment")
     }
 
+    @Test func ignoringAnAppDropsItsWaitingMoments() {
+        // A hog and a transfer of Xcode in one poll: the hog opens, the transfer waits.
+        var queue = MomentQueue()
+        queue.post(.hog(app: xcode, bytes: 0, minutes: 5, network: nil), now: 0)
+        queue.post(transfer(100_000_000), now: 0)
+        queue.post(joined, now: 0)
+        queue.remove(app: xcode.id)
+        queue.dismiss(now: 1)
+        queue.advance(now: 1.45)
+        #expect(queue.current?.kind == .joined, "the ignored app's transfer does not open")
+        #expect(queue.waiting.isEmpty)
+    }
+
     @Test func turningAMomentOffDropsItOpenOrWaiting() {
         var queue = MomentQueue()
         queue.post(hog, now: 0)

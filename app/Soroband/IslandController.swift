@@ -22,7 +22,7 @@ final class IslandController {
     /// An app in front is full screen on the island's display.
     private(set) var fullScreen = false
     /// The latest moments and where each came from, for `soroband debug state`.
-    private(set) var recent: [(kind: MomentKind, source: String, at: Date)] = []
+    private(set) var recent: [(kind: MomentKind, source: String, at: Date, ended: Bool)] = []
 
     private enum Shown: Equatable {
         case rest
@@ -113,9 +113,9 @@ final class IslandController {
         switch settings.route(kind, hasPanel: !panels.isEmpty) {
         case .notification:
             notify(content)
-            record(kind, source: source)
+            record(content, source: source)
         case .island:
-            if queue.post(content, now: now) { record(kind, source: source) }
+            if queue.post(content, now: now) { record(content, source: source) }
             render()
         case .nowhere:
             break
@@ -353,6 +353,10 @@ final class IslandController {
     // MARK: Actions
 
     private func perform(_ action: MomentAction) {
+        switch action {
+        case .pause(let app), .ignore(let app): queue.remove(app: app.id)
+        case .details: break
+        }
         queue.dismiss(now: now)
         render()
         switch action {
@@ -419,8 +423,8 @@ final class IslandController {
         }
     }
 
-    private func record(_ kind: MomentKind, source: String) {
-        recent.append((kind, source, .now))
+    private func record(_ content: MomentContent, source: String) {
+        recent.append((content.kind, source, .now, content.isTransferEnd))
         if recent.count > 20 { recent.removeFirst() }
     }
 
@@ -432,6 +436,8 @@ final class IslandController {
             let kind: String
             /// `engine` (real traffic or a network change), `hover`, or `debug` (`fire-moment`).
             let source: String
+            /// A transfer's end.
+            let ended: Bool
             let at: Double
         }
 
@@ -460,7 +466,9 @@ final class IslandController {
             enabled: settings.enabled, style: settings.style.rawValue, showing: showing,
             waiting: queue.waiting.map(\.kind.rawValue), hovering: queue.hovering, fullScreen: fullScreen,
             panels: panels.map(\.windowNumber),
-            recent: recent.map { .init(kind: $0.kind.rawValue, source: $0.source, at: $0.at.timeIntervalSince1970) })
+            recent: recent.map {
+                .init(kind: $0.kind.rawValue, source: $0.source, ended: $0.ended, at: $0.at.timeIntervalSince1970)
+            })
     }
 
     /// `soroband-debug://hover-island`: the pointer at `point` on the first panel (in the

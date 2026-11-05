@@ -76,6 +76,20 @@ enum MomentContent: Equatable {
     case transfer(app: MomentApp, via: String?, bytes: UInt64, rate: UInt64, done: Bool)
     case recap(bytes: UInt64, networks: Int, top: MomentApp?)
 
+    /// The app an alert or a transfer is about.
+    var app: MomentApp? {
+        switch self {
+        case .hog(let app, _, _, _), .background(let app, _, _), .transfer(let app, _, _, _, _): app
+        case .peek, .joined, .left, .recap: nil
+        }
+    }
+
+    /// A transfer's end.
+    var isTransferEnd: Bool {
+        if case .transfer(_, _, _, _, true) = self { return true }
+        return false
+    }
+
     var kind: MomentKind {
         switch self {
         case .peek: .peek
