@@ -899,7 +899,10 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
     )?;
     let mut speed = Bytes::default();
     let mut last_poll = Instant::now();
-    let mut moments = Moments::default();
+    let mut moments = Moments {
+        started: day::now(),
+        ..Moments::default()
+    };
     loop {
         // Commands sent during the last tick cut its wait short, so the tick has already polled:
         // what moved before a network change is booked to the previous network.
@@ -941,9 +944,10 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
 struct Moments {
     watch: Option<Watch>,
     session: Option<Session>,
-    /// The first network after the engine starts is the one the Mac was already on: the app's
-    /// launch, not a join.
+    /// Whether a network was found since the engine started ([`moments::opens_joined`]).
     seen_network: bool,
+    /// When the engine started.
+    started: i64,
 }
 
 impl Moments {
@@ -990,7 +994,7 @@ impl Moments {
     ) {
         let receipt = self.session.take().and_then(Session::receipt);
         self.session = Some(Session::new(joined, now));
-        let launch = !self.seen_network && joined != 0;
+        let opens_joined = moments::opens_joined(!self.seen_network, self.started, now);
         self.seen_network |= joined != 0;
         if !WATCHING.load(Ordering::Relaxed) {
             return;
@@ -999,7 +1003,7 @@ impl Moments {
         if let Some(receipt) = receipt {
             pending.push(&receipt);
         }
-        if joined != 0 && !launch {
+        if joined != 0 && opens_joined {
             pending.push(&moments::joined(
                 &lock(store),
                 service.today_networks(),

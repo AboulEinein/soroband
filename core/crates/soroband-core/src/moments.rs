@@ -307,6 +307,18 @@ fn interfaces_of<'a>(mut totals: impl Iterator<Item = &'a NetworkTotal>, network
         .map_or(0, |t| t.interfaces.total())
 }
 
+/// Seconds after the engine starts within which the first network found is the one the Mac was
+/// already on: identifying it can take a few router lookups (about a second each).
+pub const LAUNCH_WINDOW: i64 = 30;
+
+/// Whether joining a network at Unix time `now` opens the joined moment: not for the first
+/// network found within [`LAUNCH_WINDOW`] of the engine's start at `started` (the app's launch,
+/// not a join), but for any later one, and for the first after an offline launch.
+#[must_use]
+pub fn opens_joined(first: bool, started: i64, now: i64) -> bool {
+    !(first && now - started < LAUNCH_WINDOW)
+}
+
 /// The app with the most bytes; ties go to the first app by id, so the answer never depends on
 /// a map's order.
 fn top(apps: impl Iterator<Item = (App, u64)>) -> Option<(App, u64)> {
@@ -878,6 +890,20 @@ mod tests {
                 top: Some((music, 60 * MB)),
             }
         );
+    }
+
+    #[test]
+    fn the_network_found_at_launch_is_not_a_join_but_one_after_an_offline_launch_is() {
+        assert!(
+            !opens_joined(true, 1_000, 1_001),
+            "found a second after launch"
+        );
+        assert!(!opens_joined(true, 1_000, 1_029));
+        assert!(
+            opens_joined(true, 1_000, 1_030),
+            "an offline launch, joined 30 s later"
+        );
+        assert!(opens_joined(false, 1_000, 1_001), "any later network");
     }
 
     #[test]
