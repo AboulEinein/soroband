@@ -562,3 +562,16 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | 1 Minor | Not valid, on the records commit: put the toolchain first on `PATH` before the guard (the runner already has it first). |
 
 **Retro.** Planned 1 round; it took 1 and two direct reviews, and CodeRabbit found 2 valid findings. All three findings were about what a version string means (a patch part, the minimum patch release) or where a command runs; the implementer's own check, that a too-new feature fails, was right, but the guard's inputs were not tested beyond today's "1.85". A check that parses a declared value should be tried on each form the value can take.
+
+## [#42](https://github.com/AboulEinein/soroband/pull/42) test(app): cover the registry-failure fallback (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low | `first look`: the new enum was named `Booking`, a glossary term with another meaning. |
+| direct | Opus | none | Checked 159745e. [Comment](https://github.com/AboulEinein/soroband/pull/42#issuecomment-6657011614). |
+| CodeRabbit | CodeRabbit | 1 Trivial | Accepted: monitor-level coverage needs a seam the follow-up chose not to add. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`, on the records commit: that finding was recorded as not valid rather than accepted. |
+
+**Retro.** Planned 1 round; it took 1 and a direct review. The one finding was a name: a new type reused a glossary word for something else. Checking a new type's name against `GLOSSARY.md` before the first round would have caught it.

@@ -82,6 +82,23 @@ struct NetworkIdentity: Equatable {
     static func routerRetryDelay(afterAttempts attempts: Int) -> Duration {
         attempts < 5 ? .seconds(1) : .seconds(30)
     }
+
+    /// Where usage goes once the registry has answered for a new identity.
+    enum UsageTarget: Equatable {
+        /// The network the registry recorded.
+        case network(Network)
+        /// No network (id 0): the registry could not record it, and the last network is not this one.
+        case noNetwork
+        /// Usage already goes to no network.
+        case unchanged
+    }
+
+    /// `registered` is the registry's answer, nil when it failed; `current` is the network usage
+    /// goes to now, nil for no network.
+    static func usageTarget(registered: Network?, current: Network?) -> UsageTarget {
+        if let registered { return .network(registered) }
+        return current == nil ? .unchanged : .noNetwork
+    }
 }
 
 /// The router's hardware address on `interface`, from the IPv4 state macOS publishes per network
