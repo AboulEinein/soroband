@@ -170,10 +170,14 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         lastClose = .now
         let window = popover.contentViewController?.view.window
         wasKeyAtClose = window?.isKeyWindow == true
+        // `currentEvent` is the last event this process dispatched; a close that no event here
+        // began (the item's toggle, the outside-click monitor) finds an older one, so only a
+        // fresh mouse-down counts.
         let event = NSApp.currentEvent
         clickInOtherWindowAtClose =
             [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(event?.type)
             && event?.window != nil && event?.window !== window
+            && ProcessInfo.processInfo.systemUptime - (event?.timestamp ?? 0) < 0.2
     }
 
     func popoverDidShow(_ notification: Notification) {
