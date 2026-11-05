@@ -420,7 +420,7 @@ private struct NoticeView: View {
         case .degraded:
             "For 20 minutes, apps and local-network traffic came to less than 85% of what crossed the network."
         case .overcount:
-            "Apps and local-network traffic came to more than crossed the network. The per-app numbers may be wrong."
+            "Apps and local-network traffic came to more than what crossed the network. The per-app numbers may be wrong."
         case .failed:
             "The meter stopped, or the usage database could not be opened. Quit and reopen Soroband."
         }
