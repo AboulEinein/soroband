@@ -557,6 +557,7 @@ Planned rounds: 1.
 | --- | --- | --- | --- |
 | 1 | Opus | 1 Low | `first look`: the new enum was named `Booking`, a glossary term with another meaning. |
 | direct | Opus | none | Checked 159745e. [Comment](https://github.com/AboulEinein/soroband/pull/42#issuecomment-6657011614). |
-| CodeRabbit | CodeRabbit | 1 Trivial | Not valid: monitor-level coverage needs a seam the follow-up chose not to add. |
+| CodeRabbit | CodeRabbit | 1 Trivial | Accepted: monitor-level coverage needs a seam the follow-up chose not to add. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`, on the records commit: that finding was recorded as not valid rather than accepted. |
 
 **Retro.** Planned 1 round; it took 1 and a direct review. The one finding was a name: a new type reused a glossary word for something else. Checking a new type's name against `GLOSSARY.md` before the first round would have caught it.
