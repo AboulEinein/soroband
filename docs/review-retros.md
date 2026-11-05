@@ -630,7 +630,7 @@ Planned rounds: 1.
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | 1 | Opus | 1 Medium | `first look`: the monitor closed the popover on the item's mouse-down while the item toggles on mouse-up, so a press held past 0.3 s closed and reopened it. |
-| 2 | Opus | none new | Kept the thread open until a real-pointer run showed the fix in the app; the PR description was stale. |
+| 2 | Opus | none | No new finding; kept the thread open until a real-pointer run showed the fix in the app; the PR description was stale. |
 | direct | Opus | none | Accepted the real-pointer run on 7935b7a. [Comment](https://github.com/AboulEinein/soroband/pull/45#issuecomment-6658751838). |
 | CodeRabbit | CodeRabbit | 1 Minor | `first look`: the monitor read the pointer's current position, not the click's. |
 | direct | Opus | none | Checked 82d7a4f with the real-pointer run on 3362b57. [Comment](https://github.com/AboulEinein/soroband/pull/45#issuecomment-6660163387). |
