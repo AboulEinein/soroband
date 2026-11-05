@@ -137,7 +137,10 @@ else
   failed=1
 fi
 # The peek opens only on an island at rest or showing the meter: a transfer's end may still come.
-until [[ $(state | jq -r .island.showing) == glance ]]; do sleep 0.5; done
+for _ in {1..120}; do
+  [[ $(state | jq -r .island.showing) == glance ]] && break
+  sleep 0.5
+done
 t=$(date +%s)
 open -g -a $app "soroband-debug://hover-island?at=notch"
 expect peek hover 15 $t
