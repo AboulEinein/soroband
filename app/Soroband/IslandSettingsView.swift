@@ -18,7 +18,7 @@ struct IslandSettingsView: View {
                         title: "Show moments at the notch",
                         detail: settings.enabled ? nil : "Off, Soroband is a plain menu bar app."
                     ) {
-                        toggle(IslandSettings.enabledKey, settings.enabled)
+                        toggle("Show moments at the notch", IslandSettings.enabledKey, settings.enabled)
                     }
                     Divider().padding(.leading, 14)
                     if settings.enabled {
@@ -34,7 +34,8 @@ struct IslandSettingsView: View {
                             title: "Send alerts as notifications",
                             detail: "A data hog or background activity still tells you, as a notification."
                         ) {
-                            toggle(IslandSettings.notificationsKey, settings.notifications)
+                            toggle(
+                                "Send alerts as notifications", IslandSettings.notificationsKey, settings.notifications)
                         }
                     }
                 }
@@ -45,7 +46,7 @@ struct IslandSettingsView: View {
                         if index > 0 { Divider().padding(.leading, 14) }
                         SettingsRow(title: kind.title, detail: kind.detail) {
                             toggle(
-                                IslandSettings.momentsKey, settings.moments.contains(kind),
+                                kind.title, IslandSettings.momentsKey, settings.moments.contains(kind),
                                 value: { on in Self.moments(settings.moments, kind, on) })
                         }
                         .disabled(!settings.enabled && !(kind.isAlert && settings.notifications))
@@ -71,7 +72,7 @@ struct IslandSettingsView: View {
                         title: "Offer “Pause until off hotspot”",
                         detail: "A data hog on a hotspot can quit the app; it opens again on the next network."
                     ) {
-                        toggle(IslandSettings.pauseKey, settings.offersPause)
+                        toggle("Offer “Pause until off hotspot”", IslandSettings.pauseKey, settings.offersPause)
                     }
                     Divider().padding(.leading, 14)
                     SettingsRow(title: "Show on") {
@@ -150,8 +151,9 @@ struct IslandSettingsView: View {
         .foregroundStyle(.primary).monospacedDigit().fixedSize()
     }
 
-    private func toggle(_ key: String, _ isOn: Bool, value: ((Bool) -> String)? = nil) -> some View {
-        Toggle(key, isOn: Binding(get: { isOn }, set: { set(key, value?($0) ?? ($0 ? "on" : "off")) }))
+    /// A switch for `key`, which VoiceOver names `label`: its row's title.
+    private func toggle(_ label: String, _ key: String, _ isOn: Bool, value: ((Bool) -> String)? = nil) -> some View {
+        Toggle(label, isOn: Binding(get: { isOn }, set: { set(key, value?($0) ?? ($0 ? "on" : "off")) }))
             .toggleStyle(.switch).labelsHidden()
     }
 
