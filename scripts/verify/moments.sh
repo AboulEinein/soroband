@@ -105,12 +105,12 @@ t=$EPOCHREALTIME
 download 30000000
 expect background engine 20 $t
 expect transfer engine 20 $t
-# The transfer ends after two quiet polls; its end opens it again once the queue reaches it.
+# The transfer ends after two quiet polls; its end (`ended` in island.recent) opens it again once the queue reaches it.
 for _ in {1..120}; do
-  [[ $(state | jq --argjson t $t '[.island.recent[] | select(.kind == "transfer" and .at >= $t)] | length') -ge 2 ]] && break
+  [[ $(state | jq --argjson t $t '[.island.recent[] | select(.kind == "transfer" and .ended and .at >= $t)] | length') -ge 1 ]] && break
   sleep 0.5
 done
-(( $(state | jq --argjson t $t '[.island.recent[] | select(.kind == "transfer" and .at >= $t)] | length') >= 2 )) &&
+(( $(state | jq --argjson t $t '[.island.recent[] | select(.kind == "transfer" and .ended and .at >= $t)] | length') >= 1 )) &&
   print "PASS transfer ended" || { print "FAIL transfer: no end"; failed=1; }
 
 print "3. Data hog"
@@ -122,7 +122,7 @@ download 30000000
 expect hog engine 20 $t
 # This download is a transfer too: wait for its end, so nothing more arrives during step 4.
 for _ in {1..120}; do
-  [[ $(state | jq --argjson t $t '[.island.recent[] | select(.kind == "transfer" and .at >= $t)] | length') -ge 2 ]] && break
+  [[ $(state | jq --argjson t $t '[.island.recent[] | select(.kind == "transfer" and .ended and .at >= $t)] | length') -ge 1 ]] && break
   sleep 0.5
 done
 
