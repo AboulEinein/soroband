@@ -78,12 +78,14 @@ enum UIHost {
         case .showPopover(let popover): PopoverController.shared.show(popover)
         case .closePopover: PopoverController.shared.close()
         case .anchor(let anchor): PopoverController.shared.move(to: anchor)
-        case .showSettings(let tab): SettingsWindow.shared.show(tab: tab.flatMap(SettingsView.Tab.init(rawValue:)))
+        case .showSettings(let tab, _):
+            SettingsWindow.shared.show(
+                tab: tab.flatMap(SettingsView.Tab.init(rawValue:)), activates: request.activates)
         case .closeSettings: SettingsWindow.shared.window?.close()
-        case .showOnboarding: OnboardingWindow.shared.show(aboveOtherApps: true)
-        case .showHistory(let arguments, let replacing):
+        case .showOnboarding: OnboardingWindow.shared.show(aboveOtherApps: true, activates: request.activates)
+        case .showHistory(let arguments, let replacing, _):
             if let options = HistoryOptions(arguments: arguments) {
-                HistoryWindow.shared.show(options, replacing: replacing)
+                HistoryWindow.shared.show(options, replacing: replacing, activates: request.activates)
             }
         case .closeHistory: HistoryWindow.shared.close()
         case .quit: NSApp.terminate(nil)
@@ -101,6 +103,19 @@ enum UIHost {
             #endif
         }
         if request.showsWindow { windowsChanged(after: request) }
+    }
+}
+
+/// Brings `window` forward. When it `activates`, Soroband becomes the front app (if macOS lets it)
+/// and the window takes the keyboard; otherwise it only comes forward, and the keyboard stays
+/// where it was.
+@MainActor
+func bringForward(_ window: NSWindow, activates: Bool) {
+    if activates {
+        NSApp.activate()
+        window.makeKeyAndOrderFront(nil)
+    } else {
+        window.orderFront(nil)
     }
 }
 
