@@ -20,6 +20,9 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     /// reports it (its occlusion state turning visible), for `soroband debug state`.
     private(set) var openDuration: TimeInterval?
     private var occlusion: NSObjectProtocol?
+    /// The app that had the keyboard before a click brought the popover forward; it gets it back
+    /// when the popover closes.
+    private var previousApp: NSRunningApplication?
 
     var isShown: Bool { popover.isShown }
 
@@ -67,7 +70,14 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     private func presentBuilt(_ request: PopoverRequest) {
         let view = anchorView(at: request.anchor)
         // The popover takes keys and clicks only once the app is active.
-        if request.activates { NSApp.activate() }
+        if request.activates {
+            let front = NSWorkspace.shared.frontmostApplication
+            previousApp = front == .current ? nil : front
+            // A click on the item in the menu bar's overflow reaches the menu bar process while it
+            // is not active, so its yield gives nothing and `NSApp.activate()` is refused; this
+            // call, deprecated but still honored, brings Soroband forward from the overflow too.
+            NSApp.activate(ignoringOtherApps: true)
+        }
         popover.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
         let window = popover.contentViewController?.view.window
         if request.activates { window?.makeKey() }
@@ -136,7 +146,20 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         HistoryWindow.shared.warmUp()
     }
 
+    /// Gives the keyboard back to the app that had it when the popover opened, unless the user
+    /// went to another app meanwhile or a window of Soroband is still open (Settings or History
+    /// from the popover).
+    private func returnKeyboard() {
+        defer { previousApp = nil }
+        guard let previousApp, NSWorkspace.shared.frontmostApplication == .current,
+            SettingsWindow.shared.window == nil, HistoryWindow.shared.window == nil,
+            OnboardingWindow.shared.window == nil
+        else { return }
+        previousApp.activate()
+    }
+
     func popoverDidClose(_ notification: Notification) {
+        returnKeyboard()
         popover.contentViewController = nil
         anchor?.orderOut(nil)
         AppIcons.clear()
