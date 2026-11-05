@@ -667,7 +667,7 @@ Planned rounds: 1.
 
 ## [#50](https://github.com/AboulEinein/soroband/pull/50) feat: M5 Dynamic Island moments (2026-11-05)
 
-Planned rounds: 3. Ran: 5 blind rounds (round 1 unposted, the review experiment in `plan.md`, M5), 2 direct reviews, 2 CodeRabbit reviews (round 1's commit on the draft, then the ready PR), and the CodeRabbit CLI before each later push but one, which it reviewed after the push.
+Planned rounds: 3. Ran: 5 blind rounds (round 1 unposted, the review experiment in `plan.md`, M5), 3 direct reviews, 5 CodeRabbit reviews (round 1's commit on the draft, the ready PR, the records commit 7648b8c, its fixes 7648b8c..9808094, and the records commit 7708512), and the CodeRabbit CLI before each later push but one, which it reviewed after the push.
 
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
@@ -688,6 +688,7 @@ Planned rounds: 3. Ran: 5 blind rounds (round 1 unposted, the review experiment 
 | CodeRabbit | CodeRabbit CLI | 1 Major, 4 Minor | On 9c860a1. `first look`: the Island pane's switches named their settings keys to VoiceOver; the spike's `run.sh` built outside the lock and missed a failed mode (the Major). `fix regression`: the retro's counts. Not valid: a partial download, a third time. |
 | direct | Sonnet | 2 unrated | Checked 9c860a1 and 9808094: both fix their findings; two notes, neither acted on (a moment turned on fires at once by design; the `Watch` is tested with the hog out of reach). [Comment](https://github.com/AboulEinein/soroband/pull/50#issuecomment-6667436587). |
 | CodeRabbit | CodeRabbit | none | 7648b8c..9808094. |
+| CodeRabbit | CodeRabbit | 1 Minor | On the records commit 7708512. `fix regression`: the entry's "Ran" line still counted the reviews before the records commit. |
 
 **Retro.** Planned 3 rounds; it took 5 and 2 direct reviews. Round 1 was large because it saw a 46-file milestone first, and because the experiment ran it unposted on purpose. After that, 7 of the 11 findings in rounds 2 to 5 were `fix regression` (the other 4 `missed earlier`), and 4 of them in one place: the transfer's bookkeeping (when a transfer counts as shown, when its end is recorded) and `moments.sh`'s check of it. Each fix covered the path the finding named, and the next round found another path into the same state: turning the moment off, then ignoring the app or closing the lid, then the pointer holding it open, then an end landing on the open moment. Round 5's change was to debug state only, so a direct review stood in for round 6, as the user asked that review effort stay proportional. CodeRabbit's review of the records commit then found one more real-use gap the blind loop never looked at: a moment turned off still taking another's alert, the interaction of two settings rather than of code paths. Two process slips: one push went before its CLI review, and an answer to a finding was given from memory of the code and was wrong (the comma); the direct review caught it.
 
