@@ -637,3 +637,18 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | 1 Trivial | Accepted, on the records commit: a unit test of the monitor reading the event's location (the real-pointer run covers it). |
 
 **Retro.** Planned 1 round; it took 2 and two direct reviews, and CodeRabbit found 1 valid finding. Both findings were about when an event is read: the item toggles on mouse-up while the monitor acted on mouse-down, and the monitor read the live pointer instead of the event. cliclick presses and releases at once, so the first real-pointer runs could not show a held press; a pointer test of a click should include a held press. The pointer re-runs waited about an hour because another worktree's island covered the overflow chevron.
+
+## [#51](https://github.com/AboulEinein/soroband/pull/51) fix(app): let the popover take the keyboard when opened from the overflow (2026-11-05)
+
+Planned rounds: 2.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Medium, 1 Low, 1 Minor | `first look`: the keyboard-return decision had no test and two branches no run; the in-bar click was not listed as not checked; a follow-up title. |
+| 2 | Opus | 1 Medium | `fix regression`: a flag set only by the popover's buttons gave the keyboard away after ⌘, or a click into an open Soroband window. |
+| 3 | Opus | none | No new finding; kept round 2's thread open for a click into a Settings window behind the popover, which a real-pointer run then showed failing. |
+| 4 | Opus | 2 Low | `fix regression`: the stale-event guard had no test; the click into another app had no run after #45 merged. |
+| direct | Opus | none | Checked a43a737. [Comment](https://github.com/AboulEinein/soroband/pull/51#issuecomment-6661568459). |
+| CodeRabbit | CodeRabbit | 1 Minor, 1 Trivial | Not valid: yield activation before `activate()` (verified without it). Accepted: a caller-level test of the window comparison. |
+
+**Retro.** Planned 2 rounds; it took 4 and a direct review. Every finding was about one decision, when to give the keyboard back as the popover closes, and three rounds patched it with a flag before round 2's reassessment moved it to the state at close and the real pointer exposed the click into a window behind the popover. Deciding from state rather than from flags set by each caller, and running every path that closes the popover with the real pointer before round 1, would have saved two rounds. A pointer helper left ⌘ held for 20 minutes on the user's Mac: event-posting tools must release every key they press, and pointer runs stop at the first sign of a changed window layout.

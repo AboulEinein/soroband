@@ -20,6 +20,13 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     /// reports it (its occlusion state turning visible), for `soroband debug state`.
     private(set) var openDuration: TimeInterval?
     private var occlusion: NSObjectProtocol?
+    /// The app that had the keyboard before a click brought the popover forward; it gets it back
+    /// when the popover closes.
+    private var previousApp: NSRunningApplication?
+    /// Whether the popover was the key window as its close began, and whether a mouse-down in
+    /// another of this app's windows began it (`KeyboardReturn`).
+    private var wasKeyAtClose = false
+    private var clickInOtherWindowAtClose = false
     /// Closes the popover on a click in another app or on the menu bar, which a transient popover
     /// misses; installed only while it is shown.
     private var outsideClicks: Any?
@@ -61,8 +68,9 @@ final class PopoverController: NSObject, NSPopoverDelegate {
                     self?.popover.performClose(nil)
                 },
                 openSettings: { [weak self] in
-                    self?.popover.performClose(nil)
+                    // Settings first, so it is key as the popover's close begins and keeps the keyboard.
                     SettingsWindow.shared.show(activates: true)
+                    self?.popover.performClose(nil)
                 },
                 quit: { UIHost.send(.quit) }))
     }
@@ -70,7 +78,14 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     private func presentBuilt(_ request: PopoverRequest) {
         let view = anchorView(at: request.anchor)
         // The popover takes keys and clicks only once the app is active.
-        if request.activates { NSApp.activate() }
+        if request.activates {
+            let front = NSWorkspace.shared.frontmostApplication
+            previousApp = front == .current ? nil : front
+            // A click on the item in the menu bar's overflow reaches the menu bar process while it
+            // is not active, so its yield gives nothing and `NSApp.activate()` is refused; this
+            // call, deprecated but still honored, brings Soroband forward from the overflow too.
+            NSApp.activate(ignoringOtherApps: true)
+        }
         popover.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
         let window = popover.contentViewController?.view.window
         if request.activates { window?.makeKey() }
@@ -153,6 +168,12 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     /// Set as the close starts, not after its animation, which can end after the click's toggle.
     func popoverWillClose(_ notification: Notification) {
         lastClose = .now
+        let window = popover.contentViewController?.view.window
+        wasKeyAtClose = window?.isKeyWindow == true
+        let event = NSApp.currentEvent
+        clickInOtherWindowAtClose = KeyboardReturn.isClickInOtherWindow(
+            type: event?.type, inOtherWindow: event?.window != nil && event?.window !== window,
+            age: ProcessInfo.processInfo.systemUptime - (event?.timestamp ?? 0))
     }
 
     func popoverDidShow(_ notification: Notification) {
@@ -161,9 +182,23 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         HistoryWindow.shared.warmUp()
     }
 
+    /// Gives the keyboard back to the app that had it when the popover opened, when
+    /// `KeyboardReturn` says so.
+    private func returnKeyboard() {
+        defer { previousApp = nil }
+        guard
+            KeyboardReturn.givesBack(
+                hasPreviousApp: previousApp != nil,
+                sorobandIsFront: NSWorkspace.shared.frontmostApplication == .current, popoverWasKey: wasKeyAtClose,
+                clickInOtherWindow: clickInOtherWindowAtClose)
+        else { return }
+        previousApp?.activate()
+    }
+
     func popoverDidClose(_ notification: Notification) {
         if let outsideClicks { NSEvent.removeMonitor(outsideClicks) }
         outsideClicks = nil
+        returnKeyboard()
         popover.contentViewController = nil
         anchor?.orderOut(nil)
         AppIcons.clear()
