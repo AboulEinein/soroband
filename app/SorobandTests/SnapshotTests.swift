@@ -9,6 +9,27 @@ import Testing
 @MainActor
 @Suite(.serialized)
 struct SnapshotTests {
+    init() {
+        AppIcons.load = Self.fixedIcon
+        AppIcons.clear()
+    }
+
+    /// An app's icon drawn here, a rounded square in a color picked by its path, so a macOS update
+    /// that redraws the Mac's own icons leaves the baselines as they are.
+    static func fixedIcon(forPath path: String) -> NSImage {
+        let colors: [(CGFloat, CGFloat, CGFloat)] = [
+            (0.20, 0.52, 0.96), (0.96, 0.27, 0.36), (0.30, 0.80, 0.42), (0.98, 0.62, 0.16), (0.62, 0.40, 0.92),
+        ]
+        let (red, green, blue) = colors[path.utf8.reduce(0) { $0 + Int($1) } % colors.count]
+        return NSImage(size: NSSize(width: 24, height: 24), flipped: false) { rect in
+            NSColor(srgbRed: red, green: green, blue: blue, alpha: 1).setFill()
+            NSBezierPath(roundedRect: rect.insetBy(dx: 2, dy: 2), xRadius: 5, yRadius: 5).fill()
+            NSColor(white: 1, alpha: 0.85).setFill()
+            NSBezierPath(ovalIn: rect.insetBy(dx: 8, dy: 8)).fill()
+            return true
+        }
+    }
+
     /// A day like the popover mockup's: Home-5G with seven apps and two more, iPhone used too,
     /// Office known but never used.
     static let registry = [
@@ -275,6 +296,24 @@ struct SnapshotTests {
         try Snapshot.verify(
             history(.month, expandedApp: "process:huddle", hover: hover), named: "history-month-expanded",
             size: CGSize(width: 780, height: 1180))
+    }
+
+    /// Every app icon in the snapshots comes through `AppIcons.load`, so none is the Mac's own.
+    @Test func appIconsComeFromTheFixedLoader() throws {
+        var asked: Set<String> = []
+        AppIcons.load = {
+            asked.insert($0)
+            return Self.fixedIcon(forPath: $0)
+        }
+        _ = try #require(Snapshot.render(popover(.apps), size: nil))
+        let popoverApps = Set(Self.today.apps.map(\.id).filter { $0.hasPrefix("/") })
+        #expect(popoverApps.isSubset(of: asked), "popover: \(popoverApps.subtracting(asked).sorted())")
+        // The popover's icons are cached; History must ask for its own.
+        AppIcons.clear()
+        asked = []
+        _ = try #require(Snapshot.render(history(.month), size: CGSize(width: 780, height: 1180)))
+        let historyApps = Set(Self.october.apps.map(\.id).filter { $0.hasPrefix("/") })
+        #expect(historyApps.isSubset(of: asked), "History: \(historyApps.subtracting(asked).sorted())")
     }
 
     /// A snapshot must not depend on the display it runs on, or a baseline recorded on one display
