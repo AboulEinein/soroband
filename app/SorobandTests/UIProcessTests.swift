@@ -398,17 +398,18 @@ struct UIHostTests {
 
     @Test func closingThePopoverGivesTheKeyboardBackOnlyToTheAppTheClickTookItFrom() {
         #expect(
-            KeyboardReturn.givesBack(hasPreviousApp: true, sorobandIsFront: true, windowOpen: false),
+            KeyboardReturn.givesBack(hasPreviousApp: true, sorobandIsFront: true, openedWindow: false),
             "Escape or a click on the item: the app the user was in gets the keyboard back")
         #expect(
-            !KeyboardReturn.givesBack(hasPreviousApp: false, sorobandIsFront: true, windowOpen: false),
+            !KeyboardReturn.givesBack(hasPreviousApp: false, sorobandIsFront: true, openedWindow: false),
             "Soroband was already in front when the popover opened: nothing to give back")
         #expect(
-            !KeyboardReturn.givesBack(hasPreviousApp: true, sorobandIsFront: false, windowOpen: false),
+            !KeyboardReturn.givesBack(hasPreviousApp: true, sorobandIsFront: false, openedWindow: false),
             "the user clicked into another app, which keeps the keyboard")
         #expect(
-            !KeyboardReturn.givesBack(hasPreviousApp: true, sorobandIsFront: true, windowOpen: true),
+            !KeyboardReturn.givesBack(hasPreviousApp: true, sorobandIsFront: true, openedWindow: true),
             "Settings or History opened from the popover keeps the keyboard")
+        // A Settings window left open in the background is no `openedWindow`: the first case holds.
     }
 
     /// Waits for `condition` up to 3 s: the main actor can be busy with other tests' rendering.

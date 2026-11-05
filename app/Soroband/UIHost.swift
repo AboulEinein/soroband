@@ -135,9 +135,9 @@ enum PopoverToggle: Equatable {
 /// Whether the popover's close gives the keyboard back to the app that had it before the click.
 enum KeyboardReturn {
     /// Only when a click took it from an app (`hasPreviousApp`), Soroband still has it (the user
-    /// did not click into another app meanwhile), and no Soroband window is left open to keep it
-    /// (Settings or History opened from the popover).
-    static func givesBack(hasPreviousApp: Bool, sorobandIsFront: Bool, windowOpen: Bool) -> Bool {
-        hasPreviousApp && sorobandIsFront && !windowOpen
+    /// did not click into another app meanwhile), and the popover did not open Settings or History
+    /// (`openedWindow`), which keeps it. A Soroband window already open in the background does not.
+    static func givesBack(hasPreviousApp: Bool, sorobandIsFront: Bool, openedWindow: Bool) -> Bool {
+        hasPreviousApp && sorobandIsFront && !openedWindow
     }
 }
