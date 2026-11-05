@@ -531,6 +531,8 @@ struct RowIcon: View {
 @MainActor
 enum AppIcons {
     private static var cache: [String: NSImage] = [:]
+    /// Where an icon comes from; snapshot tests draw their own, so the Mac's apps cannot change them.
+    static var load: (String) -> NSImage = { NSWorkspace.shared.icon(forFile: $0) }
 
     static func clear() {
         cache.removeAll()
@@ -538,7 +540,7 @@ enum AppIcons {
 
     static func icon(forPath path: String) -> NSImage {
         if let icon = cache[path] { return icon }
-        let icon = NSWorkspace.shared.icon(forFile: path)
+        let icon = load(path)
         icon.size = NSSize(width: 24, height: 24)
         cache[path] = icon
         return icon
