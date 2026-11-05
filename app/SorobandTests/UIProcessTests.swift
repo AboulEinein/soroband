@@ -398,17 +398,26 @@ struct UIHostTests {
 
     @Test func closingThePopoverGivesTheKeyboardBackOnlyToTheAppTheClickTookItFrom() {
         #expect(
-            KeyboardReturn.givesBack(hasPreviousApp: true, sorobandIsFront: true, popoverWasKey: true),
+            KeyboardReturn.givesBack(
+                hasPreviousApp: true, sorobandIsFront: true, popoverWasKey: true, clickInOtherWindow: false),
             "Escape or a click on the item: the app the user was in gets the keyboard back")
         #expect(
-            !KeyboardReturn.givesBack(hasPreviousApp: false, sorobandIsFront: true, popoverWasKey: true),
+            !KeyboardReturn.givesBack(
+                hasPreviousApp: false, sorobandIsFront: true, popoverWasKey: true, clickInOtherWindow: false),
             "Soroband was already in front when the popover opened: nothing to give back")
         #expect(
-            !KeyboardReturn.givesBack(hasPreviousApp: true, sorobandIsFront: false, popoverWasKey: true),
+            !KeyboardReturn.givesBack(
+                hasPreviousApp: true, sorobandIsFront: false, popoverWasKey: true, clickInOtherWindow: false),
             "the user clicked into another app, which keeps the keyboard")
         #expect(
-            !KeyboardReturn.givesBack(hasPreviousApp: true, sorobandIsFront: true, popoverWasKey: false),
-            "Settings or History reached from the popover (its buttons, ⌘, or a click into one) keeps the keyboard")
+            !KeyboardReturn.givesBack(
+                hasPreviousApp: true, sorobandIsFront: true, popoverWasKey: false, clickInOtherWindow: false),
+            "Settings or History reached through the popover's buttons or ⌘, is key first and keeps the keyboard")
+        #expect(
+            !KeyboardReturn.givesBack(
+                hasPreviousApp: true, sorobandIsFront: true, popoverWasKey: true, clickInOtherWindow: true),
+            "a click into a Settings or History window behind the popover closes it before that window is key, and keeps it"
+        )
         // A Settings window left open in the background is not key as the popover closes: the
         // first case holds.
     }

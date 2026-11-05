@@ -23,8 +23,10 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     /// The app that had the keyboard before a click brought the popover forward; it gets it back
     /// when the popover closes.
     private var previousApp: NSRunningApplication?
-    /// Whether the popover was the key window as its close began (`KeyboardReturn`).
+    /// Whether the popover was the key window as its close began, and whether a mouse-down in
+    /// another of this app's windows began it (`KeyboardReturn`).
     private var wasKeyAtClose = false
+    private var clickInOtherWindowAtClose = false
     /// Closes the popover on a click in another app or on the menu bar, which a transient popover
     /// misses; installed only while it is shown.
     private var outsideClicks: Any?
@@ -166,7 +168,12 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     /// Set as the close starts, not after its animation, which can end after the click's toggle.
     func popoverWillClose(_ notification: Notification) {
         lastClose = .now
-        wasKeyAtClose = popover.contentViewController?.view.window?.isKeyWindow == true
+        let window = popover.contentViewController?.view.window
+        wasKeyAtClose = window?.isKeyWindow == true
+        let event = NSApp.currentEvent
+        clickInOtherWindowAtClose =
+            [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(event?.type)
+            && event?.window != nil && event?.window !== window
     }
 
     func popoverDidShow(_ notification: Notification) {
@@ -182,7 +189,8 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         guard
             KeyboardReturn.givesBack(
                 hasPreviousApp: previousApp != nil,
-                sorobandIsFront: NSWorkspace.shared.frontmostApplication == .current, popoverWasKey: wasKeyAtClose)
+                sorobandIsFront: NSWorkspace.shared.frontmostApplication == .current, popoverWasKey: wasKeyAtClose,
+                clickInOtherWindow: clickInOtherWindowAtClose)
         else { return }
         previousApp?.activate()
     }
