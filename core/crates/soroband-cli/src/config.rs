@@ -78,6 +78,10 @@ fn describe(setting: &Setting, current: &Current) -> Value {
             value["options"] = json!(options);
             value["max"] = json!(max);
         }
+        Kind::Names { max } => {
+            value["type"] = json!("names");
+            value["max"] = json!(max);
+        }
     }
     if let Some(problem) = &current.problem {
         value["problem"] = json!(problem);
@@ -93,6 +97,9 @@ fn line(setting: &Setting, current: &Current) -> String {
             "up to {max} of {}, separated by commas, or none",
             options.join(", ")
         ),
+        Kind::Names { max } => {
+            format!("up to {max} names, separated by commas, or none")
+        }
     };
     let mut text = format!(
         "{} = {}{}\n    {kind}, default {}. {}",
