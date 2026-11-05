@@ -101,6 +101,31 @@ struct MomentQueueTests {
         #expect(!progress, "still the same running transfer")
     }
 
+    @Test func aTransfersEndShowsAsANewOpenOrWaitingMoment() {
+        let end = transfer(80_000_000, done: true)
+        // New: the transfer showed and closed; its end opens again.
+        var closed = MomentQueue()
+        closed.post(transfer(50_000_000), now: 0)
+        closed.advance(now: 6)
+        let new = closed.post(end, now: 7)
+        #expect(new && closed.holds(end))
+        // Open: the end lands on the transfer showing.
+        var open = MomentQueue()
+        open.post(transfer(50_000_000), now: 0)
+        let onOpen = open.post(end, now: 1)
+        #expect(!onOpen && open.holds(end))
+        // Waiting: the end lands on the transfer waiting behind a hog.
+        var waiting = MomentQueue()
+        waiting.post(hog, now: 0)
+        waiting.post(transfer(50_000_000), now: 0)
+        let onWaiting = waiting.post(end, now: 1)
+        #expect(!onWaiting && waiting.holds(end))
+        // Never seen: nothing holds it.
+        var unseen = MomentQueue()
+        let dropped = unseen.post(end, now: 0)
+        #expect(!dropped && !unseen.holds(end))
+    }
+
     @Test func aTransferNobodySawStartShowsNoEnd() {
         var queue = MomentQueue()
         let end = queue.post(transfer(80_000_000, done: true), now: 0)

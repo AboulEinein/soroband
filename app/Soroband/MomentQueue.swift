@@ -117,6 +117,12 @@ struct MomentQueue: Equatable {
         if kind == .transfer { shownTransfers.removeAll() }
     }
 
+    /// Whether `content` is open or waiting: a transfer's end usually lands on its open or waiting
+    /// moment rather than making a new one.
+    func holds(_ content: MomentContent) -> Bool {
+        current?.content == content || waiting.contains { $0.content == content }
+    }
+
     /// Drops the waiting moments about `app` and forgets its transfer: the user ignored it, or
     /// quit it until off the hotspot.
     mutating func remove(app: String) {

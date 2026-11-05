@@ -194,14 +194,23 @@ impl Running {
     }
 }
 
-/// When the moments fire, as the island's settings say.
+/// When the moments fire, as the island's settings say. A moment turned off never fires, so it
+/// cannot take the place of one that is on (a hog in the background is otherwise the one alert).
 fn limits(settings: &Settings) -> Limits {
     const MB: u64 = 1_000_000;
+    let moments = settings.words(settings::ISLAND_MOMENTS);
+    let threshold = |kind: &str, key: &str| {
+        if moments.iter().any(|m| m == kind) {
+            settings.number(key) * MB
+        } else {
+            u64::MAX
+        }
+    };
     Limits {
-        hog_bytes: settings.number(settings::ISLAND_HOG_MB) * MB,
+        hog_bytes: threshold("hog", settings::ISLAND_HOG_MB),
         window: i64::try_from(settings.number(settings::ISLAND_HOG_MINUTES) * 60).unwrap_or(300),
-        background_bytes: settings.number(settings::ISLAND_BACKGROUND_MB) * MB,
-        transfer_bytes: settings.number(settings::ISLAND_TRANSFER_MB) * MB,
+        background_bytes: threshold("background", settings::ISLAND_BACKGROUND_MB),
+        transfer_bytes: threshold("transfer", settings::ISLAND_TRANSFER_MB),
         ignored: settings.words(settings::ISLAND_IGNORED_APPS),
     }
 }
@@ -1125,7 +1134,26 @@ fn today_json(service: &Service<SystemHost>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::soroband_core_version;
+    use super::{limits, soroband_core_version};
+    use crate::settings::{ISLAND_MOMENTS, Settings};
+
+    #[test]
+    fn a_moment_turned_off_never_fires_so_it_cannot_take_an_alert_that_is_on() {
+        let mut settings = Settings::default();
+        let on = limits(&settings);
+        assert_eq!(on.hog_bytes, 100_000_000, "the default 100 MB");
+        settings.set(ISLAND_MOMENTS, "background,transfer").unwrap();
+        let no_hog = limits(&settings);
+        assert_eq!(no_hog.hog_bytes, u64::MAX, "the hog is off");
+        assert_eq!(no_hog.background_bytes, 50_000_000);
+        settings.set(ISLAND_MOMENTS, "none").unwrap();
+        let none = limits(&settings);
+        assert_eq!(
+            (none.background_bytes, none.transfer_bytes),
+            (u64::MAX, u64::MAX)
+        );
+    }
+
     use std::ffi::CStr;
     use std::time::{Duration, Instant};
 
