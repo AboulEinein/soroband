@@ -173,6 +173,7 @@ mod tests {
             "/System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/\
              Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/\
              com.apple.WebKit.Networking",
+            "/System/Cryptexes/OS/usr/libexec/cryptexd",
             "/System/Volumes/Preboot/Cryptexes/App/usr/libexec/PasswordBreachAgent",
             "/System/Cryptexes/App/usr/libexec/SafariLaunchAgent",
         ] {

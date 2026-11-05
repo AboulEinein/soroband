@@ -146,7 +146,6 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 
 Small items for a later nits pass.
 
-- **Unreviewed fix.** The App-cryptex rule groups Apple daemons in the App cryptex (`/System/Volumes/Preboot/Cryptexes/App/usr/libexec/PasswordBreachAgent` and similar) as "macOS & Services". It has a test that failed before the fix, but no review round saw it.
 - **Nothing keeps `rust-version` true.** `core/Cargo.toml` declares `rust-version = "1.85"`, and `cargo +1.85 test --workspace` passes, but CI builds only on `stable`, so code that needs a newer Rust passes CI unnoticed. A CI job on 1.85 would catch it.
 - **Timing-dependent mutant.** `soroband_engine_stop` with its wait condition inverted (`cargo mutants`: `delete !`) was caught in one run and missed in the next: no test reliably sees whether stop waits for the final write.
 - **Registry-failure fallback is untested.** When `Core.networkChanged` fails (the database cannot record a network), `NetworkMonitor` books to no network (id 0). The branch has no unit test, because `NetworkMonitor` is bound to live system APIs; moving the decision into `NetworkIdentity` would make it testable.
