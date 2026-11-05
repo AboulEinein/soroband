@@ -107,7 +107,7 @@ final class NetworkMonitor {
             return
         }
         guard identity.key != current?.key else { return }
-        switch NetworkIdentity.booking(registered: Core.networkChanged(to: identity), current: current) {
+        switch NetworkIdentity.usageTarget(registered: Core.networkChanged(to: identity), current: current) {
         case .network(let network):
             if identity.formerKey != nil { Usage.shared.rereadRegistryAfterMerge() }
             current = network

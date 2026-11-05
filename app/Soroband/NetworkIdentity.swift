@@ -84,7 +84,7 @@ struct NetworkIdentity: Equatable {
     }
 
     /// Where usage goes once the registry has answered for a new identity.
-    enum Booking: Equatable {
+    enum UsageTarget: Equatable {
         /// The network the registry recorded.
         case network(Network)
         /// No network (id 0): the registry could not record it, and the last network is not this one.
@@ -95,7 +95,7 @@ struct NetworkIdentity: Equatable {
 
     /// `registered` is the registry's answer, nil when it failed; `current` is the network usage
     /// goes to now, nil for no network.
-    static func booking(registered: Network?, current: Network?) -> Booking {
+    static func usageTarget(registered: Network?, current: Network?) -> UsageTarget {
         if let registered { return .network(registered) }
         return current == nil ? .unchanged : .noNetwork
     }
