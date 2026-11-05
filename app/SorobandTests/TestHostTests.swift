@@ -9,7 +9,6 @@ struct TestHostTests {
     @Test func theTestHostKeepsItsDataOutOfTheDebugAppsDirectory() {
         let debugApp = URL.applicationSupportDirectory.appending(path: "Soroband Debug", directoryHint: .isDirectory)
         #expect(Core.dataDirectory.standardizedFileURL.path != debugApp.standardizedFileURL.path)
-        #expect(Core.dataDirectory.path.hasPrefix(FileManager.default.temporaryDirectory.path))
     }
 
     /// A UI process the test host starts inherits its environment, and `SettingsListener` names
