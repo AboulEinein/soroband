@@ -187,7 +187,7 @@ final class IslandController {
         let geometry = island.geometry
         switch next {
         case .rest:
-            island.show(.rest(geometry), view: nil)
+            island.show(.rest(geometry, style: settings.style), view: nil)
         case .glance(let today, let speed):
             let style = settings.style
             let metrics = IslandMetrics.glance(geometry, style: style)
@@ -354,8 +354,7 @@ final class IslandController {
         case .pause(let app):
             pause(app)
         case .ignore(let app):
-            var ignored = settings.ignoredApps
-            if !ignored.contains(app.id) { ignored.append(app.id) }
+            let ignored = settings.ignoring(app.id)
             if Core.setSetting(IslandSettings.ignoredAppsKey, to: IslandSettings.ignoredValue(ignored)) {
                 Core.reloadSettings()
                 reloadSettings()

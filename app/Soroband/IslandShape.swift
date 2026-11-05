@@ -43,11 +43,14 @@ struct IslandMetrics: Equatable {
     /// How far below the menu bar the island can reach.
     static let panelDepth: CGFloat = 200
 
-    /// At rest: exactly the notch, or nothing on a display without one.
-    static func rest(_ geometry: IslandGeometry) -> IslandMetrics {
+    /// At rest: exactly the notch, or nothing on a display without one. Keeping the menu bar
+    /// clear without a notch, it rests below the menu bar too, so the shape never crosses it on
+    /// the way in or out.
+    static func rest(_ geometry: IslandGeometry, style: IslandSettings.Style = .seamless) -> IslandMetrics {
         let notch = geometry.notchWidth
+        let top = style == .clear && !geometry.hasNotch ? geometry.menuBarHeight : 0
         return IslandMetrics(
-            width: notch, height: geometry.hasNotch ? geometry.menuBarHeight : 0, radius: 9, bandWidth: notch)
+            width: notch, height: geometry.hasNotch ? geometry.menuBarHeight : 0, radius: 9, bandWidth: notch, top: top)
     }
 
     /// The hotspot meter's glance: widened sideways at notch height (seamless), or a small band
@@ -98,7 +101,8 @@ func islandPath(_ m: IslandMetrics, band: CGFloat, in rect: CGRect, flipped: Boo
     guard m.width > 1, m.height > 1 else { return p }
     func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x, y: flipped ? rect.minY + y : rect.maxY - y) }
     if m.top > 0 {
-        // Below the menu bar, rounded at all four corners.
+        // Below the menu bar, rounded at all four corners; nothing while not taller than it.
+        guard m.height > m.top else { return p }
         let corner = min(m.radius, (m.height - m.top) / 2)
         let topLeft = pt(rect.midX - m.width / 2, m.top)
         let bottomRight = pt(rect.midX + m.width / 2, m.height)

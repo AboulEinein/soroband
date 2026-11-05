@@ -119,6 +119,16 @@ struct IslandSettings: Codable, Equatable {
         return list.isEmpty ? "none" : list.joined(separator: ",")
     }
 
+    /// Ignored apps at most, as the core's schema allows (`ISLAND_MAX_IGNORED_APPS`).
+    static let maxIgnoredApps = 100
+
+    /// The ignored apps with `app` added; past the limit the oldest makes room, so Ignore always
+    /// takes.
+    func ignoring(_ app: String) -> [String] {
+        guard !ignoredApps.contains(app) else { return ignoredApps }
+        return Array((ignoredApps + [app]).suffix(Self.maxIgnoredApps))
+    }
+
     /// `apps` as the ignored apps' value.
     static func ignoredValue(_ apps: [String]) -> String {
         apps.isEmpty ? "none" : apps.joined(separator: ",")

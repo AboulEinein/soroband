@@ -23,8 +23,12 @@ struct MomentQueue: Equatable {
     /// When the next waiting moment may open, after the island closed.
     private(set) var opensAt: TimeInterval?
     private(set) var hovering = false
-    /// Apps whose transfer has shown, until it ends.
-    private var shownTransfers: Set<String> = []
+    /// Apps whose transfer has shown, with when the queue last heard of it, until it ends or
+    /// goes quiet for `transferSilence`.
+    private var shownTransfers: [String: TimeInterval] = [:]
+    /// A transfer runs at a progress report each poll (5 s or less); one silent this long ended
+    /// without its end reaching the queue (its app was ignored, the island had no display).
+    static let transferSilence: TimeInterval = 30
     private var nextID = 0
 
     /// When the queue next changes by itself: `advance` is due then.
@@ -46,8 +50,11 @@ struct MomentQueue: Equatable {
                 waiting[index].content = content
                 return false
             }
-            if !done && shownTransfers.contains(app.id) { return false }
-            if done && !shownTransfers.contains(app.id) {
+            if !done, let heard = shownTransfers[app.id], now - heard < Self.transferSilence {
+                shownTransfers[app.id] = now
+                return false
+            }
+            if done && shownTransfers[app.id] == nil {
                 // It ended before it could show: show nothing of a transfer nobody saw start.
                 return false
             }
@@ -79,9 +86,9 @@ struct MomentQueue: Equatable {
         closesAt = hovering ? nil : now + moment.kind.duration
         if let app = Self.transferApp(moment.content) {
             if case .transfer(_, _, _, _, true) = moment.content {
-                shownTransfers.remove(app)
+                shownTransfers[app] = nil
             } else {
-                shownTransfers.insert(app)
+                shownTransfers[app] = now
             }
         }
     }
@@ -110,7 +117,7 @@ struct MomentQueue: Equatable {
     }
 
     private mutating func close(now: TimeInterval) {
-        if case .transfer(let app, _, _, _, true) = current?.content { shownTransfers.remove(app.id) }
+        if case .transfer(let app, _, _, _, true) = current?.content { shownTransfers[app.id] = nil }
         current = nil
         closesAt = nil
         opensAt = now + Self.gap

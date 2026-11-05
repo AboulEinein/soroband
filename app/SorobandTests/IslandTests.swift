@@ -75,6 +75,17 @@ struct MomentQueueTests {
         #expect(queue.current?.content == transfer(80_000_000, done: true))
     }
 
+    @Test func aShownTransferWhoseEndNeverCameStartsAfreshAfterSilence() {
+        var queue = MomentQueue()
+        queue.post(transfer(50_000_000), now: 0)
+        queue.advance(now: 6)
+        // Progress every 5 s keeps it one transfer; then 30 s of silence (its app was ignored).
+        let progress = queue.post(transfer(60_000_000), now: 10)
+        #expect(!progress)
+        let next = queue.post(transfer(70_000_000), now: 40)
+        #expect(next, "silent for 30 s, so this is a new transfer")
+    }
+
     @Test func aTransferNobodySawStartShowsNoEnd() {
         var queue = MomentQueue()
         let end = queue.post(transfer(80_000_000, done: true), now: 0)
@@ -162,6 +173,23 @@ struct IslandOutlineTests {
         #expect(path(joined).contains(point(0, below: 40)), "the moment below it")
         #expect(!path(IslandMetrics.glance(flat, style: .clear)).contains(point(0, below: 12)))
         #expect(path(.open(.joined, flat, style: .seamless)).contains(point(0, below: 12)), "seamless covers it")
+    }
+
+    @Test func keepMenuBarClearNeverCrossesTheMenuBarWhileItGrowsOrShrinks() {
+        // Every frame between rest and a joined moment, as the springs pass through them.
+        let flat = IslandGeometry(notchWidth: 0, menuBarHeight: 24)
+        let rest = IslandMetrics.rest(flat, style: .clear)
+        let open = IslandMetrics.open(.joined, flat, style: .clear)
+        #expect(rest.top == open.top, "the top does not jump")
+        for step in 0...20 {
+            let f = CGFloat(step) / 20
+            let frame = IslandMetrics(
+                width: rest.width + (open.width - rest.width) * f,
+                height: rest.height + (open.height - rest.height) * f,
+                radius: 26, bandWidth: rest.bandWidth + (open.bandWidth - rest.bandWidth) * f, top: open.top)
+            let path = islandPath(frame, band: 24, in: panel)
+            #expect(!path.contains(point(0, below: 6)) && !path.contains(point(0, below: 20)), "frame \(step)")
+        }
     }
 
     @Test func aDisplayWithoutANotchShowsNothingAtRest() {
@@ -268,6 +296,15 @@ struct IslandSettingsTests {
         #expect(IslandSettings(value: settings.value(for:)) == settings)
         #expect(settings.setting("island_moments", to: "none").moments.isEmpty)
         #expect(IslandSettingsView.moments([.hog], .peek, true) == "peek,hog", "in the schema's order")
+    }
+
+    @Test func ignoringTheHundredAndFirstAppDropsTheOldest() {
+        var settings = IslandSettings()
+        settings.ignoredApps = (1...100).map { "/tools/t\($0)" }
+        let ignored = settings.ignoring("/Applications/Music.app")
+        #expect(ignored.count == 100)
+        #expect(ignored.first == "/tools/t2" && ignored.last == "/Applications/Music.app")
+        #expect(settings.ignoring("/tools/t5") == settings.ignoredApps, "already ignored")
     }
 
     @Test func alertsBecomeNotificationsWhenTheIslandCannotShowThem() {
