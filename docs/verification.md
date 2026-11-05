@@ -28,6 +28,7 @@ CI builds with Xcode 26 (the newest on GitHub's `macos-latest` runners), while t
   - every input that crosses a boundary (a C function, a `soroband` argument, a setting, a debug URL) has a test at its limits and one past them;
   - every function that can receive a state or value the change adds (an empty display, a new setting value, a picked color) has its guards read against it, and a test for the new input;
   - a copy held elsewhere (the UI process's snapshot, a cache, a drawn image) is updated or its staleness is stated.
+- **Fix every path into the state.** A fix to state that several paths reach (a queue's bookkeeping, a loop's exit, a cache) lists those paths and tests each, not only the one the finding names: in #9 and #50 each path-by-path fix drew the next round's finding.
 - **Docs from evidence.** A number, a claim of "within budget" or "passes", or a rule restated from another doc, is copied from its source when written, not recalled.
 
 ## Running the app

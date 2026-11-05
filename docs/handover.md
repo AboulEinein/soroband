@@ -29,7 +29,7 @@ The state of the project for whoever picks it up next. Read this file, then the 
 
 1. **The user's checks.** When the user asks, install `main` (`scripts/install.sh`) and set `menu_bar_readings` as above. The user then runs the hand checklists on `main` (M0, M2, M3, M4 and M6a's, below), checks by eye #17's Location grant, the popover and History on real data (#18) and Settings (#19, #20), and starts the daily-use week (M3, exit criterion 2). Each milestone is marked `done` in the ledger once its checklist has passed; issues go into Follow-ups.
 2. **History's cold open.** The user decides about History opening with no UI process running: 363–416 ms in a Release-optimized build and 373–423 ms in Debug, over M4's 300 ms.
-3. **M5 (Dynamic Island moments)** is on `m5-dynamic-island`, in review with the experiment in its section of `plan.md`. Its hand checklist is below. CPU and memory measurements on this Mac run one at a time, never beside another agent's, through `scripts/verify/measure-lock.py`.
+3. **M5 (Dynamic Island moments)** is in review in [#50](https://github.com/AboulEinein/soroband/pull/50): the blind loop (5 rounds, 2 direct reviews) and CodeRabbit's review ended with nothing to act on (`docs/review-retros.md`). The user runs its hand checklist (below); the review experiment's comparison is in `~/soroband-review-benchmark/m5/comparison.md`, and its three proposals for the `pr-review` skill are being weighed in the agent-skills project. `evidence/m5` holds #50's screenshots; deleting it breaks them. CPU and memory measurements on this Mac run one at a time, never beside another agent's, through `scripts/verify/measure-lock.py`.
 
 ### M5 hand checklist
 
@@ -169,6 +169,7 @@ Small items for a later nits pass.
 
 - **History is up to a minute behind.** It reads what the engine has written (once a minute), so it can trail the popover by a minute's usage.
 - **Snapshots on a 1x display are untested.** `Snapshot.render` draws into a fixed 2x Display P3 bitmap so a display's scale or color space cannot change the image; `renderingIgnoresTheDisplayColorSpace` checks the color space only, and no run has been made with a 1x main display.
+- **A timing test that fails on a slow CI runner.** `UIProcessTests.aWindowAskedOfAUIProcessThatStoppedReadingOpensInANewOne` allows 3 s for two shell stand-ins to start and read; it failed once on GitHub's runner during #50 and passed on the re-run and locally.
 - **Evidence branches.** `evidence/pr-35` and `evidence/m6b` hold only screenshots, linked from [#35](https://github.com/AboulEinein/soroband/pull/35)'s comments and [#36](https://github.com/AboulEinein/soroband/pull/36)'s description. Keeping or deleting them is the user's call; deleting them breaks those images.
 
 ## Gotchas
