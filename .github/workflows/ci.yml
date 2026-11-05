@@ -34,6 +34,35 @@ jobs:
       - run: scripts/verify/records-lint.py
         working-directory: .
 
+  rust-version:
+    name: Core on rust-version (build, test)
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: core
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      # The oldest Rust core/Cargo.toml promises to build with, read from it so the two cannot drift.
+      - name: Install the declared rust-version
+        run: |
+          version=$(sed -n 's/^rust-version = "\([0-9.]*\)"$/\1/p' Cargo.toml)
+          if [[ -z $version ]]; then
+            echo "::error::core/Cargo.toml declares no rust-version this job can read."
+            exit 1
+          fi
+          rustup toolchain install "$version" --profile minimal && rustup default "$version"
+          # A rustc first on PATH that rustup does not manage would test a newer Rust and pass.
+          if [[ $(rustc --version) != "rustc $version."* ]]; then
+            echo "::error::rustc on PATH is $(rustc --version), not $version."
+            exit 1
+          fi
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: core
+      - run: cargo test --workspace --all-targets
+
   app:
     name: App (bridge tests, unsigned universal build)
     runs-on: macos-latest
