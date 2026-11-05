@@ -579,3 +579,11 @@ Planned rounds: 1.
 ## [#48](https://github.com/AboulEinein/soroband/pull/48) test(app): draw fixed app icons in snapshots (2026-11-05)
 
 Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low | `first look`: History's icon check could not fail, because the popover had already cached every icon. |
+| direct | Opus | none | Checked a394355. [Comment](https://github.com/AboulEinein/soroband/pull/48#issuecomment-6657706305). |
+| CodeRabbit | CodeRabbit | 1 Trivial | Not valid: restore the icon loader after each test (no other test reads it). |
+
+**Retro.** Planned 1 round; it took 1 and a direct review. The one valid finding was a check made vacuous by a cache: a test that asserts something was asked for must clear any cache between the two things it checks.
