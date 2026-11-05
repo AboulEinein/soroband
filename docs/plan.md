@@ -12,7 +12,7 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | M2 | Network identity and storage | 1 | blocked (hand checklist: Location, real hotspot switch, Wi‑Fi without its name) | [#5](https://github.com/AboulEinein/soroband/pull/5) |
 | M3 | Menu bar and popover (first dogfood build) | 1 | blocked (hand checklist and daily-use week) | [#6](https://github.com/AboulEinein/soroband/pull/6) |
 | M4 | History window | 2 | blocked (hand checklist; user decision on History's open with no UI process running, 363–423 ms against the 300 ms criterion, since M6a) | [#13](https://github.com/AboulEinein/soroband/pull/13) |
-| M5 | Dynamic Island moments | 2 | in progress | – |
+| M5 | Dynamic Island moments | 2 | in review | [#50](https://github.com/AboulEinein/soroband/pull/50) |
 | M6 | Memory and performance | 3 | blocked (M6a hand checklist) | [#35](https://github.com/AboulEinein/soroband/pull/35), [#36](https://github.com/AboulEinein/soroband/pull/36), [#37](https://github.com/AboulEinein/soroband/pull/37) |
 | M7 | Release v0.1.0 | 3 | planned | – |
 

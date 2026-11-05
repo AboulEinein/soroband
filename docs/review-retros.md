@@ -548,3 +548,7 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | 1 Minor | `first look`: a supplied directory with a trailing slash failed the environment test's string comparison, present since the first commit. |
 
 **Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found 1 valid finding. Both findings came from one gap: the tests were written for the directory the fix makes, not for one a run supplies, which the fix also supports. A test of an override should cover each way the value can arrive.
+
+## [#50](https://github.com/AboulEinein/soroband/pull/50) feat: M5 Dynamic Island moments (2026-11-05)
+
+Planned rounds: 3. Round 1 is the review experiment in `plan.md` (M5): not posted, compared with CodeRabbit on the same commit. Before the draft, the CodeRabbit CLI found 4 valid issues, fixed before round 1: paused apps reopening while the network was unidentified, a transfer's service label kept after the app moved its own bytes, a watch's first poll rated over 1 s, and an unbounded wait in `moments.sh`.
