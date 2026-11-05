@@ -47,9 +47,10 @@ struct PopoverContent: Equatable {
     enum Notice: Equatable {
         /// The engine runs on interface totals: no app is credited.
         case perAppOff
-        /// Two judged windows in a row credited too little to apps.
+        /// Two judged windows in a row in which apps and local-network bytes covered too little of
+        /// the interfaces.
         case degraded
-        /// Apps summed to more than crossed the network.
+        /// Apps and local-network bytes summed to more than crossed the network.
         case overcount
         case failed
     }
