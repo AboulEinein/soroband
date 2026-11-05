@@ -4,7 +4,7 @@ The state of the project for whoever picks it up next. Read this file, then the 
 
 ## Current state (2026-11-05)
 
-- M0–M4 and M6, the fix in [#14](https://github.com/AboulEinein/soroband/pull/14), the work after the first install ([#17](https://github.com/AboulEinein/soroband/pull/17) to [#21](https://github.com/AboulEinein/soroband/pull/21)) and the CodeRabbit backlog and its follow-ups ([#23](https://github.com/AboulEinein/soroband/pull/23) to [#34](https://github.com/AboulEinein/soroband/pull/34)) are merged to `main`. On `main`: 174 Rust and 128 Swift tests pass and `scripts/verify/prepush.sh` passes. The milestones with a hand checklist stay `blocked` in the ledger until the user has run it.
+- M0–M4 and M6, the fix in [#14](https://github.com/AboulEinein/soroband/pull/14), the work after the first install ([#17](https://github.com/AboulEinein/soroband/pull/17) to [#21](https://github.com/AboulEinein/soroband/pull/21)) and the CodeRabbit backlog and its follow-ups ([#23](https://github.com/AboulEinein/soroband/pull/23) to [#34](https://github.com/AboulEinein/soroband/pull/34)) are merged to `main`. On `main`: 174 Rust and 130 Swift tests pass and `scripts/verify/prepush.sh` passes. The milestones with a hand checklist stay `blocked` in the ledger until the user has run it.
 - M0 (repository foundation): the Rust workspace, the universal XCFramework bridge, the menu bar app showing "Soroband <core version>", the build, install and verification scripts, the agent install guide and CI. Its hand checklist (below) has not been run.
 - M1 (meter engine): the engine counts internet bytes per app from the kernel statistics socket; `soroband live` shows it; the app starts it at launch and reports it in `soroband debug state`. Under the network-quality cutoff, 3 judged `traffic.sh` runs passed, all at +0.16% attribution and −6.7% to −7.3% reconciliation; one lossy run over the cutoff reached +1.15%, because the kernel's duplicate counter misses some re-received bytes. Budget: engine 0.033% and 1.8 MB, Debug app 0.096% and 23.0 MB over 10 minutes. The replay fixtures are anonymized (see Decisions).
 - M2 (network identity and storage): simulated switches (`scripts/verify/networks.sh`, 6 of 6 runs), the restart check and `config set` on the running app pass, and growth is measured at 27.9 KB a day. Budget: Debug app 0.059% CPU and 19.0 MB over 10 minutes. Its hand checklist (below) has not been run.
@@ -147,14 +147,12 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 Small items for a later nits pass.
 
 - **Unreviewed fix.** The App-cryptex rule groups Apple daemons in the App cryptex (`/System/Volumes/Preboot/Cryptexes/App/usr/libexec/PasswordBreachAgent` and similar) as "macOS & Services". It has a test that failed before the fix, but no review round saw it.
-- **Nothing keeps `rust-version` true.** `core/Cargo.toml` declares `rust-version = "1.85"`, and `cargo +1.85 test --workspace` passes, but CI builds only on `stable`, so code that needs a newer Rust passes CI unnoticed. A CI job on 1.85 would catch it.
 - **`cargo mutants` timeouts.** The last run on the meter module and C API (317 mutants: 255 caught, 22 missed, 34 unviable) had 6 timeouts, all in loops that then never end:
   - `Engine::tick` → `Ok(())`;
   - `messages` `+=` → `*=`;
   - `Recorder` and `Replay` `recv` → `Ok(Some(0))` / `Ok(Some(1))` (4 mutants).
   None is on the `HDR_FLAG_CONTINUATION` check. A per-test timeout would turn them into plain kills.
 - **`cargo mutants` miss.** `Meter::update` `rx_duplicate > 0` → `>=` adds zero entries to the duplicates map. No caller can see the difference, but a test asserting `Snapshot::rx_duplicates` exactly would kill it.
-- **Registry-failure fallback is untested.** When `Core.networkChanged` fails (the database cannot record a network), `NetworkMonitor` books to no network (id 0). The branch has no unit test, because `NetworkMonitor` is bound to live system APIs; moving the decision into `NetworkIdentity` would make it testable.
 - **Wi‑Fi moves without a path change.** CoreWLAN's SSID-change events are not watched; a Wi‑Fi move that does not change the `NWPath` keeps the old network until the next path update.
 
 - **Debug commands can still activate the app.** `open-popover`, `open-settings`, `open-onboarding` and `open-history` make the menu bar process yield activation to the UI process (`UIProcess.write`), which reaches `NSApp.activate()` (`PopoverController.show`, `SettingsView.swift`, `Onboarding.swift`, `HistoryWindow.swift`); macOS grants it when the user has just used Soroband. A Debug URL command could skip it.
@@ -197,6 +195,7 @@ Things learned the hard way that no file or config will tell you.
 - `xcodebuild test` launches the app as the test host, so a test run shows a second Soroband item for a moment. Unless `SOROBAND_DATA_DIR` is set, the test host keeps its database and settings in a new `Soroband Tests <UUID>` directory under the temporary directory (`Core.isolateTestHost`).
 - Linking the core built with Homebrew's `rust` warns that its standard library objects were built for macOS 27 while the app targets 14; rustup's standard library does not. Use rustup for anything that ships.
 - `cargo-mutants` is in `~/.cargo/bin`, which is not on `PATH` by default.
+- Homebrew's `rust` is first on `PATH`, so `rustup run 1.85.0 cargo` still builds with Homebrew's newer `rustc`. To build on the declared `rust-version`, put that toolchain's directory first: `PATH="$(dirname "$(rustup which --toolchain 1.85.0 rustc)"):$PATH" cargo test --workspace --manifest-path core/Cargo.toml` from the repository root.
 
 **Verifying**
 - Each worktree's Debug build registers the `soroband-debug://` scheme. `open "soroband-debug://…"` can launch another worktree's build, and every running Debug app answers `soroband debug state` and writes the same state file. Send URLs with `open -g -a <this build's Soroband.app>`, check the `pid` in `debug state`. `run-app.sh` stops only this worktree's `Soroband.app` and leaves other worktrees' Debug apps running. `networks.sh` ignores answers without a `network`.
