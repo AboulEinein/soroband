@@ -54,7 +54,7 @@ jobs:
           fi
           rustup toolchain install "$version" --profile minimal && rustup default "$version"
           # A rustc first on PATH that rustup does not manage would test a newer Rust and pass.
-          if [[ $(rustc --version) != "rustc $version."* ]]; then
+          if [[ $(rustc --version) != "rustc $version"[.\ ]* ]]; then
             echo "::error::rustc on PATH is $(rustc --version), not $version."
             exit 1
           fi
