@@ -549,6 +549,6 @@ Planned rounds: 1.
 
 **Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found 1 valid finding. Both findings came from one gap: the tests were written for the directory the fix makes, not for one a run supplies, which the fix also supports. A test of an override should cover each way the value can arrive.
 
-## [#46](https://github.com/AboulEinein/soroband/pull/46) fix(app): keep debug URL commands from activating the app (2026-11-05)
+## [#49](https://github.com/AboulEinein/soroband/pull/49) fix(app): keep debug URL commands from activating the app (2026-11-05)
 
 Planned rounds: 1.
