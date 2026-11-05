@@ -97,6 +97,8 @@ expect left engine 15 $t
 expect joined engine 15 $t
 
 print "2. Background activity and a large transfer"
+# curl's bytes from an earlier run hold its alerts until they leave the one-minute window.
+sleep 65
 t=$(date +%s)
 download 30000000
 expect background engine 20 $t
@@ -116,6 +118,11 @@ sleep 65
 t=$(date +%s)
 download 30000000
 expect hog engine 20 $t
+# This download is a transfer too: wait for its end, so nothing more arrives during step 4.
+for _ in {1..120}; do
+  [[ $(state | jq --argjson t $t '[.island.recent[] | select(.kind == "transfer" and .at >= $t)] | length') -ge 2 ]] && break
+  sleep 0.5
+done
 
 print "4. Hotspot meter and peek"
 # The meter shows once the moments of steps 1 to 3 have each had their turn: about a minute.
@@ -123,10 +130,18 @@ for _ in {1..360}; do
   [[ $(state | jq -r .island.showing) == glance ]] && break
   sleep 0.5
 done
-[[ $(state | jq -r .island.showing) == glance ]] && print "PASS hotspot meter" || { print "FAIL hotspot meter"; failed=1; }
+if [[ $(state | jq -r .island.showing) == glance ]]; then
+  print "PASS hotspot meter"
+else
+  print "FAIL hotspot meter: $(state | jq -c '{network: .network, island: (.island | {showing, waiting})}')"
+  failed=1
+fi
+# The peek opens only on an island at rest or showing the meter: a transfer's end may still come.
+until [[ $(state | jq -r .island.showing) == glance ]]; do sleep 0.5; done
 t=$(date +%s)
 open -g -a $app "soroband-debug://hover-island?at=notch"
-expect peek hover 5 $t
+expect peek hover 15 $t
+(( failed )) && print "island: $(state | jq -c '.island | {showing, waiting, hovering, recent: .recent[-3:]}')"
 
 (( failed )) && exit 1
 print "PASS"
