@@ -93,6 +93,22 @@ struct NetworkIdentityTests {
         #expect(NetworkIdentity.routerRetryDelay(afterAttempts: 5) == .seconds(30))
     }
 
+    @Test func registeredNetworkIsBookedTo() {
+        let home = Network(id: 3, key: "wifi:Home", name: "Home", kind: .wifi)
+        let office = Network(id: 7, key: "wifi:Office", name: "Office", kind: .wifi)
+        #expect(NetworkIdentity.booking(registered: office, current: home) == .network(office))
+        #expect(NetworkIdentity.booking(registered: office, current: nil) == .network(office))
+    }
+
+    /// The Mac has left Home; if the registry cannot record the new network, Home must not collect
+    /// the new network's bytes.
+    @Test func networkTheRegistryCannotRecordIsBookedToNoNetworkNotTheLastOne() {
+        let home = Network(id: 3, key: "wifi:Home", name: "Home", kind: .wifi)
+        #expect(NetworkIdentity.booking(registered: nil, current: home) == .noNetwork)
+        // Already on no network: nothing to tell the engine.
+        #expect(NetworkIdentity.booking(registered: nil, current: nil) == .unchanged)
+    }
+
     @Test func routerAddressComesFromTheServiceOnTheInterface() {
         let services: [[String: Any]] = [
             ["InterfaceName": "utun9", "Router": "100.64.0.1"],
