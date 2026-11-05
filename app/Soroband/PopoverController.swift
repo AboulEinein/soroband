@@ -79,9 +79,12 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         if let outsideClicks { NSEvent.removeMonitor(outsideClicks) }
         outsideClicks = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
-        ) { [weak self] _ in
+        ) { [weak self] event in
+            // An event for another app's window has no window here, so its location is on screen,
+            // as the item's frame is; `NSEvent.mouseLocation` would be wherever the pointer is now.
+            let location = event.locationInWindow
             MainActor.assumeIsolated {
-                guard let self, Self.closesOnMouseDown(at: NSEvent.mouseLocation, item: self.anchor?.frame) else {
+                guard let self, Self.closesOnMouseDown(at: location, item: self.anchor?.frame) else {
                     return
                 }
                 self.popover.performClose(nil)
