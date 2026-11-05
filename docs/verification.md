@@ -32,7 +32,7 @@ CI builds with Xcode 26 (the newest on GitHub's `macos-latest` runners), while t
 
 ## Running the app
 
-An agent drives and observes the real app without a mouse. The pieces below are built in M0 and grow with each milestone.
+An agent drives and observes the real app mostly without the pointer; `clicktime.swift` and `cliclick` click it for real, with Accessibility permission. The pieces below are built in M0 and grow with each milestone.
 
 | Tool | What it does |
 | --- | --- |
@@ -47,7 +47,7 @@ An agent drives and observes the real app without a mouse. The pieces below are 
 | `scripts/verify/traffic.sh` | Downloads a known size (20 MB from `speed.cloudflare.com`) and checks the attribution in `soroband live --json`. A run with another curl in the window, or a download that does not finish within 45 s, is reported, not judged (exit 3). |
 | `scripts/verify/budget.sh <minutes>` | Samples the running app's CPU (`ps`) and memory footprint (`footprint`); exits non-zero over budget. |
 | `scripts/verify/measure-lock.py <label> <command>` | Runs a measurement while holding this Mac's measurement lock (a `flock` on `~/Library/Caches/soroband-measure.lock`, released when the command exits), waiting up to 2 hours for it, so that measurements from different worktrees and agents of this macOS user run one at a time. Every CPU, memory, traffic or timing measurement runs through it. |
-| `scripts/verify/clicktime.swift` | Clicks the real pointer on the menu bar item and prints the milliseconds until the popover's window is on screen: the open time the user sees. Build with `swiftc -O scripts/verify/clicktime.swift -o /tmp/clicktime`; run as `/tmp/clicktime <x> <y> <menu bar pid>` with the item's centre from `soroband debug state` (`Item-0`); it times warm and cold opens alike, and exits 1 when no popover shows within 3 s. Needs Accessibility permission. Compare builds in paired, interleaved runs in one session (`docs/review.md`). |
+| `scripts/verify/clicktime.swift` | Clicks the real pointer on the menu bar item and prints the milliseconds until the popover's window is on screen: the open time the user sees. Build with `swiftc -O scripts/verify/clicktime.swift -o /tmp/clicktime`; run as `/tmp/clicktime <x> <y> <menu bar pid>` with the item's centre from `soroband debug state` (`Item-0`); it times warm and cold opens alike, exits 1 when no popover shows within 3 s, and exits 2 without clicking when the popover is already open. Needs Accessibility permission. Compare builds in paired, interleaved runs in one session (`docs/review.md`). |
 | `scripts/verify/install-guard.sh` | Runs a copy of `scripts/install.sh` against a fake installed app and checks it stops before building with no terminal, with a no typed in a terminal (through `script`), and while another install holds the lock, and goes on with a yes or `--replace`. Runs in CI. |
 
 ## What needs a person

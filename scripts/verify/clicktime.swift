@@ -6,7 +6,7 @@
 //   x, y: the menu bar item's centre in global points (`Item-0` in `soroband debug state`)
 //   menu bar pid: this build's menu bar process. The popover is a 386 pt wide window owned by
 //         its child, the UI process, whether that already runs (warm) or the click starts it (cold).
-// Exits 1 on timeout.
+// Exits 1 on timeout, and 2 without clicking when the popover is already open.
 import CoreGraphics
 import Darwin
 import Foundation
@@ -38,6 +38,10 @@ func post(_ type: CGEventType) {
         .post(tap: .cghidEventTap)
 }
 
+if popoverIsUp() {
+    print("popover already open")
+    exit(2)
+}
 post(.mouseMoved)
 usleep(50_000)
 let start = DispatchTime.now().uptimeNanoseconds
