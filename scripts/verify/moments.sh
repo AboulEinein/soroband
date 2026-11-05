@@ -15,13 +15,14 @@
 # It moves real bytes, so it runs under the measurement lock:
 #   scripts/verify/measure-lock.py moments scripts/verify/moments.sh
 set -euo pipefail
+zmodload zsh/datetime  # EPOCHREALTIME
 
 root=${0:A:h:h:h}
 soroband=$root/core/target/debug/soroband
 # The URL goes to this build: another worktree's Debug app also handles soroband-debug://.
 app=$root/build/DerivedData/Build/Products/Debug/Soroband.app
 cargo build --quiet --manifest-path $root/core/Cargo.toml -p soroband-cli
-run=$(date +%s)
+run=${EPOCHREALTIME%.*}
 pid=$(pgrep -f "^$app/Contents/MacOS/Soroband\$" || true)
 [[ -n $pid ]] || { print -u2 "moments.sh: start the Debug app first: scripts/verify/run-app.sh"; exit 1; }
 
@@ -88,10 +89,10 @@ download() {
 }
 
 print "1. Networks"
-t=$(date +%s)
+t=$EPOCHREALTIME
 switch "?id=m5-office-$run" m5-office-$run
 expect joined engine 15 $t
-t=$(date +%s)
+t=$EPOCHREALTIME
 switch "?id=m5-phone-$run&kind=hotspot" m5-phone-$run
 expect left engine 15 $t
 expect joined engine 15 $t
@@ -99,7 +100,7 @@ expect joined engine 15 $t
 print "2. Background activity and a large transfer"
 # curl's bytes from an earlier run hold its alerts until they leave the one-minute window.
 sleep 65
-t=$(date +%s)
+t=$EPOCHREALTIME
 download 30000000
 expect background engine 20 $t
 expect transfer engine 20 $t
@@ -115,7 +116,7 @@ print "3. Data hog"
 set_config island_hog_mb 15
 # Background activity's burst must leave the one-minute window, so the hog sees only this download.
 sleep 65
-t=$(date +%s)
+t=$EPOCHREALTIME
 download 30000000
 expect hog engine 20 $t
 # This download is a transfer too: wait for its end, so nothing more arrives during step 4.
@@ -141,7 +142,7 @@ for _ in {1..120}; do
   [[ $(state | jq -r .island.showing) == glance ]] && break
   sleep 0.5
 done
-t=$(date +%s)
+t=$EPOCHREALTIME
 open -g -a $app "soroband-debug://hover-island?at=notch"
 expect peek hover 15 $t
 (( failed )) && print "island: $(state | jq -c '.island | {showing, waiting, hovering, recent: .recent[-3:]}')"
