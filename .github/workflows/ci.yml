@@ -52,9 +52,11 @@ jobs:
             echo "::error::core/Cargo.toml declares no rust-version this job can read."
             exit 1
           fi
+          # "1.85" promises 1.85.0, while rustup would pick the newest 1.85 patch release.
+          [[ $version == *.*.* ]] || version="$version.0"
           rustup toolchain install "$version" --profile minimal && rustup default "$version"
           # A rustc first on PATH that rustup does not manage would test a newer Rust and pass.
-          if [[ $(rustc --version) != "rustc $version"[.\ ]* ]]; then
+          if [[ $(rustc --version) != "rustc $version "* ]]; then
             echo "::error::rustc on PATH is $(rustc --version), not $version."
             exit 1
           fi

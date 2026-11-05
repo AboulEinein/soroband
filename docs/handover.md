@@ -200,7 +200,7 @@ Things learned the hard way that no file or config will tell you.
 - `xcodebuild test` launches the app as the test host, so a test run shows a second Soroband item for a moment.
 - Linking the core built with Homebrew's `rust` warns that its standard library objects were built for macOS 27 while the app targets 14; rustup's standard library does not. Use rustup for anything that ships.
 - `cargo-mutants` is in `~/.cargo/bin`, which is not on `PATH` by default.
-- Homebrew's `rust` is first on `PATH`, so `rustup run 1.85 cargo` still builds with Homebrew's newer `rustc`. To build on the declared `rust-version`, put that toolchain's directory first: `PATH="$(dirname "$(rustup which --toolchain 1.85 rustc)"):$PATH" cargo test --workspace`.
+- Homebrew's `rust` is first on `PATH`, so `rustup run 1.85.0 cargo` still builds with Homebrew's newer `rustc`. To build on the declared `rust-version`, put that toolchain's directory first: `PATH="$(dirname "$(rustup which --toolchain 1.85.0 rustc)"):$PATH" cargo test --workspace --manifest-path core/Cargo.toml` from the repository root.
 
 **Verifying**
 - Each worktree's Debug build registers the `soroband-debug://` scheme. `open "soroband-debug://…"` can launch another worktree's build, and every running Debug app answers `soroband debug state` and writes the same state file. Send URLs with `open -g -a <this build's Soroband.app>`, check the `pid` in `debug state`. `run-app.sh` stops only this worktree's `Soroband.app` and leaves other worktrees' Debug apps running. `networks.sh` ignores answers without a `network`.
