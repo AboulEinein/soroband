@@ -221,15 +221,43 @@ One column of History's usage chart: an hour, a local day or a local month, stac
 _Avoid_: bucket (a stored unit of usage)
 
 **Island**:
-The optional black shape at the notch that opens for moments. The menu bar item stays the main element.
+The optional black shape at the notch that opens for moments. The menu bar item stays the main element. The menu bar process draws it, with AppKit.
 Dynamic Island is the name of milestone M5, which builds it, and of its sections in `docs/plan.md` and `docs/design.md`.
 
 **Glance**:
-The island widened sideways, between rest and a moment.
+The island widened sideways, between rest and a moment. The hotspot meter is the only one.
 
 **Moment**:
 One short island event, each switchable: peek on hover, network joined, network left, hotspot meter, data hog, background activity, large transfer, daily recap.
-_Avoid_: alert, notification (those are the fallback when the island is off)
+_Avoid_: notification (the fallback when the island is off); alert for any moment (it names two)
+
+**Alert**:
+A moment that warns: the data hog and background activity. Alerts go first in the moment queue, may show while an app is full screen, and become notifications while the island is off.
+
+**Moment queue**:
+The moments waiting to open, alerts first, then large transfers, then the rest; one opens at a time.
+
+**Peek**:
+The moment that opens when the pointer rests on the notch: today on this network, the live speed and the top 3 apps.
+
+**Hotspot meter**:
+The glance shown while the Mac is on a hotspot: today on it and the live speed, either side of the notch.
+
+**Data hog**:
+One app that used more than a threshold within a window (default 100 MB in 5 minutes).
+
+**Background activity**:
+An app that is not the frontmost app and used more than a threshold within the data hog's window (default 50 MB).
+
+**Large transfer**:
+An app moving at least 100 KB/s poll after poll, shown once its run passes a threshold (default 50 MB) and again when it stops. It names the system service that moved the bytes for the app ("Xcode via App Store").
+
+**Session**:
+The time the Mac spent on one network, from joining it to leaving it; network left shows its receipt.
+_Avoid_: visit
+
+**Ignored app**:
+An app that raises no moment (`island_ignored_apps`).
 
 **Seamless**:
 The default island style: the shape covers the menu bar beside the notch while a moment is open.

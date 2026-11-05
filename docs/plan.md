@@ -12,7 +12,7 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | M2 | Network identity and storage | 1 | blocked (hand checklist: Location, real hotspot switch, Wi‑Fi without its name) | [#5](https://github.com/AboulEinein/soroband/pull/5) |
 | M3 | Menu bar and popover (first dogfood build) | 1 | blocked (hand checklist and daily-use week) | [#6](https://github.com/AboulEinein/soroband/pull/6) |
 | M4 | History window | 2 | blocked (hand checklist; user decision on History's open with no UI process running, 363–423 ms against the 300 ms criterion, since M6a) | [#13](https://github.com/AboulEinein/soroband/pull/13) |
-| M5 | Dynamic Island moments | 2 | planned | – |
+| M5 | Dynamic Island moments | 2 | in progress | – |
 | M6 | Memory and performance | 3 | blocked (M6a hand checklist) | [#35](https://github.com/AboulEinein/soroband/pull/35), [#36](https://github.com/AboulEinein/soroband/pull/36), [#37](https://github.com/AboulEinein/soroband/pull/37) |
 | M7 | Release v0.1.0 | 3 | planned | – |
 
@@ -112,6 +112,11 @@ Deliverables:
 Exit criteria:
 - Each moment fires from real traffic in a scripted test (for example, a large `curl` download fires the large-transfer moment).
 - No CPU cost while no moment is showing.
+
+Decided for M5 (2026-11-05):
+- The island runs in the menu bar process, drawn with AppKit and Core Animation (the user's choice of four, measured in `prototypes/island-spike`, 3 interleaved runs each). An AppKit agent with a status item grew from 10.9–11.2 MB to 14.9–15.5 MB after 30 moments with the island in Core Animation (5.5–5.7 MB with the SwiftUI prototype's view), at 0.001% CPU at rest in both and about 50 ms of CPU a moment (200 ms in SwiftUI). The UI process would have run all day with the island on (42–57 MB more, its linger numbers in M6c) or started for each moment (0.5–0.8 s late); a third process for the island alone measured about 16.7 MB. The look is the prototype's: screenshots differ in under 0.15% of pixels, and recordings of the opening match frame by frame from the third frame on.
+- "Network joined" reports the last 7 days rather than the calendar week, so a Monday join is not empty.
+- The daily recap fires at the reset hour only, so the scripted test (`scripts/verify/moments.sh`) leaves it to the core's test, which ends a day under the real engine on a recorded session.
 
 Review experiment: M5's first review compares the blind reviewer with CodeRabbit on one commit, to find what the `pr-review` skill misses or gets wrong. Its files stay outside the repository, in `~/soroband-review-benchmark/m5/`. It changes `review.md`'s loop only here:
 - **Round 1 is not posted.** It runs `pr-review` with `--no-story --no-github-comments` and saves its full report to `round-1-blind.md`, with the commit it reviewed. The lead answers each finding in `round-1-answers.md` (the fix commit, or the evidence for leaving it). Round 2's brief names those two files for the re-review; from round 2 the loop runs as `review.md` describes.

@@ -65,7 +65,7 @@ Risks and how the design handles them:
 - **Idle-flow baseline.** The kernel can skip unchanged flows (`NOZERODELTAS`, `SUPPRESS_BORING_POLL`), but then a flow idle at startup later reports its whole lifetime. Seen in the probe: one Chrome connection added 22.7 MB that never crossed the interface. The engine polls every flow; at ~150 flows this costs 0.058% CPU.
 - **Domains.** The kernel has a per-flow domain extension, but it returned nothing to an unprivileged client. Per-domain usage is out unless we add DNS correlation later.
 
-Shape: Rust crate `soroband-core` (socket client, aggregation, SQLite, settings) exposed through a small C API to the app. The app runs as two processes of one binary: the menu bar process (the engine, the network monitor and the menu bar item) runs all day on AppKit alone, and the UI process runs the SwiftUI app and shows every window (see "Two processes" under Performance budget). A network change from the app wakes the engine thread through a pipe, so it polls at once and books what moved so far to the previous network before switching. The same crate gives a `soroband` CLI (`soroband today`, `soroband apps --network Office`, `soroband config`), installed next to the app.
+Shape: Rust crate `soroband-core` (socket client, aggregation, SQLite, settings) exposed through a small C API to the app. The app runs as two processes of one binary: the menu bar process (the engine, the network monitor, the menu bar item and the island) runs all day on AppKit alone, and the UI process runs the SwiftUI app and shows every window (see "Two processes" under Performance budget). A network change from the app wakes the engine thread through a pipe, so it polls at once and books what moved so far to the previous network before switching. The same crate gives a `soroband` CLI (`soroband today`, `soroband apps --network Office`, `soroband config`), installed next to the app.
 
 ## Performance budget
 
@@ -116,26 +116,34 @@ The popover and History follow the "Warm" direction (`mockups/warm.html`), chose
 
 **Dynamic Island moments** (optional, see [mockup](mockups/island-moments.png)):
 - The menu bar item is always present and is the main element; the island never replaces it.
-- One black shape hanging from the top edge: at rest it is exactly the notch; a glance widens it sideways; a moment grows it into a panel, and content fades in after the shape has grown.
+- One black shape hanging from the top edge: at rest it is exactly the notch (nothing on a display without one); a glance widens it sideways; a moment grows it into a panel, and content fades in after the shape has grown (0.14 s later, over 0.22 s, from 96% scale at the top).
 - Style setting: **Seamless** (default) covers the menu bar next to the notch while a moment is open, like other notch apps. **Keep menu bar clear** keeps the shape notch-wide inside the menu bar and widens it only below, so no menu bar item is ever covered.
 - Moments, each switchable in Settings:
-  - **Peek on hover:** hover the notch for today's total on this network, live speed and the top 3 apps.
-  - **Network joined:** this network's usage this week, last visit, today here.
-  - **Network left:** session receipt: bytes, duration, top app.
-  - **Hotspot meter:** a small live counter under the notch while on a hotspot.
-  - **Data hog:** one app over a threshold (default 100 MB in 5 min). Actions: Pause until off hotspot (quits the app and reopens it later; optional), Ignore app, Details.
-  - **Background activity:** data moving while no app is in front (default over 50 MB). Actions: Details, Ignore app.
-  - **Large transfer:** progress for transfers over 50 MB, credited to the app a system service works for ("Xcode via App Store"), ending in a checkmark.
-  - **Daily recap:** one line at the reset hour. Off by default.
-- One moment expands at a time; others queue. Hovering keeps a moment open. Moments close on their own after a few seconds.
-- Full screen: hidden by default; alerts (data hog, background activity) can still show.
-- Cost: one transparent, click-through panel that redraws only while a moment animates.
+  - **Peek on hover:** rest the pointer on the notch for 0.4 s: today on this network, live speed and the top 3 apps, following each poll while open.
+  - **Network joined:** this network's usage over the last 7 days, the last hour it was used before, today here.
+  - **Network left:** session receipt: what crossed the network's interfaces since the Mac joined it, how long, the top app.
+  - **Hotspot meter:** a glance while on a hotspot: today on it beside the hotspot symbol on the left of the notch, the live speed on the right (seamless), or a small band below the notch (keep menu bar clear).
+  - **Data hog:** one app over a threshold within a window (default 100 MB in 5 min). Actions: Pause until off hotspot (on a hotspot, when the setting allows it: quits the app and opens it again, in the background, on the next network that is not a hotspot), Ignore app, Details (History on today, with the app expanded).
+  - **Background activity:** an app that is not the frontmost app over a threshold within the same window (default 50 MB). Actions: Details, Ignore app. An app over both thresholds in one burst is one alert, the data hog.
+  - **Large transfer:** an app moving at least 100 KB/s poll after poll, shown once the run passes a threshold (default 50 MB) with its bytes and speed, and again with a checkmark once the app has moved less than 100 KB/s for two polls. A transfer a system service makes for an app names it ("Xcode via App Store"; the App Store and Software Update are named).
+  - **Daily recap:** one line at the reset hour: the day that ended on every network, how many networks, the top app. Off by default.
+- One moment opens at a time; the others wait in the moment queue, alerts (data hog, background activity) first, then large transfers, then the rest, at most 8. A moment closes on its own (alerts after 8 s, a transfer after 6 s, the peek 0.4 s after the pointer leaves, the others after 5 s) and the next opens 0.45 s later. The pointer on the island's outline keeps a moment open; a pointer resting where a moment opened counts only once it moves, so a moment that opens under it still closes. A transfer is one moment per app: its progress updates it, and once it has shown, only its end opens it again.
+- Hover and clicks are tested against the island's outline, not its panel; the panel tracks the pointer only over the outline's bounds.
+- Full screen: an app in front with a window covering a display the island is on. By default only alerts show then; the island can hide entirely or show every moment.
+- Displays: the built-in display (default) or every display; on a display without a notch the island grows from the top edge.
+- Island off: alerts become notifications (`island_notifications`, on by default; macOS asks for permission once), and nothing is drawn.
+- Apps can be ignored: they raise no moment (`island_ignored_apps`).
+
+How the island is built and what it costs:
+- **In the menu bar process, in AppKit and Core Animation** (decided 2026-11-05, measured in `prototypes/island-spike`). The SwiftUI prototype's look is reproduced: the same outline, the same spring (response 0.45 s, damping 0.8, stepped per frame by a display link), the same content transition. Screenshots of the two renderers differ in under 0.15% of pixels, and recordings of the opening match frame by frame from the third frame on. An AppKit agent with a status item grew 3.8–4.3 MB after 30 moments with the AppKit island, 5.5–5.7 MB with the SwiftUI one; both rested at 0.001% CPU, and a moment cost about 50 ms of CPU in AppKit against 200 ms in SwiftUI. The UI process was the other place considered: it would have to run all day with the island on (42–57 MB more) or start for each moment (0.5–0.8 s late).
+- **The engine finds the traffic moments** (`core/crates/soroband-core/src/moments.rs`): it watches each poll's bytes per app only while the island or its notifications are on, and hands the app what it found (`soroband_moments_json`) after the poll; the frontmost app comes from `NSWorkspace` activations. The joined and left moments come from the engine at a network change, the recap at the day's end.
+- **Nothing runs while nothing shows:** one transparent panel per display, a display link only while the shape moves, one timer to the queue's next change, and no work at a poll beyond taking the engine's list (an empty `[]` most of the time) unless the peek or the hotspot meter is open.
 
 **Settings:**
-- A window with a sidebar (General, Menu Bar, Networks, About), each page a large title over grouped cards.
+- A window with a sidebar (General, Menu Bar, Island, Networks, About), each page a large title over grouped cards.
 - General: when a new day starts (the reset hour, with a ruler marking the hours that count toward the day before), open at login, Location access for Wi‑Fi names, and where the data is (Show in Finder).
 - Menu Bar: a preview of the menu bar pinned above the page, drawing the item with the same image the menu bar uses (today's numbers, or sample ones before the first count), its width, and a warning past 160 pt, where it may be hidden beside a MacBook's notch. Readings are tiles to check, up to four, in two groups (today, live speed) with what each reads now; the order tray groups them as the style draws them and moves one by dragging it onto another, or by its context menu; three style cards each draw the item in their style; "Count today on" picks the scope. Every change applies at once; Revert Changes goes back to the layout the page opened with, Restore Default to today's total.
-- Island: master switch (off means a plain menu bar app), style (seamless or keep menu bar clear), each moment on/off, thresholds for data hog, background activity and large transfer, the pause action, full-screen behavior, built-in or all displays, and "send alerts as notifications" when the island is off.
+- Island: master switch (off means a plain menu bar app), style (seamless or keep menu bar clear), or "send alerts as notifications" while the island is off; each moment on/off, thresholds for data hog, background activity and large transfer; full-screen behavior, the pause action, built-in or all displays; the ignored apps, each with Remove.
 - Networks: each known network with its color (click it to pick one of the five slots, or Automatic for its place's), rename in place, kind, and whether it is connected or when it was last used.
 - About: the app icon, version, core version.
 - Data: export CSV, show database.
@@ -153,4 +161,5 @@ Throwaway code that settled the design; the product code lives in `app/` and `co
 
 - `prototypes/meter-probe`: the engine prototype. `cargo run --release -- 40 5` prints per-app internet bytes for 40 s (`METER_DEBUG=1` for message diagnostics).
 - `prototypes/nstat-probe`: the same measurement through `NetworkStatistics.framework`, kept for comparison.
+- `prototypes/island-spike`: the island in an AppKit agent with a status item, drawn with Core Animation or with the ui-spike's SwiftUI view, measured over 30 moments (`run.sh`) and filmed for a frame-by-frame comparison (`--record`). It settled where the island runs (Dynamic Island moments, above).
 - `prototypes/ui-spike`: SwiftUI app with 60 days of fake data and fake live traffic. `run.sh` launches it in the menu bar; `snapshot.sh` re-renders `docs/mockups/`. The ⇅ button in the popover simulates joining another network (which fires the left and joined moments) and fires any moment on demand. `SOROBAND_DEMO=dataHog .build/debug/Soroband` fires one moment at launch.
