@@ -20,6 +20,9 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     /// reports it (its occlusion state turning visible), for `soroband debug state`.
     private(set) var openDuration: TimeInterval?
     private var occlusion: NSObjectProtocol?
+    /// Closes the popover on a click in another app or on the menu bar, which a transient popover
+    /// misses; installed only while it is shown.
+    private var outsideClicks: Any?
 
     var isShown: Bool { popover.isShown }
 
@@ -72,6 +75,21 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         let window = popover.contentViewController?.view.window
         if request.activates { window?.makeKey() }
         if let window { timeUntilOnScreen(window, from: request.requested) }
+        // Clicks in this process's windows never reach a global monitor.
+        if let outsideClicks { NSEvent.removeMonitor(outsideClicks) }
+        outsideClicks = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { [weak self] event in
+            // An event for another app's window has no window here, so its location is on screen,
+            // as the item's frame is; `NSEvent.mouseLocation` would be wherever the pointer is now.
+            let location = event.locationInWindow
+            MainActor.assumeIsolated {
+                guard let self, Self.closesOnMouseDown(at: location, item: self.anchor?.frame) else {
+                    return
+                }
+                self.popover.performClose(nil)
+            }
+        }
         UIHost.send(.popover(shown: true))
         UIHost.windowsChanged()
     }
@@ -125,6 +143,13 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         return window.contentView!
     }
 
+    /// Whether a mouse-down outside this process closes the popover: anywhere but on the menu bar
+    /// item, whose own toggle closes it on the mouse-up. Closing on the item's mouse-down would let
+    /// a press held past `PopoverToggle`'s 0.3 s reopen it on release.
+    nonisolated static func closesOnMouseDown(at point: CGPoint, item: CGRect?) -> Bool {
+        !(item?.contains(point) ?? false)
+    }
+
     /// Set as the close starts, not after its animation, which can end after the click's toggle.
     func popoverWillClose(_ notification: Notification) {
         lastClose = .now
@@ -137,6 +162,8 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     }
 
     func popoverDidClose(_ notification: Notification) {
+        if let outsideClicks { NSEvent.removeMonitor(outsideClicks) }
+        outsideClicks = nil
         popover.contentViewController = nil
         anchor?.orderOut(nil)
         AppIcons.clear()
