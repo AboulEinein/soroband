@@ -189,6 +189,33 @@ struct UIProcessTests {
             "a later request that names its options replaces them")
     }
 
+    @Test func onlyTheUserMakesSorobandTheFrontApp() {
+        let click = PopoverRequest(anchor: anchor, activates: true, requested: .distantPast)
+        #expect(UIRequest.toggle(click).activates, "a click on the menu bar item")
+        #expect(UIRequest.showOnboarding(activates: true).activates, "the Welcome window at the user's launch")
+        // As the Debug URL commands send them (`DebugCommands`).
+        let commands: [UIRequest] = [
+            .showPopover(popover()), .showSettings(tab: "general"), .showHistory(arguments: [], replacing: true),
+            .showOnboarding(),
+        ]
+        for command in commands {
+            #expect(!command.activates, "\(command) comes from a Debug URL command, which must not take the keyboard")
+        }
+    }
+
+    @Test func aClickWhileItLaunchesStillTakesTheKeyboardWithAQueuedCommand() {
+        let click = PopoverRequest(anchor: anchor, activates: true, requested: .distantFuture)
+        var commandFirst = UIQueue()
+        commandFirst.add(.showPopover(popover()))
+        commandFirst.add(.toggle(click))
+        #expect(commandFirst.requests.map(\.activates) == [true], "the click joined the queued `open-popover`")
+
+        var clickFirst = UIQueue()
+        clickFirst.add(.toggle(click))
+        clickFirst.add(.showPopover(popover()))
+        #expect(clickFirst.requests.map(\.activates) == [true], "an `open-popover` after the click keeps the click's")
+    }
+
     @Test func closingWithNoUIProcessStartsNone() {
         let ui = UIProcess(
             executableURL: URL(filePath: "/nonexistent/Soroband"), snapshot: { Self.snapshot }, handle: { _ in })

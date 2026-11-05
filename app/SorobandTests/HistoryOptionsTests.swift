@@ -12,7 +12,7 @@ struct HistoryOptionsTests {
             hover: Date(timeIntervalSince1970: 1_793_000_000))
         #expect(HistoryOptions(arguments: options.arguments) == options)
         let request = try JSONEncoder().encode(UIRequest.showHistory(arguments: options.arguments, replacing: false))
-        guard case .showHistory(let arguments, _) = try JSONDecoder().decode(UIRequest.self, from: request) else {
+        guard case .showHistory(let arguments, _, _) = try JSONDecoder().decode(UIRequest.self, from: request) else {
             Issue.record("not a History request")
             return
         }

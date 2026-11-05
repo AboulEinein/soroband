@@ -21,7 +21,9 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         self.launchAtLogin = launchAtLogin
     }
 
-    func show(tab: SettingsView.Tab? = nil) {
+    /// `activates` is true for the user's own action, which makes Soroband the front app; a Debug
+    /// URL command passes false, and the window comes forward without taking the keyboard.
+    func show(tab: SettingsView.Tab? = nil, activates: Bool) {
         if let tab { selection.tab = tab }
         if window == nil {
             Usage.shared.reloadRegistry()
@@ -37,15 +39,13 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
             window.delegate = self
             window.center()
             self.window = window
-            NSApp.activate()
-            window.makeKeyAndOrderFront(nil)
+            bringForward(window, activates: activates)
             // Otherwise AppKit focuses the first text field, a network's name, as if to rename it.
             window.makeFirstResponder(nil)
             UIHost.windowsChanged()
             return
         }
-        NSApp.activate()
-        window?.makeKeyAndOrderFront(nil)
+        if let window { bringForward(window, activates: activates) }
     }
 
     var tab: SettingsView.Tab { selection.tab }
