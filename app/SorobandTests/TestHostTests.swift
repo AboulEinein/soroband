@@ -13,7 +13,10 @@ struct TestHostTests {
 
     /// A UI process the test host starts inherits its environment, and `SettingsListener` names
     /// its notification after `SOROBAND_DATA_DIR`, so both must find the directory there.
-    @Test func theTestHostsDataDirectoryIsInItsEnvironment() {
-        #expect(ProcessInfo.processInfo.environment["SOROBAND_DATA_DIR"] == Core.dataDirectory.path)
+    @Test func theTestHostsDataDirectoryIsInItsEnvironment() throws {
+        let dir = try #require(ProcessInfo.processInfo.environment["SOROBAND_DATA_DIR"])
+        #expect(
+            URL(filePath: dir, directoryHint: .isDirectory).standardizedFileURL
+                == Core.dataDirectory.standardizedFileURL)
     }
 }
