@@ -22,6 +22,11 @@ final class IslandView: NSView {
     /// Where the pointer was when the shape last changed: a pointer resting there is not on the
     /// island until it moves, so a moment that opens under it still closes on time.
     private var restingPointer: CGPoint?
+    /// While the real pointer is on the island: checks each second that it still is, because a
+    /// pointer can leave without the exit event arriving, which would keep a moment open for good.
+    private var leaveCheck: Timer?
+    /// `hover-island` holds the pointer on the island without moving it, so nothing checks it.
+    private var simulated = false
     private(set) var target: IslandMetrics
 
     init(frame: CGRect, geometry: IslandGeometry) {
@@ -77,8 +82,15 @@ final class IslandView: NSView {
             content = view
             fadeIn(view)
         }
-        restingPointer = NSEvent.mouseLocation
         updateTracking()
+        // A tracking area replaced under the pointer sends no exit: look where it is now. A
+        // pointer on the island stays on it only while it is inside the new outline; one that
+        // was not on it counts only once it moves.
+        if hovering {
+            checkPointer()
+        } else {
+            restingPointer = NSEvent.mouseLocation
+        }
         startLink()
     }
 
@@ -183,12 +195,27 @@ final class IslandView: NSView {
 
     /// For `soroband-debug://hover-island`: the pointer at `point` in this view, or gone.
     func pointer(at point: CGPoint?) {
+        simulated = point != nil
         setHovering(point.map(contains) ?? false)
     }
 
     private func setHovering(_ inside: Bool) {
         guard inside != hovering else { return }
         hovering = inside
+        leaveCheck?.invalidate()
+        leaveCheck = nil
+        if inside && !simulated {
+            leaveCheck = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.checkPointer() }
+            }
+        }
         onHover?(inside)
+    }
+
+    private func checkPointer() {
+        guard !simulated, let window, !contains(convert(window.mouseLocationOutsideOfEventStream, from: nil)) else {
+            return
+        }
+        setHovering(false)
     }
 }

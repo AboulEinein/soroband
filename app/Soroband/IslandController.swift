@@ -423,6 +423,8 @@ final class IslandController {
         /// `rest`, `glance` (the hotspot meter) or the open moment's kind.
         let showing: String
         let waiting: [String]
+        /// The pointer is on the island's outline, which keeps a moment open.
+        let hovering: Bool
         let fullScreen: Bool
         /// The island's panels' window numbers; their frames are in `windows`.
         let panels: [Int]
@@ -439,7 +441,7 @@ final class IslandController {
             }
         return DebugState(
             enabled: settings.enabled, style: settings.style.rawValue, showing: showing,
-            waiting: queue.waiting.map(\.kind.rawValue), fullScreen: fullScreen,
+            waiting: queue.waiting.map(\.kind.rawValue), hovering: queue.hovering, fullScreen: fullScreen,
             panels: panels.map(\.windowNumber),
             recent: recent.map { .init(kind: $0.kind.rawValue, source: $0.source, at: $0.at.timeIntervalSince1970) })
     }
