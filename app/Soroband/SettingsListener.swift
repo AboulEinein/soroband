@@ -21,6 +21,7 @@ enum SettingsListener {
     static let reread = Coalescer(window: .milliseconds(250)) {
         Core.reloadSettings()
         Usage.shared.reloadSettings()
+        IslandController.shared.reloadSettings()
     }
 
     private static var token: Int32 = 0

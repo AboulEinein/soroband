@@ -67,6 +67,7 @@ final class Usage {
             reloadRegistry()
         }
         onChange?()
+        IslandController.shared.polled()
     }
 
     /// The engine merges a network after the change that asked for it, so the registry the popover
