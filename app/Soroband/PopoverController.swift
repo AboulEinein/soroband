@@ -23,8 +23,8 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     /// The app that had the keyboard before a click brought the popover forward; it gets it back
     /// when the popover closes.
     private var previousApp: NSRunningApplication?
-    /// Whether the popover's gear or History… opened a window, which keeps the keyboard.
-    private var openedWindow = false
+    /// Whether the popover was the key window as its close began (`KeyboardReturn`).
+    private var wasKeyAtClose = false
 
     var isShown: Bool { popover.isShown }
 
@@ -56,7 +56,6 @@ final class PopoverController: NSObject, NSPopoverDelegate {
             rootView: LivePopover(
                 tab: tab, allNetworks: allNetworks,
                 openHistory: { [weak self] network in
-                    self?.openedWindow = true
                     HistoryWindow.shared.show(
                         HistoryOptions(
                             range: .month, network: network, current: NetworkMonitor.shared.current?.id,
@@ -64,9 +63,9 @@ final class PopoverController: NSObject, NSPopoverDelegate {
                     self?.popover.performClose(nil)
                 },
                 openSettings: { [weak self] in
-                    self?.openedWindow = true
-                    self?.popover.performClose(nil)
+                    // Settings first, so it is key as the popover's close begins and keeps the keyboard.
                     SettingsWindow.shared.show(activates: true)
+                    self?.popover.performClose(nil)
                 },
                 quit: { UIHost.send(.quit) }))
     }
@@ -77,7 +76,6 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         if request.activates {
             let front = NSWorkspace.shared.frontmostApplication
             previousApp = front == .current ? nil : front
-            openedWindow = false
             // A click on the item in the menu bar's overflow reaches the menu bar process while it
             // is not active, so its yield gives nothing and `NSApp.activate()` is refused; this
             // call, deprecated but still honored, brings Soroband forward from the overflow too.
@@ -143,6 +141,7 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     /// Set as the close starts, not after its animation, which can end after the click's toggle.
     func popoverWillClose(_ notification: Notification) {
         lastClose = .now
+        wasKeyAtClose = popover.contentViewController?.view.window?.isKeyWindow == true
     }
 
     func popoverDidShow(_ notification: Notification) {
@@ -158,7 +157,7 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         guard
             KeyboardReturn.givesBack(
                 hasPreviousApp: previousApp != nil,
-                sorobandIsFront: NSWorkspace.shared.frontmostApplication == .current, openedWindow: openedWindow)
+                sorobandIsFront: NSWorkspace.shared.frontmostApplication == .current, popoverWasKey: wasKeyAtClose)
         else { return }
         previousApp?.activate()
     }
