@@ -514,6 +514,25 @@ Planned rounds: 1.
 
 **Retro.** Planned 1 round; it took 1, a direct review and 6 local CodeRabbit CLI rounds (13 findings, 11 fixed, 1 declined twice because it reversed an earlier one). The cost was out of proportion to a docs-gap PR: moving two working tools into the repo became a rewrite of the measurement lock, and each CLI round found a narrower edge case on a script only agents run, until the CLI quota ran out and the waits outlasted the work. Move a working tool as it is, and on internal tooling fix the findings that would bite in use and stop.
 
+## [#40](https://github.com/AboulEinein/soroband/pull/40) fix(core): name a version-named tool by its directory (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | none | Checked e2845ca. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: today's usage read back under the old name keeps that label until the daily reset (accepted). |
+
+**Retro.** Planned 1 round; it took 1. A narrow, tested naming rule with a real `soroband live` run before the first round left the blind round nothing to find; CodeRabbit's one finding was a one-day label effect on the update's day, accepted as the PR had stated it.
+
 ## [#44](https://github.com/AboulEinein/soroband/pull/44) fix(app): give the test host its own data directory (2026-11-05)
 
 Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low | `first look`: the temporary-directory prefix check failed when a test run supplies its own `SOROBAND_DATA_DIR`. |
+| direct | Opus | none | Checked aaa48cf. [Comment](https://github.com/AboulEinein/soroband/pull/44#issuecomment-6656186817). |
+| CodeRabbit | CodeRabbit | 1 Minor | `fix regression`: with the prefix check gone, a supplied directory with a trailing slash still failed the environment test's string comparison. |
+
+**Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found 1 valid finding. Both findings came from one gap: the tests were written for the directory the fix makes, not for one a run supplies, which the fix also supports. A test of an override should cover each way the value can arrive.
