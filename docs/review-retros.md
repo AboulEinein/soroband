@@ -540,3 +540,11 @@ Planned rounds: 1.
 ## [#42](https://github.com/AboulEinein/soroband/pull/42) test(app): cover the registry-failure fallback (2026-11-05)
 
 Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low | `first look`: the new enum was named `Booking`, a glossary term with another meaning. |
+| direct | Opus | none | Checked 159745e. [Comment](https://github.com/AboulEinein/soroband/pull/42#issuecomment-6657011614). |
+| CodeRabbit | CodeRabbit | 1 Trivial | Not valid: monitor-level coverage needs a seam the follow-up chose not to add. |
+
+**Retro.** Planned 1 round; it took 1 and a direct review. The one finding was a name: a new type reused a glossary word for something else. Checking a new type's name against `GLOSSARY.md` before the first round would have caught it.
