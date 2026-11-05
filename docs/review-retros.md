@@ -552,3 +552,7 @@ Planned rounds: 1.
 ## [#49](https://github.com/AboulEinein/soroband/pull/49) fix(app): keep debug URL commands from activating the app (2026-11-05)
 
 Planned rounds: 1.
+
+## [#51](https://github.com/AboulEinein/soroband/pull/51) fix(app): let the popover take the keyboard when opened from the overflow (2026-11-05)
+
+Planned rounds: 2.
