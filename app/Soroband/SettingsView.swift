@@ -21,9 +21,9 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         self.launchAtLogin = launchAtLogin
     }
 
-    /// Unless it `activates` (a Debug URL command), the window comes forward without taking the
-    /// keyboard.
-    func show(tab: SettingsView.Tab? = nil, activates: Bool = true) {
+    /// `activates` is true for the user's own action, which makes Soroband the front app; a Debug
+    /// URL command passes false, and the window comes forward without taking the keyboard.
+    func show(tab: SettingsView.Tab? = nil, activates: Bool) {
         if let tab { selection.tab = tab }
         if window == nil {
             Usage.shared.reloadRegistry()

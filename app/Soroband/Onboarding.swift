@@ -34,7 +34,7 @@ final class OnboardingWindow: NSObject, NSWindowDelegate {
     /// - `aboveOtherApps`: at launch macOS may refuse to activate the app (the user is busy in
     ///   another), which would leave the window behind theirs, unseen.
     /// - `activates`: false for a Debug URL command, which never takes the keyboard.
-    func show(aboveOtherApps: Bool = false, activates: Bool = true) {
+    func show(aboveOtherApps: Bool = false, activates: Bool) {
         if window == nil {
             let window = NSWindow(
                 contentViewController: NSHostingController(rootView: OnboardingView { [weak self] in self?.close() }))
