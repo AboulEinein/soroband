@@ -28,12 +28,14 @@ struct IslandGeometry: Equatable {
 
 /// The island's size: one black shape hanging from the top edge, `width` wide and `height` tall
 /// with corners of `radius`. Inside the menu bar it is only `bandWidth` wide, which is narrower
-/// than `width` in the keep-menu-bar-clear style.
+/// than `width` in the keep-menu-bar-clear style. With no notch to hang from in that style, it
+/// starts `top` below the screen's edge: under the menu bar.
 struct IslandMetrics: Equatable {
     var width: CGFloat
     var height: CGFloat
     var radius: CGFloat
     var bandWidth: CGFloat
+    var top: CGFloat = 0
 
     /// Each side of a glance beside the notch.
     static let wing: CGFloat = 92
@@ -58,7 +60,10 @@ struct IslandMetrics: Equatable {
             let width = notch + 2 * wing
             return IslandMetrics(width: width, height: band, radius: 11, bandWidth: width)
         case .clear:
-            return IslandMetrics(width: max(notch + 60, 200), height: band + 26, radius: 13, bandWidth: notch)
+            let width = max(notch + 60, 200)
+            return geometry.hasNotch
+                ? IslandMetrics(width: width, height: band + 26, radius: 13, bandWidth: notch)
+                : IslandMetrics(width: width, height: band + 26, radius: 13, bandWidth: width, top: band)
         }
     }
 
@@ -71,8 +76,14 @@ struct IslandMetrics: Equatable {
             case .peek: (450, band + 104)
             default: (450, band + 66)
             }
-        return IslandMetrics(
-            width: width, height: height, radius: 26, bandWidth: style == .seamless ? width : geometry.notchWidth)
+        switch style {
+        case .seamless:
+            return IslandMetrics(width: width, height: height, radius: 26, bandWidth: width)
+        case .clear where !geometry.hasNotch:
+            return IslandMetrics(width: width, height: height, radius: 26, bandWidth: width, top: band)
+        case .clear:
+            return IslandMetrics(width: width, height: height, radius: 26, bandWidth: geometry.notchWidth)
+        }
     }
 }
 
@@ -86,6 +97,16 @@ func islandPath(_ m: IslandMetrics, band: CGFloat, in rect: CGRect, flipped: Boo
     let p = CGMutablePath()
     guard m.width > 1, m.height > 1 else { return p }
     func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x, y: flipped ? rect.minY + y : rect.maxY - y) }
+    if m.top > 0 {
+        // Below the menu bar, rounded at all four corners.
+        let corner = min(m.radius, (m.height - m.top) / 2)
+        let topLeft = pt(rect.midX - m.width / 2, m.top)
+        let bottomRight = pt(rect.midX + m.width / 2, m.height)
+        let box = CGRect(
+            x: topLeft.x, y: min(topLeft.y, bottomRight.y), width: m.width, height: abs(topLeft.y - bottomRight.y))
+        p.addRoundedRect(in: box, cornerWidth: corner, cornerHeight: corner)
+        return p
+    }
     let cx = rect.midX
     let left = cx - m.width / 2
     let right = cx + m.width / 2

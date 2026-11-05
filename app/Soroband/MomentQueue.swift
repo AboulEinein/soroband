@@ -105,6 +105,8 @@ struct MomentQueue: Equatable {
     mutating func remove(_ kind: MomentKind, now: TimeInterval) {
         waiting.removeAll { $0.kind == kind }
         if current?.kind == kind { dismiss(now: now) }
+        // Their ends will not come: an app's next transfer starts afresh.
+        if kind == .transfer { shownTransfers.removeAll() }
     }
 
     private mutating func close(now: TimeInterval) {

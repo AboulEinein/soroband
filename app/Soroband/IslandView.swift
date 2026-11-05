@@ -49,7 +49,8 @@ final class IslandView: NSView {
     /// The outline as drawn now.
     var metrics: IslandMetrics {
         IslandMetrics(
-            width: springs[0].value, height: springs[1].value, radius: springs[2].value, bandWidth: springs[3].value)
+            width: springs[0].value, height: springs[1].value, radius: springs[2].value, bandWidth: springs[3].value,
+            top: target.top)
     }
 
     var isAnimating: Bool { link != nil }

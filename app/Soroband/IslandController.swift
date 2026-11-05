@@ -42,7 +42,7 @@ final class IslandController {
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
         ) { note in
             let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
-            let path = app?.bundleURL?.path
+            let path = app?.bundleURL.map { IslandController.appID(bundle: $0.path) }
             MainActor.assumeIsolated {
                 Core.setFrontmost(path)
                 IslandController.shared.checkFullScreen()
@@ -56,7 +56,14 @@ final class IslandController {
         ) { _ in
             MainActor.assumeIsolated { IslandController.shared.makePanels() }
         }
-        Core.setFrontmost(NSWorkspace.shared.frontmostApplication?.bundleURL?.path)
+        Core.setFrontmost(NSWorkspace.shared.frontmostApplication?.bundleURL.map { Self.appID(bundle: $0.path) })
+    }
+
+    /// The id the engine names an app by, from its bundle's path: the outermost `.app` bundle,
+    /// so an app nested in another (Simulator in Xcode) is the app that holds it.
+    nonisolated static func appID(bundle path: String) -> String {
+        guard let end = path.range(of: ".app/") else { return path }
+        return String(path[..<end.lowerBound]) + ".app"
     }
 
     /// Rereads the island's settings, after `soroband config set` or a change in Settings.
@@ -66,6 +73,7 @@ final class IslandController {
         settings = IslandSettings(value: Core.setting)
         if settings != old { UIProcess.shared.publish() }
         Core.watchMoments(settings.watches)
+        Core.watchTopApps(settings.shows(.peek))
         for kind in MomentKind.allCases where !settings.shows(kind) {
             queue.remove(kind, now: now)
         }
@@ -102,14 +110,16 @@ final class IslandController {
     /// Shows `content` on the island, or as a notification while the island is off.
     func post(_ content: MomentContent, source: String) {
         let kind = content.kind
-        if settings.notifies(kind) {
+        switch settings.route(kind, hasPanel: !panels.isEmpty) {
+        case .notification:
             notify(content)
             record(kind, source: source)
-            return
+        case .island:
+            if queue.post(content, now: now) { record(kind, source: source) }
+            render()
+        case .nowhere:
+            break
         }
-        guard settings.shows(kind) else { return }
-        if queue.post(content, now: now) { record(kind, source: source) }
-        render()
     }
 
     /// The network changed: reopens paused apps once off a hotspot, and shows or hides the
@@ -359,7 +369,9 @@ final class IslandController {
 
     /// Quits the app, to open it again on the next network that is not a hotspot.
     private func pause(_ app: MomentApp) {
-        let running = NSWorkspace.shared.runningApplications.filter { $0.bundleURL?.path == app.id }
+        let running = NSWorkspace.shared.runningApplications.filter {
+            $0.bundleURL.map { Self.appID(bundle: $0.path) } == app.id
+        }
         guard !running.isEmpty else { return }
         for instance in running { instance.terminate() }
         var paused = UserDefaults.standard.stringArray(forKey: Self.pausedKey) ?? []

@@ -164,6 +164,11 @@ enum Core {
         soroband_moments_watch(on)
     }
 
+    /// While on, the engine publishes today's top apps after each poll, for the peek.
+    static func watchTopApps(_ on: Bool) {
+        soroband_top_apps_watch(on)
+    }
+
     /// Tells the engine which app is in front, by its bundle path, for background activity.
     static func setFrontmost(_ id: String?) {
         guard let id else { return soroband_moments_frontmost(nil) }
@@ -182,7 +187,7 @@ enum Core {
     }
 
     /// Today's top apps on the current network, most bytes first, as of the last poll; empty
-    /// unless the engine watches for moments.
+    /// unless `watchTopApps` is on.
     static func topApps() -> [MomentApp] {
         decode([MomentApp].self, soroband_top_apps_json()) ?? []
     }

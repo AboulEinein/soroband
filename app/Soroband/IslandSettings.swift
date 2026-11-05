@@ -47,9 +47,18 @@ struct IslandSettings: Codable, Equatable {
     /// Whether `kind` shows on the island: the island is on and the moment is.
     func shows(_ kind: MomentKind) -> Bool { enabled && moments.contains(kind) }
 
-    /// Whether `kind` goes out as a notification: the island is off, notifications are on, and it
-    /// is an alert the user has not turned off.
-    func notifies(_ kind: MomentKind) -> Bool { !enabled && notifications && kind.isAlert && moments.contains(kind) }
+    enum Route: Equatable {
+        case island, notification, nowhere
+    }
+
+    /// Where a moment of `kind` goes: the island, while it is on and has a display to show on
+    /// (`hasPanel`); otherwise a notification for an alert the user has not turned off, while
+    /// notifications are on.
+    func route(_ kind: MomentKind, hasPanel: Bool) -> Route {
+        guard moments.contains(kind) else { return .nowhere }
+        if enabled && hasPanel { return .island }
+        return notifications && kind.isAlert ? .notification : .nowhere
+    }
 
     /// Whether the engine has to look for moments at all.
     var watches: Bool { enabled || (notifications && moments.contains { $0.isAlert }) }

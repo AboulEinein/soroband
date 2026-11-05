@@ -115,20 +115,20 @@ struct IslandSettingsView: View {
         case .hog:
             thresholdRow {
                 Text("When one app uses more than")
-                stepper(IslandSettings.hogMBKey, settings.hogMB, unit: "MB", range: 10...10_000, step: 10)
+                stepper(IslandSettings.hogMBKey, settings.hogMB, unit: "MB", range: 1...100_000, step: 10)
                 Text("in")
                 stepper(IslandSettings.hogMinutesKey, settings.hogMinutes, unit: "min", range: 1...60, step: 1)
             }
         case .background:
             thresholdRow {
                 Text("When an app not in front uses more than")
-                stepper(IslandSettings.backgroundMBKey, settings.backgroundMB, unit: "MB", range: 10...10_000, step: 10)
+                stepper(IslandSettings.backgroundMBKey, settings.backgroundMB, unit: "MB", range: 1...100_000, step: 10)
                 Text("in \(settings.hogMinutes) min")
             }
         case .transfer:
             thresholdRow {
                 Text("Transfers larger than")
-                stepper(IslandSettings.transferMBKey, settings.transferMB, unit: "MB", range: 10...100_000, step: 10)
+                stepper(IslandSettings.transferMBKey, settings.transferMB, unit: "MB", range: 1...100_000, step: 10)
             }
         default:
             EmptyView()

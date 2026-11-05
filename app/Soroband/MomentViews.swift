@@ -40,7 +40,7 @@ enum MomentViews {
             }
             body = stack([top, packed(appViews, spacing: 16)], vertical: true, spacing: 12)
         case .joined(let network, let week, let today, let lastSeen):
-            let when = lastSeen.map { " · last here \(relative($0))" } ?? " · first visit"
+            let when = lastSeen.map { " · last here \(relative($0))" } ?? " · first time here"
             body = row(
                 tile: networkTile(network, context: context), title: "Joined \(network.name)",
                 subtitle: "\(Format.bytes(week)) in the last 7 days\(when)",
@@ -63,7 +63,8 @@ enum MomentViews {
                 tile: appIcon(app, size: 34), title: "\(app.name) used \(Format.bytes(bytes)) in \(minutes) min",
                 subtitle: place, trailing: symbol("exclamationmark.triangle.fill", color: .systemOrange))
             var buttons: [NSView] = []
-            if context.offersPause {
+            // Only an app bundle can be quit and opened again; a tool or macOS & Services cannot.
+            if context.offersPause && app.id.hasSuffix(".app") {
                 buttons.append(button("Pause until off hotspot", prominent: true) { context.act(.pause(app)) })
             }
             buttons.append(button("Ignore \(app.name)") { context.act(.ignore(app)) })

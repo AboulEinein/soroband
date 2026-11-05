@@ -82,6 +82,15 @@ struct MomentQueueTests {
         #expect(queue.current == nil)
     }
 
+    @Test func aTransferTurnedOffBeforeItsEndStartsAfreshNextTime() {
+        var queue = MomentQueue()
+        queue.post(transfer(50_000_000), now: 0)
+        queue.remove(.transfer, now: 1)
+        queue.advance(now: 2)
+        let next = queue.post(transfer(60_000_000), now: 3)
+        #expect(next, "its end never came, so the next transfer is a new moment")
+    }
+
     @Test func turningAMomentOffDropsItOpenOrWaiting() {
         var queue = MomentQueue()
         queue.post(hog, now: 0)
@@ -145,6 +154,16 @@ struct IslandOutlineTests {
         #expect(contains(.open(.joined, geometry, style: .clear), point(150, below: 60)))
     }
 
+    @Test func keepMenuBarClearStaysBelowTheMenuBarOnADisplayWithoutANotch() {
+        let flat = IslandGeometry(notchWidth: 0, menuBarHeight: 24)
+        let path = { (m: IslandMetrics) in islandPath(m, band: 24, in: panel) }
+        let joined = IslandMetrics.open(.joined, flat, style: .clear)
+        #expect(!path(joined).contains(point(0, below: 12)), "nothing over the menu bar")
+        #expect(path(joined).contains(point(0, below: 40)), "the moment below it")
+        #expect(!path(IslandMetrics.glance(flat, style: .clear)).contains(point(0, below: 12)))
+        #expect(path(.open(.joined, flat, style: .seamless)).contains(point(0, below: 12)), "seamless covers it")
+    }
+
     @Test func aDisplayWithoutANotchShowsNothingAtRest() {
         let flat = IslandGeometry(notchWidth: 0, menuBarHeight: 24)
         #expect(islandPath(.rest(flat), band: 24, in: panel).isEmpty)
@@ -164,6 +183,17 @@ struct IslandOutlineTests {
         }
         // Damping 0.8 overshoots by about 1.5%, as SwiftUI's spring does: a bounce, not a wobble.
         #expect(peak > 450 && peak < 460)
+    }
+}
+
+/// The engine names an app by its outermost bundle; the frontmost app's bundle may be nested.
+struct AppIDTests {
+    @Test func aNestedAppIsTheAppThatHoldsIt() {
+        #expect(
+            IslandController.appID(bundle: "/Applications/Xcode.app/Contents/Developer/Applications/Simulator.app")
+                == "/Applications/Xcode.app")
+        #expect(IslandController.appID(bundle: "/Applications/Safari.app") == "/Applications/Safari.app")
+        #expect(IslandController.appID(bundle: "/usr/local/bin/tool") == "/usr/local/bin/tool")
     }
 }
 
@@ -240,15 +270,20 @@ struct IslandSettingsTests {
         #expect(IslandSettingsView.moments([.hog], .peek, true) == "peek,hog", "in the schema's order")
     }
 
-    @Test func alertsBecomeNotificationsOnlyWhileTheIslandIsOff() {
+    @Test func alertsBecomeNotificationsWhenTheIslandCannotShowThem() {
         var settings = IslandSettings()
         #expect(!settings.enabled, "off on a fresh install")
-        #expect(settings.notifies(.hog) && !settings.notifies(.joined))
+        #expect(settings.route(.hog, hasPanel: false) == .notification)
+        #expect(settings.route(.joined, hasPanel: false) == .nowhere)
         #expect(settings.watches, "the engine watches for the notifications")
         settings.notifications = false
         #expect(!settings.watches, "nothing to watch for")
+        settings.notifications = true
         settings.enabled = true
-        #expect(!settings.notifies(.hog) && settings.shows(.hog))
+        #expect(settings.route(.hog, hasPanel: true) == .island)
+        // On, but no display to show on (the built-in one only, with the lid closed).
+        #expect(settings.route(.hog, hasPanel: false) == .notification)
+        #expect(settings.route(.joined, hasPanel: false) == .nowhere)
         #expect(!settings.shows(.recap), "the recap is off by default")
     }
 
