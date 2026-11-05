@@ -575,3 +575,14 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | 1 Minor | `first look`, on the records commit: that finding was recorded as not valid rather than accepted. |
 
 **Retro.** Planned 1 round; it took 1 and a direct review. The one finding was a name: a new type reused a glossary word for something else. Checking a new type's name against `GLOSSARY.md` before the first round would have caught it.
+
+## [#46](https://github.com/AboulEinein/soroband/pull/46) docs: record what the popover's summary read costs (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | none | Checked 3d4ccd7. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. The follow-up said "measure first", and the measurement (a bars-only read would save about 4.7 ms per open, off the main thread) settled it as docs only, so there was little to review.
