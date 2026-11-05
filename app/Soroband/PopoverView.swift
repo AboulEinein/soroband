@@ -418,9 +418,9 @@ private struct NoticeView: View {
         case .perAppOff:
             "This macOS version reports connections in a layout Soroband does not know yet, so only the network's totals are counted."
         case .degraded:
-            "For 20 minutes, apps were credited with less than 85% of what crossed the network."
+            "For 20 minutes, apps and local-network traffic came to less than 85% of what crossed the network."
         case .overcount:
-            "Apps were credited with more than crossed the network. The per-app numbers may be wrong."
+            "Apps and local-network traffic came to more than crossed the network. The per-app numbers may be wrong."
         case .failed:
             "The meter stopped, or the usage database could not be opened. Quit and reopen Soroband."
         }
