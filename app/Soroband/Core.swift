@@ -158,8 +158,7 @@ enum Core {
         return rows < 0 ? nil : Int(rows)
     }
 
-    /// While on, the engine looks for the island's moments after each poll and publishes today's
-    /// top apps; off, it does neither.
+    /// While on, the engine looks for the island's moments after each poll; off, it does not.
     static func watchMoments(_ on: Bool) {
         soroband_moments_watch(on)
     }

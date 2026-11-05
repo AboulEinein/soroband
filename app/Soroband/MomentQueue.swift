@@ -43,6 +43,7 @@ struct MomentQueue: Equatable {
         if case .transfer(let app, _, _, _, let done) = content {
             if case .transfer(let open, _, _, _, _) = current?.content, open.id == app.id {
                 current?.content = content
+                shownTransfers[app.id] = now
                 if done { closesAt = hovering ? nil : now + MomentKind.transfer.duration }
                 return false
             }

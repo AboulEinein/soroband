@@ -86,6 +86,21 @@ struct MomentQueueTests {
         #expect(next, "silent for 30 s, so this is a new transfer")
     }
 
+    @Test func aTransferHeldOpenByThePointerStaysOneMoment() {
+        var queue = MomentQueue()
+        queue.post(transfer(50_000_000), now: 0)
+        queue.hover(true, now: 1)
+        // Progress every 5 s while the pointer holds it open for a minute.
+        for t in stride(from: 5.0, through: 60, by: 5) {
+            queue.post(transfer(50_000_000 + UInt64(t) * 1_000_000), now: t)
+        }
+        queue.hover(false, now: 61)
+        queue.advance(now: 67)
+        #expect(queue.current == nil)
+        let progress = queue.post(transfer(120_000_000), now: 68)
+        #expect(!progress, "still the same running transfer")
+    }
+
     @Test func aTransferNobodySawStartShowsNoEnd() {
         var queue = MomentQueue()
         let end = queue.post(transfer(80_000_000, done: true), now: 0)
