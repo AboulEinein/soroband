@@ -537,6 +537,18 @@ Planned rounds: 1.
 
 **Retro.** Planned 1 round; it took 1. The blind round checked the copy against what `check.rs` compares and found nothing; CodeRabbit caught a grammar slip in the new user-facing sentence, fixed and reviewed by CodeRabbit as a wording fix. The local CLI and then the hosted review pointed at the degraded notice's fixed "For 20 minutes", which predates this PR; first recorded as a follow-up, it was fixed here once the hosted review raised it, being the same notice's copy. A copy fix should read the whole sentence it touches against the code, not only the word it was asked to change.
 
+## [#44](https://github.com/AboulEinein/soroband/pull/44) fix(app): give the test host its own data directory (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low | `first look`: the temporary-directory prefix check failed when a test run supplies its own `SOROBAND_DATA_DIR`. |
+| direct | Opus | none | Checked aaa48cf. [Comment](https://github.com/AboulEinein/soroband/pull/44#issuecomment-6656186817). |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: a supplied directory with a trailing slash failed the environment test's string comparison, present since the first commit. |
+
+**Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found 1 valid finding. Both findings came from one gap: the tests were written for the directory the fix makes, not for one a run supplies, which the fix also supports. A test of an override should cover each way the value can arrive.
+
 ## [#42](https://github.com/AboulEinein/soroband/pull/42) test(app): cover the registry-failure fallback (2026-11-05)
 
 Planned rounds: 1.
