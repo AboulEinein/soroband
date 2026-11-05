@@ -513,3 +513,7 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | none | Not run: the hosted review stayed queued behind the rate limit for over an hour; the user chose to merge without it. |
 
 **Retro.** Planned 1 round; it took 1, a direct review and 6 local CodeRabbit CLI rounds (13 findings, 11 fixed, 1 declined twice because it reversed an earlier one). The cost was out of proportion to a docs-gap PR: moving two working tools into the repo became a rewrite of the measurement lock, and each CLI round found a narrower edge case on a script only agents run, until the CLI quota ran out and the waits outlasted the work. Move a working tool as it is, and on internal tooling fix the findings that would bite in use and stop.
+
+## [#45](https://github.com/AboulEinein/soroband/pull/45) fix(app): close the popover on a click on the empty menu bar (2026-11-05)
+
+Planned rounds: 1.
