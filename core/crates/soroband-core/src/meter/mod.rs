@@ -98,7 +98,7 @@ struct Meter {
     apps: HashMap<App, Bytes>,
     /// Received bytes per app that were duplicates from retransmission, also in `apps`.
     rx_duplicates: HashMap<App, u64>,
-    /// The service that last moved bytes for each app, if any did.
+    /// The service that moved each app's latest bytes, for the apps a service moved them for.
     via: HashMap<App, &'static str>,
     local: Bytes,
     /// False until the baseline poll completes: flows seen before then only set their starting
@@ -166,8 +166,12 @@ impl Meter {
             self.local += delta;
         } else {
             *self.apps.entry(flow.app.clone()).or_default() += delta;
-            if let Some(via) = flow.via.filter(|_| delta.total() > 0) {
-                self.via.insert(flow.app.clone(), via);
+            // The service that moved the app's latest bytes, or none once the app moves its own.
+            if delta.total() > 0 {
+                match flow.via {
+                    Some(via) => self.via.insert(flow.app.clone(), via),
+                    None => self.via.remove(&flow.app),
+                };
             }
             if rx_duplicate > 0 {
                 *self.rx_duplicates.entry(flow.app.clone()).or_default() += u64::from(rx_duplicate);

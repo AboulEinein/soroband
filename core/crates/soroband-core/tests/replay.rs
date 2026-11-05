@@ -252,6 +252,35 @@ fn a_download_a_service_makes_for_an_app_names_the_service() {
 }
 
 #[test]
+fn an_app_moving_its_own_bytes_after_a_service_names_no_service() {
+    // appstoreagent downloads for Safari, then Safari's own flow moves bytes: its latest bytes
+    // are its own, so no service is named.
+    const AGENT: u32 = 600;
+    let mut events = start(
+        &[],
+        &[
+            delegated_update(1, 0, 0, AGENT, SAFARI, "appstoreagent"),
+            tcp_update(2, 0, 0, SAFARI, false, 360),
+        ],
+    );
+    for (poll, agent_rx, own_rx) in [(POLL + 1, 4_000, 0), (POLL + 2, 4_000, 2_000)] {
+        events.extend([
+            Event::Timeout,
+            Event::Send(ntstat::poll_all(poll)),
+            datagram(&[
+                delegated_update(1, agent_rx, 0, AGENT, SAFARI, "appstoreagent"),
+                tcp_update(2, own_rx, 0, SAFARI, false, 360),
+                success(poll, false),
+            ]),
+            en0(1_000_000 + agent_rx + own_rx, 1_000_000),
+        ]);
+    }
+    let (snapshot, _) = run(Replay::new(events));
+    assert_eq!(app(&snapshot, "Safari"), Some(&Bytes { rx: 6_000, tx: 0 }));
+    assert_eq!(snapshot.via(&safari()), None);
+}
+
+#[test]
 fn final_update_of_a_closed_flow_is_booked_between_polls() {
     let mut events = start(&[], &[tcp_update(7, 100, 10, MAIL, false, 360)]);
     events.extend([
