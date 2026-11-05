@@ -144,4 +144,12 @@ enum KeyboardReturn {
     ) -> Bool {
         hasPreviousApp && sorobandIsFront && popoverWasKey && !clickInOtherWindow
     }
+
+    /// Whether the event the close began with is a click into another Soroband window: a
+    /// mouse-down `inOtherWindow`, under 0.2 s old. `NSApp.currentEvent` is the last event the
+    /// process dispatched, so a close no event began (the item's toggle, the outside-click
+    /// monitor) finds an older one.
+    static func isClickInOtherWindow(type: NSEvent.EventType?, inOtherWindow: Bool, age: TimeInterval) -> Bool {
+        [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(type) && inOtherWindow && age < 0.2
+    }
 }

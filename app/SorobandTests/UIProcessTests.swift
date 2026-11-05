@@ -422,6 +422,21 @@ struct UIHostTests {
         // first case holds.
     }
 
+    @Test func onlyAFreshMouseDownInAnotherWindowCountsAsAClickIntoIt() {
+        #expect(
+            KeyboardReturn.isClickInOtherWindow(type: .leftMouseDown, inOtherWindow: true, age: 0.01),
+            "a click into Settings behind the popover began this close")
+        #expect(
+            !KeyboardReturn.isClickInOtherWindow(type: .leftMouseDown, inOtherWindow: true, age: 5),
+            "a stale click in Settings: the item's toggle or the outside-click monitor began this close")
+        #expect(
+            !KeyboardReturn.isClickInOtherWindow(type: .keyDown, inOtherWindow: true, age: 0.01),
+            "a key in another window is no click into it")
+        #expect(
+            !KeyboardReturn.isClickInOtherWindow(type: .leftMouseDown, inOtherWindow: false, age: 0.01),
+            "a click in the popover itself")
+    }
+
     @Test func aMouseDownOnTheItemLeavesTheCloseToItsToggle() {
         let item = CGRect(x: 1180, y: 1095, width: 60, height: 22)
         #expect(
