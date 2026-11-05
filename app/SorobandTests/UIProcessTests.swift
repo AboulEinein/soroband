@@ -396,6 +396,57 @@ struct UIHostTests {
         #expect(PopoverToggle.decide(isShown: false, lastClose: now.addingTimeInterval(-1), now: now) == .open)
     }
 
+    @Test func closingThePopoverGivesTheKeyboardBackOnlyToTheAppTheClickTookItFrom() {
+        #expect(
+            KeyboardReturn.givesBack(
+                hasPreviousApp: true, sorobandIsFront: true, popoverWasKey: true, clickInOtherWindow: false),
+            "Escape or a click on the item: the app the user was in gets the keyboard back")
+        #expect(
+            !KeyboardReturn.givesBack(
+                hasPreviousApp: false, sorobandIsFront: true, popoverWasKey: true, clickInOtherWindow: false),
+            "Soroband was already in front when the popover opened: nothing to give back")
+        #expect(
+            !KeyboardReturn.givesBack(
+                hasPreviousApp: true, sorobandIsFront: false, popoverWasKey: true, clickInOtherWindow: false),
+            "the user clicked into another app, which keeps the keyboard")
+        #expect(
+            !KeyboardReturn.givesBack(
+                hasPreviousApp: true, sorobandIsFront: true, popoverWasKey: false, clickInOtherWindow: false),
+            "Settings or History reached through the popover's buttons or ⌘, is key first and keeps the keyboard")
+        #expect(
+            !KeyboardReturn.givesBack(
+                hasPreviousApp: true, sorobandIsFront: true, popoverWasKey: true, clickInOtherWindow: true),
+            "a click into a Settings or History window behind the popover closes it before that window is key, and keeps it"
+        )
+        // A Settings window left open in the background is not key as the popover closes: the
+        // first case holds.
+    }
+
+    @Test func onlyAFreshMouseDownInAnotherWindowCountsAsAClickIntoIt() {
+        #expect(
+            KeyboardReturn.isClickInOtherWindow(type: .leftMouseDown, inOtherWindow: true, age: 0.01),
+            "a click into Settings behind the popover began this close")
+        #expect(
+            !KeyboardReturn.isClickInOtherWindow(type: .leftMouseDown, inOtherWindow: true, age: 5),
+            "a stale click in Settings: the item's toggle or the outside-click monitor began this close")
+        #expect(
+            !KeyboardReturn.isClickInOtherWindow(type: .keyDown, inOtherWindow: true, age: 0.01),
+            "a key in another window is no click into it")
+        #expect(
+            !KeyboardReturn.isClickInOtherWindow(type: .leftMouseDown, inOtherWindow: false, age: 0.01),
+            "a click in the popover itself")
+    }
+
+    @Test func aMouseDownOnTheItemLeavesTheCloseToItsToggle() {
+        let item = CGRect(x: 1180, y: 1095, width: 60, height: 22)
+        #expect(
+            !PopoverController.closesOnMouseDown(at: CGPoint(x: 1200, y: 1105), item: item),
+            "a press held on the item must not close here and reopen on release")
+        #expect(PopoverController.closesOnMouseDown(at: CGPoint(x: 900, y: 1105), item: item), "empty menu bar")
+        #expect(PopoverController.closesOnMouseDown(at: CGPoint(x: 400, y: 300), item: item), "another app")
+        #expect(PopoverController.closesOnMouseDown(at: CGPoint(x: 1200, y: 1105), item: nil))
+    }
+
     /// Waits for `condition` up to 3 s: the main actor can be busy with other tests' rendering.
     private func until(_ condition: () -> Bool) async throws {
         for _ in 0..<300 where !condition() {
