@@ -44,22 +44,24 @@ final class AppKitIslandView: NSView {
             view.frame = CGRect(x: bounds.midX - m.width / 2, y: bounds.maxY - m.height, width: m.width, height: m.height - band)
             addSubview(view)
             content = view
-            let layer = view.layer!
-            layer.anchorPoint = CGPoint(x: 0.5, y: 1)
-            layer.position = CGPoint(x: view.frame.midX, y: view.frame.maxY)
-            let fade = CABasicAnimation(keyPath: "opacity")
-            fade.fromValue = 0
-            fade.toValue = 1
-            let scale = CABasicAnimation(keyPath: "transform.scale")
-            scale.fromValue = 0.96
-            scale.toValue = 1
-            let group = CAAnimationGroup()
-            group.animations = [fade, scale]
-            group.duration = 0.22
-            group.beginTime = CACurrentMediaTime() + 0.14
-            group.fillMode = .backwards
-            group.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            layer.add(group, forKey: "in")
+            // Content fades in after the shape has grown: SwiftUI's insertion transition, opacity
+            // with a 0.96 scale anchored at the top, ease-out 0.22 s after 0.14 s.
+            view.alphaValue = 0
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) { [weak view] in
+                guard let view, let layer = view.layer else { return }
+                let scale = CABasicAnimation(keyPath: "transform")
+                let top = CATransform3DMakeTranslation(0, view.bounds.height * 0.02, 0)
+                scale.fromValue = CATransform3DScale(top, 0.96, 0.96, 1)
+                scale.toValue = CATransform3DIdentity
+                scale.duration = 0.22
+                scale.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                layer.add(scale, forKey: "in")
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.22
+                    context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                    view.animator().alphaValue = 1
+                }
+            }
         }
         startLink()
     }
@@ -131,6 +133,7 @@ private final class MomentView: NSView {
         wantsLayer = true
         let icon = NSImageView(image: lines.icon)
         icon.imageScaling = .scaleProportionallyUpOrDown
+        icon.contentTintColor = .white
         let title = label(lines.title, size: 13, weight: .semibold, alpha: 1)
         let subtitle = label(lines.subtitle, size: 11, weight: .regular, alpha: 0.6)
         let text = NSStackView(views: [title, subtitle])

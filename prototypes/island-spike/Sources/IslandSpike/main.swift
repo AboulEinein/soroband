@@ -7,7 +7,7 @@ import SwiftUI
 /// rests, and prints one JSON line: the footprint at launch, at the peak, after the moments, after the
 /// rest, and the CPU time of the moments and of the rest.
 ///
-/// Usage: IslandSpike <none|appkit|swiftui> [cycles] [rest seconds] [--capture <dir>]
+/// Usage: IslandSpike <none|appkit|swiftui> [cycles] [rest seconds] [--capture <dir>] [--record <mov>]
 /// `none` makes the status item and no island. The panel ignores the pointer, so the user's clicks
 /// pass through it.
 
@@ -34,6 +34,7 @@ let mode = arguments.count > 1 ? arguments[1] : "none"
 let cycles = arguments.count > 2 ? Int(arguments[2]) ?? 5 : 5
 let rest = arguments.count > 3 ? Double(arguments[3]) ?? 60 : 60
 let captureDir = arguments.firstIndex(of: "--capture").map { arguments[$0 + 1] }
+let recordPath = arguments.firstIndex(of: "--record").map { arguments[$0 + 1] }
 
 @MainActor
 final class Driver: NSObject, NSApplicationDelegate {
@@ -87,6 +88,8 @@ final class Driver: NSObject, NSApplicationDelegate {
         result["launch"] = footprintMB()
         let cpuStart = cpuSeconds()
         var peak = 0.0
+        let recording = recordPath.flatMap { screencapture(["-v", "-V", "\(cycles * 16 + 3)", $0]) }
+        if recording != nil { await pause(1.5) }
         if let show {
             for cycle in 0..<cycles {
                 for content in Content.allCases {
@@ -100,6 +103,7 @@ final class Driver: NSObject, NSApplicationDelegate {
                 }
             }
         }
+        recording?.waitUntilExit()
         result["peak"] = peak
         result["momentsCPU"] = cpuSeconds() - cpuStart
         await pause(5)
@@ -114,15 +118,20 @@ final class Driver: NSObject, NSApplicationDelegate {
     }
 
     private func capture(_ path: String) {
-        guard let panel else { return }
+        screencapture([path])?.waitUntilExit()
+    }
+
+    /// `screencapture` of the panel's rect, started.
+    private func screencapture(_ arguments: [String]) -> Process? {
+        guard let panel else { return nil }
         let main = NSScreen.screens[0].frame
         let f = panel.frame
         let rect = "\(Int(f.minX)),\(Int(main.maxY - f.maxY)),\(Int(f.width)),\(Int(f.height))"
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        process.arguments = ["-x", "-R", rect, path]
+        process.arguments = ["-x", "-R", rect] + arguments
         try? process.run()
-        process.waitUntilExit()
+        return process
     }
 }
 
