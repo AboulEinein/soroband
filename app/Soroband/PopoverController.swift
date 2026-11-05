@@ -75,13 +75,17 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         let window = popover.contentViewController?.view.window
         window?.makeKey()
         if let window { timeUntilOnScreen(window, from: request.requested) }
-        // A click on the menu bar item closes it here too, and its toggle then finds it just
-        // closed (`PopoverToggle`). Clicks in this process's windows never reach a global monitor.
+        // Clicks in this process's windows never reach a global monitor.
         if let outsideClicks { NSEvent.removeMonitor(outsideClicks) }
         outsideClicks = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.popover.performClose(nil) }
+            MainActor.assumeIsolated {
+                guard let self, Self.closesOnMouseDown(at: NSEvent.mouseLocation, item: self.anchor?.frame) else {
+                    return
+                }
+                self.popover.performClose(nil)
+            }
         }
         UIHost.send(.popover(shown: true))
         UIHost.windowsChanged()
@@ -134,6 +138,13 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         window.setFrame(rect, display: false)
         window.orderFrontRegardless()
         return window.contentView!
+    }
+
+    /// Whether a mouse-down outside this process closes the popover: anywhere but on the menu bar
+    /// item, whose own toggle closes it on the mouse-up. Closing on the item's mouse-down would let
+    /// a press held past `PopoverToggle`'s 0.3 s reopen it on release.
+    nonisolated static func closesOnMouseDown(at point: CGPoint, item: CGRect?) -> Bool {
+        !(item?.contains(point) ?? false)
     }
 
     /// Set as the close starts, not after its animation, which can end after the click's toggle.
