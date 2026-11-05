@@ -98,6 +98,9 @@ pub struct Service<H: Host> {
     last_write: i64,
     /// The recap of the day that ended at the last tick, until taken.
     finished_day: Option<Event>,
+    /// The start of the day the last recap was made at, so a day whose start write fails (and is
+    /// retried at each tick) is recapped once.
+    recapped: i64,
 }
 
 impl<H: Host> Service<H> {
@@ -123,6 +126,7 @@ impl<H: Host> Service<H> {
             check: SelfCheck::default(),
             last_write: now,
             finished_day: None,
+            recapped: 0,
         };
         service.read_today(now)?;
         Ok(service)
@@ -139,8 +143,10 @@ impl<H: Host> Service<H> {
         self.engine.tick(interval)?;
         let snapshot = self.engine.snapshot();
         let booked = self.ledger.book(&snapshot, now);
-        let new_day = day_start(now, self.reset_hour, self.zone) != self.day_start;
-        if new_day {
+        let start = day_start(now, self.reset_hour, self.zone);
+        let new_day = start != self.day_start;
+        if new_day && start != self.recapped {
+            self.recapped = start;
             // This poll's bytes belong to the new day (the ledger books them to `now`'s hour).
             self.finished_day = Some(moments::recap(
                 self.today.values(),

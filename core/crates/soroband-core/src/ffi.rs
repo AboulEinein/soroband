@@ -4,7 +4,7 @@ use crate::check::Verdict;
 use crate::day;
 use crate::history;
 use crate::meter::{Bytes, Engine, Mode, SystemHost, Waker};
-use crate::moments::{Event, Limits, Session, Watch};
+use crate::moments::{self, Limits, Pending, Session, Watch};
 use crate::service::{self, Command, Service};
 use crate::settings::{self, Settings};
 use crate::store::{NetworkKind, Store};
@@ -119,11 +119,13 @@ static ON_POLL: Mutex<Option<extern "C" fn()>> = Mutex::new(None);
 static WATCHING: AtomicBool = AtomicBool::new(false);
 /// The frontmost app's id ([`soroband_moments_frontmost`]); empty when none is known.
 static FRONTMOST: Mutex<String> = Mutex::new(String::new());
-/// Moments found since the app last took them ([`soroband_moments_json`]).
-static MOMENTS: Mutex<Vec<Value>> = Mutex::new(Vec::new());
-/// Moments kept at most, so an app that stops taking them holds no more than this.
-const MAX_MOMENTS: usize = 64;
-/// Today's top apps on the current network as JSON, published after each poll while watching.
+/// Moments found since the app last took them ([`soroband_moments_json`]), at most 64, so an app
+/// that stops taking them holds no more than that.
+static MOMENTS: Mutex<Pending> = Mutex::new(Pending::new(64));
+/// Set while the peek can open ([`soroband_top_apps_watch`]).
+static WATCHING_TOP_APPS: AtomicBool = AtomicBool::new(false);
+/// Today's top apps on the current network as JSON, published after each poll while
+/// [`WATCHING_TOP_APPS`] is set.
 static TOP_APPS: Mutex<String> = Mutex::new(String::new());
 /// Apps [`TOP_APPS`] lists.
 const TOP_APP_COUNT: usize = 3;
@@ -474,14 +476,22 @@ pub extern "C" fn soroband_engine_on_poll(callback: Option<extern "C" fn()>) {
     *lock(&ON_POLL) = callback;
 }
 
-/// While `on`, the engine looks for moments after each poll ([`crate::moments`]) and publishes
-/// today's top apps; turned on, it starts from no history. Off, it does neither and drops any
-/// moment not taken.
+/// While `on`, the engine looks for moments after each poll ([`crate::moments`]); turned on, it
+/// starts from no history. Off, it does not, and drops any moment not taken.
 #[unsafe(no_mangle)]
 pub extern "C" fn soroband_moments_watch(on: bool) {
     WATCHING.store(on, Ordering::Relaxed);
     if !on {
         lock(&MOMENTS).clear();
+    }
+}
+
+/// While `on` (the island can show the peek), the engine publishes today's top apps after each
+/// poll for [`soroband_top_apps_json`]; off, it does not, and forgets them.
+#[unsafe(no_mangle)]
+pub extern "C" fn soroband_top_apps_watch(on: bool) {
+    WATCHING_TOP_APPS.store(on, Ordering::Relaxed);
+    if !on {
         lock(&TOP_APPS).clear();
     }
 }
@@ -508,13 +518,13 @@ pub unsafe extern "C" fn soroband_moments_frontmost(id: *const c_char) {
 /// The caller owns the string and frees it with [`soroband_string_free`].
 #[unsafe(no_mangle)]
 pub extern "C" fn soroband_moments_json() -> *mut c_char {
-    let moments = std::mem::take(&mut *lock(&MOMENTS));
-    owned_c_string(&Value::from(moments).to_string())
+    let moments = lock(&MOMENTS).take();
+    owned_c_string(&moments.to_string())
 }
 
 /// Today's top apps on the current network as of the last poll, most bytes first, as JSON:
 /// `[{"id": "/Applications/Safari.app", "name": "Safari", "bytes": 0}]`, at most 3. Empty
-/// unless [`soroband_moments_watch`] is on and a poll has run since.
+/// unless [`soroband_top_apps_watch`] is on and a poll has run since.
 ///
 /// The caller owns the string and frees it with [`soroband_string_free`].
 #[unsafe(no_mangle)]
@@ -931,6 +941,9 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
 struct Moments {
     watch: Option<Watch>,
     session: Option<Session>,
+    /// The first network after the engine starts is the one the Mac was already on: the app's
+    /// launch, not a join.
+    seen_network: bool,
 }
 
 impl Moments {
@@ -947,14 +960,23 @@ impl Moments {
         let limits = lock(limits).clone();
         let watch = self.watch.get_or_insert_with(|| Watch::new(limits.clone()));
         watch.set_limits(limits);
-        let snapshot = service.engine().snapshot();
         let frontmost = lock(&FRONTMOST).clone();
         let frontmost = (!frontmost.is_empty()).then_some(frontmost.as_str());
-        let events = watch.observe(now, &booked.by_app, &|app| snapshot.via(app), frontmost);
+        let engine = service.engine();
+        let events = watch.observe(now, &booked.by_app, &|app| engine.via(app), frontmost);
+        let mut pending = lock(&MOMENTS);
         for event in events.iter().chain(&finished_day) {
-            post(event);
+            pending.push(event);
         }
-        publish_top_apps(service);
+        drop(pending);
+        if WATCHING_TOP_APPS.load(Ordering::Relaxed) {
+            let network = service.today().network.network;
+            let top: Vec<Value> = moments::top_apps(service.today_apps(), network, TOP_APP_COUNT)
+                .into_iter()
+                .map(|(app, bytes)| json!({ "id": app.id, "name": app.name, "bytes": bytes }))
+                .collect();
+            *lock(&TOP_APPS) = Value::from(top).to_string();
+        }
     }
 
     /// The Mac moved to network `joined`: the receipt for the network it left, and what the
@@ -968,60 +990,24 @@ impl Moments {
     ) {
         let receipt = self.session.take().and_then(Session::receipt);
         self.session = Some(Session::new(joined, now));
+        let launch = !self.seen_network && joined != 0;
+        self.seen_network |= joined != 0;
         if !WATCHING.load(Ordering::Relaxed) {
             return;
         }
+        let mut pending = lock(&MOMENTS);
         if let Some(receipt) = receipt {
-            post(&receipt);
+            pending.push(&receipt);
         }
-        if joined == 0 {
-            return;
+        if joined != 0 && !launch {
+            pending.push(&moments::joined(
+                &lock(store),
+                service.today_networks(),
+                joined,
+                now,
+            ));
         }
-        let today = service
-            .today_networks()
-            .find(|total| total.network == joined)
-            .map_or(0, |total| total.interfaces.total());
-        let store = lock(store);
-        let week = store
-            .network_totals(now - 7 * 24 * 3600)
-            .ok()
-            .and_then(|totals| totals.into_iter().find(|t| t.network == joined))
-            .map_or(0, |total| total.interfaces.total());
-        let last_seen = store
-            .last_used()
-            .ok()
-            .and_then(|last| last.get(&joined).copied());
-        drop(store);
-        post(&Event::Joined {
-            network: joined,
-            week,
-            today,
-            last_seen,
-        });
     }
-}
-
-fn post(event: &Event) {
-    let mut moments = lock(&MOMENTS);
-    if moments.len() == MAX_MOMENTS {
-        moments.remove(0);
-    }
-    moments.push(event.to_json());
-}
-
-fn publish_top_apps(service: &Service<SystemHost>) {
-    let network = service.today().network.network;
-    let mut apps: Vec<_> = service
-        .today_apps()
-        .filter(|&(n, _, bytes)| n == network && bytes.total() > 0)
-        .collect();
-    apps.sort_by(|(_, a, x), (_, b, y)| y.total().cmp(&x.total()).then_with(|| a.id.cmp(&b.id)));
-    let top: Vec<Value> = apps
-        .into_iter()
-        .take(TOP_APP_COUNT)
-        .map(|(_, app, bytes)| json!({ "id": app.id, "name": app.name, "bytes": bytes.total() }))
-        .collect();
-    *lock(&TOP_APPS) = Value::from(top).to_string();
 }
 
 /// `bytes` moved over `elapsed`, as bytes per second.

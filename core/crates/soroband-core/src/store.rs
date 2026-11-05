@@ -571,7 +571,7 @@ fn u64_from_sql(value: i64) -> u64 {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::{AppUsage, InterfaceUsage, NetworkKind, NetworkTotal, Store};
     use crate::meter::{App, Bytes};
     use std::path::PathBuf;

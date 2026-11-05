@@ -301,6 +301,12 @@ impl<H: Host> Engine<H> {
         self.host
     }
 
+    /// The service that moved `app`'s latest bytes, if one did ([`Snapshot::via`]).
+    #[must_use]
+    pub fn via(&self, app: &App) -> Option<&'static str> {
+        self.meter.via.get(app).copied()
+    }
+
     #[must_use]
     pub fn snapshot(&self) -> Snapshot {
         let mut apps: Vec<(App, Bytes)> = match self.meter.mode {
