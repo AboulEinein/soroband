@@ -904,10 +904,11 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
                 return Ok(());
             }
             outlive_database_errors(applied.map(drop))?;
-            if let Command::Network(joined) = *command
-                && joined != left
-            {
-                moments.network_changed(&service, &running.store, joined, day::now());
+            // A plain `if let`, not a let chain: the crate builds on Rust 1.85 (`rust-version`).
+            if let Command::Network(joined) = *command {
+                if joined != left {
+                    moments.network_changed(&service, &running.store, joined, day::now());
+                }
             }
         }
         publish(&service, speed);
