@@ -257,7 +257,7 @@ struct EngineStatus: Codable, Equatable {
         case starting, perApp, interfaceOnly, failed
     }
 
-    /// The self-check's verdict on the apps' sum against the interfaces (`core/.../check.rs`).
+    /// The self-check's verdict on the apps' sum plus local-network bytes against the interfaces (`core/.../check.rs`).
     enum Check: String, Codable {
         case ok, degraded, overcount
     }
