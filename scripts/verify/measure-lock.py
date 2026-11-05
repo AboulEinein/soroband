@@ -5,12 +5,15 @@ traffic or timing measurement runs at a time across worktrees and agents.
 Usage: scripts/verify/measure-lock.py <label> <command> [args...]
   label: who holds the lock, shown to anyone waiting for it
 
-The lock is a flock(2) on ~/Library/Caches/soroband-measure.lock. This process takes it,
-then execs the command, so the command itself holds it until it exits, however it exits,
-and a killed holder leaves no stale lock. Waits up to 2 hours (exit 75).
+The lock is a flock(2) on ~/Library/Caches/soroband-measure.lock, held by this process and
+not inherited by the command. INT, TERM and HUP go on to the command, and the lock is
+released when the command exits, so a killed holder leaves no stale lock. Exits with the
+command's status. Waits up to 2 hours (exit 75).
 """
 import fcntl
 import os
+import signal
+import subprocess
 import sys
 import time
 
@@ -40,5 +43,8 @@ while True:
 
 os.ftruncate(fd, 0)
 os.write(fd, f"{label} pid {os.getpid()} since {time.strftime('%H:%M:%S')}\n".encode())
-os.set_inheritable(fd, True)
-os.execvp(command[0], command)
+child = subprocess.Popen(command)
+for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+    signal.signal(sig, lambda signum, _: child.send_signal(signum))
+returncode = child.wait()
+sys.exit(128 - returncode if returncode < 0 else returncode)
