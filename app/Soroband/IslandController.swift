@@ -182,11 +182,13 @@ final class IslandController {
         let previous = shown
         shown = next
         for panel in panels {
-            draw(next, previous: previous, on: panel.island)
+            draw(next, previous: previous, reshape: force, on: panel.island)
         }
     }
 
-    private func draw(_ next: Shown, previous: Shown, on island: IslandView) {
+    /// `reshape`: grow or shrink to `next`'s outline even when only its numbers changed, as a
+    /// new style needs.
+    private func draw(_ next: Shown, previous: Shown, reshape: Bool, on island: IslandView) {
         let geometry = island.geometry
         switch next {
         case .rest:
@@ -201,14 +203,14 @@ final class IslandController {
                     today: today, speed: speed, color: color, notchWidth: geometry.notchWidth, wing: IslandMetrics.wing)
                 : MomentViews.glance(
                     today: today, speed: speed, color: color, notchWidth: 18, wing: (metrics.width - 18) / 2)
-            if case .glance = previous {
+            if case .glance = previous, !reshape {
                 island.replace(with: view)
             } else {
                 island.show(metrics, view: view, inBand: style == .seamless)
             }
         case .moment(let moment):
             let view = MomentViews.view(moment.content, context: context)
-            if case .moment(let old) = previous, old.id == moment.id {
+            if case .moment(let old) = previous, old.id == moment.id, !reshape {
                 island.replace(with: view)
             } else {
                 island.show(.open(moment.kind, geometry, style: settings.style), view: view)
