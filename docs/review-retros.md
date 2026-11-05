@@ -533,6 +533,6 @@ Planned rounds: 1.
 | --- | --- | --- | --- |
 | 1 | Opus | 1 Low | `first look`: the temporary-directory prefix check failed when a test run supplies its own `SOROBAND_DATA_DIR`. |
 | direct | Opus | none | Checked aaa48cf. [Comment](https://github.com/AboulEinein/soroband/pull/44#issuecomment-6656186817). |
-| CodeRabbit | CodeRabbit | 1 Minor | `fix regression`: with the prefix check gone, a supplied directory with a trailing slash still failed the environment test's string comparison. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: a supplied directory with a trailing slash failed the environment test's string comparison, present since the first commit. |
 
 **Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found 1 valid finding. Both findings came from one gap: the tests were written for the directory the fix makes, not for one a run supplies, which the fix also supports. A test of an override should cover each way the value can arrive.
