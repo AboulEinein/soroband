@@ -501,3 +501,7 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | 1 Minor | `first look`, on the records commit: the Follow-up column for this PR's two fixed findings (not valid: their rule changes are the fixes). |
 
 **Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found 2 valid findings, both on the new rules this PR wrote: a rule written from one run's lesson needs its limits stated (what it does not cover) and every place that states the old rule updated, the same lesson as #32 and #37.
+
+## [#39](https://github.com/AboulEinein/soroband/pull/39) docs: bring the measurement lock and the popover timer into the repo (2026-11-05)
+
+Planned rounds: 1.
