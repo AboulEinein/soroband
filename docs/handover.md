@@ -158,7 +158,6 @@ Small items for a later nits pass.
 - **Wi‑Fi moves without a path change.** CoreWLAN's SSID-change events are not watched; a Wi‑Fi move that does not change the `NWPath` keeps the old network until the next path update.
 
 - **Popover reads more than it shows.** The popover's summary uses `Core.history`, which also builds apps, networks, the heatmap and the busiest day it does not need, for up to 31 days, in the UI process. A bars-only read in the core would cost less; measure first with M6.
-- **Test host shares the Debug data directory.** `xcodebuild test` launches the Debug app as its test host, which uses `~/Library/Application Support/Soroband Debug` like the running Debug app. Its engine books the same traffic while tests run, so the Debug totals run high, and a test that writes settings (`UsageTests`' layout change) writes the real Debug `settings.json`, then restores it. A test host could use its own data directory (`SOROBAND_DATA_DIR`).
 - **Version-named tools.** An executable named by its version (a command-line tool installed as `~/.local/share/<tool>/versions/1.4.3`) shows in the popover as "1.4.3" with a generic icon. The core could name such a tool by its parent directory.
 - **Debug commands can still activate the app.** `open-popover`, `open-settings`, `open-onboarding` and `open-history` make the menu bar process yield activation to the UI process (`UIProcess.write`), which reaches `NSApp.activate()` (`PopoverController.show`, `SettingsView.swift`, `Onboarding.swift`, `HistoryWindow.swift`); macOS grants it when the user has just used Soroband. A Debug URL command could skip it.
 - **History is up to a minute behind.** It reads what the engine has written (once a minute), so it can trail the popover by a minute's usage.
@@ -198,7 +197,7 @@ Things learned the hard way that no file or config will tell you.
 
 **Building**
 - Homebrew's `rust` has only the host's standard library. Homebrew's `rustup` is keg-only: put `/opt/homebrew/opt/rustup/bin` first in `PATH` for universal builds.
-- `xcodebuild test` launches the app as the test host, so a test run shows a second Soroband item for a moment.
+- `xcodebuild test` launches the app as the test host, so a test run shows a second Soroband item for a moment. Unless `SOROBAND_DATA_DIR` is set, the test host keeps its database and settings in a new `Soroband Tests <UUID>` directory under the temporary directory (`Core.isolateTestHost`).
 - Linking the core built with Homebrew's `rust` warns that its standard library objects were built for macOS 27 while the app targets 14; rustup's standard library does not. Use rustup for anything that ships.
 - `cargo-mutants` is in `~/.cargo/bin`, which is not on `PATH` by default.
 
