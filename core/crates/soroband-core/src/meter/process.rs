@@ -3,7 +3,7 @@
 //! A process inside an `.app` bundle is credited to the outermost bundle, so helpers (browser
 //! renderers, XPC services, embedded tools) roll up to their app. Processes from the system's own
 //! directories are grouped as [`SERVICES`]. Any other executable is a command-line tool, named by
-//! its file name.
+//! its file name, or by its directory when it is installed as `<tool>/versions/<version>`.
 
 /// Name of the group for macOS daemons and services.
 pub const SERVICES: &str = "macOS & Services";
@@ -72,10 +72,9 @@ impl App {
                 name: name.to_owned(),
             };
         }
-        let name = path.rsplit('/').next().unwrap_or(path);
         Self {
             id: path.to_owned(),
-            name: name.to_owned(),
+            name: tool_name(path).to_owned(),
         }
     }
 
@@ -87,6 +86,21 @@ impl App {
             id: format!("process:{name}"),
             name: name.to_owned(),
         }
+    }
+}
+
+/// The name of the command-line tool at `path`: its file name, or, for a tool installed as
+/// `<tool>/versions/<version>` with a version of dot-separated numbers (`1.4.3`), its directory's.
+fn tool_name(path: &str) -> &str {
+    let mut parts = path.rsplit('/');
+    let file = parts.next().unwrap_or(path);
+    let is_version = file.contains('.')
+        && file
+            .split('.')
+            .all(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
+    match (parts.next(), parts.next()) {
+        (Some("versions"), Some(tool)) if is_version && !tool.is_empty() => tool,
+        _ => file,
     }
 }
 
@@ -213,6 +227,36 @@ mod tests {
                 name: "curl".into()
             }
         );
+    }
+
+    #[test]
+    fn version_named_tool_is_named_by_its_directory() {
+        let path = "/Users/user/.local/share/quillctl/versions/1.4.3";
+        assert_eq!(
+            App::from_executable(path),
+            App {
+                id: path.into(),
+                name: "quillctl".into()
+            }
+        );
+        assert_eq!(
+            App::from_executable("/opt/tarnwick/versions/12.0").name,
+            "tarnwick"
+        );
+    }
+
+    #[test]
+    fn only_a_dotted_version_under_versions_takes_its_directory_name() {
+        for (path, name) in [
+            ("/Users/user/bin/1.4.3", "1.4.3"),
+            ("/opt/quillctl/versions/current", "current"),
+            ("/opt/quillctl/versions/3", "3"),
+            ("/opt/quillctl/versions/1.4.3-beta", "1.4.3-beta"),
+            ("/opt/quillctl/versions/1..3", "1..3"),
+            ("/versions/1.4.3", "1.4.3"),
+        ] {
+            assert_eq!(App::from_executable(path).name, name, "{path}");
+        }
     }
 
     #[test]
