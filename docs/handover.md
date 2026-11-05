@@ -148,12 +148,7 @@ Small items for a later nits pass.
 
 - **Unreviewed fix.** The App-cryptex rule groups Apple daemons in the App cryptex (`/System/Volumes/Preboot/Cryptexes/App/usr/libexec/PasswordBreachAgent` and similar) as "macOS & Services". It has a test that failed before the fix, but no review round saw it.
 - **Nothing keeps `rust-version` true.** `core/Cargo.toml` declares `rust-version = "1.85"`, and `cargo +1.85 test --workspace` passes, but CI builds only on `stable`, so code that needs a newer Rust passes CI unnoticed. A CI job on 1.85 would catch it.
-- **`cargo mutants` timeouts.** The last run on the meter module and C API (317 mutants: 255 caught, 22 missed, 34 unviable) had 6 timeouts, all in loops that then never end:
-  - `Engine::tick` → `Ok(())`;
-  - `messages` `+=` → `*=`;
-  - `Recorder` and `Replay` `recv` → `Ok(Some(0))` / `Ok(Some(1))` (4 mutants).
-  None is on the `HDR_FLAG_CONTINUATION` check. A per-test timeout would turn them into plain kills.
-- **`cargo mutants` miss.** `Meter::update` `rx_duplicate > 0` → `>=` adds zero entries to the duplicates map. No caller can see the difference, but a test asserting `Snapshot::rx_duplicates` exactly would kill it.
+- **Timing-dependent mutant.** `soroband_engine_stop` with its wait condition inverted (`cargo mutants`: `delete !`) was caught in one run and missed in the next: no test reliably sees whether stop waits for the final write.
 - **Registry-failure fallback is untested.** When `Core.networkChanged` fails (the database cannot record a network), `NetworkMonitor` books to no network (id 0). The branch has no unit test, because `NetworkMonitor` is bound to live system APIs; moving the decision into `NetworkIdentity` would make it testable.
 - **Wi‑Fi moves without a path change.** CoreWLAN's SSID-change events are not watched; a Wi‑Fi move that does not change the `NWPath` keeps the old network until the next path update.
 
@@ -201,6 +196,7 @@ Things learned the hard way that no file or config will tell you.
 - `xcodebuild test` launches the app as the test host, so a test run shows a second Soroband item for a moment.
 - Linking the core built with Homebrew's `rust` warns that its standard library objects were built for macOS 27 while the app targets 14; rustup's standard library does not. Use rustup for anything that ships.
 - `cargo-mutants` is in `~/.cargo/bin`, which is not on `PATH` by default.
+- `cargo mutants` on the meter module and the C API reports 8 or 9 timeouts, which it counts apart from caught and missed: 8 mutants make a loop never end (`Engine::tick`, `ntstat::messages`, the `Recorder` and `Replay` `recv`, `SystemHost::drain_wakeups`, `copy_c_string`), and Rust tests have no per-test timeout to fail them. The ninth, `SystemHost::set_wakeable` → `()`, is caught after about 48 s, at the auto-set timeout (48–49 s with `-j 4`), so it lands on either side. Keep that timeout: a lower one turns slow misses, such as `Running::wake` (20 s), into timeouts.
 
 **Verifying**
 - Each worktree's Debug build registers the `soroband-debug://` scheme. `open "soroband-debug://…"` can launch another worktree's build, and every running Debug app answers `soroband debug state` and writes the same state file. Send URLs with `open -g -a <this build's Soroband.app>`, check the `pid` in `debug state`. `run-app.sh` stops only this worktree's `Soroband.app` and leaves other worktrees' Debug apps running. `networks.sh` ignores answers without a `network`.
