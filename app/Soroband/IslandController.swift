@@ -117,7 +117,8 @@ final class IslandController {
     func networkChanged() {
         guard started else { return }
         registry = nil
-        if NetworkMonitor.shared.current?.kind != .hotspot { resumePaused() }
+        // A network still being identified (nil) may be the same hotspot: wait for a known one.
+        if let current = NetworkMonitor.shared.current, current.kind != .hotspot { resumePaused() }
         render()
     }
 
