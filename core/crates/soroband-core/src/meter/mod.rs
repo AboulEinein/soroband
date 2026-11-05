@@ -86,6 +86,8 @@ struct Flow {
     tx: u64,
     rx_duplicate: u32,
     app: App,
+    /// The service that moves the flow's bytes for `app` ([`process::service_name`]).
+    via: Option<&'static str>,
 }
 
 /// Per-flow accounting. Fed one kernel message at a time by [`Engine`].
@@ -96,6 +98,8 @@ struct Meter {
     apps: HashMap<App, Bytes>,
     /// Received bytes per app that were duplicates from retransmission, also in `apps`.
     rx_duplicates: HashMap<App, u64>,
+    /// The service that last moved bytes for each app, if any did.
+    via: HashMap<App, &'static str>,
     local: Bytes,
     /// False until the baseline poll completes: flows seen before then only set their starting
     /// counters, so bytes moved before the engine started are never booked.
@@ -110,6 +114,7 @@ impl Meter {
             flows: HashMap::new(),
             apps: HashMap::new(),
             rx_duplicates: HashMap::new(),
+            via: HashMap::new(),
             local: Bytes::default(),
             counting: false,
             mode: Mode::PerApp,
@@ -134,6 +139,7 @@ impl Meter {
                 self.flows.clear();
                 self.apps.clear();
                 self.rx_duplicates.clear();
+                self.via.clear();
                 self.local = Bytes::default();
                 return;
             }
@@ -143,6 +149,7 @@ impl Meter {
             tx: 0,
             rx_duplicate: 0,
             app: process::attribute(update.pid, update.epid, &update.pname, path_of),
+            via: process::service_name(update.pid, update.epid, &update.pname),
         });
         let delta = Bytes {
             rx: update.rx.saturating_sub(flow.rx),
@@ -159,6 +166,9 @@ impl Meter {
             self.local += delta;
         } else {
             *self.apps.entry(flow.app.clone()).or_default() += delta;
+            if let Some(via) = flow.via.filter(|_| delta.total() > 0) {
+                self.via.insert(flow.app.clone(), via);
+            }
             if rx_duplicate > 0 {
                 *self.rx_duplicates.entry(flow.app.clone()).or_default() += u64::from(rx_duplicate);
             }
@@ -187,6 +197,8 @@ pub struct Snapshot {
     /// Received bytes per app that were duplicates from retransmission. They are part of the
     /// app's bytes in `apps`: they crossed the interface, so they are usage.
     pub rx_duplicates: Vec<(App, u64)>,
+    /// The service that last moved bytes for an app, for the apps a service moved bytes for.
+    pub via: Vec<(App, &'static str)>,
 }
 
 impl Snapshot {
@@ -197,6 +209,12 @@ impl Snapshot {
             .iter()
             .find(|(a, _)| a == app)
             .map_or(0, |&(_, b)| b)
+    }
+
+    /// The service that last moved bytes for `app`, if one did.
+    #[must_use]
+    pub fn via(&self, app: &App) -> Option<&'static str> {
+        self.via.iter().find(|(a, _)| a == app).map(|&(_, v)| v)
     }
 
     /// Internet bytes summed over all apps.
@@ -302,6 +320,13 @@ impl<H: Host> Engine<H> {
             Mode::InterfaceOnly { .. } => Vec::new(),
         };
         rx_duplicates.sort();
+        let mut via: Vec<(App, &'static str)> = self
+            .meter
+            .via
+            .iter()
+            .map(|(a, &v)| (a.clone(), v))
+            .collect();
+        via.sort();
         Snapshot {
             mode: self.meter.mode.clone(),
             apps,
@@ -309,6 +334,7 @@ impl<H: Host> Engine<H> {
             interfaces: self.interfaces.total(),
             flows: self.meter.flows.len(),
             rx_duplicates,
+            via,
         }
     }
 

@@ -14,6 +14,7 @@ use crate::check::{SelfCheck, Verdict};
 use crate::day::day_start;
 use crate::ledger::{Booked, Ledger};
 use crate::meter::{App, Bytes, Engine, Host, Mode};
+use crate::moments::{self, Event};
 use crate::store::{self, NetworkTotal, Store};
 use std::collections::BTreeMap;
 use std::fmt;
@@ -95,6 +96,8 @@ pub struct Service<H: Host> {
     last_booked: Booked,
     check: SelfCheck,
     last_write: i64,
+    /// The recap of the day that ended at the last tick, until taken.
+    finished_day: Option<Event>,
 }
 
 impl<H: Host> Service<H> {
@@ -119,6 +122,7 @@ impl<H: Host> Service<H> {
             last_booked: Booked::default(),
             check: SelfCheck::default(),
             last_write: now,
+            finished_day: None,
         };
         service.read_today(now)?;
         Ok(service)
@@ -135,6 +139,14 @@ impl<H: Host> Service<H> {
         self.engine.tick(interval)?;
         let snapshot = self.engine.snapshot();
         let booked = self.ledger.book(&snapshot, now);
+        let new_day = day_start(now, self.reset_hour, self.zone) != self.day_start;
+        if new_day {
+            // This poll's bytes belong to the new day (the ledger books them to `now`'s hour).
+            self.finished_day = Some(moments::recap(
+                self.today.values(),
+                self.today_apps.iter().map(|((n, a), b)| (*n, a, *b)),
+            ));
+        }
         let network = self.ledger.network();
         let total = self.today.entry(network).or_default();
         total.network = network;
@@ -150,7 +162,7 @@ impl<H: Host> Service<H> {
             self.check.observe(explained, booked.crossed, now);
         }
         self.last_booked = booked;
-        if day_start(now, self.reset_hour, self.zone) != self.day_start {
+        if new_day {
             self.write(now)?;
             self.read_today(now)?;
         } else if now - self.last_write >= WRITE_INTERVAL {
@@ -244,6 +256,11 @@ impl<H: Host> Service<H> {
         self.today_apps
             .iter()
             .map(|((network, app), bytes)| (*network, app, *bytes))
+    }
+
+    /// The recap of the day that ended at a tick, once ([`moments::recap`]).
+    pub fn take_finished_day(&mut self) -> Option<Event> {
+        self.finished_day.take()
     }
 
     /// What the last poll booked to the current network.

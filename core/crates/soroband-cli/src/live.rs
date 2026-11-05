@@ -291,6 +291,7 @@ mod tests {
             },
             flows: 3,
             rx_duplicates: vec![(curl.clone(), 1_200)],
+            via: vec![],
         };
         assert_eq!(
             json(&snapshot, Duration::from_secs(60)),
@@ -309,6 +310,7 @@ mod tests {
             interfaces: Bytes { rx: 5, tx: 6 },
             flows: 0,
             rx_duplicates: vec![],
+            via: vec![],
         };
         let line = json(&snapshot, Duration::from_secs(5));
         assert!(line.contains(r#""mode":"interface_only","reason":"TCP descriptor of 344 bytes is not known for macOS 26""#), "{line}");

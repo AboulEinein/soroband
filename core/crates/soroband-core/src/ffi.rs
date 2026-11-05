@@ -4,6 +4,7 @@ use crate::check::Verdict;
 use crate::day;
 use crate::history;
 use crate::meter::{Bytes, Engine, Mode, SystemHost, Waker};
+use crate::moments::{Event, Limits, Session, Watch};
 use crate::service::{self, Command, Service};
 use crate::settings::{self, Settings};
 use crate::store::{NetworkKind, Store};
@@ -113,6 +114,18 @@ static LIVE: AtomicBool = AtomicBool::new(false);
 /// Today's networks and apps as JSON, published after each poll while [`LIVE`] is set.
 static TODAY: Mutex<String> = Mutex::new(String::new());
 static ON_POLL: Mutex<Option<extern "C" fn()>> = Mutex::new(None);
+/// Set while the app shows moments or sends their notifications ([`soroband_moments_watch`]).
+static WATCHING: AtomicBool = AtomicBool::new(false);
+/// The frontmost app's id ([`soroband_moments_frontmost`]); empty when none is known.
+static FRONTMOST: Mutex<String> = Mutex::new(String::new());
+/// Moments found since the app last took them ([`soroband_moments_json`]).
+static MOMENTS: Mutex<Vec<Value>> = Mutex::new(Vec::new());
+/// Moments kept at most, so an app that stops taking them holds no more than this.
+const MAX_MOMENTS: usize = 64;
+/// Today's top apps on the current network as JSON, published after each poll while watching.
+static TOP_APPS: Mutex<String> = Mutex::new(String::new());
+/// Apps [`TOP_APPS`] lists.
+const TOP_APP_COUNT: usize = 3;
 
 /// Seconds between polls while the popover is open, for its live speed.
 const LIVE_INTERVAL: Duration = Duration::from_secs(1);
@@ -123,6 +136,8 @@ struct Running {
     settings_path: PathBuf,
     /// The reset hour last sent to the engine, which reads no settings itself.
     reset_hour: Mutex<u8>,
+    /// When the moments fire, from the settings, read by the engine at each poll.
+    limits: Mutex<Limits>,
     commands: Mutex<Vec<Command>>,
     /// Set once the engine has started; a command sent before then waits for the first poll.
     waker: Mutex<Option<Waker>>,
@@ -133,10 +148,14 @@ struct Running {
 impl Running {
     fn new(store: Store, settings_path: PathBuf) -> Self {
         let reset_hour = load_reset_hour(&settings_path, 0);
+        let limits = Settings::load(&settings_path)
+            .map(|settings| limits(&settings))
+            .unwrap_or_default();
         Self {
             store: Arc::new(Mutex::new(store)),
             settings_path,
             reset_hour: Mutex::new(reset_hour),
+            limits: Mutex::new(limits),
             commands: Mutex::new(Vec::new()),
             waker: Mutex::new(None),
             stopped: Mutex::new(false),
@@ -145,9 +164,13 @@ impl Running {
     }
 
     /// Rereads the settings file and wakes the engine only when the reset hour changed: it is the
-    /// one setting a poll depends on, and a wake costs a full poll. The other settings are the
-    /// app's own. Called under the lock, so the engine always ends with the last hour read.
+    /// one setting a poll depends on, and a wake costs a full poll. The moments' limits apply from
+    /// the next poll; the other settings are the app's own. Called under the lock, so the engine
+    /// always ends with the last hour read.
     fn reload_settings(&self) {
+        if let Ok(settings) = Settings::load(&self.settings_path) {
+            *lock(&self.limits) = limits(&settings);
+        }
         let mut reset_hour = lock(&self.reset_hour);
         let reloaded = load_reset_hour(&self.settings_path, *reset_hour);
         if reloaded != *reset_hour {
@@ -165,6 +188,18 @@ impl Running {
         if let Some(waker) = &*lock(&self.waker) {
             waker.wake();
         }
+    }
+}
+
+/// When the moments fire, as the island's settings say.
+fn limits(settings: &Settings) -> Limits {
+    const MB: u64 = 1_000_000;
+    Limits {
+        hog_bytes: settings.number(settings::ISLAND_HOG_MB) * MB,
+        window: i64::try_from(settings.number(settings::ISLAND_HOG_MINUTES) * 60).unwrap_or(300),
+        background_bytes: settings.number(settings::ISLAND_BACKGROUND_MB) * MB,
+        transfer_bytes: settings.number(settings::ISLAND_TRANSFER_MB) * MB,
+        ignored: settings.words(settings::ISLAND_IGNORED_APPS),
     }
 }
 
@@ -436,6 +471,55 @@ pub extern "C" fn soroband_engine_live(live: bool) {
 #[unsafe(no_mangle)]
 pub extern "C" fn soroband_engine_on_poll(callback: Option<extern "C" fn()>) {
     *lock(&ON_POLL) = callback;
+}
+
+/// While `on`, the engine looks for moments after each poll ([`crate::moments`]) and publishes
+/// today's top apps; turned on, it starts from no history. Off, it does neither and drops any
+/// moment not taken.
+#[unsafe(no_mangle)]
+pub extern "C" fn soroband_moments_watch(on: bool) {
+    WATCHING.store(on, Ordering::Relaxed);
+    if !on {
+        lock(&MOMENTS).clear();
+        lock(&TOP_APPS).clear();
+    }
+}
+
+/// Tells the engine which app is in front, by its id: the path of its outermost `.app` bundle,
+/// as the engine names apps. Null when none is known.
+///
+/// # Safety
+/// `id` must be null or a valid NUL-terminated string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn soroband_moments_frontmost(id: *const c_char) {
+    let id = if id.is_null() {
+        String::new()
+    } else {
+        // SAFETY: not null, so a valid NUL-terminated string.
+        unsafe { text(id) }
+    };
+    *lock(&FRONTMOST) = id;
+}
+
+/// The moments found since the last call, oldest first, as a JSON array of
+/// [`Event::to_json`] objects, and forgets them. At most the last 64 are kept between calls.
+///
+/// The caller owns the string and frees it with [`soroband_string_free`].
+#[unsafe(no_mangle)]
+pub extern "C" fn soroband_moments_json() -> *mut c_char {
+    let moments = std::mem::take(&mut *lock(&MOMENTS));
+    owned_c_string(&Value::from(moments).to_string())
+}
+
+/// Today's top apps on the current network as of the last poll, most bytes first, as JSON:
+/// `[{"id": "/Applications/Safari.app", "name": "Safari", "bytes": 0}]`, at most 3. Empty
+/// unless [`soroband_moments_watch`] is on and a poll has run since.
+///
+/// The caller owns the string and frees it with [`soroband_string_free`].
+#[unsafe(no_mangle)]
+pub extern "C" fn soroband_top_apps_json() -> *mut c_char {
+    let top = lock(&TOP_APPS);
+    owned_c_string(if top.is_empty() { "[]" } else { &top })
 }
 
 /// Today's usage as of the last poll, as JSON:
@@ -804,11 +888,13 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
     )?;
     let mut speed = Bytes::default();
     let mut last_poll = Instant::now();
+    let mut moments = Moments::default();
     loop {
         // Commands sent during the last tick cut its wait short, so the tick has already polled:
         // what moved before a network change is booked to the previous network.
         let commands = std::mem::take(&mut *lock(&running.commands));
         for command in &commands {
+            let left = service.today().network.network;
             let applied = service.apply(command, day::now());
             if *command == Command::Stop {
                 if let Err(error) = applied {
@@ -817,6 +903,11 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
                 return Ok(());
             }
             outlive_database_errors(applied.map(drop))?;
+            if let Command::Network(joined) = *command
+                && joined != left
+            {
+                moments.network_changed(&service, &running.store, joined, day::now());
+            }
         }
         publish(&service, speed);
         let wait = if LIVE.load(Ordering::Relaxed) {
@@ -828,7 +919,107 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
         let polled = Instant::now();
         speed = per_second(service.last_booked().interfaces, polled - last_poll);
         last_poll = polled;
+        moments.polled(&mut service, &running.limits, day::now());
     }
+}
+
+/// The engine thread's side of the island: the watch over each poll, and the session on the
+/// current network.
+#[derive(Default)]
+struct Moments {
+    watch: Option<Watch>,
+    session: Option<Session>,
+}
+
+impl Moments {
+    fn polled(&mut self, service: &mut Service<SystemHost>, limits: &Mutex<Limits>, now: i64) {
+        let finished_day = service.take_finished_day();
+        let booked = service.last_booked();
+        if let Some(session) = &mut self.session {
+            session.add(booked.interfaces, &booked.by_app);
+        }
+        if !WATCHING.load(Ordering::Relaxed) {
+            self.watch = None;
+            return;
+        }
+        let limits = lock(limits).clone();
+        let watch = self.watch.get_or_insert_with(|| Watch::new(limits.clone()));
+        watch.set_limits(limits);
+        let snapshot = service.engine().snapshot();
+        let frontmost = lock(&FRONTMOST).clone();
+        let frontmost = (!frontmost.is_empty()).then_some(frontmost.as_str());
+        let events = watch.observe(now, &booked.by_app, &|app| snapshot.via(app), frontmost);
+        for event in events.iter().chain(&finished_day) {
+            post(event);
+        }
+        publish_top_apps(service);
+    }
+
+    /// The Mac moved to network `joined`: the receipt for the network it left, and what the
+    /// island says about the one it joined.
+    fn network_changed(
+        &mut self,
+        service: &Service<SystemHost>,
+        store: &Mutex<Store>,
+        joined: i64,
+        now: i64,
+    ) {
+        let receipt = self.session.take().and_then(Session::receipt);
+        self.session = Some(Session::new(joined, now));
+        if !WATCHING.load(Ordering::Relaxed) {
+            return;
+        }
+        if let Some(receipt) = receipt {
+            post(&receipt);
+        }
+        if joined == 0 {
+            return;
+        }
+        let today = service
+            .today_networks()
+            .find(|total| total.network == joined)
+            .map_or(0, |total| total.interfaces.total());
+        let store = lock(store);
+        let week = store
+            .network_totals(now - 7 * 24 * 3600)
+            .ok()
+            .and_then(|totals| totals.into_iter().find(|t| t.network == joined))
+            .map_or(0, |total| total.interfaces.total());
+        let last_seen = store
+            .last_used()
+            .ok()
+            .and_then(|last| last.get(&joined).copied());
+        drop(store);
+        post(&Event::Joined {
+            network: joined,
+            week,
+            today,
+            last_seen,
+        });
+    }
+}
+
+fn post(event: &Event) {
+    let mut moments = lock(&MOMENTS);
+    if moments.len() == MAX_MOMENTS {
+        moments.remove(0);
+    }
+    moments.push(event.to_json());
+}
+
+fn publish_top_apps(service: &Service<SystemHost>) {
+    let network = service.today().network.network;
+    let mut apps: Vec<_> = service
+        .today_apps()
+        .filter(|&(n, _, bytes)| n == network && bytes.total() > 0)
+        .collect();
+    apps.sort_by(|(_, a, x), (_, b, y)| y.total().cmp(&x.total()).then_with(|| a.id.cmp(&b.id)));
+    let top: Vec<Value> = apps
+        .into_iter()
+        .take(TOP_APP_COUNT)
+        .map(|(_, app, bytes)| json!({ "id": app.id, "name": app.name, "bytes": bytes.total() }))
+        .collect();
+    *lock(&TOP_APPS) = Value::from(top).to_string();
 }
 
 /// `bytes` moved over `elapsed`, as bytes per second.
