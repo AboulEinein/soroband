@@ -115,7 +115,12 @@ final class IslandController {
             notify(content)
             record(content, source: source)
         case .island:
-            if queue.post(content, now: now) { record(content, source: source) }
+            let added = queue.post(content, now: now)
+            // A transfer's end usually lands on its open or waiting moment rather than a new one.
+            let endShows =
+                content.isTransferEnd
+                && (queue.current?.content == content || queue.waiting.contains { $0.content == content })
+            if added || endShows { record(content, source: source) }
             render()
         case .nowhere:
             break
