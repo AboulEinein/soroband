@@ -22,18 +22,21 @@ use crate::meter::Bytes;
 pub const WINDOW: i64 = 600;
 /// Bytes a window needs across the interfaces before its gap is judged.
 pub const MIN_WINDOW_BYTES: u64 = 10_000_000;
-/// How far, in percent of what crossed the interfaces, the apps may sum below it.
+/// How far, in percent of what crossed the interfaces, the apps and local-network bytes may sum
+/// below it.
 pub const MAX_GAP_PERCENT: u64 = 15;
-/// How far, in percent of what crossed the interfaces, the apps may sum above it.
+/// How far, in percent of what crossed the interfaces, the apps and local-network bytes may sum
+/// above it.
 pub const OVERCOUNT_PERCENT: u64 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Verdict {
     /// Nothing wrong seen.
     Ok,
-    /// Two windows in a row credited too little to apps.
+    /// Two judged windows in a row in which apps and local-network bytes covered too little of
+    /// the interfaces.
     Degraded,
-    /// Apps summed to more than crossed the interfaces.
+    /// Apps and local-network bytes summed to more than crossed the interfaces.
     Overcount,
 }
 
