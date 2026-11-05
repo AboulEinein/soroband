@@ -183,6 +183,29 @@ struct IslandSettingsTests {
         #expect(settings.momentsValue == "hog,transfer")
     }
 
+    @Test func everySettingWritesTheValueItReads() {
+        // Settings sends `value(for:)`'s text to the core; reading it back must give the same
+        // settings, or a change in the pane would turn into another one.
+        var settings = IslandSettings()
+        settings.enabled = true
+        settings.style = .clear
+        settings.moments = [.peek, .recap]
+        settings.hogMB = 250
+        settings.offersPause = false
+        settings.fullScreen = .all
+        settings.displays = .all
+        settings.ignoredApps = ["/usr/bin/curl"]
+        let keys = [
+            "island", "island_style", "island_moments", "island_hog_mb", "island_hog_minutes", "island_background_mb",
+            "island_transfer_mb", "island_pause", "island_full_screen", "island_displays", "island_notifications",
+            "island_ignored_apps",
+        ]
+        #expect(keys.allSatisfy { settings.value(for: $0) != nil })
+        #expect(IslandSettings(value: settings.value(for:)) == settings)
+        #expect(settings.setting("island_moments", to: "none").moments.isEmpty)
+        #expect(IslandSettingsView.moments([.hog], .peek, true) == "peek,hog", "in the schema's order")
+    }
+
     @Test func alertsBecomeNotificationsOnlyWhileTheIslandIsOff() {
         var settings = IslandSettings()
         #expect(!settings.enabled, "off on a fresh install")

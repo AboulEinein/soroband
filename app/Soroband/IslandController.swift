@@ -64,6 +64,7 @@ final class IslandController {
         guard started else { return }
         let old = settings
         settings = IslandSettings(value: Core.setting)
+        if settings != old { UIProcess.shared.publish() }
         Core.watchMoments(settings.watches)
         for kind in MomentKind.allCases where !settings.shows(kind) {
             queue.remove(kind, now: now)

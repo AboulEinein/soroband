@@ -80,6 +80,30 @@ struct IslandSettings: Codable, Equatable {
 
     init() {}
 
+    /// The value of `key` as the core stores it.
+    func value(for key: String) -> String? {
+        switch key {
+        case Self.enabledKey: enabled ? "on" : "off"
+        case Self.styleKey: style.rawValue
+        case Self.momentsKey: momentsValue
+        case Self.hogMBKey: String(hogMB)
+        case Self.hogMinutesKey: String(hogMinutes)
+        case Self.backgroundMBKey: String(backgroundMB)
+        case Self.transferMBKey: String(transferMB)
+        case Self.pauseKey: offersPause ? "on" : "off"
+        case Self.fullScreenKey: fullScreen.rawValue
+        case Self.displaysKey: displays.rawValue
+        case Self.notificationsKey: notifications ? "on" : "off"
+        case Self.ignoredAppsKey: Self.ignoredValue(ignoredApps)
+        default: nil
+        }
+    }
+
+    /// These settings with `key` set to `value`.
+    func setting(_ key: String, to value: String) -> IslandSettings {
+        IslandSettings { $0 == key ? value : self.value(for: $0) }
+    }
+
     /// `moments` as the setting's value, in the schema's order.
     var momentsValue: String {
         let list = MomentKind.allCases.filter(moments.contains).map(\.rawValue)
