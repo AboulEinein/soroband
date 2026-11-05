@@ -54,7 +54,7 @@ enum DebugCommands {
         case "open-history": openHistory(url)
         case "close-history": UIProcess.shared.send(.closeHistory)
         case "export-history": requestHistoryExport()
-        case "open-onboarding": UIProcess.shared.send(.showOnboarding)
+        case "open-onboarding": UIProcess.shared.send(.showOnboarding())
         case "quit-ui": UIProcess.shared.stop()
         case "capture-status-item": captureStatusItem()
         case "capture-window": captureWindow(url)

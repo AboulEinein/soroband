@@ -21,7 +21,7 @@ enum Onboarding {
         guard shouldShow(status: LocationAccess.shared.status, alreadyShown: defaults.bool(forKey: shownKey)) else {
             return
         }
-        UIProcess.shared.send(.showOnboarding)
+        UIProcess.shared.send(.showOnboarding(activates: true))
     }
 }
 
@@ -33,7 +33,8 @@ final class OnboardingWindow: NSObject, NSWindowDelegate {
 
     /// - `aboveOtherApps`: at launch macOS may refuse to activate the app (the user is busy in
     ///   another), which would leave the window behind theirs, unseen.
-    func show(aboveOtherApps: Bool = false) {
+    /// - `activates`: false for a Debug URL command, which never takes the keyboard.
+    func show(aboveOtherApps: Bool = false, activates: Bool = true) {
         if window == nil {
             let window = NSWindow(
                 contentViewController: NSHostingController(rootView: OnboardingView { [weak self] in self?.close() }))
@@ -44,8 +45,7 @@ final class OnboardingWindow: NSObject, NSWindowDelegate {
             window.center()
             self.window = window
         }
-        NSApp.activate()
-        window?.makeKeyAndOrderFront(nil)
+        if let window { bringForward(window, activates: activates) }
         if aboveOtherApps {
             window?.level = .floating
             window?.orderFrontRegardless()

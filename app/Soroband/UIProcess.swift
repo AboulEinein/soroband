@@ -13,12 +13,12 @@ enum UIRequest: Codable, Equatable {
     /// The menu bar item moved or changed width; an open popover follows it.
     case anchor(CGRect)
     /// `SettingsView.Tab`'s raw value, or nil for the tab Settings showed last.
-    case showSettings(tab: String?)
+    case showSettings(tab: String?, activates: Bool = false)
     case closeSettings
-    case showOnboarding
+    case showOnboarding(activates: Bool = false)
     /// History on `arguments` (`HistoryOptions.arguments`). A History already open comes forward
     /// as it is, unless `replacing` it.
-    case showHistory(arguments: [String], replacing: Bool)
+    case showHistory(arguments: [String], replacing: Bool, activates: Bool = false)
     case closeHistory
     /// The linger ran out: quit, after any History export in flight.
     case quit
@@ -36,6 +36,19 @@ enum UIRequest: Codable, Equatable {
             false
         }
     }
+
+    /// Whether the window it shows may make Soroband the front app and take the keyboard: only
+    /// when the user asked for it (a click on the menu bar item, the Welcome window at the launch
+    /// the user started). A Debug URL command never does.
+    var activates: Bool {
+        switch self {
+        case .toggle(let popover), .showPopover(let popover): popover.activates
+        case .showSettings(_, let activates), .showOnboarding(let activates), .showHistory(_, _, let activates):
+            activates
+        case .snapshot, .closePopover, .anchor, .closeSettings, .closeHistory, .quit, .dumpState, .captureWindow:
+            false
+        }
+    }
 }
 
 /// Where and how the popover opens.
@@ -46,6 +59,8 @@ struct PopoverRequest: Codable, Equatable {
     /// `PopoverView.Tab`'s raw value.
     var tab = "Apps"
     var allNetworks = false
+    /// A click on the menu bar item asked for it (`UIRequest.activates`).
+    var activates = false
     /// When this process got the click, to time the opening.
     var requested: Date
 }
@@ -114,13 +129,16 @@ struct UIQueue: Equatable {
                 // a tab keeps it.
                 queued.anchor = click.anchor
                 queued.requested = click.requested
+                queued.activates = queued.activates || click.activates
                 requests[opener] = .showPopover(queued)
             } else {
                 requests.append(.showPopover(click))
             }
-        case .showPopover(let popover):
+        case .showPopover(var popover):
             if let opener = requests.firstIndex(where: \.opensPopover) {
-                requests[opener] = request
+                // A click queued before it still asked for the keyboard.
+                popover.activates = popover.activates || requests[opener].activates
+                requests[opener] = .showPopover(popover)
             } else {
                 requests.append(request)
             }
@@ -375,7 +393,7 @@ final class UIProcess {
         guard let input, let json = try? JSONEncoder().encode(request) else { return }
         let line = json + [UInt8(ascii: "\n")]
         // macOS lets an app come forward only when the active app yields to it.
-        if request.showsWindow, let pid = processIdentifier, let app = NSRunningApplication(processIdentifier: pid) {
+        if request.activates, let pid = processIdentifier, let app = NSRunningApplication(processIdentifier: pid) {
             NSApp.yieldActivation(to: app)
         }
         waitingWrites += 1

@@ -19,11 +19,11 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
 
     /// Opens History on `options`. A History already open comes forward as it is, unless
     /// `replacing` it, which closes it and opens a new one.
-    func show(_ options: HistoryOptions, replacing: Bool = false) {
+    /// Unless it `activates` (a Debug URL command), it comes forward without taking the keyboard.
+    func show(_ options: HistoryOptions, replacing: Bool = false, activates: Bool = true) {
         if let window {
             guard replacing else {
-                NSApp.activate()
-                window.makeKeyAndOrderFront(nil)
+                bringForward(window, activates: activates)
                 return
             }
             window.close()
@@ -67,8 +67,7 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
         self.window = window
         self.model = model
 
-        NSApp.activate()
-        window.makeKeyAndOrderFront(nil)
+        bringForward(window, activates: activates)
         window.displayIfNeeded()
         UIHost.windowsChanged()
         let started = options.requested ?? Self.processStart
