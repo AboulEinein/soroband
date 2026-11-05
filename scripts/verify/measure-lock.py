@@ -6,7 +6,7 @@ Usage: scripts/verify/measure-lock.py <label> <command> [args...]
   label: who holds the lock, shown to anyone waiting for it
 
 The lock is a flock(2) on ~/Library/Caches/soroband-measure.lock, held by this process and
-not inherited by the command. INT, TERM and HUP go on to the command, and the lock is
+not inherited by the command. INT, TERM and HUP go on to the command's process group, and the lock is
 released when the command exits, so a killed holder leaves no stale lock. Exits with the
 command's status. Waits up to 2 hours (exit 75).
 """
@@ -43,8 +43,8 @@ while True:
 
 os.ftruncate(fd, 0)
 os.write(fd, f"{label} pid {os.getpid()} since {time.strftime('%H:%M:%S')}\n".encode())
-child = subprocess.Popen(command)
+child = subprocess.Popen(command, start_new_session=True)
 for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
-    signal.signal(sig, lambda signum, _: child.send_signal(signum))
+    signal.signal(sig, lambda signum, _: os.killpg(child.pid, signum))
 returncode = child.wait()
 sys.exit(128 - returncode if returncode < 0 else returncode)
