@@ -28,11 +28,11 @@ The state of the project for whoever picks it up next. Read this file, then the 
 
 1. **The user's checks.** When the user asks, install `main` (`scripts/install.sh`) and set `menu_bar_readings` as above. The user then runs the hand checklists on `main` (M0, M2, M3, M4 and M6a's, below), checks by eye #17's Location grant, the popover and History on real data (#18) and Settings (#19, #20), and starts the daily-use week (M3, exit criterion 2). Each milestone is marked `done` in the ledger once its checklist has passed; issues go into Follow-ups.
 2. **History's cold open.** The user decides about History opening with no UI process running: 363–416 ms in a Release-optimized build and 373–423 ms in Debug, over M4's 300 ms.
-3. **M5 (Dynamic Island moments)** starts from `main` in its own worktree when the user says so, and runs the review experiment in its section of `plan.md`. The menu bar process has no SwiftUI and every window lives in the UI process, so M5 first chooses which process the island runs in. CPU and memory measurements on this Mac run one at a time, never beside another agent's, through `scripts/verify/measure-lock.sh`.
+3. **M5 (Dynamic Island moments)** starts from `main` in its own worktree when the user says so, and runs the review experiment in its section of `plan.md`. The menu bar process has no SwiftUI and every window lives in the UI process, so M5 first chooses which process the island runs in. CPU and memory measurements on this Mac run one at a time, never beside another agent's, through `scripts/verify/measure-lock.py`.
 
 ### M6a hand checklist
 
-Agents cannot move or click the pointer here, so these need the user, on a build of `main` (`scripts/install.sh`, or `scripts/verify/run-app.sh` for a Debug build).
+The user runs these, on a build of `main` (`scripts/install.sh`, or `scripts/verify/run-app.sh` for a Debug build).
 
 1. **Click.** Click the menu bar item: the popover opens under it; close it and click again within 10 minutes: it opens as fast as before.
 2. **Click after the linger.** Quit the UI process (`kill <pid of the --ui process>`, as after 10 idle minutes) and click the item: the popover opens, later than in step 1. Close it, quit the UI process again, and click twice quickly: it opens, and the second click closes it, as on `main`.
