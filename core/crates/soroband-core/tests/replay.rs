@@ -400,3 +400,27 @@ fn only_duplicate_bytes_after_the_baseline_are_reported() {
     assert_eq!(snapshot.apps, vec![(mail(), Bytes { rx: 2_000, tx: 0 })]);
     assert_eq!(snapshot.rx_duplicate(&mail()), 300);
 }
+
+#[test]
+fn apps_without_new_duplicate_bytes_are_not_listed_as_duplicates() {
+    let mut events = start(
+        &[],
+        &[
+            with_duplicates(tcp_update(1, 9_000_000, 0, MAIL, false, 360), 50_000),
+            tcp_update(2, 40_000, 0, SAFARI, false, 360),
+        ],
+    );
+    events.extend([
+        Event::Timeout,
+        Event::Send(ntstat::poll_all(POLL + 1)),
+        datagram(&[
+            with_duplicates(tcp_update(1, 9_002_000, 0, MAIL, false, 360), 50_300),
+            tcp_update(2, 43_000, 0, SAFARI, false, 360),
+            success(POLL + 1, false),
+        ]),
+        en0(1_005_000, 1_000_000),
+    ]);
+    let (snapshot, _) = run(Replay::new(events));
+    // Safari received 3,000 bytes, none of them duplicates; Mail 300 duplicates (50,300 - 50,000).
+    assert_eq!(snapshot.rx_duplicates, vec![(mail(), 300)]);
+}
