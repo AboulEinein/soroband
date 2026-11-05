@@ -157,13 +157,11 @@ Small items for a later nits pass.
 - **Wi‑Fi moves without a path change.** CoreWLAN's SSID-change events are not watched; a Wi‑Fi move that does not change the `NWPath` keeps the old network until the next path update.
 
 - **Popover reads more than it shows.** The popover's summary uses `Core.history`, which also builds apps, networks, the heatmap and the busiest day it does not need, for up to 31 days, in the UI process. A bars-only read in the core would cost less; measure first with M6.
-- **Test host shares the Debug data directory.** `xcodebuild test` launches the Debug app as its test host, which uses `~/Library/Application Support/Soroband Debug` like the running Debug app. Its engine books the same traffic while tests run, so the Debug totals run high, and a test that writes settings (`UsageTests`' layout change) writes the real Debug `settings.json`, then restores it. A test host could use its own data directory (`SOROBAND_DATA_DIR`).
 - **Debug commands can still activate the app.** `open-popover`, `open-settings`, `open-onboarding` and `open-history` make the menu bar process yield activation to the UI process (`UIProcess.write`), which reaches `NSApp.activate()` (`PopoverController.show`, `SettingsView.swift`, `Onboarding.swift`, `HistoryWindow.swift`); macOS grants it when the user has just used Soroband. A Debug URL command could skip it.
 - **History is up to a minute behind.** It reads what the engine has written (once a minute), so it can trail the popover by a minute's usage.
 - **Snapshots draw the installed apps' icons.** Popover and History snapshots show Safari's, Music's, Messages' and Mail's icons from this Mac (`NSWorkspace.icon(forFile:)`), so a macOS update that changes them changes the baselines. A 1/255 change in them fits the snapshot tolerance; a redrawn icon needs a re-record, or fixed icons in the tests.
 - **Snapshots on a 1x display are untested.** `Snapshot.render` draws into a fixed 2x Display P3 bitmap so a display's scale or color space cannot change the image; `renderingIgnoresTheDisplayColorSpace` checks the color space only, and no run has been made with a 1x main display.
 - **The popover from the menu bar's overflow.** Opened from the overflow, the popover never makes Soroband the front app, so it takes no keyboard and Escape does not reach it. A click on the empty menu bar leaves the popover open, and two quick clicks open it and then close it. All three are as on `main` before M6 (M6a hand checklist steps 2 to 4; [#35](https://github.com/AboulEinein/soroband/pull/35)'s real-pointer comments).
-- **The self-check's text says "apps".** The degraded and overcount messages (`PopoverView.swift`), the `Notice` cases in `PopoverContent.swift` and the overcount constant's doc in `ffi.rs` speak of apps alone, while the check (`check.rs`) compares apps plus local-network bytes with the interfaces.
 - **Evidence branches.** `evidence/pr-35` and `evidence/m6b` hold only screenshots, linked from [#35](https://github.com/AboulEinein/soroband/pull/35)'s comments and [#36](https://github.com/AboulEinein/soroband/pull/36)'s description. Keeping or deleting them is the user's call; deleting them breaks those images.
 
 ## Gotchas
@@ -196,7 +194,7 @@ Things learned the hard way that no file or config will tell you.
 
 **Building**
 - Homebrew's `rust` has only the host's standard library. Homebrew's `rustup` is keg-only: put `/opt/homebrew/opt/rustup/bin` first in `PATH` for universal builds.
-- `xcodebuild test` launches the app as the test host, so a test run shows a second Soroband item for a moment.
+- `xcodebuild test` launches the app as the test host, so a test run shows a second Soroband item for a moment. Unless `SOROBAND_DATA_DIR` is set, the test host keeps its database and settings in a new `Soroband Tests <UUID>` directory under the temporary directory (`Core.isolateTestHost`).
 - Linking the core built with Homebrew's `rust` warns that its standard library objects were built for macOS 27 while the app targets 14; rustup's standard library does not. Use rustup for anything that ships.
 - `cargo-mutants` is in `~/.cargo/bin`, which is not on `PATH` by default.
 - Homebrew's `rust` is first on `PATH`, so `rustup run 1.85.0 cargo` still builds with Homebrew's newer `rustc`. To build on the declared `rust-version`, put that toolchain's directory first: `PATH="$(dirname "$(rustup which --toolchain 1.85.0 rustc)"):$PATH" cargo test --workspace --manifest-path core/Cargo.toml` from the repository root.

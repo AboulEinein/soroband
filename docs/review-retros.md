@@ -525,6 +525,30 @@ Planned rounds: 1.
 
 **Retro.** Planned 1 round; it took 1. A narrow, tested naming rule with a real `soroband live` run before the first round left the blind round nothing to find; CodeRabbit's one finding was a one-day label effect on the update's day, accepted as the PR had stated it.
 
+## [#43](https://github.com/AboulEinein/soroband/pull/43) fix(app): say the self-check counts local-network traffic with the apps (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | none | Checked 9e25d9c. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: the overcount notice's comparison was incomplete ("more than crossed the network"). |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`, on the records commit: the degraded notice's "For 20 minutes" outlasts 20 minutes, because the verdict holds until a judged window passes. |
+
+**Retro.** Planned 1 round; it took 1. The blind round checked the copy against what `check.rs` compares and found nothing; CodeRabbit caught a grammar slip in the new user-facing sentence, fixed and reviewed by CodeRabbit as a wording fix. The local CLI and then the hosted review pointed at the degraded notice's fixed "For 20 minutes", which predates this PR; first recorded as a follow-up, it was fixed here once the hosted review raised it, being the same notice's copy. A copy fix should read the whole sentence it touches against the code, not only the word it was asked to change.
+
+## [#44](https://github.com/AboulEinein/soroband/pull/44) fix(app): give the test host its own data directory (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Low | `first look`: the temporary-directory prefix check failed when a test run supplies its own `SOROBAND_DATA_DIR`. |
+| direct | Opus | none | Checked aaa48cf. [Comment](https://github.com/AboulEinein/soroband/pull/44#issuecomment-6656186817). |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: a supplied directory with a trailing slash failed the environment test's string comparison, present since the first commit. |
+
+**Retro.** Planned 1 round; it took 1 and a direct review, and CodeRabbit found 1 valid finding. Both findings came from one gap: the tests were written for the directory the fix makes, not for one a run supplies, which the fix also supports. A test of an override should cover each way the value can arrive.
+
 ## [#41](https://github.com/AboulEinein/soroband/pull/41) ci: build and test the core on its declared rust-version (2026-11-05)
 
 Planned rounds: 1.
