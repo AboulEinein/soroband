@@ -413,6 +413,16 @@ struct UIHostTests {
         // first case holds.
     }
 
+    @Test func aMouseDownOnTheItemLeavesTheCloseToItsToggle() {
+        let item = CGRect(x: 1180, y: 1095, width: 60, height: 22)
+        #expect(
+            !PopoverController.closesOnMouseDown(at: CGPoint(x: 1200, y: 1105), item: item),
+            "a press held on the item must not close here and reopen on release")
+        #expect(PopoverController.closesOnMouseDown(at: CGPoint(x: 900, y: 1105), item: item), "empty menu bar")
+        #expect(PopoverController.closesOnMouseDown(at: CGPoint(x: 400, y: 300), item: item), "another app")
+        #expect(PopoverController.closesOnMouseDown(at: CGPoint(x: 1200, y: 1105), item: nil))
+    }
+
     /// Waits for `condition` up to 3 s: the main actor can be busy with other tests' rendering.
     private func until(_ condition: () -> Bool) async throws {
         for _ in 0..<300 where !condition() {

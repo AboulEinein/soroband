@@ -623,6 +623,21 @@ Planned rounds: 1.
 
 **Retro.** Planned 1 round; it took 1 and a direct review. The Low finding is a pattern worth keeping: a flag that guards a side effect (here, taking the keyboard) should have no default, so the compiler makes every caller choose, rather than a default that silently restores the bug.
 
+## [#45](https://github.com/AboulEinein/soroband/pull/45) fix(app): close the popover on a click on the empty menu bar (2026-11-05)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Medium | `first look`: the monitor closed the popover on the item's mouse-down while the item toggles on mouse-up, so a press held past 0.3 s closed and reopened it. |
+| 2 | Opus | none | No new finding; kept the thread open until a real-pointer run showed the fix in the app; the PR description was stale. |
+| direct | Opus | none | Accepted the real-pointer run on 7935b7a. [Comment](https://github.com/AboulEinein/soroband/pull/45#issuecomment-6658751838). |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: the monitor read the pointer's current position, not the click's. |
+| direct | Opus | none | Checked 82d7a4f with the real-pointer run on 3362b57. [Comment](https://github.com/AboulEinein/soroband/pull/45#issuecomment-6660163387). |
+| CodeRabbit | CodeRabbit | 1 Trivial | Accepted, on the records commit: a unit test of the monitor reading the event's location (the real-pointer run covers it). |
+
+**Retro.** Planned 1 round; it took 2 and two direct reviews, and CodeRabbit found 1 valid finding. Both findings were about when an event is read: the item toggles on mouse-up while the monitor acted on mouse-down, and the monitor read the live pointer instead of the event. cliclick presses and releases at once, so the first real-pointer runs could not show a held press; a pointer test of a click should include a held press. The pointer re-runs waited about an hour because another worktree's island covered the overflow chevron.
+
 ## [#51](https://github.com/AboulEinein/soroband/pull/51) fix(app): let the popover take the keyboard when opened from the overflow (2026-11-05)
 
 Planned rounds: 2.

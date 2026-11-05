@@ -36,7 +36,7 @@ The user runs these, on a build of `main` (`scripts/install.sh`, or `scripts/ver
 
 1. **Click.** Click the menu bar item: the popover opens under it; close it and click again within 10 minutes: it opens as fast as before.
 2. **Click after the linger.** Quit the UI process (`kill <pid of the --ui process>`, as after 10 idle minutes) and click the item: the popover opens, later than in step 1. Close it, quit the UI process again, and click twice quickly: it opens, and the second click closes it, as on `main`.
-3. **Toggle and click-outside.** With the popover open, click the item: it closes and stays closed. Open it and click elsewhere (the desktop, another app's window): it closes. Open it and press Escape: it closes, from the menu bar's overflow too. On `main` too, a click on the empty menu bar leaves it open.
+3. **Toggle and click-outside.** With the popover open, click the item: it closes and stays closed. Open it and click elsewhere (the desktop, another app's window, the empty menu bar): it closes. Open it and press Escape: it closes, from the menu bar's overflow too.
 4. **Keyboard and focus.** Open the popover: it takes the keyboard (Escape works; Tab moves between its controls), and the app you were typing in gets the keyboard back when it closes. Starting the UI process never takes the keyboard from the app you are typing in. Opened from the menu bar's overflow it takes the keyboard too.
 5. **⌘,.** With the popover or History in front, ⌘, opens Soroband Settings. The gear in the popover opens Settings too; History… opens History in front.
 6. **Settings reach the menu bar.** In Settings › Menu Bar pick another reading and style: the menu bar item follows each change at once. Rename a network in Settings › Networks: the popover shows the new name.
@@ -152,7 +152,6 @@ Small items for a later nits pass.
 
 - **History is up to a minute behind.** It reads what the engine has written (once a minute), so it can trail the popover by a minute's usage.
 - **Snapshots on a 1x display are untested.** `Snapshot.render` draws into a fixed 2x Display P3 bitmap so a display's scale or color space cannot change the image; `renderingIgnoresTheDisplayColorSpace` checks the color space only, and no run has been made with a 1x main display.
-- **A click on the empty menu bar.** It leaves the popover open, as on `main` before M6 (M6a hand checklist step 3; [#35](https://github.com/AboulEinein/soroband/pull/35)'s real-pointer comments).
 - **Evidence branches.** `evidence/pr-35` and `evidence/m6b` hold only screenshots, linked from [#35](https://github.com/AboulEinein/soroband/pull/35)'s comments and [#36](https://github.com/AboulEinein/soroband/pull/36)'s description. Keeping or deleting them is the user's call; deleting them breaks those images.
 
 ## Gotchas
