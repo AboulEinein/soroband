@@ -6,6 +6,7 @@
 - [`agents/install.md`](agents/install.md): install steps a coding agent follows, from a release or from source.
 - [`agents/configure.md`](agents/configure.md): every setting, and the `soroband` commands that read usage and change settings.
 - [`../CHANGELOG.md`](../CHANGELOG.md): what each release changed.
+- [`../SECURITY.md`](../SECURITY.md): what Soroband accesses, which versions get fixes, and how to report a vulnerability.
 
 ## Contributing
 
@@ -18,7 +19,7 @@
 
 ## Project records
 
-Soroband is developed in sessions with coding agents, each picking up where the last one stopped. These files are their working records, kept in the open; a person contributing does not need them.
+Soroband is developed in sessions with coding agents, each picking up where the last one stopped. These files are their working records, kept in the open. A person contributing needs only the roadmap in `plan.md` and the rules in `AGENTS.md`; the rest is how the agents' work is planned and reviewed.
 
 - [`plan.md`](plan.md): the roadmap, one milestone per pull request, and the ledger of their state.
 - [`handover.md`](handover.md): the current state, the next action, every decision with its date, and what was learned the hard way.
