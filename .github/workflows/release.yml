@@ -45,6 +45,11 @@ jobs:
           core=$(sed -n 's/^version = "\(.*\)"$/\1/p' core/Cargo.toml | head -1)
           app=$(sed -n 's/^.*MARKETING_VERSION = \(.*\);$/\1/p' app/Soroband.xcodeproj/project.pbxproj | sort -u)
           echo "core $core, app $app"
+          # soroband update reads a release's version as three numbers, and offers nothing else.
+          if [[ ! $core =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::core/Cargo.toml's version $core is not x.y.z."
+            exit 1
+          fi
           if [[ $app != "$core" ]]; then
             echo "::error::core/Cargo.toml says $core, the Xcode project's MARKETING_VERSION says $app."
             exit 1
@@ -66,11 +71,11 @@ jobs:
             echo "::error::CHANGELOG.md has no section for $VERSION."
             exit 1
           fi
-          # A tag publishes only a finished section: dated, not "Unreleased", and with no
-          # TODO(release) left in its notes.
+          # A tag publishes only a finished section: dated (YYYY-MM-DD), and with no TODO(release)
+          # left in its notes.
           if [[ $GITHUB_REF == refs/tags/* ]]; then
-            if grep -q "^## \\[$VERSION\\] - Unreleased" CHANGELOG.md || grep -q 'TODO(release)' build-notes.md; then
-              echo "::error::CHANGELOG.md's $VERSION section is still Unreleased or holds a TODO(release); finish it."
+            if ! grep -qE "^## \\[$VERSION\\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$" CHANGELOG.md || grep -q 'TODO(release)' build-notes.md; then
+              echo "::error::CHANGELOG.md's $VERSION section is not dated YYYY-MM-DD or holds a TODO(release); finish it."
               exit 1
             fi
           fi

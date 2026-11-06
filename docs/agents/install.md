@@ -20,34 +20,38 @@ Ask the user which route they want, recommending the release unless they prefer 
 
 ## 2. Install the release
 
-Work in a new temporary directory:
+Work in a new temporary directory. The blocks below use `$dir`: run them in one shell session, or note the path and set `dir` again in each (every path below is absolute).
 
 ```sh
 dir=$(mktemp -d)
-cd "$dir"
-curl -fL -O https://github.com/AboulEinein/soroband/releases/latest/download/Soroband.dmg
-curl -fL -O https://github.com/AboulEinein/soroband/releases/latest/download/Soroband.dmg.sha256
-shasum -a 256 -c Soroband.dmg.sha256
+curl -fL -o "$dir/Soroband.dmg" https://github.com/AboulEinein/soroband/releases/latest/download/Soroband.dmg
+curl -fL -o "$dir/Soroband.dmg.sha256" https://github.com/AboulEinein/soroband/releases/latest/download/Soroband.dmg.sha256
+(cd "$dir" && shasum -a 256 -c Soroband.dmg.sha256)
 ```
 
 The last command must print `Soroband.dmg: OK`. If it prints anything else, stop: delete the directory and tell the user the download did not match its checksum.
 
-Copy the app into `/Applications` and link the `soroband` command into `~/.local/bin`:
+Copy the app into `/Applications`:
 
 ```sh
-hdiutil attach -nobrowse -readonly -mountpoint "$dir/mount" Soroband.dmg
+hdiutil attach -nobrowse -readonly -mountpoint "$dir/mount" "$dir/Soroband.dmg"
 ditto "$dir/mount/Soroband.app" /Applications/Soroband.app
+```
+
+If `ditto` fails with a permission error, the user's account cannot write to `/Applications`. Leave the disk image mounted and ask the user to drag `Soroband.app` from it (`open "$dir/mount"` shows it in the Finder) into Applications, which asks for an administrator's password. Go on once `/Applications/Soroband.app` exists.
+
+Then unmount the disk image, link the `soroband` command into `~/.local/bin`, and clean up:
+
+```sh
 hdiutil detach "$dir/mount"
 mkdir -p ~/.local/bin
 ln -sf /Applications/Soroband.app/Contents/Helpers/soroband ~/.local/bin/soroband
 rm -rf "$dir"
 ```
 
-If `ditto` fails with a permission error, the user's account cannot write to `/Applications`: ask the user to copy `Soroband.app` from the mounted disk image into Applications in the Finder, which asks for an administrator's password.
-
 ### The quarantine flag
 
-A file downloaded with `curl` carries no quarantine flag, so macOS opens the app without asking. One the user downloaded in a browser does, and macOS then blocks the first launch because Apple has not notarized the app. Check:
+A file downloaded with `curl` carries no quarantine flag, so macOS opens the app without asking. A disk image the user downloaded in a browser does, and macOS then blocks the first launch because Apple has not notarized the app. Check:
 
 ```sh
 xattr -p com.apple.quarantine /Applications/Soroband.app

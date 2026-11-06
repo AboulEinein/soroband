@@ -83,6 +83,7 @@ fn update(check_only: bool) -> Result<String, String> {
 
     let dmg_url = asset_url(&release, DMG)?;
     let checksum_url = asset_url(&release, CHECKSUM)?;
+    check_writable(&app, &dmg_url)?;
     let work = WorkDir::new()?;
     let dmg = work.0.join(DMG);
     std::fs::write(&dmg, fetch(&dmg_url, protocols)?).map_err(|e| e.to_string())?;
@@ -97,32 +98,8 @@ fn update(check_only: bool) -> Result<String, String> {
         ));
     }
 
-    let mount = work.0.join("mount");
-    run_tool(
-        Command::new("/usr/bin/hdiutil")
-            .args(["attach", "-quiet", "-nobrowse", "-readonly", "-noautoopen"])
-            .arg("-mountpoint")
-            .arg(&mount)
-            .arg(&dmg),
-    )?;
     let staged = sibling(&app, "update");
-    let copied = (|| {
-        let source = mount.join("Soroband.app");
-        if !source.join("Contents/MacOS/Soroband").exists() {
-            return Err(format!("{DMG} holds no Soroband.app"));
-        }
-        let _ = std::fs::remove_dir_all(&staged);
-        run_tool(Command::new("/usr/bin/ditto").arg(&source).arg(&staged))
-    })();
-    let _ = run_tool(
-        Command::new("/usr/bin/hdiutil")
-            .args(["detach", "-quiet"])
-            .arg(&mount),
-    );
-    if copied.is_err() {
-        let _ = std::fs::remove_dir_all(&staged);
-    }
-    copied?;
+    stage(&dmg, &work.0.join("mount"), &staged)?;
 
     let was_running = match quit(&app) {
         Ok(running) => running,
@@ -141,18 +118,53 @@ fn update(check_only: bool) -> Result<String, String> {
     } else {
         Ok(())
     };
-    replaced?;
+    // An old version the update could not remove is named whether or not the app opened.
+    let leftover = replaced?.map_or_else(String::new, |old| {
+        format!(
+            " The old version could not be removed, because another account installed it: remove {} as an administrator.",
+            old.display()
+        )
+    });
     if let Err(e) = opened {
         return Err(format!(
-            "updated {} to {newest_text}, but could not open it: {e}",
+            "updated {} to {newest_text}, but could not open it: {e}.{leftover}",
             app.display()
         ));
     }
     Ok(format!(
-        "Updated {} from {current} to {newest_text}{}.",
+        "Updated {} from {current} to {newest_text}{}.{leftover}",
         app.display(),
-        if was_running { " and opened it" } else { "" }
+        if was_running { " and opened it" } else { "" },
     ))
+}
+
+/// Copies the DMG's app to `staged`, next to the installed app, mounting the DMG at `mount` for
+/// the copy. A failed copy leaves nothing at `staged`.
+fn stage(dmg: &Path, mount: &Path, staged: &Path) -> Result<(), String> {
+    run_tool(
+        Command::new("/usr/bin/hdiutil")
+            .args(["attach", "-quiet", "-nobrowse", "-readonly", "-noautoopen"])
+            .arg("-mountpoint")
+            .arg(mount)
+            .arg(dmg),
+    )?;
+    let copied = (|| {
+        let source = mount.join("Soroband.app");
+        if !source.join("Contents/MacOS/Soroband").exists() {
+            return Err(format!("{DMG} holds no Soroband.app"));
+        }
+        let _ = std::fs::remove_dir_all(staged);
+        run_tool(Command::new("/usr/bin/ditto").arg(&source).arg(staged))
+    })();
+    let _ = run_tool(
+        Command::new("/usr/bin/hdiutil")
+            .args(["detach", "-quiet"])
+            .arg(mount),
+    );
+    if copied.is_err() {
+        let _ = std::fs::remove_dir_all(staged);
+    }
+    copied
 }
 
 /// The app bundle this command is in, when its path is `<name>.app/Contents/Helpers/<command>`.
@@ -290,23 +302,42 @@ fn regex_escape(text: &str) -> String {
         .collect()
 }
 
-/// `.<app name>-<label>` next to the app, on the same volume, so a rename moves it into place.
-fn sibling(app: &Path, label: &str) -> PathBuf {
-    let name = app.file_stem().unwrap_or_default().to_string_lossy();
-    app.with_file_name(format!(".{name}-{label}.app"))
+/// Fails before anything is downloaded when this user cannot replace the app: an account that is
+/// not an administrator cannot write to `/Applications`, and copying in the Finder asks for an
+/// administrator's password instead.
+fn check_writable(app: &Path, dmg_url: &str) -> Result<(), String> {
+    let probe = sibling(app, "write-check");
+    match std::fs::create_dir(&probe) {
+        Ok(()) => {
+            let _ = std::fs::remove_dir(&probe);
+            Ok(())
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => Err(format!(
+            "this account cannot write to {}. Download {dmg_url}, open it and drag Soroband to Applications in the Finder, which asks for an administrator's password.",
+            app.parent().unwrap_or(app).display()
+        )),
+        Err(e) => Err(format!("cannot write next to {}: {e}", app.display())),
+    }
 }
 
-/// Puts `staged` in the app's place, keeping the old app until the new one is there.
-fn replace(app: &Path, staged: &Path) -> Result<(), String> {
+/// `.<app name>-<label>-<pid>.app` next to the app, on the same volume, so a rename moves it into
+/// place. The pid keeps a leftover this user cannot delete (one another account's update left)
+/// from blocking a rename onto it or mixing into a copy.
+fn sibling(app: &Path, label: &str) -> PathBuf {
+    let name = app.file_stem().unwrap_or_default().to_string_lossy();
+    app.with_file_name(format!(".{name}-{label}-{}.app", std::process::id()))
+}
+
+/// Puts `staged` in the app's place, keeping the old app until the new one is there. Returns the
+/// old app's path when it could not be removed (files another account installed).
+fn replace(app: &Path, staged: &Path) -> Result<Option<PathBuf>, String> {
     let old = sibling(app, "old");
-    let _ = std::fs::remove_dir_all(&old);
     std::fs::rename(app, &old).map_err(|e| format!("cannot move {}: {e}", app.display()))?;
     if let Err(e) = std::fs::rename(staged, app) {
         let _ = std::fs::rename(&old, app);
         return Err(format!("cannot move the new app into place: {e}"));
     }
-    let _ = std::fs::remove_dir_all(&old);
-    Ok(())
+    Ok(std::fs::remove_dir_all(&old).is_err().then_some(old))
 }
 
 /// A temporary directory removed when dropped.
