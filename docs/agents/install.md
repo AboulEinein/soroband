@@ -32,18 +32,23 @@ shasum -a 256 -c Soroband.dmg.sha256
 
 The last command must print `Soroband.dmg: OK`. If it prints anything else, stop: delete the directory and tell the user the download did not match its checksum.
 
-Copy the app into `/Applications` and link the `soroband` command into `~/.local/bin`:
+Copy the app into `/Applications`:
 
 ```sh
 hdiutil attach -nobrowse -readonly -mountpoint "$dir/mount" Soroband.dmg
 ditto "$dir/mount/Soroband.app" /Applications/Soroband.app
+```
+
+If `ditto` fails with a permission error, the user's account cannot write to `/Applications`. Leave the disk image mounted and ask the user to drag `Soroband.app` from it (`open "$dir/mount"` shows it in the Finder) into Applications, which asks for an administrator's password. Go on once `/Applications/Soroband.app` exists.
+
+Then unmount the disk image, link the `soroband` command into `~/.local/bin`, and clean up:
+
+```sh
 hdiutil detach "$dir/mount"
 mkdir -p ~/.local/bin
 ln -sf /Applications/Soroband.app/Contents/Helpers/soroband ~/.local/bin/soroband
 rm -rf "$dir"
 ```
-
-If `ditto` fails with a permission error, the user's account cannot write to `/Applications`: ask the user to copy `Soroband.app` from the mounted disk image into Applications in the Finder, which asks for an administrator's password.
 
 ### The quarantine flag
 

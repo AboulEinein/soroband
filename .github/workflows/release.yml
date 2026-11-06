@@ -45,6 +45,11 @@ jobs:
           core=$(sed -n 's/^version = "\(.*\)"$/\1/p' core/Cargo.toml | head -1)
           app=$(sed -n 's/^.*MARKETING_VERSION = \(.*\);$/\1/p' app/Soroband.xcodeproj/project.pbxproj | sort -u)
           echo "core $core, app $app"
+          # soroband update reads a release's version as three numbers, and offers nothing else.
+          if [[ ! $core =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::core/Cargo.toml's version $core is not x.y.z."
+            exit 1
+          fi
           if [[ $app != "$core" ]]; then
             echo "::error::core/Cargo.toml says $core, the Xcode project's MARKETING_VERSION says $app."
             exit 1
