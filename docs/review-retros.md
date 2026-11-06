@@ -754,3 +754,7 @@ Planned rounds: 1.
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | none | Posted as a COMMENT review with a no-findings body. |
+| CodeRabbit | CodeRabbit | 1 Trivial | Nitpick: a shutdown barrier would make the stop test exact; accepted, with the reason on the PR. |
+
+**Retro.** Planned 1 round; it took 1. Each fix came with a reproduction of the flake (a widened gap, the mutant applied) and a check that the test still fails on the behavior it guards, so the reviewer could confirm both by reading.
