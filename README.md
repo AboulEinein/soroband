@@ -102,7 +102,7 @@ soroband today --json                    # every query prints JSON for scripts a
 
 ## How it works
 
-A small Rust core subscribes to the macOS kernel's network statistics (`com.apple.network.statistics`), which report the bytes of each connection along with the process that owns it. Soroband keeps only internet traffic on physical interfaces (Wi‑Fi, Ethernet, cellular), credits each connection to its app, and books the bytes to the network the Mac was on. Totals are stored per hour, per network and per app in a local SQLite database in `~/Library/Application Support/Soroband`, and each network's total comes from the interface counters: what apps cannot account for (packet headers, system traffic) shows as "Other / overhead".
+A small Rust core subscribes to the macOS kernel's network statistics (`com.apple.network.statistics`), which report the bytes of each connection along with the process that owns it. Soroband keeps only internet traffic on physical interfaces (Wi‑Fi, Ethernet, cellular; on macOS 14 to 26, which count network totals only, local-network traffic stays in), credits each connection to its app, and books the bytes to the network the Mac was on. Totals are stored per hour, per network and per app in a local SQLite database in `~/Library/Application Support/Soroband`, and each network's total comes from the interface counters: what apps cannot account for (packet headers, system traffic) shows as "Other / overhead".
 
 The menu bar app is AppKit and SwiftUI, linked to the Rust core. The design, the measurements behind it and the performance budget are in [`docs/design.md`](docs/design.md).
 
