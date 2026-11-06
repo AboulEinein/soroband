@@ -285,6 +285,12 @@ M3's exit criterion: the user runs the dogfood build every day for a week.
 **Dogfood build**:
 The installed release build the user runs daily.
 
+**Release**:
+A version published on GitHub by the release workflow from a version tag: `Soroband.dmg` (the app, with the `soroband` command in `Contents/Helpers`), its SHA-256 checksum, and its section of `CHANGELOG.md` as notes. Signed ad hoc, not notarized; `soroband update` installs the newest one.
+
+**Source build**:
+Soroband built and installed on the user's Mac by `scripts/install.sh`, signed with "Soroband Local Signing"; updated from its clone, never by `soroband update`.
+
 **Judged run**:
 A `traffic.sh` run under the network-quality cutoff, with no other curl in the window and a download that finished in time, which counts toward M1's traffic criteria.
 
