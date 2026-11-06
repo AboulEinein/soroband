@@ -704,3 +704,11 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | none | |
 
 **Retro.** Planned 1 round; it took 1. A docs-only change that a blind reviewer could check line by line against the code and the ledger left nothing to find.
+
+## [#54](https://github.com/AboulEinein/soroband/pull/54) feat: release v0.1.0 (M7) (2026-11-06)
+
+Planned rounds: 3.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 3 Minor | `first look`: a reopen failure after a successful swap hid the update's result; the README's "sends nothing anywhere" beside `soroband update`; CHANGELOG's Location placeholder could ship (now refused by the release workflow). |
