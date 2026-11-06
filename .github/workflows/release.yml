@@ -1,0 +1,103 @@
+name: Release
+
+# A version tag (v0.1.0) runs CI, packages Soroband.dmg and publishes it as a GitHub release with
+# its notes from CHANGELOG.md and its SHA-256 checksum. A pull request that changes the release
+# path runs the same steps up to publishing, as a dry run, and keeps the DMG as an artifact.
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - .github/workflows/ci.yml
+      - scripts/build.sh
+      - scripts/build-core.sh
+      - scripts/package.sh
+      - CHANGELOG.md
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  package:
+    name: Package Soroband.dmg
+    needs: ci
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install stable --profile minimal -t aarch64-apple-darwin,x86_64-apple-darwin && rustup default stable
+      - run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)" && xcodebuild -version
+      # The tag, the core's version and the app's version must agree: soroband update compares
+      # the tag with the version the installed command reports.
+      - name: Check the versions
+        run: |
+          core=$(sed -n 's/^version = "\(.*\)"$/\1/p' core/Cargo.toml | head -1)
+          app=$(sed -n 's/^.*MARKETING_VERSION = \(.*\);$/\1/p' app/Soroband.xcodeproj/project.pbxproj | sort -u)
+          echo "core $core, app $app"
+          if [[ $app != "$core" ]]; then
+            echo "::error::core/Cargo.toml says $core, the Xcode project's MARKETING_VERSION says $app."
+            exit 1
+          fi
+          if [[ $GITHUB_REF == refs/tags/* && $GITHUB_REF_NAME != "v$core" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the version v$core."
+            exit 1
+          fi
+          echo "VERSION=$core" >> "$GITHUB_ENV"
+      - name: Write the release notes
+        run: |
+          # The version's section of CHANGELOG.md, up to the next version's heading.
+          awk -v heading="## [$VERSION]" '
+            index($0, heading) == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > build-notes.md
+          if ! grep -q '[^[:space:]]' build-notes.md; then
+            echo "::error::CHANGELOG.md has no section for $VERSION."
+            exit 1
+          fi
+      - run: scripts/package.sh
+      - name: Add the checksum to the notes
+        run: |
+          mv build-notes.md build/notes.md
+          {
+            echo
+            echo "SHA-256 of \`Soroband.dmg\`: \`$(cut -d' ' -f1 build/Soroband.dmg.sha256)\`"
+          } >> build/notes.md
+          cat build/notes.md
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: Soroband-${{ env.VERSION }}
+          path: |
+            build/Soroband.dmg
+            build/Soroband.dmg.sha256
+            build/notes.md
+          if-no-files-found: error
+
+  publish:
+    name: Publish the GitHub release
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: release
+          merge-multiple: true
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" release/Soroband.dmg release/Soroband.dmg.sha256
+          --repo "$GITHUB_REPOSITORY" --verify-tag
+          --title "Soroband ${GITHUB_REF_NAME#v}" --notes-file release/notes.md
