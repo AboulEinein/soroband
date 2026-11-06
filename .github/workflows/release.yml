@@ -14,6 +14,8 @@ on:
       - scripts/build-core.sh
       - scripts/package.sh
       - CHANGELOG.md
+      - core/Cargo.toml
+      - app/Soroband.xcodeproj/project.pbxproj
 
 permissions:
   contents: read
@@ -64,10 +66,13 @@ jobs:
             echo "::error::CHANGELOG.md has no section for $VERSION."
             exit 1
           fi
-          # A tag publishes only a finished section: dated, not "Unreleased".
-          if [[ $GITHUB_REF == refs/tags/* ]] && grep -q "^## \\[$VERSION\\] - Unreleased" CHANGELOG.md; then
-            echo "::error::CHANGELOG.md's $VERSION section is still Unreleased; date it and finish its notes."
-            exit 1
+          # A tag publishes only a finished section: dated, not "Unreleased", and with no
+          # TODO(release) left in its notes.
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            if grep -q "^## \\[$VERSION\\] - Unreleased" CHANGELOG.md || grep -q 'TODO(release)' build-notes.md; then
+              echo "::error::CHANGELOG.md's $VERSION section is still Unreleased or holds a TODO(release); finish it."
+              exit 1
+            fi
           fi
       - run: scripts/package.sh
       - name: Add the checksum to the notes

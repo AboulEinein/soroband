@@ -122,7 +122,7 @@ If it reads **Not allowed: Wi‑Fi networks show as “Wi‑Fi”** with an **Op
 
 Update only when the user asks: it quits and replaces the user's running copy.
 
-- **Installed from a release** (`readlink ~/.local/bin/soroband` ends in `Soroband.app/Contents/Helpers/soroband`): run `soroband update`. It downloads the newest release, checks its checksum, quits Soroband, replaces the app and opens it again; `soroband update --check` only says whether there is a newer one. A downloaded update carries no quarantine flag, so no Open Anyway is needed. Check the release notes for whether macOS asks for Location access again.
+- **Installed from a release** (`/Applications/Soroband.app/Contents/Helpers/soroband` exists; a source build has no command inside the app): run `/Applications/Soroband.app/Contents/Helpers/soroband update`. It downloads the newest release, checks its checksum, quits Soroband, replaces the app and opens it again; `soroband update --check` only says whether there is a newer one. A downloaded update carries no quarantine flag, so no Open Anyway is needed. Check the release notes for whether macOS asks for Location access again.
 - **Built from source:** from the clone, `git pull && scripts/install.sh --replace`. Without `--replace`, the script stops before building when Soroband is already installed and there is no terminal to confirm in; in a terminal it asks first, and only the user answers that question. The script cannot tell the user from an agent, so the user's request is what allows `--replace` or a typed yes.
 
 ## Done
