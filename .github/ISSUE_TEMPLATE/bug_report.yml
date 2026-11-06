@@ -23,6 +23,16 @@ body:
     id: version
     attributes:
       label: Soroband version
+      description: The output of `soroband version`, or Settings › About.
+    validations:
+      required: true
+  - type: dropdown
+    id: route
+    attributes:
+      label: How it was installed
+      options:
+        - Release (Soroband.dmg)
+        - Built from source (scripts/install.sh)
     validations:
       required: true
   - type: input

@@ -733,3 +733,16 @@ Planned rounds: 3. Ran: 4 blind rounds, 3 direct reviews, 6 CodeRabbit reviews (
 | CodeRabbit | CodeRabbit | 1 Major, 3 Minor | On the records commit 4528eb9. `first look`: the second-account step's link needed `~/.local/bin`; the fresh-agent step could not run before the release (the Major). `fix regression`: the retro's count of reviews and two rows without an origin. |
 
 **Retro.** Planned 3 rounds; it took 4 and 3 direct reviews. The findings shrank each round (6, 2, 2, 2) and changed kind, from the release path to the edges of replacing an app on disk. Most came from one place the plan did not spell out: `soroband update` replaces a bundle in a folder other accounts share, which the second-account exit criterion makes real. Round 1 saw the other user's process; CodeRabbit the account that cannot write; round 3 the other account's leftover (seen by running `rename` on APFS, not by reading); round 4 the leftover's silence after that fix. Each was a different path into the same state, a shared `/Applications`, and the rule in `verification.md` (list every path into the state a fix touches) would have caught rounds 3 and 4 in one if the fix had listed the second account as a path. Two process slips: round 1's fixes were pushed before their CLI review, which ran right after and found nothing (the "none" row), and the draft rounds' rows were noted but not committed until the end, which round 4 flagged. The CLI found a new nit on almost every run of the same tree; past the third, its findings were judged for real use and most declined. Changes: none to the rules beyond what the retros of #9 and #50 already say; the second-account case goes into the hand checklist.
+
+## [#55](https://github.com/AboulEinein/soroband/pull/55) docs: map the docs and tighten them for a public repository (2026-11-06)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 1 Minor | `first look`: SECURITY's `soroband update` needs the command linked; it now gives the full path too. |
+| 1 | Opus | 2 Low | `first look`: the docs map said contributors need none of the records, against CONTRIBUTING; it left out SECURITY.md. |
+| direct | Sonnet | none | Checked 363eb02; resolved both threads. [Comment](https://github.com/AboulEinein/soroband/pull/55#issuecomment-6682065030). |
+| CodeRabbit | CodeRabbit | none | The ready PR, after #54 merged. |
+
+**Retro.** Planned 1 round; it took 1 and a direct review. A docs-only change the reviewer could check link by link; its two findings were where the new map contradicted CONTRIBUTING and what it left out, both answered in wording. The audit's keep/tighten/move decisions were the user's before any edit, so nothing was redone.

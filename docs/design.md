@@ -2,7 +2,7 @@
 
 A macOS menu bar app that meters network usage per network (Wi‑Fi, Ethernet, hotspot) and per app, and keeps every day of history.
 
-Screenshots of the UI prototype: [popover](mockups/popover.png), [history](mockups/history.png), [history with an app expanded](mockups/history-expanded.png), [settings](mockups/settings.png).
+Screenshots of the app: [`screenshots/`](screenshots). The UI prototype's screens, which the design was settled on: [popover](mockups/popover.png), [history](mockups/history.png), [history with an app expanded](mockups/history-expanded.png), [settings](mockups/settings.png).
 
 ## Reference apps
 
@@ -18,7 +18,7 @@ Hotspot Meter keeps a record per network, can start tracking on its own when a h
 
 ## Decisions
 
-- Distribution: built from source on the user's Mac (ad-hoc signed, no paid Apple account), outside the App Store, so no sandbox.
+- Distribution: outside the App Store, so no sandbox, and without a paid Apple account, so never notarized. Two routes: a GitHub release's `Soroband.dmg`, signed ad hoc (the first launch needs one Open Anyway), or a build from source on the user's Mac, signed with a certificate made there.
 - Menu bar default: today on the current network.
 - Data caps and alerts: later, not v1.
 - Only internet traffic counts. Flows to local addresses (LAN, link-local, multicast, loopback) are excluded.

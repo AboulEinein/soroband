@@ -11,7 +11,7 @@ cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
 ../scripts/build-core.sh arm64    # this Mac only
 ```
 
-The engine is `soroband-core`'s `meter` module. `soroband live` shows what it counts; `soroband live --for 60 --record <file>` records a session with the kernel as a test fixture (descriptors scrubbed to the fields the engine reads; app paths, process names and interface totals are still real, so anonymize them before committing, as `docs/handover.md` describes), and `tests/replay.rs` replays the recordings in `crates/soroband-core/tests/fixtures`.
+The engine is `soroband-core`'s `meter` module. `soroband live` shows what it counts; `soroband live --for 60 --record <file>` records a session with the kernel as a test fixture (descriptors scrubbed to the fields the engine reads; app paths, process names and interface totals are still real, so anonymize them before committing: replace every app path and process name outside macOS's own and the test programs with a made-up one that keeps its place in the file system, in `P` records and in the descriptors' process-name field, and rebase the interface counters to start at 0 or 1,000,000,000 with their changes kept), and `tests/replay.rs` replays the recordings in `crates/soroband-core/tests/fixtures`.
 
 `build-core.sh` generates `soroband_core.h` with cbindgen; if `cbindgen` is not on `PATH` it installs a pinned version into `core/target/tools`. A universal build needs the `x86_64-apple-darwin` standard library, which rustup provides (`rustup target add x86_64-apple-darwin`); Homebrew's `rust` has only the host's.
 

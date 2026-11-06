@@ -1,5 +1,9 @@
 # Security policy
 
+## Supported versions
+
+Only the latest release gets security fixes. Update with `soroband update` (`/Applications/Soroband.app/Contents/Helpers/soroband update` without the command linked), or `git pull && scripts/install.sh` for a build from source.
+
 ## Reporting a vulnerability
 
 Report vulnerabilities privately through [GitHub Security Advisories](https://github.com/AboulEinein/soroband/security/advisories/new). Please do not open a public issue. You will get a reply within 7 days.
