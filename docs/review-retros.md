@@ -707,8 +707,28 @@ Planned rounds: 1.
 
 ## [#54](https://github.com/AboulEinein/soroband/pull/54) feat: release v0.1.0 (M7) (2026-11-06)
 
-Planned rounds: 3.
+Planned rounds: 3. Ran: 4 blind rounds, 3 direct reviews, 6 CodeRabbit reviews with findings, and the CodeRabbit CLI before each push.
 
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | 3 Minor | `first look`: a reopen failure after a successful swap hid the update's result; the README's "sends nothing anywhere" beside `soroband update`; CHANGELOG's Location placeholder could ship (now refused by the release workflow). |
+| 1 | Opus | 2 Medium, 4 Low | `first look`: `quit` matched other users' Soroband (`pgrep` without `-U`); the quit-and-reopen path never ran in a test or the end-to-end; the dry run's paths left out the two files its version check reads; a dated CHANGELOG heading could still ship the Location placeholder; the popover screenshot's alt text named apps it did not show; GLOSSARY's dogfood build read as the new Release. |
+| CodeRabbit | CodeRabbit CLI | none | On round 1's fixes. |
+| 2 | Opus | 2 Low | `first look`: no test for `update`'s arguments past its limits; install.md told a release install by the optional link. |
+| direct | Sonnet | 1 unrated | Checked 33bd0da: both fixed; a nit (`--check` without the full path), declined. [Comment](https://github.com/AboulEinein/soroband/pull/54#issuecomment-6681553678). |
+| CodeRabbit | CodeRabbit | 2 Minor | On 33bd0da. `first look`: a core version other than x.y.z would pass; install.md's block unmounted the DMG a failed `ditto` needed. |
+| CodeRabbit | CodeRabbit CLI | 3 Minor, 1 Minor | `first look`: README's update needed the optional link; local traffic on interface totals; `$dir` across install.md's blocks. Then: the tag accepted an undated heading. |
+| direct | Sonnet | 1 Low | Checked 1d5999b and 04163d6. `fix regression`: install.md attached the DMG by a relative path after `cd`. [Comment](https://github.com/AboulEinein/soroband/pull/54#issuecomment-6681976624). |
+| CodeRabbit | CodeRabbit | 1 Minor | On 04163d6. `fix regression`: mount the checked DMG in every shell (already fixed in ed7ddd8). |
+| CodeRabbit | CodeRabbit | 1 Major, 1 Minor | On ed7ddd8, outside the diff. `first look`: an account that cannot write to `/Applications` could not update (the Major); overlapping updates (accepted). |
+| 3 | Opus | 2 Low | `new evidence`: an undeletable `.Soroband-old.app` from another account's update blocked every later one (rename onto a non-empty folder). `first look`: no test of an older latest release. |
+| CodeRabbit | CodeRabbit CLI | 1 Trivial, 2 Minor | A wording nit in install.md, fixed with absolute paths; the checksum and the mount, both failing safely, declined. |
+| CodeRabbit | CodeRabbit | 1 Trivial | On 8174fd5, nitpick: `--check` could fetch assets unnoticed; accepted. |
+| 4 | Opus | 2 Low | `fix regression`: round 3's per-run names left an undeletable old bundle hidden and unreported. `missed earlier`: this entry lacked the draft rounds' rows. |
+| CodeRabbit | CodeRabbit CLI | 1 Major | Notarization, declined: it contradicts the decision of 2026-10-26 (no paid Apple account). |
+| direct | Sonnet | 1 unrated | Checked 673d25a: fixed; a wording nit, declined. [Comment](https://github.com/AboulEinein/soroband/pull/54#issuecomment-6683282197). |
+| CodeRabbit | CodeRabbit | 1 Minor | On 673d25a. `fix regression`: an open failure dropped the leftover's note. |
+| CodeRabbit | CodeRabbit CLI | 1 Minor | `first look`: README's "only internet traffic" without the interface-totals exception. |
+| CodeRabbit | CodeRabbit | none | On 61df5ca. |
+
+**Retro.** Planned 3 rounds; it took 4 and 3 direct reviews. The findings shrank each round (6, 2, 2, 2) and changed kind, from the release path to the edges of replacing an app on disk. Most came from one place the plan did not spell out: `soroband update` replaces a bundle in a folder other accounts share, which the second-account exit criterion makes real. Round 1 saw the other user's process; CodeRabbit the account that cannot write; round 3 the other account's leftover (seen by running `rename` on APFS, not by reading); round 4 the leftover's silence after that fix. Each was a different path into the same state, a shared `/Applications`, and the rule in `verification.md` (list every path into the state a fix touches) would have caught rounds 3 and 4 in one if the fix had listed the second account as a path. Two process slips: round 1's fixes went out before their CLI review (run right after), and the draft rounds' rows were noted but not committed until the end, which round 4 flagged. The CLI found a new nit on almost every run of the same tree; past the third, its findings were judged for real use and most declined. Changes: none to the rules beyond what the retros of #9 and #50 already say; the second-account case goes into the hand checklist.

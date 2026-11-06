@@ -14,7 +14,7 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | M4 | History window | 2 | blocked (hand checklist; user decision on History's open with no UI process running, 363–423 ms against the 300 ms criterion, since M6a) | [#13](https://github.com/AboulEinein/soroband/pull/13) |
 | M5 | Dynamic Island moments | 2 | blocked (hand checklist: peek, look and feel, the hog's buttons, notifications, full screen, a real hotspot, the Island pane) | [#50](https://github.com/AboulEinein/soroband/pull/50) |
 | M6 | Memory and performance | 3 | blocked (M6a hand checklist) | [#35](https://github.com/AboulEinein/soroband/pull/35), [#36](https://github.com/AboulEinein/soroband/pull/36), [#37](https://github.com/AboulEinein/soroband/pull/37) |
-| M7 | Release v0.1.0 | 3 | planned | – |
+| M7 | Release v0.1.0 | 3 | blocked (hand checklist: second-account install, a fresh agent's install by each route, Location after an update; then the v0.1.0 tag, with the user's approval) | [#54](https://github.com/AboulEinein/soroband/pull/54) |
 
 M0–M6 are merged to `main`. A milestone with a hand checklist stays `blocked` until the user has run it; the checklists are in [`handover.md`](handover.md#next-action).
 
