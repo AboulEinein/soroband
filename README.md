@@ -118,7 +118,7 @@ Bug reports, ideas and pull requests are welcome: see [`CONTRIBUTING.md`](CONTRI
 | --- | --- |
 | `app/` | The menu bar app (AppKit and SwiftUI) |
 | `core/` | The Rust core (meter engine, storage, settings) and the `soroband` command |
-| `docs/` | Design, install guides for agents, and the project's working records |
+| `docs/` | Design, install guides for agents, and the project's working records ([`docs/README.md`](docs/README.md)) |
 | `prototypes/` | Throwaway code that settled the design |
 | `scripts/` | Build, install, packaging and verification scripts |
 

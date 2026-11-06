@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in Soroband. The project is in early development: the roadmap and the state of each milestone are in [`docs/plan.md`](docs/plan.md), and [`docs/handover.md`](docs/handover.md) says what is being worked on next.
+Thanks for your interest in Soroband. Bug reports and ideas go in [issues](https://github.com/AboulEinein/soroband/issues/new/choose); open an issue before a pull request larger than a fix, so we can agree on the approach first. [`docs/README.md`](docs/README.md) maps the documentation; the roadmap is in [`docs/plan.md`](docs/plan.md).
 
 Coding agents start from [`AGENTS.md`](AGENTS.md), which lists the rules every change follows and the documents to read first. People can read it the same way.
 
