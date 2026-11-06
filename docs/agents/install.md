@@ -20,7 +20,7 @@ Ask the user which route they want, recommending the release unless they prefer 
 
 ## 2. Install the release
 
-Work in a new temporary directory. The blocks below use `$dir`: run them in one shell session, or note the path and set `dir` again in each.
+Work in a new temporary directory. The blocks below use `$dir`: run them in one shell session, or note the path and set `dir` again in each (every path below is absolute).
 
 ```sh
 dir=$(mktemp -d)
@@ -35,7 +35,7 @@ The last command must print `Soroband.dmg: OK`. If it prints anything else, stop
 Copy the app into `/Applications`:
 
 ```sh
-hdiutil attach -nobrowse -readonly -mountpoint "$dir/mount" Soroband.dmg
+hdiutil attach -nobrowse -readonly -mountpoint "$dir/mount" "$dir/Soroband.dmg"
 ditto "$dir/mount/Soroband.app" /Applications/Soroband.app
 ```
 
