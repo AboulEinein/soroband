@@ -283,7 +283,7 @@ The steps a milestone needs a person for (a permission prompt, a real hotspot), 
 M3's exit criterion: the user runs the dogfood build every day for a week.
 
 **Dogfood build**:
-The installed release build the user runs daily.
+The installed source build the user runs daily.
 
 **Release**:
 A version published on GitHub by the release workflow from a version tag: `Soroband.dmg` (the app, with the `soroband` command in `Contents/Helpers`), its SHA-256 checksum, and its section of `CHANGELOG.md` as notes. Signed ad hoc, not notarized; `soroband update` installs the newest one.

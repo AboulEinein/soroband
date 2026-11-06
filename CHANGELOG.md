@@ -1,6 +1,6 @@
 # Changelog
 
-Every release of Soroband. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). The release workflow publishes each version's section below as its GitHub release notes, and refuses a section still marked Unreleased.
+Every release of Soroband. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). The release workflow publishes each version's section below as its GitHub release notes, and refuses a section still marked Unreleased or holding a `TODO(release)`.
 
 ## [0.1.0] - Unreleased
 
@@ -20,6 +20,6 @@ The first release.
 
 - **Per-app counting needs macOS 27.** Soroband reads the kernel's per-connection records only in the layouts it has seen on a real Mac. On macOS 14 to 26 it counts each network's total without the per-app breakdown, and the popover says so.
 - **Not notarized.** Soroband is signed ad hoc, without a paid Apple Developer account, so macOS blocks the first launch of the downloaded app once: open System Settings › Privacy & Security and click Open Anyway. An app built from source opens without it.
-- **Location access after an update.** Each release is signed ad hoc, so macOS treats an updated app as a new one. Whether it asks for Location access again after `soroband update` is checked before this release is published, and stated here.
+- **Location access after an update.** Each release is signed ad hoc, so macOS treats an updated app as a new one. TODO(release): whether it asks for Location access again after `soroband update`, as tested.
 
 [0.1.0]: https://github.com/AboulEinein/soroband/releases/tag/v0.1.0

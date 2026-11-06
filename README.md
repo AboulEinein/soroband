@@ -9,7 +9,7 @@
 
 Soroband is a free, open-source macOS menu bar app that meters your internet usage for every app on every network you join: home Wi‑Fi, the office, a café, your iPhone hotspot. The daily counter starts again each day; the history never does. The name is soroban, the Japanese abacus, plus bandwidth.
 
-<p align="center"><img src="docs/screenshots/popover.png" width="386" alt="The popover: today's 5.67 GB on the Home Wi-Fi network with hourly bars, and today's apps, led by Zoom, Google Chrome and Firefox"></p>
+<p align="center"><img src="docs/screenshots/popover.png" width="386" alt="The popover: today's 1.01 GB on the Home Wi-Fi network with hourly bars, and today's apps, led by Zoom, Google Chrome and Firefox"></p>
 
 ## Why
 

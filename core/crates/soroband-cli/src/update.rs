@@ -236,15 +236,23 @@ fn run_tool(command: &mut Command) -> Result<(), String> {
     }
 }
 
-/// Quits the app's menu bar process (its UI process quits with it) and waits for it to exit.
-/// Returns whether it was running.
+unsafe extern "C" {
+    /// `getuid(2)` from libSystem.
+    fn getuid() -> u32;
+}
+
+/// Quits this user's copy of the app's menu bar process (its UI process quits with it) and waits
+/// for it to exit. Returns whether it was running. Another user's copy of the same app is left
+/// alone: this user cannot quit it, and `kill -0` on it fails as if it had exited.
 fn quit(app: &Path) -> Result<bool, String> {
     let pattern = format!(
         "^{}/Contents/MacOS/Soroband$",
         regex_escape(&app.to_string_lossy())
     );
+    // SAFETY: getuid takes no arguments and cannot fail.
+    let uid = unsafe { getuid() }.to_string();
     let output = Command::new("/usr/bin/pgrep")
-        .args(["-f", &pattern])
+        .args(["-U", &uid, "-f", &pattern])
         .output()
         .map_err(|e| format!("cannot run pgrep: {e}"))?;
     let pids: Vec<String> = String::from_utf8_lossy(&output.stdout)

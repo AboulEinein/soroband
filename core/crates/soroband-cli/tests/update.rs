@@ -29,9 +29,14 @@ impl Fixture {
     /// Publishes a release tagged `tag` whose DMG holds an app reading "new"; `checksum` replaces
     /// the DMG's real checksum when given.
     fn publish(&self, tag: &str, checksum: Option<&str>) -> String {
+        self.publish_with(tag, checksum, |app| make_app(app, "new"))
+    }
+
+    /// Publishes a release whose DMG holds the app `make` writes.
+    fn publish_with(&self, tag: &str, checksum: Option<&str>, make: impl FnOnce(&Path)) -> String {
         let release = self.dir.join("release");
         let source = release.join("source");
-        make_app(&source.join("Soroband.app"), "new");
+        make(&source.join("Soroband.app"));
         let dmg = release.join("Soroband.dmg");
         let created = Command::new("/usr/bin/hdiutil")
             .args([
@@ -113,6 +118,19 @@ fn make_app(app: &Path, executable: &str) {
     std::fs::write(macos.join("Soroband"), executable).unwrap();
 }
 
+/// Compiles the C program `source` to `output`.
+fn compile(source: &str, output: &Path) {
+    std::fs::create_dir_all(output.parent().unwrap()).unwrap();
+    let mut cc = Command::new("/usr/bin/cc")
+        .args(["-x", "c", "-", "-o"])
+        .arg(output)
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    std::io::Write::write_all(&mut cc.stdin.take().unwrap(), source.as_bytes()).unwrap();
+    assert!(cc.wait().unwrap().success());
+}
+
 fn text(output: &Output) -> String {
     format!(
         "{}{}",
@@ -130,6 +148,65 @@ fn update_installs_a_newer_release_in_the_apps_place() {
     assert_eq!(fixture.installed(), "new");
     assert_eq!(fixture.applications(), ["Soroband.app"]);
     assert!(text(&output).contains("to 999.0.0"), "{}", text(&output));
+}
+
+/// The app is running while it updates, as it normally is: a program at the app's executable path
+/// that waits for a signal stands in for the menu bar process. The new app is a bundle macOS can
+/// open, whose executable exits at once. Both are compiled here: copies of system binaries in an
+/// app bundle are held at launch by macOS's checks.
+#[test]
+fn update_quits_a_running_app_and_opens_the_new_one() {
+    let fixture = Fixture::new("running");
+    let executable = fixture.app.join("Contents/MacOS/Soroband");
+    compile(
+        "#include <unistd.h>\nint main(void) { pause(); return 0; }",
+        &executable,
+    );
+    let release = fixture.publish_with("v999.0.0", None, |app| {
+        let macos = app.join("Contents/MacOS");
+        std::fs::create_dir_all(&macos).unwrap();
+        compile("int main(void) { return 0; }", &macos.join("Soroband"));
+        std::fs::write(
+            app.join("Contents/Info.plist"),
+            r#"<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+<key>CFBundleExecutable</key><string>Soroband</string>
+<key>CFBundleIdentifier</key><string>io.github.abouleinein.soroband.update-test</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+</dict></plist>
+"#,
+        )
+        .unwrap();
+    });
+    // At its real path, as LaunchServices starts an app: the temporary directory is behind the
+    // /var -> /private/var link, and the command finds the app from its own resolved path.
+    let mut running = Command::new(std::fs::canonicalize(&executable).unwrap())
+        .spawn()
+        .unwrap();
+    let pid = running.id();
+    // Reaped as soon as it exits, as launchd reaps an app: an unreaped exit stays a zombie, which
+    // `kill -0` still finds.
+    let reaper = std::thread::spawn(move || running.wait().unwrap());
+
+    let output = fixture.update(&release, &[]);
+    let exited = reaper.is_finished();
+    if !exited {
+        let _ = Command::new("/bin/kill")
+            .args(["-9", &pid.to_string()])
+            .status();
+    }
+    reaper.join().unwrap();
+    assert!(output.status.success(), "{}", text(&output));
+    assert!(exited, "the running app was not quit");
+    assert!(text(&output).contains("and opened it"), "{}", text(&output));
+    let new = fixture
+        .dir
+        .join("release/source/Soroband.app/Contents/MacOS/Soroband");
+    assert_eq!(
+        std::fs::read(&executable).unwrap(),
+        std::fs::read(new).unwrap()
+    );
+    assert_eq!(fixture.applications(), ["Soroband.app"]);
 }
 
 #[test]
