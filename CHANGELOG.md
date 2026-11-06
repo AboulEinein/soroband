@@ -1,6 +1,6 @@
 # Changelog
 
-Every release of Soroband. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). The release workflow publishes each version's section below as its GitHub release notes, and refuses a section still marked Unreleased or holding a `TODO(release)`.
+Every release of Soroband. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). The release workflow publishes each version's section below as its GitHub release notes, and refuses a section that is not dated or still holds a `TODO(release)`.
 
 ## [0.1.0] - Unreleased
 
