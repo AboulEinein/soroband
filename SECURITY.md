@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Only the latest release gets security fixes. Update with `soroband update`, or `git pull && scripts/install.sh` for a build from source.
+Only the latest release gets security fixes. Update with `soroband update` (`/Applications/Soroband.app/Contents/Helpers/soroband update` without the command linked), or `git pull && scripts/install.sh` for a build from source.
 
 ## Reporting a vulnerability
 
