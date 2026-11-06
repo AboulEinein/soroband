@@ -32,7 +32,7 @@ macOS shows how much data crossed the network, but not which app used it or on w
 
 ## Install
 
-Soroband needs macOS 14 (Sonoma) or later. Per-app counting needs macOS 27 for now: Soroband reads the kernel's per-connection records only in the layouts it has seen on a real Mac, and on macOS 14 to 26 it counts each network's total without the per-app breakdown.
+Soroband needs macOS 14 (Sonoma) or later. Per-app counting needs macOS 27 for now: Soroband reads the kernel's per-connection records only in the layouts it has seen on a real Mac, and on macOS 14 to 26 it counts each network's total without the per-app breakdown, local-network traffic (a NAS, AirPlay, Time Machine) included.
 
 ### Download
 
@@ -69,7 +69,7 @@ macOS reveals the Wi‑Fi network's name only to apps with Location access. At t
 
 ### Update
 
-- **Installed from a release:** `soroband update` downloads the newest release, checks its checksum and replaces the app. `soroband update --check` only says whether there is one.
+- **Installed from a release:** `soroband update` downloads the newest release, checks its checksum and replaces the app. `soroband update --check` only says whether there is one. Without the command linked, run `/Applications/Soroband.app/Contents/Helpers/soroband update`.
 - **Built from source:** `git pull && scripts/install.sh` in your clone.
 
 ### Uninstall

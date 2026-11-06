@@ -20,7 +20,7 @@ Ask the user which route they want, recommending the release unless they prefer 
 
 ## 2. Install the release
 
-Work in a new temporary directory:
+Work in a new temporary directory. The blocks below use `$dir`: run them in one shell session, or note the path and set `dir` again in each.
 
 ```sh
 dir=$(mktemp -d)
