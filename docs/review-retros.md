@@ -743,3 +743,6 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit CLI | 1 Minor | `first look`: SECURITY's `soroband update` needs the command linked; it now gives the full path too. |
 | 1 | Opus | 2 Low | `first look`: the docs map said contributors need none of the records, against CONTRIBUTING; it left out SECURITY.md. |
 | direct | Sonnet | none | Checked 363eb02; resolved both threads. [Comment](https://github.com/AboulEinein/soroband/pull/55#issuecomment-6682065030). |
+| CodeRabbit | CodeRabbit | none | The ready PR, after #54 merged. |
+
+**Retro.** Planned 1 round; it took 1 and a direct review. A docs-only change the reviewer could check link by link; its two findings were where the new map contradicted CONTRIBUTING and what it left out, both answered in wording. The audit's keep/tighten/move decisions were the user's before any edit, so nothing was redone.
