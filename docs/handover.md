@@ -35,9 +35,9 @@ The state of the project for whoever picks it up next. Read this file, then the 
 
 ### M7 hand checklist
 
-1. **Second account.** On a second macOS user account, download the DMG (the dry run's artifact from #54's latest `Release` run, or the release), drag Soroband to Applications, open it and click Open Anyway once: the menu bar item shows. Link the command (`ln -sf /Applications/Soroband.app/Contents/Helpers/soroband ~/.local/bin/soroband`) and run `soroband version`: note whether macOS blocks the command inside the approved app.
+1. **Second account.** On a second macOS user account, download the DMG (the dry run's artifact from #54's latest `Release` run, or the release), drag Soroband to Applications, open it and click Open Anyway once: the menu bar item shows. Link the command (`mkdir -p ~/.local/bin && ln -sf /Applications/Soroband.app/Contents/Helpers/soroband ~/.local/bin/soroband`) and run `~/.local/bin/soroband version`: note whether macOS blocks the command inside the approved app.
 2. **Location after an update.** With a release install, allow Location, then update to a second build (an agent stages one with `SOROBAND_RELEASE_URL` pointing at a `file://` release of a newer tag) while Soroband runs: it quits, is replaced and opens again in the real `/Applications` (App Management may ask). Note whether Settings › General › Wi‑Fi names still reads Allowed, and write it in CHANGELOG's 0.1.0 section.
-3. **Fresh agent.** In a new agent session, paste the README's install prompt, once per route (the source route on a Mac or account without Soroband installed): Soroband ends running.
+3. **Fresh agent.** The README's prompt points at `main` and the latest release, so: the source route once #54 is merged; the release route once v0.1.0 is published (before it, the same check runs against the branch's `docs/agents/install.md` with the dry run's DMG in place of the download). In a new agent session on a Mac or account without Soroband: Soroband ends running.
 
 ### M5 hand checklist
 
