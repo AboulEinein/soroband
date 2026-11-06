@@ -19,8 +19,9 @@ struct UIProcessTests {
 
     /// A stand-in that prints `events` once started, then logs what it reads. With `stateAnswer`,
     /// it answers each `dumpState` with it after `answerDelay` seconds. With `firstStopsReading`,
-    /// the first one started says it is ready, then closes its standard input and stays alive, as a
-    /// UI process that hung or is dying.
+    /// the first one started closes its standard input, then says it is ready and stays alive, as a
+    /// UI process that hung or is dying. Closed first, so every write after `ready` fails: closed
+    /// after, a write made in between lands in the pipe and nothing finds the process stalled.
     private final class StandIn {
         let script: URL
         let log: URL
@@ -44,8 +45,8 @@ struct UIProcessTests {
             let stopsReading = """
                 if [ ! -e '\(started.path)' ]; then
                   touch '\(started.path)'
-                  echo '\(lines[0])'
                   exec 0<&-
+                  echo '\(lines[0])'
                   exec sleep 10
                 fi
                 """

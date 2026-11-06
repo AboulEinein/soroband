@@ -746,3 +746,15 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | none | The ready PR, after #54 merged. |
 
 **Retro.** Planned 1 round; it took 1 and a direct review. A docs-only change the reviewer could check link by link; its two findings were where the new map contradicted CONTRIBUTING and what it left out, both answered in wording. The audit's keep/tighten/move decisions were the user's before any edit, so nothing was redone.
+
+## [#56](https://github.com/AboulEinein/soroband/pull/56) test: fix the flaky UI process and engine stop tests (2026-11-06)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | none | Posted as a COMMENT review with a no-findings body. |
+| CodeRabbit | CodeRabbit | 1 Trivial | Nitpick: a shutdown barrier would make the stop test exact; accepted, with the reason on the PR. |
+
+**Retro.** Planned 1 round; it took 1. Each fix came with a reproduction of the flake (a widened gap, the mutant applied) and a check that the test still fails on the behavior it guards, so the reviewer could confirm both by reading.

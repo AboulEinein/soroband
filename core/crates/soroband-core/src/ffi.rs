@@ -1452,6 +1452,12 @@ mod tests {
         let booked = soroband_engine_status();
         popover_lists_come_from_the_engine(cafe, booked.state == SOROBAND_ENGINE_PER_APP);
         soroband_engine_stop(5_000);
+        // It returned because the engine stopped, not at once: the reads below would otherwise race
+        // the final write and pass or fail with the timing.
+        assert!(
+            *super::lock(&super::RUNNING.get().unwrap().stopped),
+            "soroband_engine_stop returned before the engine stopped"
+        );
         // The list reads when each network was last used from the database, which now holds
         // Cafe's download.
         let networks = json(super::soroband_networks_json());
