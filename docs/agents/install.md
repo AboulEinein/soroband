@@ -24,10 +24,9 @@ Work in a new temporary directory. The blocks below use `$dir`: run them in one 
 
 ```sh
 dir=$(mktemp -d)
-cd "$dir"
-curl -fL -O https://github.com/AboulEinein/soroband/releases/latest/download/Soroband.dmg
-curl -fL -O https://github.com/AboulEinein/soroband/releases/latest/download/Soroband.dmg.sha256
-shasum -a 256 -c Soroband.dmg.sha256
+curl -fL -o "$dir/Soroband.dmg" https://github.com/AboulEinein/soroband/releases/latest/download/Soroband.dmg
+curl -fL -o "$dir/Soroband.dmg.sha256" https://github.com/AboulEinein/soroband/releases/latest/download/Soroband.dmg.sha256
+(cd "$dir" && shasum -a 256 -c Soroband.dmg.sha256)
 ```
 
 The last command must print `Soroband.dmg: OK`. If it prints anything else, stop: delete the directory and tell the user the download did not match its checksum.
@@ -52,7 +51,7 @@ rm -rf "$dir"
 
 ### The quarantine flag
 
-A file downloaded with `curl` carries no quarantine flag, so macOS opens the app without asking. One the user downloaded in a browser does, and macOS then blocks the first launch because Apple has not notarized the app. Check:
+A file downloaded with `curl` carries no quarantine flag, so macOS opens the app without asking. A disk image the user downloaded in a browser does, and macOS then blocks the first launch because Apple has not notarized the app. Check:
 
 ```sh
 xattr -p com.apple.quarantine /Applications/Soroband.app
