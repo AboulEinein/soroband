@@ -173,14 +173,10 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 
 Small items for a later nits pass.
 
-- **Timing-dependent mutant.** `soroband_engine_stop` with its wait condition inverted (`cargo mutants`: `delete !`) was caught in one run and missed in the next: no test reliably sees whether stop waits for the final write.
-- **A UI process test is timing-dependent.** `UIProcessTests.aWindowAskedOfAUIProcessThatStoppedReadingOpensInANewOne` failed once in CI ([#47](https://github.com/AboulEinein/soroband/pull/47), a PR with no Swift change) and passed on a re-run: it waits up to 3 s for a stalled UI process to be replaced, which a slow runner can exceed.
 - **Wi‑Fi moves without a path change.** CoreWLAN's SSID-change events are not watched; a Wi‑Fi move that does not change the `NWPath` keeps the old network until the next path update.
 
 - **History is up to a minute behind.** It reads what the engine has written (once a minute), so it can trail the popover by a minute's usage.
 - **Snapshots on a 1x display are untested.** `Snapshot.render` draws into a fixed 2x Display P3 bitmap so a display's scale or color space cannot change the image; `renderingIgnoresTheDisplayColorSpace` checks the color space only, and no run has been made with a 1x main display.
-- **A timing test that fails on a slow CI runner.** `UIProcessTests.aWindowAskedOfAUIProcessThatStoppedReadingOpensInANewOne` allows 3 s for two shell stand-ins to start and read; it failed once on GitHub's runner during #50 and passed on the re-run and locally.
-- **The timing test now blocks releases.** `UIProcessTests.aWindowAskedOfAUIProcessThatStoppedReadingOpensInANewOne` failed twice more in #54's release dry runs (re-runs passed). The release workflow calls CI, so a tag push can fail on it; re-run the failed jobs.
 - **Overlapping updates.** Two `soroband update` runs at once on one app can remove each other's copies; no lock (`File::lock` needs Rust 1.89, above `rust-version` 1.85).
 - **Evidence branches.** `evidence/pr-35` and `evidence/m6b` hold only screenshots, linked from [#35](https://github.com/AboulEinein/soroband/pull/35)'s comments and [#36](https://github.com/AboulEinein/soroband/pull/36)'s description. Keeping or deleting them is the user's call; deleting them breaks those images.
 
