@@ -249,6 +249,17 @@ fn update_check_reports_a_newer_release_without_installing_it() {
 }
 
 #[test]
+fn update_refuses_arguments_it_does_not_know_and_installs_nothing() {
+    let fixture = Fixture::new("arguments");
+    let release = fixture.publish("v999.0.0", None);
+    for args in [&["--chek"][..], &["--check", "extra"], &["now"]] {
+        let output = fixture.update(&release, args);
+        assert_eq!(output.status.code(), Some(2), "{args:?}: {}", text(&output));
+        assert_eq!(fixture.installed(), "old", "{args:?}");
+    }
+}
+
+#[test]
 fn update_from_a_source_build_points_to_the_clone() {
     let output = Command::new(env!("CARGO_BIN_EXE_soroband"))
         .arg("update")
