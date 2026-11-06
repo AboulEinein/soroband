@@ -118,21 +118,23 @@ fn update(check_only: bool) -> Result<String, String> {
     } else {
         Ok(())
     };
-    let leftover = replaced?;
+    // An old version the update could not remove is named whether or not the app opened.
+    let leftover = replaced?.map_or_else(String::new, |old| {
+        format!(
+            " The old version could not be removed, because another account installed it: remove {} as an administrator.",
+            old.display()
+        )
+    });
     if let Err(e) = opened {
         return Err(format!(
-            "updated {} to {newest_text}, but could not open it: {e}",
+            "updated {} to {newest_text}, but could not open it: {e}.{leftover}",
             app.display()
         ));
     }
     Ok(format!(
-        "Updated {} from {current} to {newest_text}{}.{}",
+        "Updated {} from {current} to {newest_text}{}.{leftover}",
         app.display(),
         if was_running { " and opened it" } else { "" },
-        leftover.map_or_else(String::new, |old| format!(
-            " The old version could not be removed, because another account installed it: remove {} as an administrator.",
-            old.display()
-        ))
     ))
 }
 
