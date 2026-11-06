@@ -64,6 +64,11 @@ jobs:
             echo "::error::CHANGELOG.md has no section for $VERSION."
             exit 1
           fi
+          # A tag publishes only a finished section: dated, not "Unreleased".
+          if [[ $GITHUB_REF == refs/tags/* ]] && grep -q "^## \\[$VERSION\\] - Unreleased" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md's $VERSION section is still Unreleased; date it and finish its notes."
+            exit 1
+          fi
       - run: scripts/package.sh
       - name: Add the checksum to the notes
         run: |

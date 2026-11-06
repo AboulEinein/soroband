@@ -136,10 +136,18 @@ fn update(check_only: bool) -> Result<String, String> {
         let _ = std::fs::remove_dir_all(&staged);
     }
     // Open whichever app is in place now, the new one or, if the move failed, the old one.
-    if was_running {
-        run_tool(Command::new("/usr/bin/open").arg(&app))?;
-    }
+    let opened = if was_running {
+        run_tool(Command::new("/usr/bin/open").arg(&app))
+    } else {
+        Ok(())
+    };
     replaced?;
+    if let Err(e) = opened {
+        return Err(format!(
+            "updated {} to {newest_text}, but could not open it: {e}",
+            app.display()
+        ));
+    }
     Ok(format!(
         "Updated {} from {current} to {newest_text}{}.",
         app.display(),

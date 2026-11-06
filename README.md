@@ -108,7 +108,7 @@ The menu bar app is AppKit and SwiftUI, linked to the Rust core. The design, the
 
 ## Privacy
 
-Soroband reads byte counters, process names and the network's name. It never reads packet contents, has no account and sends nothing anywhere. The only time it connects to anything itself is `soroband update`, when you run it, to download the newest release from GitHub. See [`SECURITY.md`](SECURITY.md).
+Soroband reads byte counters, process names and the network's name. It never reads packet contents, has no account and never sends your usage anywhere. The only time it connects to anything itself is `soroband update`, when you run it, to download the newest release from GitHub. See [`SECURITY.md`](SECURITY.md).
 
 ## Contributing
 
