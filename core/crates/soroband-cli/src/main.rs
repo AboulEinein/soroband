@@ -6,6 +6,7 @@ mod data;
 mod debug;
 mod live;
 mod text;
+mod update;
 mod usage;
 
 use std::process::ExitCode;
@@ -18,6 +19,7 @@ Commands:
   apps                 Today's usage per app, on one network or all (see soroband apps --help)
   config               List, read and change settings (see soroband config --help)
   live                 Internet bytes per app, live (see soroband live --help)
+  update               Install the newest release (see soroband update --help)
   version              Print the version of the soroband command and its core
   help                 Print this help";
 
@@ -59,6 +61,11 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         ["live", rest @ ..] => live::run(rest),
+        ["update", "--help" | "-h"] => {
+            println!("{}", update::USAGE);
+            ExitCode::SUCCESS
+        }
+        ["update", rest @ ..] => update::run(rest),
         #[cfg(debug_assertions)]
         ["debug", rest @ ..] => debug::run(rest),
         _ => {

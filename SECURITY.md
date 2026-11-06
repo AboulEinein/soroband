@@ -10,4 +10,4 @@ Report vulnerabilities privately through [GitHub Security Advisories](https://gi
 - The current network's name (needs the Location permission on macOS) and the router's hardware address, to tell networks apart.
 - A local SQLite database in `~/Library/Application Support/Soroband`.
 
-Soroband does not read packet contents and makes no network requests of its own.
+Soroband does not read packet contents. It makes no network requests of its own, except `soroband update`, which downloads the newest release from GitHub when you run it.
