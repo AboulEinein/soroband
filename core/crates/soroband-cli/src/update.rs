@@ -118,7 +118,7 @@ fn update(check_only: bool) -> Result<String, String> {
     } else {
         Ok(())
     };
-    replaced?;
+    let leftover = replaced?;
     if let Err(e) = opened {
         return Err(format!(
             "updated {} to {newest_text}, but could not open it: {e}",
@@ -126,9 +126,13 @@ fn update(check_only: bool) -> Result<String, String> {
         ));
     }
     Ok(format!(
-        "Updated {} from {current} to {newest_text}{}.",
+        "Updated {} from {current} to {newest_text}{}.{}",
         app.display(),
-        if was_running { " and opened it" } else { "" }
+        if was_running { " and opened it" } else { "" },
+        leftover.map_or_else(String::new, |old| format!(
+            " The old version could not be removed, because another account installed it: remove {} as an administrator.",
+            old.display()
+        ))
     ))
 }
 
@@ -322,17 +326,16 @@ fn sibling(app: &Path, label: &str) -> PathBuf {
     app.with_file_name(format!(".{name}-{label}-{}.app", std::process::id()))
 }
 
-/// Puts `staged` in the app's place, keeping the old app until the new one is there.
-fn replace(app: &Path, staged: &Path) -> Result<(), String> {
+/// Puts `staged` in the app's place, keeping the old app until the new one is there. Returns the
+/// old app's path when it could not be removed (files another account installed).
+fn replace(app: &Path, staged: &Path) -> Result<Option<PathBuf>, String> {
     let old = sibling(app, "old");
-    let _ = std::fs::remove_dir_all(&old);
     std::fs::rename(app, &old).map_err(|e| format!("cannot move {}: {e}", app.display()))?;
     if let Err(e) = std::fs::rename(staged, app) {
         let _ = std::fs::rename(&old, app);
         return Err(format!("cannot move the new app into place: {e}"));
     }
-    let _ = std::fs::remove_dir_all(&old);
-    Ok(())
+    Ok(std::fs::remove_dir_all(&old).is_err().then_some(old))
 }
 
 /// A temporary directory removed when dropped.

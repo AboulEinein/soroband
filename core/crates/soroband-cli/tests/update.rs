@@ -235,6 +235,42 @@ fn update_leaves_the_app_alone_when_it_is_the_newest_release() {
 }
 
 #[test]
+fn update_names_an_old_version_it_could_not_remove() {
+    use std::os::unix::fs::PermissionsExt;
+    let fixture = Fixture::new("undeletable");
+    let release = fixture.publish("v999.0.0", None);
+    // Another account's install: a folder inside the app this user cannot delete from.
+    let locked = fixture.app.join("Contents/MacOS");
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o555)).unwrap();
+    let output = fixture.update(&release, &[]);
+    let left: Vec<_> = std::fs::read_dir(fixture.app.parent().unwrap())
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| {
+            p.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with(".Soroband-old-")
+        })
+        .collect();
+    for old in &left {
+        std::fs::set_permissions(
+            old.join("Contents/MacOS"),
+            std::fs::Permissions::from_mode(0o755),
+        )
+        .unwrap();
+    }
+    assert!(output.status.success(), "{}", text(&output));
+    assert_eq!(fixture.installed(), "new");
+    assert_eq!(left.len(), 1);
+    assert!(
+        text(&output).contains(&left[0].display().to_string()),
+        "{}",
+        text(&output)
+    );
+}
+
+#[test]
 fn update_never_installs_an_older_release() {
     let fixture = Fixture::new("older");
     let release = fixture.publish("v0.0.1", None);
