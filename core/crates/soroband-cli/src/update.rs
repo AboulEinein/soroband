@@ -314,10 +314,12 @@ fn check_writable(app: &Path, dmg_url: &str) -> Result<(), String> {
     }
 }
 
-/// `.<app name>-<label>` next to the app, on the same volume, so a rename moves it into place.
+/// `.<app name>-<label>-<pid>.app` next to the app, on the same volume, so a rename moves it into
+/// place. The pid keeps a leftover this user cannot delete (one another account's update left)
+/// from blocking a rename onto it or mixing into a copy.
 fn sibling(app: &Path, label: &str) -> PathBuf {
     let name = app.file_stem().unwrap_or_default().to_string_lossy();
-    app.with_file_name(format!(".{name}-{label}.app"))
+    app.with_file_name(format!(".{name}-{label}-{}.app", std::process::id()))
 }
 
 /// Puts `staged` in the app's place, keeping the old app until the new one is there.

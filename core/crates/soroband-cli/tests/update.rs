@@ -235,6 +235,40 @@ fn update_leaves_the_app_alone_when_it_is_the_newest_release() {
 }
 
 #[test]
+fn update_never_installs_an_older_release() {
+    let fixture = Fixture::new("older");
+    let release = fixture.publish("v0.0.1", None);
+    let output = fixture.update(&release, &[]);
+    assert!(output.status.success(), "{}", text(&output));
+    assert!(text(&output).contains("is up to date"), "{}", text(&output));
+    assert_eq!(fixture.installed(), "old");
+}
+
+#[test]
+fn update_installs_beside_a_leftover_it_cannot_remove() {
+    use std::os::unix::fs::PermissionsExt;
+    let fixture = Fixture::new("leftover");
+    let release = fixture.publish("v999.0.0", None);
+    // What an update by another account leaves: an old app this user cannot delete, under the name
+    // an update of this user's would choose without its pid.
+    let leftover = fixture.app.with_file_name(".Soroband-old.app");
+    make_app(&leftover, "older");
+    std::fs::set_permissions(
+        leftover.join("Contents/MacOS"),
+        std::fs::Permissions::from_mode(0o555),
+    )
+    .unwrap();
+    let output = fixture.update(&release, &[]);
+    std::fs::set_permissions(
+        leftover.join("Contents/MacOS"),
+        std::fs::Permissions::from_mode(0o755),
+    )
+    .unwrap();
+    assert!(output.status.success(), "{}", text(&output));
+    assert_eq!(fixture.installed(), "new");
+}
+
+#[test]
 fn update_check_reports_a_newer_release_without_installing_it() {
     let fixture = Fixture::new("check");
     let release = fixture.publish("v999.0.0", None);
