@@ -83,6 +83,7 @@ fn update(check_only: bool) -> Result<String, String> {
 
     let dmg_url = asset_url(&release, DMG)?;
     let checksum_url = asset_url(&release, CHECKSUM)?;
+    check_writable(&app, &dmg_url)?;
     let work = WorkDir::new()?;
     let dmg = work.0.join(DMG);
     std::fs::write(&dmg, fetch(&dmg_url, protocols)?).map_err(|e| e.to_string())?;
@@ -97,32 +98,8 @@ fn update(check_only: bool) -> Result<String, String> {
         ));
     }
 
-    let mount = work.0.join("mount");
-    run_tool(
-        Command::new("/usr/bin/hdiutil")
-            .args(["attach", "-quiet", "-nobrowse", "-readonly", "-noautoopen"])
-            .arg("-mountpoint")
-            .arg(&mount)
-            .arg(&dmg),
-    )?;
     let staged = sibling(&app, "update");
-    let copied = (|| {
-        let source = mount.join("Soroband.app");
-        if !source.join("Contents/MacOS/Soroband").exists() {
-            return Err(format!("{DMG} holds no Soroband.app"));
-        }
-        let _ = std::fs::remove_dir_all(&staged);
-        run_tool(Command::new("/usr/bin/ditto").arg(&source).arg(&staged))
-    })();
-    let _ = run_tool(
-        Command::new("/usr/bin/hdiutil")
-            .args(["detach", "-quiet"])
-            .arg(&mount),
-    );
-    if copied.is_err() {
-        let _ = std::fs::remove_dir_all(&staged);
-    }
-    copied?;
+    stage(&dmg, &work.0.join("mount"), &staged)?;
 
     let was_running = match quit(&app) {
         Ok(running) => running,
@@ -153,6 +130,35 @@ fn update(check_only: bool) -> Result<String, String> {
         app.display(),
         if was_running { " and opened it" } else { "" }
     ))
+}
+
+/// Copies the DMG's app to `staged`, next to the installed app, mounting the DMG at `mount` for
+/// the copy. A failed copy leaves nothing at `staged`.
+fn stage(dmg: &Path, mount: &Path, staged: &Path) -> Result<(), String> {
+    run_tool(
+        Command::new("/usr/bin/hdiutil")
+            .args(["attach", "-quiet", "-nobrowse", "-readonly", "-noautoopen"])
+            .arg("-mountpoint")
+            .arg(mount)
+            .arg(dmg),
+    )?;
+    let copied = (|| {
+        let source = mount.join("Soroband.app");
+        if !source.join("Contents/MacOS/Soroband").exists() {
+            return Err(format!("{DMG} holds no Soroband.app"));
+        }
+        let _ = std::fs::remove_dir_all(staged);
+        run_tool(Command::new("/usr/bin/ditto").arg(&source).arg(staged))
+    })();
+    let _ = run_tool(
+        Command::new("/usr/bin/hdiutil")
+            .args(["detach", "-quiet"])
+            .arg(mount),
+    );
+    if copied.is_err() {
+        let _ = std::fs::remove_dir_all(staged);
+    }
+    copied
 }
 
 /// The app bundle this command is in, when its path is `<name>.app/Contents/Helpers/<command>`.
@@ -288,6 +294,24 @@ fn regex_escape(text: &str) -> String {
             special.then_some('\\').into_iter().chain([c])
         })
         .collect()
+}
+
+/// Fails before anything is downloaded when this user cannot replace the app: an account that is
+/// not an administrator cannot write to `/Applications`, and copying in the Finder asks for an
+/// administrator's password instead.
+fn check_writable(app: &Path, dmg_url: &str) -> Result<(), String> {
+    let probe = sibling(app, "write-check");
+    match std::fs::create_dir(&probe) {
+        Ok(()) => {
+            let _ = std::fs::remove_dir(&probe);
+            Ok(())
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => Err(format!(
+            "this account cannot write to {}. Download {dmg_url}, open it and drag Soroband to Applications in the Finder, which asks for an administrator's password.",
+            app.parent().unwrap_or(app).display()
+        )),
+        Err(e) => Err(format!("cannot write next to {}: {e}", app.display())),
+    }
 }
 
 /// `.<app name>-<label>` next to the app, on the same volume, so a rename moves it into place.

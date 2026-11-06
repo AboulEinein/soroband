@@ -260,6 +260,25 @@ fn update_refuses_arguments_it_does_not_know_and_installs_nothing() {
 }
 
 #[test]
+fn update_refuses_before_downloading_when_the_app_cannot_be_replaced() {
+    use std::os::unix::fs::PermissionsExt;
+    let fixture = Fixture::new("read-only");
+    let release = fixture.publish("v999.0.0", None);
+    let applications = fixture.app.parent().unwrap();
+    std::fs::set_permissions(applications, std::fs::Permissions::from_mode(0o555)).unwrap();
+    let output = fixture.update(&release, &[]);
+    std::fs::set_permissions(applications, std::fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(!output.status.success());
+    assert!(
+        text(&output).contains("cannot write to"),
+        "{}",
+        text(&output)
+    );
+    assert_eq!(fixture.installed(), "old");
+    assert_eq!(fixture.applications(), ["Soroband.app"]);
+}
+
+#[test]
 fn update_from_a_source_build_points_to_the_clone() {
     let output = Command::new(env!("CARGO_BIN_EXE_soroband"))
         .arg("update")
