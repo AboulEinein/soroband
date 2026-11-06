@@ -712,3 +712,11 @@ Planned rounds: 3.
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | 3 Minor | `first look`: a reopen failure after a successful swap hid the update's result; the README's "sends nothing anywhere" beside `soroband update`; CHANGELOG's Location placeholder could ship (now refused by the release workflow). |
+
+## [#55](https://github.com/AboulEinein/soroband/pull/55) docs: map the docs and tighten them for a public repository (2026-11-06)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 1 Minor | `first look`: SECURITY's `soroband update` needs the command linked; it now gives the full path too. |
