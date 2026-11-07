@@ -775,3 +775,6 @@ Planned rounds: 2.
 | --- | --- | --- | --- |
 | 1 | Opus | 1 Medium, 2 Low | `first look`: the UI process cancelled every quit the menu bar process had not asked for, log out and shut down included; the quit decision had no test; the new doc comment split `windowsReport`'s from its function. All fixed in 2855ea8. |
 | 2 | Opus | none | All three round-1 threads confirmed fixed; a real log out was not run. |
+| CodeRabbit | CodeRabbit | 1 Minor, 1 Trivial | `missed earlier`: round 1's row gave no finding origin (fixed). `first look`: a nitpick asking to test `windowsChanged` itself; not taken, the decision is a tested plain function and the integration was run in the real app. |
+
+**Retro.** Planned 2 rounds; it took 2. Round 1 caught that cancelling every unrequested quit also refused log out and shut down: the first design thought only of the Dock's Quit, and a list of every sender of a quit event would have caught it before review. A real log out was not run; the quit-reason branch rests on its unit test. The retro rows' missing origins repeat #54's finding: writing each row as a template (`origin`: finding) would stop it.
