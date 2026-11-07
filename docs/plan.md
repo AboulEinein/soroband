@@ -182,7 +182,7 @@ Soroband meters each app's CPU, memory, disk and energy beside its internet byte
 Deliverables:
 - **System gauges** on every engine poll, with no new thread or timer: CPU busy share (`host_statistics`, `HOST_CPU_LOAD_INFO`), memory used, compressed and swapped and the memory pressure level (`host_statistics64`, `HOST_VM_INFO64`, `kern.memorystatus_vm_pressure_level`), and free space on each local volume (`statfs`), read once a minute.
 - **The resource read.** `proc_listcoalitions` and `coalition_info_resource_usage` once a minute, and on every poll while the CPU is over 50% busy or memory is under pressure. Each coalition is credited to an app the way flows are (its leader's outermost `.app`, "macOS & Services", or a command-line tool), so one app carries its bytes and its resources under one name. The counters: CPU time, CPU time billed to it by daemons working for it, disk bytes read and written, energy and GPU energy; the gauges: memory footprint.
-- **A guard and a fallback.** Both calls are exported by `libsystem_kernel` but absent from the public SDK, as the statistics socket is. The engine looks them up at launch, and checks each read against the sum over the coalition's own processes (CPU and footprint matched within 3% in the probe); when either fails, it reads the user's own processes with `proc_pid_rusage` instead and reports degraded in the self-check, as the layout guard does for the socket.
+- **A guard and a fallback.** Both calls are exported by `libsystem_kernel` but absent from the public SDK, as the statistics socket is. The engine looks them up at launch, then checks the layout at launch and once an hour: for each coalition whose processes it can all read, the coalition's CPU time since the last check and its footprint are each at least the sum over its live processes, less 3% for the reads' skew. A coalition also counts processes that exited and processes the user cannot read, so it can exceed that sum but never fall short of it; in the probe, Cursor and Chrome, with 4 and 1 exited processes, read 3.1% and 1.2% above their live processes' CPU, and every listed footprint matched exactly. When the lookup or the check fails, the engine reads the user's own processes with `proc_pid_rusage` instead and reports degraded in the self-check, as the layout guard does for the socket. The hourly check's process scan is about 1 ms, so it adds nothing measurable to the 0.014%.
 - **Storage** (a schema version, one-way like the others): per (hour, app) the counters and the average and peak footprint, with daily sums written in the same transaction; per minute the system gauges and the five busiest apps by CPU and by footprint, kept 7 days by default (`resource_minutes_days`); measured growth per day in the PR.
 - **`soroband`** gains `system` (the gauges now), `top` (the busiest apps now, by any resource) and `apps --by cpu|memory|disk|energy` over any range.
 - `GLOSSARY.md`: the new terms (coalition, resource read, system gauges, footprint, and whatever the milestone names).
@@ -209,14 +209,14 @@ Exit criteria:
 
 ### M10: Resource moments
 
-Moments that fire on change, not on a fixed number, each with Quit, Ignore this app and Snooze:
+Moments that fire on change, not on a fixed number, each with Quit, Dismiss, Ignore this app and Snooze:
 - **Runaway:** an app holding a full core for 5 minutes.
 - **Growing memory:** an app's footprint rising steadily for an hour (a leak), with how much it grew.
 - **Memory pressure:** the level reaching warn or critical, with the app that grew most in the last 10 minutes.
 - **Disk filling:** the start-up disk full within 7 days at its 7-day trend, and the apps writing most.
 - **Heavy writer:** an app writing more than the user's threshold in an hour (`resource_writes_gb`).
 
-An ignored app is shown again only if it gets worse than when it was ignored. Exit criteria:
+After Dismiss, the same moment for that app fires again only if it gets worse than when it was dismissed. Ignore this app adds it to the ignored apps (`island_ignored_apps`), which raise no moment, as for every other moment. Exit criteria:
 - Each moment fires from a scripted load (`moments.sh` extended), and none fires on a recorded idle day.
 - No CPU cost while no moment is showing, measured as in M5.
 
