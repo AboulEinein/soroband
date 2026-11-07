@@ -765,3 +765,7 @@ Planned rounds: 1.
 
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
+| 1 | Opus | 1 Minor | The PR body said `toolbar(removing:)` needs macOS 15; only its `.title` kind does. Body fixed. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. The local CodeRabbit CLI did not run: its quota was spent (rate limit) when the PR opened. The first fix, a hard scroll edge, was installed without a real scroll and did nothing; the user's screenshot caught it. The second was checked with a real scroll and a capture before it reached the user. Lesson: a visual fix is verified on screen before it is handed over, even when that means bringing a window forward.
