@@ -81,9 +81,12 @@ struct MomentQueueTests {
         queue.post(.left(network: office, since: .now, bytes: 0, top: nil), now: 0)
         queue.advance(now: 5)
         #expect(queue.current == nil && queue.waiting.count == 1, "the island is closing")
-        queue.putAway(now: 5.2)
+        let putAwayWhileClosing = queue.putAway(now: 5.2)
+        #expect(putAwayWhileClosing, "a click while it closes still counts")
         queue.advance(now: 6)
         #expect(queue.current == nil && queue.waiting.isEmpty)
+        let putAwayAtRest = queue.putAway(now: 7)
+        #expect(!putAwayAtRest, "nothing open or waiting: nothing to put away")
     }
 
     @Test func clickingThePeekKeepsTheAlertsWaitingBehindIt() {
@@ -94,7 +97,25 @@ struct MomentQueueTests {
         queue.post(hog, now: 1)
         queue.putAway(now: 2)
         #expect(queue.current == nil && queue.waiting.map(\.kind) == [.hog])
-        queue.advance(now: 2.45)
+        // A second click while the peek closes keeps it too.
+        queue.putAway(now: 2.2)
+        #expect(queue.waiting.map(\.kind) == [.hog])
+        queue.advance(now: 2.65)
+        #expect(queue.current?.kind == .hog)
+        // Once the hog has opened, a click puts it away as any moment.
+        queue.post(joined, now: 3)
+        queue.putAway(now: 4)
+        #expect(queue.current == nil && queue.waiting.isEmpty)
+    }
+
+    @Test func aClickInTheGapAfterThePeekClosedOnItsOwnKeepsTheAlertsBehindIt() {
+        var queue = MomentQueue()
+        queue.post(.peek(network: nil, today: 0, down: 0, up: 0, speed: 0, apps: []), now: 0)
+        queue.post(hog, now: 0.1)
+        queue.advance(now: 0.4)
+        #expect(queue.current == nil && queue.waiting.map(\.kind) == [.hog], "the peek closed after 0.4 s")
+        queue.putAway(now: 0.5)
+        queue.advance(now: 0.9)
         #expect(queue.current?.kind == .hog)
     }
 
