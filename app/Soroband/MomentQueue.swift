@@ -85,13 +85,7 @@ struct MomentQueue: Equatable {
         current = moment
         opensAt = nil
         closesAt = hovering ? nil : now + moment.kind.duration
-        if let app = Self.transferApp(moment.content) {
-            if case .transfer(_, _, _, _, true) = moment.content {
-                shownTransfers[app] = nil
-            } else {
-                shownTransfers[app] = now
-            }
-        }
+        markShown(moment, now: now)
     }
 
     /// The pointer entered or left the island's outline.
@@ -109,18 +103,16 @@ struct MomentQueue: Equatable {
         advance(now: now)
     }
 
-    /// Closes the open moment and drops the waiting ones, as a click on the island does. A dropped
-    /// running transfer counts as shown: its progress opens nothing, its end still does. A dropped
-    /// ended one is forgotten, so the app's next transfer starts afresh.
-    mutating func dismissAll(now: TimeInterval) {
-        for moment in waiting {
-            guard let app = Self.transferApp(moment.content) else { continue }
-            if case .transfer(_, _, _, _, true) = moment.content {
-                shownTransfers[app] = nil
-            } else {
-                shownTransfers[app] = now
-            }
+    /// A click on the island: closes the open moment and drops the waiting ones, also in the gap
+    /// between two moments. A dropped transfer counts as shown, as if it had opened: a running
+    /// one's progress opens nothing and its end still does; an ended one is forgotten. A click on
+    /// the peek closes only the peek, since the moments waiting behind it have not been seen.
+    mutating func putAway(now: TimeInterval) {
+        if current?.kind == .peek {
+            dismiss(now: now)
+            return
         }
+        for moment in waiting { markShown(moment, now: now) }
         waiting.removeAll()
         dismiss(now: now)
     }
@@ -151,6 +143,17 @@ struct MomentQueue: Equatable {
         current = nil
         closesAt = nil
         opensAt = now + Self.gap
+    }
+
+    /// A transfer that opened, or was put away: its app's progress opens nothing until it goes
+    /// quiet; its end clears the app, so the next transfer starts afresh.
+    private mutating func markShown(_ moment: Moment, now: TimeInterval) {
+        guard let app = Self.transferApp(moment.content) else { return }
+        if case .transfer(_, _, _, _, true) = moment.content {
+            shownTransfers[app] = nil
+        } else {
+            shownTransfers[app] = now
+        }
     }
 
     private static func transferApp(_ content: MomentContent) -> String? {

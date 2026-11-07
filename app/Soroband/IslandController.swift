@@ -302,12 +302,12 @@ final class IslandController {
         render()
     }
 
-    /// A click on an open moment puts the island away, with the moments waiting behind it. The
-    /// peek opens again only after the pointer leaves and rests on the notch anew.
+    /// A click on the island puts it away (`MomentQueue.putAway`), also while it closes between two
+    /// moments. The peek opens again only after the pointer leaves and rests on the notch anew.
     private func clicked() {
-        guard queue.current != nil else { return }
+        guard queue.current != nil || !queue.waiting.isEmpty else { return }
         peekWait?.cancel()
-        queue.dismissAll(now: now)
+        queue.putAway(now: now)
         render()
     }
 
