@@ -177,7 +177,7 @@ private struct ReadingTile: View {
                     .foregroundStyle(isOn ? .white : .secondary)
                     .frame(width: 28, height: 28)
                     .background(
-                        isOn ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary), in: .rect(cornerRadius: 7)
+                        isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.quaternary), in: .rect(cornerRadius: 7)
                     )
                 VStack(alignment: .leading, spacing: 1) {
                     Text(reading.label).fontWeight(.medium)
@@ -186,18 +186,19 @@ private struct ReadingTile: View {
                 Spacer(minLength: 4)
                 Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 17))
-                    .foregroundStyle(isOn ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
+                    .foregroundStyle(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
             }
             .padding(.leading, 9).padding(.trailing, 12)
             .frame(height: 46)
             .background(
-                isOn ? AnyShapeStyle(Color.accentColor.opacity(0.13)) : AnyShapeStyle(SettingsColor.card),
+                isOn ? AnyShapeStyle(.tint.opacity(0.13)) : AnyShapeStyle(SettingsColor.card),
                 in: .rect(cornerRadius: 10)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
                     .strokeBorder(
-                        isOn ? Color.accentColor.opacity(0.55) : .primary.opacity(0.08), lineWidth: isOn ? 1 : 0.5)
+                        isOn ? AnyShapeStyle(.tint.opacity(0.55)) : AnyShapeStyle(.primary.opacity(0.08)),
+                        lineWidth: isOn ? 1 : 0.5)
             )
             .contentShape(.rect(cornerRadius: 10))
         }
@@ -339,7 +340,8 @@ private struct OrderChip: View {
         .overlay(
             RoundedRectangle(cornerRadius: 6)
                 .strokeBorder(
-                    isTargeted ? Color.accentColor : .primary.opacity(0.13), lineWidth: isTargeted ? 1.5 : 0.5)
+                    isTargeted ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary.opacity(0.13)),
+                    lineWidth: isTargeted ? 1.5 : 0.5)
         )
         .shadow(color: .black.opacity(0.12), radius: 1, y: 1)
     }
@@ -371,7 +373,7 @@ private struct StyleCard: View {
                     .environment(\.colorScheme, .dark)
                 HStack(spacing: 6) {
                     Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
-                        .foregroundStyle(isSelected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
+                        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
                     Text(style.label).fontWeight(.semibold)
                 }
                 .padding(.top, 8).padding(.horizontal, 4)
@@ -386,7 +388,8 @@ private struct StyleCard: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 11)
                     .strokeBorder(
-                        isSelected ? Color.accentColor : .primary.opacity(0.08), lineWidth: isSelected ? 2 : 0.5)
+                        isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary.opacity(0.08)),
+                        lineWidth: isSelected ? 2 : 0.5)
             )
             .contentShape(.rect(cornerRadius: 11))
         }

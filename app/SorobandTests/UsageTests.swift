@@ -67,4 +67,34 @@ struct UsageTests {
         #expect(usage.menuBarLayout.icon == .network)
         #expect(changes == 2)
     }
+
+    /// `soroband config set accent` reaches the UI process: the menu bar process's `Usage` keeps
+    /// the new theme and announces it once (its `onChange` publishes the snapshot), and Settings'
+    /// pick is saved where the command reads it. The values are put back, as above.
+    @Test func theThemeSettingsReachTheSnapshotAndAreSavedFromSettings() throws {
+        let original = (
+            try #require(Core.setting(Appearance.settingKey)), try #require(Core.setting(Accent.settingKey))
+        )
+        defer {
+            Core.setSetting(Appearance.settingKey, to: original.0)
+            Core.setSetting(Accent.settingKey, to: original.1)
+        }
+        let usage = Usage()
+        usage.reloadSettings()
+        var changes = 0
+        usage.onChange = { changes += 1 }
+        #expect(Core.setSetting(Accent.settingKey, to: original.1 == "coral" ? "amber" : "coral"))
+        usage.reloadSettings()
+        #expect(usage.theme.accent == (original.1 == "coral" ? .amber : .coral))
+        #expect(changes == 1)
+        let appearance: Appearance = original.0 == "dark" ? .light : .dark
+        usage.setSetting(Appearance.settingKey, to: appearance.rawValue)
+        #expect(Core.setting(Appearance.settingKey) == appearance.rawValue)
+        #expect(usage.theme.appearance == appearance)
+        #expect(changes == 2)
+        // A value the core refuses is not kept.
+        usage.setSetting(Accent.settingKey, to: "rainbow")
+        #expect(usage.theme.accent == (original.1 == "coral" ? .amber : .coral))
+        #expect(changes == 2)
+    }
 }

@@ -28,7 +28,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         if window == nil {
             Usage.shared.reloadRegistry()
             launchAtLogin.refresh()
-            let window = NSWindow(contentViewController: NSHostingController(rootView: view))
+            let window = NSWindow(contentViewController: NSHostingController(rootView: view.themed()))
             window.title = "Soroband Settings"
             // The sidebar runs the window's full height, under the traffic lights, as in System
             // Settings.
@@ -67,6 +67,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
 struct SettingsView: View {
     enum Tab: String, CaseIterable, Identifiable {
         case general
+        case appearance
         case menuBar = "menu-bar"
         case island
         case networks
@@ -77,6 +78,7 @@ struct SettingsView: View {
         var title: String {
             switch self {
             case .general: "General"
+            case .appearance: "Appearance"
             case .menuBar: "Menu Bar"
             case .island: "Island"
             case .networks: "Networks"
@@ -87,6 +89,7 @@ struct SettingsView: View {
         var symbol: String {
             switch self {
             case .general: "gearshape.fill"
+            case .appearance: "circle.lefthalf.filled"
             case .menuBar: "menubar.rectangle"
             case .island: "capsule.tophalf.filled"
             case .networks: "wifi"
@@ -98,6 +101,7 @@ struct SettingsView: View {
         var tint: Color {
             switch self {
             case .general: .gray
+            case .appearance: .indigo
             case .menuBar: .blue
             case .island: Color(white: 0.12)
             case .networks: .green
@@ -135,6 +139,8 @@ struct SettingsView: View {
             switch selection.tab {
             case .general:
                 GeneralSettings(usage: usage, launchAtLogin: launchAtLogin)
+            case .appearance:
+                AppearanceSettings(theme: usage.theme, set: { usage.setSetting($0, to: $1) })
             case .menuBar:
                 MenuBarSettings(usage: usage)
             case .island:
@@ -364,7 +370,10 @@ struct DayRuler: View {
             HStack(spacing: 3) {
                 ForEach(0..<24, id: \.self) { hour in
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(hour < resetHour ? Color.orange.opacity(0.75) : Color.accentColor.opacity(0.8))
+                        .fill(
+                            hour < resetHour
+                                ? AnyShapeStyle(Color.orange.opacity(0.75)) : AnyShapeStyle(.tint.opacity(0.8))
+                        )
                         .frame(height: hour == resetHour ? 22 : 12)
                 }
             }
@@ -378,7 +387,7 @@ struct DayRuler: View {
             if resetHour > 0 {
                 HStack(spacing: 12) {
                     Label("The day before", systemImage: "circle.fill").foregroundStyle(.orange)
-                    Label("Today", systemImage: "circle.fill").foregroundStyle(Color.accentColor)
+                    Label("Today", systemImage: "circle.fill").foregroundStyle(.tint)
                     Spacer()
                 }
                 .font(.caption2).labelStyle(DotLabelStyle())
