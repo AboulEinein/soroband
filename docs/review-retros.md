@@ -766,3 +766,7 @@ Planned rounds: 1.
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | 1 Minor | The neck's fillets curved outward from 8 pt above the menu bar's lower edge: fixed, the test now checks 0.5 pt above it. |
+| 1 | Opus | none | Posted as a COMMENT review with a no-findings body; the reviewer's own harness found `main` covering the menu bar on 286 sampled frames and the PR on none. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. The test steps the real springs instead of interpolating the metrics, which is what made the bug show: a linear sweep (the earlier no-notch test) never reaches the frames where width and height are out of step. The local CodeRabbit CLI caught the fillet still curving 8 pt into the menu bar, which the first test missed because it checked 28 pt down, not the edge; a boundary test checks the boundary.
