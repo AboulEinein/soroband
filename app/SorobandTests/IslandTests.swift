@@ -75,6 +75,21 @@ struct MomentQueueTests {
         #expect(queue.current?.kind == .hog)
     }
 
+    @Test func aClickedAwayTransferEndLetsTheAppsNextTransferShow() {
+        var queue = MomentQueue()
+        queue.post(transfer(60_000_000), now: 0)
+        queue.post(hog, now: 1)
+        queue.advance(now: 6)
+        queue.advance(now: 6.45)
+        #expect(queue.current?.kind == .hog)
+        // The transfer ends while the hog is open, so its end waits, and a click drops it.
+        queue.post(transfer(90_000_000, done: true), now: 7)
+        queue.dismissAll(now: 8)
+        // The app's next transfer opens a moment, as any first progress does.
+        queue.post(transfer(10_000_000), now: 9)
+        #expect(queue.current?.kind == .transfer)
+    }
+
     @Test func aTransferIsOneMomentWhoseProgressUpdatesItAndWhoseEndOpensItAgain() {
         var queue = MomentQueue()
         let started = queue.post(transfer(50_000_000), now: 0)

@@ -110,10 +110,16 @@ struct MomentQueue: Equatable {
     }
 
     /// Closes the open moment and drops the waiting ones, as a click on the island does. A dropped
-    /// transfer counts as shown: its progress opens nothing, its end still does.
+    /// running transfer counts as shown: its progress opens nothing, its end still does. A dropped
+    /// ended one is forgotten, so the app's next transfer starts afresh.
     mutating func dismissAll(now: TimeInterval) {
         for moment in waiting {
-            if let app = Self.transferApp(moment.content) { shownTransfers[app] = now }
+            guard let app = Self.transferApp(moment.content) else { continue }
+            if case .transfer(_, _, _, _, true) = moment.content {
+                shownTransfers[app] = nil
+            } else {
+                shownTransfers[app] = now
+            }
         }
         waiting.removeAll()
         dismiss(now: now)
