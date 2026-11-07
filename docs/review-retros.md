@@ -758,3 +758,11 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | 1 Trivial | Nitpick: a shutdown barrier would make the stop test exact; accepted, with the reason on the PR. |
 
 **Retro.** Planned 1 round; it took 1. Each fix came with a reproduction of the flake (a widened gap, the mutant applied) and a check that the test still fails on the behavior it guards, so the reviewer could confirm both by reading.
+
+## [#60](https://github.com/AboulEinein/soroband/pull/60) fix(settings): mark the Island pane with a screen's top band (2026-11-07)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | |
