@@ -759,6 +759,18 @@ Planned rounds: 1.
 
 **Retro.** Planned 1 round; it took 1. Each fix came with a reproduction of the flake (a widened gap, the mutant applied) and a check that the test still fails on the behavior it guards, so the reviewer could confirm both by reading.
 
+## [#57](https://github.com/AboulEinein/soroband/pull/57) feat(app): ship the Soroband app icon (2026-11-07)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | none | Posted as a COMMENT review with a no-findings body. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. An asset and a build setting with the bundle's icon keys and a capture as evidence left nothing to find. The first PR body quoted the request with a local path; #64 changes the template so bodies state the request instead.
+
 ## [#64](https://github.com/AboulEinein/soroband/pull/64) docs(review): state the request instead of quoting it (2026-11-08)
 
 Planned rounds: 1.
@@ -770,6 +782,18 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | none | |
 
 **Retro.** Planned 1 round; it took 1. Two sentences changed, and the reviewer's retired-terms search found no other place that still asks for the quoted request.
+
+## [#63](https://github.com/AboulEinein/soroband/pull/63) feat(app): offer the Soroband glyph as the menu bar icon (2026-11-08)
+
+Planned rounds: 2.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | 2 Minor | `first look`: a doc comment wrapped mid-sentence; design.md still said the renderer makes its icon once per symbol. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 2 rounds; it took 1. The round's two Minor findings were wording, fixed and left to CodeRabbit's review of the fix, which raised nothing. The CPU samples overlapped between the glyph and the network icon on a busy Mac; a 10-minute interleaved pair would have settled it, and the code sets the image only when the display changes.
 
 ## [#65](https://github.com/AboulEinein/soroband/pull/65) chore(prototypes): add the system monitor probe (2026-11-08)
 

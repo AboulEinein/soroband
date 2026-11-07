@@ -8,12 +8,13 @@ The first release.
 
 ### Added
 
-- **Menu bar item.** Today's usage on the network you are on, with a network icon. Up to four readings (today's total, download, upload, live download or upload speed), stacked, labeled or inline, counting the current network or every network.
+- **Menu bar item.** Today's usage on the network you are on, with a network icon. Up to four readings (today's total, download, upload, live download or upload speed), stacked, labeled or inline, counting the current network or every network. The icon is the network's kind, or the Soroband glyph (Settings › Menu Bar › Icon, or `menu_bar_icon`).
 - **Popover.** The current network with today's total, its download and upload, and today's hours as bars; today's apps on this network or on all networks; today per network; and "Other / overhead", the gap between what crossed the network and what apps account for.
 - **History.** Day, week, month, year and all time, per network or across all of them: a usage chart, the apps with their split per network, a weekday-by-hour heatmap, and CSV export. Usage is kept forever, per hour, per network and per app.
 - **Networks.** Wi‑Fi (by name once Location access is allowed, by its router until then), Ethernet (by its router) and iPhone hotspots are told apart and metered on their own. Each network can be renamed and given a color.
 - **Dynamic Island moments** (off until turned on). Short updates that grow from the notch: a peek on hover, network joined and left, a hotspot meter, a data hog, background activity, large transfers and a daily recap. Each can be switched off, and alerts become notifications while the island is off.
 - **The `soroband` command.** `soroband today`, `soroband apps` and `soroband live` print usage, with `--json` for scripts and agents; `soroband config` lists and changes every setting, and the running app applies a change at once; `soroband update` installs the newest release.
+- **App icon.** Soroband has its own icon, the Graphite design, in Finder, Launchpad and Settings › About.
 - **Install guides for coding agents:** [`docs/agents/install.md`](docs/agents/install.md) and [`docs/agents/configure.md`](docs/agents/configure.md).
 
 ### Known limitations
