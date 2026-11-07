@@ -774,3 +774,4 @@ Planned rounds: 2.
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | 2 Minor | `first look`: a doc comment wrapped mid-sentence; design.md still said the renderer makes its icon once per symbol. |
