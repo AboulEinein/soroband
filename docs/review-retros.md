@@ -767,3 +767,6 @@ Planned rounds: 1.
 | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | none | |
 | 1 | Opus | none | Posted as a COMMENT review with a no-findings body. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. Two sentences changed, and the reviewer's retired-terms search found no other place that still asks for the quoted request.
