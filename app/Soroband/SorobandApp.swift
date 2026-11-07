@@ -77,6 +77,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard isUIProcess else { return .terminateNow }
+        // Quit from the Dock or ⌘Q while a window is open means Soroband: the menu bar process
+        // quits, and asks this one to.
+        guard UIHost.quitting else {
+            UIHost.send(.quit)
+            return .terminateCancel
+        }
         return HistoryWindow.shared.shouldTerminate { sender.reply(toApplicationShouldTerminate: true) }
     }
 
