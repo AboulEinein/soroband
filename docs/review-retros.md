@@ -766,3 +766,11 @@ Planned rounds: 1.
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | none | |
+
+## [#66](https://github.com/AboulEinein/soroband/pull/66) docs(plan): plan the resource meter as M8 to M10 (2026-11-08)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | |
