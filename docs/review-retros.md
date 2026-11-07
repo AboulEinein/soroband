@@ -775,3 +775,6 @@ Planned rounds: 2.
 | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | none | |
 | 1 | Opus | 2 Minor | `first look`: a doc comment wrapped mid-sentence; design.md still said the renderer makes its icon once per symbol. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 2 rounds; it took 1. The round's two Minor findings were wording, fixed and left to CodeRabbit's review of the fix, which raised nothing. The CPU samples overlapped between the glyph and the network icon on a busy Mac; a 10-minute interleaved pair would have settled it, and the code sets the image only when the display changes.
