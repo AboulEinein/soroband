@@ -1,9 +1,8 @@
 import SwiftUI
 
 /// Settings › Menu Bar: what the menu bar item shows, in which order and style, beside which icon,
-/// with a preview of
-/// the menu bar pinned above. Every change applies at once; Revert goes back to the layout the
-/// page opened with.
+/// with a preview of the menu bar pinned above. Every change applies at once; Revert goes back to
+/// the layout the page opened with.
 struct MenuBarSettings: View {
     let usage: Usage
     /// The preview's clock, and the current network's kind and name.
