@@ -767,3 +767,6 @@ Planned rounds: 1.
 | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | none | |
 | 1 | Opus | none | Posted as a COMMENT review with a no-findings body. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. An asset and a build setting with the bundle's icon keys and a capture as evidence left nothing to find. The first PR body quoted the request with a local path; #64 changes the template so bodies state the request instead.
