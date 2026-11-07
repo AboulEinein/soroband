@@ -758,3 +758,11 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | 1 Trivial | Nitpick: a shutdown barrier would make the stop test exact; accepted, with the reason on the PR. |
 
 **Retro.** Planned 1 round; it took 1. Each fix came with a reproduction of the flake (a widened gap, the mutant applied) and a check that the test still fails on the behavior it guards, so the reviewer could confirm both by reading.
+
+## [#58](https://github.com/AboulEinein/soroband/pull/58) fix(island): close the island with a click (2026-11-07)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 2 Minor | A click on the moment's content would be dropped by `FlippedView`'s first-mouse answer: not valid, a real click on the content closed the island. A clicked-away ended transfer kept its app marked for 30 s: fixed, with a test. |
