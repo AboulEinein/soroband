@@ -415,8 +415,8 @@ fn cmd_top(secs: u64) {
     s.scan(&mut p1);
     c.sample(&mut c1);
 
-    // Coalition membership and a name: the member with the largest footprint
-    // whose name is not a helper is a good enough label for the spike.
+    // Coalition membership and a name: the member with the lowest pid, usually
+    // the app that launched the rest, is a good enough label for the spike.
     let mut members: HashMap<u64, Vec<i32>> = HashMap::new();
     for &pid in p1.keys() {
         if let Some(cid) = coalition_of(pid) { members.entry(cid).or_default().push(pid); }
@@ -478,20 +478,20 @@ fn cmd_energy(secs: u64) {
     for &pid in &pids {
         if let Some(cid) = coalition_of(pid) { members.entry(cid).or_default().push(pid); }
     }
-    let mut rows: Vec<(u64, f64, f64)> = c1.iter().filter_map(|(id, u1)| {
+    let mut rows: Vec<(u64, f64, f64, f64)> = c1.iter().filter_map(|(id, u1)| {
         let u0 = c0.get(id)?;
         let coal_w = (u1.energy - u0.energy) as f64 / 1e9 / secs as f64;
-        let _gpu_w = (u1.rest[COAL_GPU_ENERGY_NJ] - u0.rest[COAL_GPU_ENERGY_NJ]) as f64 / 1e9 / secs as f64;
+        let gpu_w = (u1.rest[COAL_GPU_ENERGY_NJ] - u0.rest[COAL_GPU_ENERGY_NJ]) as f64 / 1e9 / secs as f64;
         let pid_w: f64 = members.get(id).map_or(0.0, |m| m.iter()
             .filter_map(|p| Some((e1.get(p)? - e0.get(p)?) as f64 / 1e9 / secs as f64)).sum());
-        Some((*id, coal_w, pid_w))
+        Some((*id, coal_w, pid_w, gpu_w))
     }).collect();
     rows.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
     println!("Over {secs} s, average watts (energy fields read as nJ):");
-    println!("{:<40} {:>10} {:>12}", "app (coalition leader)", "coalition", "ri_energy_nj");
-    for (id, cw, pw) in rows.iter().take(12) {
+    println!("{:<40} {:>10} {:>12} {:>10}", "app (coalition leader)", "coalition", "ri_energy_nj", "gpu");
+    for (id, cw, pw, gw) in rows.iter().take(12) {
         let name = members.get(id).and_then(|m| m.iter().min()).map_or(format!("coalition {id}"), |&p| name_of(p));
-        println!("{name:<40} {cw:>9.3}W {pw:>11.3}W");
+        println!("{name:<40} {cw:>9.3}W {pw:>11.3}W {gw:>9.3}W");
     }
 }
 

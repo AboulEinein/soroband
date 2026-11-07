@@ -7,8 +7,15 @@ cargo build --release --quiet
 probe=$PWD/target/release/sysmon-probe
 lock=${0:A:h}/../../scripts/verify/measure-lock.py
 secs=${1:-600}
-python3 $lock sysmon-probe zsh -c "
-  $probe bench
-  for mode in idle gauges scan coal tiered; do $probe run \$mode $secs & done
-  wait
-"
+python3 "$lock" sysmon-probe zsh -c '
+  probe=$1 secs=$2
+  "$probe" bench || exit 1
+  pids=()
+  for mode in idle gauges scan coal tiered; do
+    "$probe" run $mode $secs &
+    pids+=($!)
+  done
+  failed=0
+  for pid in $pids; do wait $pid || failed=1; done
+  exit $failed
+' sysmon-probe "$probe" "$secs"
