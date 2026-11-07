@@ -24,6 +24,7 @@ Exit status: 0 on success; 2 for an unknown key or a value outside the setting's
 | `menu_bar_scope` | choice: `network`, `all` | `network` | Whose usage today the menu bar item counts: the current network's or every network's. |
 | `menu_bar_readings` | list: up to 4 of `total`, `download`, `upload`, `speed_down`, `speed_up`, separated by commas, or `none` | `total` | What the menu bar item shows beside its icon, in order: today's total, download or upload, or the live download or upload speed. `none` leaves the icon alone. Example: `soroband config set menu_bar_readings download,upload`. |
 | `menu_bar_style` | choice: `stacked`, `labeled`, `inline` | `stacked` | How the readings are drawn: in pairs, the first on top, in a smaller size; each under a small caption; or on one line. |
+| `menu_bar_icon` | choice: `network`, `soroband` | `network` | The menu bar item's icon: the current network's kind (Wi‑Fi, hotspot, Ethernet), or the Soroband glyph on every network. While counting has stopped it is a warning sign either way. |
 | `island` | choice: `on`, `off` | `off` | Whether the island at the notch shows moments; off makes Soroband a plain menu bar app. |
 | `island_style` | choice: `seamless`, `clear` | `seamless` | How the island opens: over the menu bar beside the notch, or notch-wide in the menu bar and wider only below it. |
 | `island_moments` | list: any of `peek`, `joined`, `left`, `hotspot`, `hog`, `background`, `transfer`, `recap`, or `none` | all but `recap` | The moments the island shows. |

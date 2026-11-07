@@ -532,7 +532,9 @@ struct UIHostTests {
             registry: [
                 RegisteredNetwork(id: 2, key: "wifi:Home", name: "Home", kind: .wifi, lastUsed: 1_793_000_000, color: 3)
             ],
-            menuBarLayout: MenuBarLayout(scope: .all, readings: [.download, .speedUp], style: .labeled), resetHour: 4,
+            menuBarLayout: MenuBarLayout(
+                scope: .all, readings: [.download, .speedUp], style: .labeled, icon: .soroband),
+            resetHour: 4,
             current: Network(id: 2, key: "wifi:Home", name: "Home", kind: .wifi),
             connectedSince: Date(timeIntervalSince1970: 1_792_990_000))
         let line = try JSONEncoder().encode(UIRequest.snapshot(snapshot))

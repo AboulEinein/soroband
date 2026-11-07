@@ -383,6 +383,9 @@ struct DebugState: Encodable {
         /// As `menu_bar_readings` stores them.
         let readings: String
         let style: String
+        /// The `menu_bar_icon` setting.
+        let icon: String
+        /// The SF Symbol drawn; nil while the Soroband glyph is.
         let symbol: String?
         let text: String?
     }
@@ -437,7 +440,8 @@ struct DebugState: Encodable {
                 scope: Usage.shared.menuBarLayout.scope.rawValue,
                 readings: Usage.shared.menuBarLayout.readingsValue,
                 style: Usage.shared.menuBarLayout.style.rawValue,
-                symbol: MenuBarController.shared.display?.symbol,
+                icon: Usage.shared.menuBarLayout.icon.rawValue,
+                symbol: MenuBarController.shared.display?.icon.symbol,
                 text: MenuBarController.shared.display?.text),
             popoverShown: ui?.popoverShown ?? false,
             settingsTab: ui?.settingsTab,

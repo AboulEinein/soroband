@@ -167,11 +167,11 @@ _Avoid_: over-counted, over-count
 ## Interface
 
 **Menu bar item**:
-The always-present item in the menu bar: network icon and today's interface bytes on the current network by default. "Not counting" when the engine has stopped.
+The always-present item in the menu bar: the network kind's icon (or the Soroband glyph) and today's interface bytes on the current network by default. "Not counting" when the engine has stopped.
 _Avoid_: status item, menu bar label
 
 **Menu bar layout**:
-What the menu bar item shows next to its icon: up to four readings in order, counting today on the current network or on every network, drawn in a menu bar style (the `menu_bar_readings`, `menu_bar_scope` and `menu_bar_style` settings). No reading leaves the icon alone.
+What the menu bar item shows: its icon, the network kind's or the Soroband glyph, and next to it up to four readings in order, counting today on the current network or on every network, drawn in a menu bar style (the `menu_bar_icon`, `menu_bar_readings`, `menu_bar_scope` and `menu_bar_style` settings). No reading leaves the icon alone.
 _Avoid_: display mode, menu bar mode, menu bar count, menu bar line
 
 **Reading**:
@@ -179,6 +179,10 @@ One value the menu bar item can show: today's total, download or upload as cross
 
 **Menu bar style**:
 How the readings are drawn: **stacked** (in pairs, the first on top, in a smaller size; a reading without a partner at full size), **labeled** (each value under a small caption) or **inline** (one line at the menu bar's size).
+
+**Soroband glyph**:
+The Soroband mark (a rounded diamond cut by an S) as the menu bar item's icon, in place of the network kind's, whatever the network (`menu_bar_icon` `soroband`). While the engine has stopped, a warning sign replaces it as it replaces the network icon.
+_Avoid_: logo, app icon (the icon in Finder and the Dock)
 
 **Live speed**:
 Interface bytes per second, down and up, over the last poll.
