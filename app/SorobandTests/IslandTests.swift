@@ -261,8 +261,9 @@ struct IslandOutlineTests {
                     let metrics = IslandMetrics(
                         width: springs[0].value, height: springs[1].value, radius: springs[2].value,
                         bandWidth: springs[3].value)
-                    // 4 pt beside the notch, near the top of the menu bar and near its bottom.
-                    for below in [CGFloat(6), 28] {
+                    // 4 pt beside the notch: near the top of the menu bar, and just above its
+                    // lower edge.
+                    for below in [CGFloat(6), 31.5] {
                         #expect(
                             !contains(metrics, point(geometry.notchWidth / 2 + 4, below: below)),
                             "\(kind) \(to == open ? "opening" : "closing") frame \(frame), \(below) pt down")

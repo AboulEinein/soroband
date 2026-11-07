@@ -120,10 +120,11 @@ func islandPath(_ m: IslandMetrics, band: CGFloat, in rect: CGRect, flipped: Boo
     let left = cx - width / 2
     let right = cx + width / 2
     let necked = neckable && below > 0
-    // The fillets where the neck meets the wider part shrink with the room they have, so the
-    // outline changes smoothly from frame to frame.
-    let f = necked ? min(8, (m.width - m.bandWidth) / 2, below / 2) : 0
-    let r = necked ? min(m.radius, width / 2, below - f) : min(m.radius, m.height / 2, width / 2)
+    // The fillets where the neck meets the wider part start at the menu bar's lower edge, and
+    // shrink with the room they have, so the outline changes smoothly from frame to frame.
+    let f = necked ? min(8, (m.width - m.bandWidth) / 2, below / 3) : 0
+    let r = necked ? min(m.radius, width / 2, below - 2 * f) : min(m.radius, m.height / 2, width / 2)
+    let shoulder = band + f
     let ear = min(6, m.height / 3)
     let nl = cx - m.bandWidth / 2
     let nr = cx + m.bandWidth / 2
@@ -132,20 +133,20 @@ func islandPath(_ m: IslandMetrics, band: CGFloat, in rect: CGRect, flipped: Boo
     p.move(to: pt(topLeft - ear, 0))
     p.addQuadCurve(to: pt(topLeft, ear), control: pt(topLeft, 0))
     if necked {
-        p.addLine(to: pt(nl, band - f))
-        p.addQuadCurve(to: pt(nl - f, band), control: pt(nl, band))
-        p.addLine(to: pt(left + f, band))
-        p.addQuadCurve(to: pt(left, band + f), control: pt(left, band))
+        p.addLine(to: pt(nl, band))
+        p.addQuadCurve(to: pt(nl - f, shoulder), control: pt(nl, shoulder))
+        p.addLine(to: pt(left + f, shoulder))
+        p.addQuadCurve(to: pt(left, shoulder + f), control: pt(left, shoulder))
     }
     p.addLine(to: pt(left, m.height - r))
     p.addQuadCurve(to: pt(left + r, m.height), control: pt(left, m.height))
     p.addLine(to: pt(right - r, m.height))
     p.addQuadCurve(to: pt(right, m.height - r), control: pt(right, m.height))
     if necked {
-        p.addLine(to: pt(right, band + f))
-        p.addQuadCurve(to: pt(right - f, band), control: pt(right, band))
-        p.addLine(to: pt(nr + f, band))
-        p.addQuadCurve(to: pt(nr, band - f), control: pt(nr, band))
+        p.addLine(to: pt(right, shoulder + f))
+        p.addQuadCurve(to: pt(right - f, shoulder), control: pt(right, shoulder))
+        p.addLine(to: pt(nr + f, shoulder))
+        p.addQuadCurve(to: pt(nr, band), control: pt(nr, shoulder))
     }
     p.addLine(to: pt(topRight, ear))
     p.addQuadCurve(to: pt(topRight + ear, 0), control: pt(topRight, 0))
