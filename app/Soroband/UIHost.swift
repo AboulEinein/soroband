@@ -63,11 +63,6 @@ enum UIHost {
         send(report)
     }
 
-    /// What to tell the menu bar process about the windows: a change, and the state after every
-    /// request for a window even when nothing changed. The menu bar process counts a window as
-    /// open from the moment it asks for one, so a request that opens nothing (a click within
-    /// 0.3 s of a close, History options it cannot read) must still be answered, or the linger
-    /// never runs.
     /// The activation policy to change to, or nil to keep `current`. Settings, History and the
     /// Welcome window are windows the user switches to and from, so while one is open Soroband is
     /// in the Dock and the app switcher; the popover alone keeps it a menu bar app. Before its
@@ -80,6 +75,22 @@ enum UIHost {
         return policy == current ? nil : policy
     }
 
+    /// What the UI process does with a quit. One the menu bar process asked for (the linger ran
+    /// out, Soroband quits) or one with a quit reason (log out, restart, shut down) goes ahead;
+    /// any other, Quit from the Dock or ⌘Q, means Soroband, so it goes to the menu bar process.
+    enum QuitReply: Equatable {
+        case quit, askMenuBar
+    }
+
+    nonisolated static func quitReply(askedByMenuBar: Bool, hasQuitReason: Bool) -> QuitReply {
+        askedByMenuBar || hasQuitReason ? .quit : .askMenuBar
+    }
+
+    /// What to tell the menu bar process about the windows: a change, and the state after every
+    /// request for a window even when nothing changed. The menu bar process counts a window as
+    /// open from the moment it asks for one, so a request that opens nothing (a click within
+    /// 0.3 s of a close, History options it cannot read) must still be answered, or the linger
+    /// never runs.
     nonisolated static func windowsReport(open: Bool, reported: Bool?, after request: UIRequest?) -> UIEvent? {
         guard open != reported || request?.showsWindow == true else { return nil }
         return .windows(open: open)

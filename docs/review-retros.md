@@ -773,3 +773,4 @@ Planned rounds: 2.
 
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
+| 1 | Opus | 1 Medium, 2 Low | The UI process cancelled every quit the menu bar process had not asked for, log out and shut down included; the quit decision had no test; the new doc comment split `windowsReport`'s from its function. All fixed. |

@@ -484,6 +484,16 @@ struct UIHostTests {
             "a UI process that has shown nothing yet never takes activation")
     }
 
+    @Test func quitFromTheDockQuitsSorobandButLogOutIsNeverRefused() {
+        #expect(
+            UIHost.quitReply(askedByMenuBar: false, hasQuitReason: false) == .askMenuBar,
+            "Dock Quit or ⌘Q: the menu bar process quits Soroband, not only the windows")
+        #expect(UIHost.quitReply(askedByMenuBar: true, hasQuitReason: false) == .quit, "the linger ran out")
+        #expect(
+            UIHost.quitReply(askedByMenuBar: false, hasQuitReason: true) == .quit,
+            "log out, restart and shut down are never cancelled")
+    }
+
     @Test func aWindowCaptureGoesToTheProcessThatHasTheWindow() {
         #expect(DebugCommands.captureTarget(number: 7, here: [3, 7], uiProcessRuns: true) == .here)
         #expect(DebugCommands.captureTarget(number: 9, here: [3, 7], uiProcessRuns: true) == .uiProcess)
