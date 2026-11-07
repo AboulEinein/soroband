@@ -759,6 +759,18 @@ Planned rounds: 1.
 
 **Retro.** Planned 1 round; it took 1. Each fix came with a reproduction of the flake (a widened gap, the mutant applied) and a check that the test still fails on the behavior it guards, so the reviewer could confirm both by reading.
 
+## [#57](https://github.com/AboulEinein/soroband/pull/57) feat(app): ship the Soroband app icon (2026-11-07)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | none | Posted as a COMMENT review with a no-findings body. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. An asset and a build setting with the bundle's icon keys and a capture as evidence left nothing to find. The first PR body quoted the request with a local path; #64 changes the template so bodies state the request instead.
+
 ## [#64](https://github.com/AboulEinein/soroband/pull/64) docs(review): state the request instead of quoting it (2026-11-08)
 
 Planned rounds: 1.
