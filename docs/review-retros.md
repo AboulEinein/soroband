@@ -771,6 +771,17 @@ Planned rounds: 1.
 
 **Retro.** Planned 1 round; it took 1. An asset and a build setting with the bundle's icon keys and a capture as evidence left nothing to find. The first PR body quoted the request with a local path; #64 changes the template so bodies state the request instead.
 
+## [#64](https://github.com/AboulEinein/soroband/pull/64) docs(review): state the request instead of quoting it (2026-11-08)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | none | Posted as a COMMENT review with a no-findings body. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. Two sentences changed, and the reviewer's retired-terms search found no other place that still asks for the quoted request.
 ## [#62](https://github.com/AboulEinein/soroband/pull/62) feat(app): show Soroband in the Dock while a window is open (2026-11-08)
 
 Planned rounds: 2.
@@ -780,6 +791,7 @@ Planned rounds: 2.
 | 1 | Opus | 1 Medium, 2 Low | `first look`: the UI process cancelled every quit the menu bar process had not asked for, log out and shut down included; the quit decision had no test; the new doc comment split `windowsReport`'s from its function. All fixed in 2855ea8. |
 | 2 | Opus | none | All three round-1 threads confirmed fixed; a real log out was not run. |
 | CodeRabbit | CodeRabbit | 1 Minor, 1 Trivial | `missed earlier`: round 1's row gave no finding origin (fixed). `missed earlier`: a nitpick asking to test `windowsChanged` itself (round 1 could see it); accepted as a handover follow-up, the decision is a tested plain function and the integration was run in the real app. |
-| CodeRabbit | CodeRabbit | 2 Minor | `missed earlier`: the accepted nitpick named no allowed basis (now a handover follow-up); its origin was `first look` where round 1 could see it. Both fixed in the records. |
+| CodeRabbit | CodeRabbit | 2 Minor | `first look`: the accepted nitpick named no allowed basis (now a handover follow-up); its origin was `first look` where round 1 could see it; both came in with the records commit. Both fixed. |
+| CodeRabbit | CodeRabbit | 1 Minor | `first look`: the last row's origins were `missed earlier` for defects the records commit brought in. Fixed. |
 
 **Retro.** Planned 2 rounds; it took 2. Round 1 caught that cancelling every unrequested quit also refused log out and shut down: the first design thought only of the Dock's Quit, and a list of every sender of a quit event would have caught it before review. A real log out was not run; the quit-reason branch rests on its unit test. The retro rows' missing origins repeat #54's finding: writing each row as a template (`origin`: finding) would stop it.
