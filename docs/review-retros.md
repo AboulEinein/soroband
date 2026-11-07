@@ -766,3 +766,10 @@ Planned rounds: 1.
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | none | |
+
+## [#62](https://github.com/AboulEinein/soroband/pull/62) feat(app): show Soroband in the Dock while a window is open (2026-11-08)
+
+Planned rounds: 2.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
