@@ -766,3 +766,7 @@ Planned rounds: 1.
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | none | Posted as a COMMENT review with a no-findings body. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. The symbol was the user's pick from rendered candidates, so the review had only the one call site and the symbol's availability to check.
