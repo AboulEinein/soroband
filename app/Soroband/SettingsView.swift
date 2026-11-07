@@ -88,7 +88,7 @@ struct SettingsView: View {
             switch self {
             case .general: "gearshape.fill"
             case .menuBar: "menubar.rectangle"
-            case .island: "capsule.tophalf.filled"
+            case .island: "rectangle.topthird.inset.filled"
             case .networks: "wifi"
             case .about: "info"
             }
