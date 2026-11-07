@@ -794,3 +794,11 @@ Planned rounds: 2.
 | CodeRabbit | CodeRabbit | none | |
 
 **Retro.** Planned 2 rounds; it took 1. The round's two Minor findings were wording, fixed and left to CodeRabbit's review of the fix, which raised nothing. The CPU samples overlapped between the glyph and the network icon on a busy Mac; a 10-minute interleaved pair would have settled it, and the code sets the image only when the display changes.
+
+## [#67](https://github.com/AboulEinein/soroband/pull/67) feat(app): theme Soroband's windows with an appearance and an accent color (2026-11-08)
+
+Planned rounds: 2.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | |
