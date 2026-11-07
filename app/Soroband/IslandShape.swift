@@ -112,16 +112,23 @@ func islandPath(_ m: IslandMetrics, band: CGFloat, in rect: CGRect, flipped: Boo
         return p
     }
     let cx = rect.midX
-    let left = cx - m.width / 2
-    let right = cx + m.width / 2
-    let r = min(m.radius, m.height / 2, m.width / 2)
+    // Wider than the band: only the part below the menu bar may be wider. While the shape is
+    // still no deeper than the menu bar, it is only as wide as the band.
+    let neckable = m.bandWidth > 0 && m.bandWidth < m.width
+    let below = m.height - band
+    let width = neckable && below <= 0 ? m.bandWidth : m.width
+    let left = cx - width / 2
+    let right = cx + width / 2
+    let necked = neckable && below > 0
+    // The fillets where the neck meets the wider part shrink with the room they have, so the
+    // outline changes smoothly from frame to frame.
+    let f = necked ? min(8, (m.width - m.bandWidth) / 2, below / 2) : 0
+    let r = necked ? min(m.radius, width / 2, below - f) : min(m.radius, m.height / 2, width / 2)
     let ear = min(6, m.height / 3)
-    let necked = m.bandWidth < m.width - 12 && m.height > band + 12 && m.bandWidth > 0
     let nl = cx - m.bandWidth / 2
     let nr = cx + m.bandWidth / 2
     let topLeft = necked ? nl : left
     let topRight = necked ? nr : right
-    let f: CGFloat = 8
     p.move(to: pt(topLeft - ear, 0))
     p.addQuadCurve(to: pt(topLeft, ear), control: pt(topLeft, 0))
     if necked {

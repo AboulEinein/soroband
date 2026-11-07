@@ -245,6 +245,33 @@ struct IslandOutlineTests {
         }
     }
 
+    @Test func keepMenuBarClearNeverCoversTheMenuBarBesideTheNotchWhileItGrowsOrShrinks() {
+        // Every frame the springs draw while a moment opens and closes: the shape may widen only
+        // below the menu bar, so the menu bar beside the notch stays uncovered throughout.
+        let rest = IslandMetrics.rest(geometry, style: .clear)
+        for kind in [MomentKind.joined, .hog, .peek] {
+            let open = IslandMetrics.open(kind, geometry, style: .clear)
+            for (from, to) in [(rest, open), (open, rest)] {
+                var springs = [from.width, from.height, from.radius, from.bandWidth].map { Spring(value: $0) }
+                for (index, value) in [to.width, to.height, to.radius, to.bandWidth].enumerated() {
+                    springs[index].target = value
+                }
+                for frame in 0..<120 {
+                    for index in springs.indices { springs[index].advance(1.0 / 60) }
+                    let metrics = IslandMetrics(
+                        width: springs[0].value, height: springs[1].value, radius: springs[2].value,
+                        bandWidth: springs[3].value)
+                    // 4 pt beside the notch, near the top of the menu bar and near its bottom.
+                    for below in [CGFloat(6), 28] {
+                        #expect(
+                            !contains(metrics, point(geometry.notchWidth / 2 + 4, below: below)),
+                            "\(kind) \(to == open ? "opening" : "closing") frame \(frame), \(below) pt down")
+                    }
+                }
+            }
+        }
+    }
+
     @Test func aDisplayWithoutANotchShowsNothingAtRest() {
         let flat = IslandGeometry(notchWidth: 0, menuBarHeight: 24)
         #expect(islandPath(.rest(flat), band: 24, in: panel).isEmpty)
