@@ -766,3 +766,6 @@ Planned rounds: 1.
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | 2 Minor | A click on the moment's content would be dropped by `FlippedView`'s first-mouse answer: not valid, a real click on the content closed the island. A clicked-away ended transfer kept its app marked for 30 s: fixed, with a test. |
+| 1 | Opus | 2 Low, 1 unrated | A click in the gap between moments did nothing; the transfer bookkeeping was copied in two places; a click on the peek dropped alerts queued behind it (Discussion). All fixed in a753e0a. |
+| 2 | Opus | 1 Medium, 3 Low | A second click in the gap after the peek, or one after the peek closed on its own, still dropped the alerts behind it: a path into the same state the round-1 fix missed. The gap guard sat in the controller, untested; this entry had no round rows; the PR body named `dismissAll`. Code fixed in 57408f1, body edited. |
+| 3 | Opus | 1 Low | No new findings in the code; the round rows 57408f1's message named were not in it. Added here. |
