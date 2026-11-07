@@ -11,6 +11,8 @@ final class IslandView: NSView {
     let geometry: IslandGeometry
     /// The pointer entered (true) or left (false) the island's outline.
     var onHover: ((Bool) -> Void)?
+    /// A click on the island outside its buttons.
+    var onClick: (() -> Void)?
 
     private let shape = CAShapeLayer()
     private var springs: [Spring]
@@ -191,6 +193,12 @@ final class IslandView: NSView {
         addTrackingArea(area)
         tracking = area
     }
+
+    /// The panel never becomes key, so the first click is the one that counts.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    /// Clicks reach here from the island's content; its buttons handle their own.
+    override func mouseDown(with event: NSEvent) { onClick?() }
 
     override func mouseEntered(with event: NSEvent) { pointer(at: event) }
     override func mouseMoved(with event: NSEvent) { pointer(at: event) }

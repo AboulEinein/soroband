@@ -57,6 +57,24 @@ struct MomentQueueTests {
         #expect(queue.current == nil)
     }
 
+    @Test func clickingTheIslandClosesItAndDropsTheMomentsWaitingBehindIt() {
+        // Back-to-back moments keep the island open for half a minute with only 0.45 s gaps; one
+        // click puts it away for all of them.
+        var queue = MomentQueue()
+        queue.post(hog, now: 0)
+        queue.post(joined, now: 0)
+        queue.post(transfer(60_000_000), now: 0)
+        queue.hover(true, now: 1)
+        queue.dismissAll(now: 2)
+        #expect(queue.current == nil && queue.waiting.isEmpty)
+        #expect(queue.nextChange == nil, "nothing opens after the gap")
+        // The transfer's progress opens nothing new; a new alert still shows.
+        queue.post(transfer(80_000_000), now: 3)
+        #expect(queue.current == nil)
+        queue.post(hog, now: 4)
+        #expect(queue.current?.kind == .hog)
+    }
+
     @Test func aTransferIsOneMomentWhoseProgressUpdatesItAndWhoseEndOpensItAgain() {
         var queue = MomentQueue()
         let started = queue.post(transfer(50_000_000), now: 0)
