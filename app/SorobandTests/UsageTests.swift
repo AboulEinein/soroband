@@ -48,4 +48,23 @@ struct UsageTests {
         #expect(usage.menuBarLayout.readingsValue == changed)
         #expect(changes == 1)
     }
+
+    /// The icon reaches the menu bar from `soroband config set menu_bar_icon`, and Settings' Icon
+    /// picker saves it where the command reads it. The value is put back, as above.
+    @Test func theIconSettingReachesTheLayoutAndIsSavedFromIt() throws {
+        let original = try #require(Core.setting(MenuBarIcon.settingKey))
+        defer { Core.setSetting(MenuBarIcon.settingKey, to: original) }
+        let usage = Usage()
+        var changes = 0
+        usage.onChange = { changes += 1 }
+        #expect(Core.setSetting(MenuBarIcon.settingKey, to: "soroband"))
+        usage.reloadSettings()
+        #expect(usage.menuBarLayout.icon == .soroband)
+        var layout = usage.menuBarLayout
+        layout.icon = .network
+        usage.setMenuBarLayout(layout)
+        #expect(Core.setting(MenuBarIcon.settingKey) == "network")
+        #expect(usage.menuBarLayout.icon == .network)
+        #expect(changes == 2)
+    }
 }

@@ -60,7 +60,7 @@ struct MenuBarRendererTests {
             drawn = renderer.image(display, debug: debug, textColor: color, scale: scale)
         }
         let label =
-            "\(appearance.name.rawValue) debug \(debug) @\(scale)x \(display.symbol) \(display.style) \(display.text ?? "icon")"
+            "\(appearance.name.rawValue) debug \(debug) @\(scale)x \(display.icon) \(display.style) \(display.text ?? "icon")"
         let want = try pixels(expected)
         let got = try pixels(drawn)
         #expect(got.width == want.width && got.height == want.height, "\(label)")
@@ -105,20 +105,26 @@ struct MenuBarRendererTests {
         #expect(compared == (206 * 3 * 2 - 19 * 2) * 2 * 2 * 2)
     }
 
-    /// Each network's icon, the icon alone (before the first poll too), and a 1x display.
+    /// Each network's icon and the Soroband glyph, the icon alone (before the first poll too), and
+    /// a 1x display; one renderer throughout, so an icon it kept for one must not stand in for
+    /// another.
     @Test func drawsTheSamePixelsForEveryIconAndScale() throws {
         let renderer = MenuBarRenderer()
         for appearance in Self.appearances {
             for debug in [false, true] {
                 for scale in [CGFloat(1), 2] {
-                    for kind in [NetworkKind.wifi, .ethernet, .hotspot, nil] {
+                    for (icon, kind) in [
+                        (MenuBarIcon.network, NetworkKind.wifi), (.soroband, .wifi), (.network, .ethernet),
+                        (.network, .hotspot), (.soroband, nil), (.network, nil),
+                    ] {
                         for style in MenuBarStyle.allCases {
                             for (readings, status) in [
                                 ([MenuBarReading.total, .speedDown], Self.statuses[0]), ([], Self.statuses[0]),
                                 ([.total], EngineStatus(state: .starting)),
                             ] {
                                 let display = MenuBarDisplay.make(
-                                    layout: MenuBarLayout(readings: readings, style: style), status: status, kind: kind)
+                                    layout: MenuBarLayout(readings: readings, style: style, icon: icon), status: status,
+                                    kind: kind)
                                 guard !display.drawsTitle else { continue }
                                 guard
                                     try compare(

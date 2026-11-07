@@ -107,7 +107,9 @@ final class Usage {
             readings: Core.setting(MenuBarLayout.readingsKey).flatMap(MenuBarLayout.readings(from:))
                 ?? MenuBarLayout.default.readings,
             style: Core.setting(MenuBarLayout.styleKey).flatMap(MenuBarStyle.init(rawValue:))
-                ?? MenuBarLayout.default.style)
+                ?? MenuBarLayout.default.style,
+            icon: Core.setting(MenuBarIcon.settingKey).flatMap(MenuBarIcon.init(rawValue:))
+                ?? MenuBarLayout.default.icon)
         let resetHour = Core.setting("reset_hour").flatMap(Int.init) ?? 0
         if resetHour != self.resetHour { self.resetHour = resetHour }
         guard layout != menuBarLayout else { return }
@@ -126,6 +128,7 @@ final class Usage {
             Core.setSetting(MenuBarScope.settingKey, to: layout.scope.rawValue)
             && Core.setSetting(MenuBarLayout.readingsKey, to: layout.readingsValue)
             && Core.setSetting(MenuBarLayout.styleKey, to: layout.style.rawValue)
+            && Core.setSetting(MenuBarIcon.settingKey, to: layout.icon.rawValue)
         if !saved { NSLog("Soroband: the menu bar layout was not saved") }
         reloadSettings()
     }

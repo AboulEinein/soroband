@@ -17,6 +17,25 @@ enum MenuBarScope: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// The menu bar item's icon: the core's `menu_bar_icon` setting.
+enum MenuBarIcon: String, Codable, CaseIterable, Identifiable {
+    /// The current network's kind.
+    case network
+    /// The Soroband glyph, whatever the network.
+    case soroband
+
+    static let settingKey = "menu_bar_icon"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .network: "Network"
+        case .soroband: "Soroband"
+        }
+    }
+}
+
 /// One reading the menu bar item can show: an item of the core's `menu_bar_readings`.
 enum MenuBarReading: String, Codable, CaseIterable, Identifiable {
     case total
@@ -127,7 +146,7 @@ enum MenuBarStyle: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-/// What the menu bar item shows: up to four readings beside the network icon, in order, counting
+/// What the menu bar item shows: an icon, and up to four readings beside it, in order, counting
 /// today on the current network or on all of them, drawn in a style.
 struct MenuBarLayout: Codable, Equatable {
     static let maxReadings = 4
@@ -136,6 +155,7 @@ struct MenuBarLayout: Codable, Equatable {
     /// Empty for the icon alone.
     var readings: [MenuBarReading] = [.total]
     var style: MenuBarStyle = .stacked
+    var icon: MenuBarIcon = .network
 
     static let `default` = MenuBarLayout()
     static let readingsKey = "menu_bar_readings"
@@ -174,6 +194,17 @@ struct MenuBarLayout: Codable, Equatable {
 
 /// The menu bar item's icon and readings.
 struct MenuBarDisplay: Equatable {
+    /// The icon as drawn: an SF Symbol, or the Soroband glyph from the asset catalog.
+    enum Icon: Hashable {
+        case symbol(String)
+        case glyph
+
+        /// The SF Symbol's name; nil for the glyph.
+        var symbol: String? {
+            if case .symbol(let name) = self { name } else { nil }
+        }
+    }
+
     /// One reading as drawn: its caption, its value, and the value with its arrow.
     struct Reading: Equatable {
         var caption = ""
@@ -190,7 +221,7 @@ struct MenuBarDisplay: Equatable {
     /// The widest speed the menu bar shows below 1 GB/s.
     static let widestSpeed = "999 MB/s"
 
-    var symbol: String
+    var icon: Icon
     var style = MenuBarStyle.stacked
     var readings: [Reading]
 
@@ -214,25 +245,35 @@ struct MenuBarDisplay: Equatable {
     }
 
     /// - Today's totals are interface bytes: what crossed the interfaces, less the local-network bytes.
-    /// - The icon is the current network's kind; usage booked to no network shows a plain one.
-    /// - An engine that stopped says so instead of showing a count that no longer grows.
+    /// - The icon is the current network's kind, and usage booked to no network shows a plain one;
+    ///   or the Soroband glyph whatever the network, when the layout's icon is `soroband`.
+    /// - An engine that stopped says so, with a warning sign for either icon, instead of showing a
+    ///   count that no longer grows.
     /// - Before the first poll there is no count to show yet.
     static func make(layout: MenuBarLayout, status: EngineStatus, kind: NetworkKind?) -> MenuBarDisplay {
-        let symbol = kind?.symbol ?? unknownNetworkSymbol
+        let icon = Self.icon(layout.icon, kind: kind)
         if status.state == .failed {
             return MenuBarDisplay(
-                symbol: "exclamationmark.triangle", style: .inline,
+                icon: .symbol("exclamationmark.triangle"), style: .inline,
                 readings: layout.readings.isEmpty ? [] : [Reading(value: "Not counting", text: "Not counting")])
         }
-        if status.state == .starting { return MenuBarDisplay(symbol: symbol, style: layout.style, readings: []) }
+        if status.state == .starting { return MenuBarDisplay(icon: icon, style: layout.style, readings: []) }
         let today = layout.today(in: status)
         return MenuBarDisplay(
-            symbol: symbol, style: layout.style,
+            icon: icon, style: layout.style,
             readings: layout.readings.map {
                 Reading(
                     caption: $0.caption, value: $0.value(today: today, speed: status.speed),
                     text: $0.text(today: today, speed: status.speed), widestValue: $0.isSpeed ? widestSpeed : nil)
             })
+    }
+
+    /// The icon `icon` draws on a network of `kind`, or on usage booked to no network.
+    static func icon(_ icon: MenuBarIcon, kind: NetworkKind?) -> Icon {
+        switch icon {
+        case .network: .symbol(kind?.symbol ?? unknownNetworkSymbol)
+        case .soroband: .glyph
+        }
     }
 
     /// Every change of the readings redraws the status item on each display (about 18 ms of the
@@ -262,7 +303,7 @@ struct MenuBarDisplay: Equatable {
     /// Seconds to wait before showing `new` in place of `old`, drawn at `lastRedraw`.
     static func redrawDelay(from old: Drawn?, to new: Drawn, lastRedraw: Date, now: Date) -> TimeInterval {
         guard let old, old.display != new.display, old.layout == new.layout, old.network == new.network,
-            old.display.symbol == new.display.symbol, !old.display.readings.isEmpty, !new.display.readings.isEmpty,
+            old.display.icon == new.display.icon, !old.display.readings.isEmpty, !new.display.readings.isEmpty,
             let oldTotal = old.total, let newTotal = new.total, newTotal >= oldTotal
         else { return 0 }
         return max(0, totalRedrawInterval - now.timeIntervalSince(lastRedraw))
@@ -280,6 +321,7 @@ struct MenuBarDisplay: Equatable {
     /// The icon as the menu bar draws it. A Debug build's icon is orange, so its item is never
     /// taken for the installed app's.
     func image(debug: Bool = isDebugBuild) -> NSImage? {
+        guard case .symbol(let symbol) = icon else { return Self.glyphImage(debug: debug) }
         let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
         guard debug else {
             image?.isTemplate = true
@@ -287,6 +329,32 @@ struct MenuBarDisplay: Equatable {
         }
         let orange = image?.withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [.systemOrange]))
         orange?.isTemplate = false
+        return orange
+    }
+
+    /// The glyph in the asset catalog: the icon pack's menu bar glyph, black on clear, its view box
+    /// cropped to the shape.
+    static let glyphName = "SorobandGlyph"
+    /// The glyph's width and height in the menu bar, in points.
+    static let glyphSize: CGFloat = 14
+
+    /// The Soroband glyph, `glyphSize` square: a template, or orange in a Debug build.
+    static func glyphImage(debug: Bool) -> NSImage? {
+        // `NSImage(named:)` returns one shared image, so the size is set on a copy.
+        guard let glyph = NSImage(named: glyphName)?.copy() as? NSImage else { return nil }
+        glyph.size = NSSize(width: glyphSize, height: glyphSize)
+        guard debug else {
+            glyph.isTemplate = true
+            return glyph
+        }
+        // Drawn when used, so the orange is resolved in that drawing's appearance.
+        let orange = NSImage(size: glyph.size, flipped: false) { rect in
+            glyph.draw(in: rect)
+            NSColor.systemOrange.set()
+            rect.fill(using: .sourceAtop)
+            return true
+        }
+        orange.isTemplate = false
         return orange
     }
 

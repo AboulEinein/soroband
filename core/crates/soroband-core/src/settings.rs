@@ -35,6 +35,10 @@ pub const MENU_BAR_MAX_READINGS: usize = 4;
 pub const MENU_BAR_STYLE: &str = "menu_bar_style";
 /// The values of [`MENU_BAR_STYLE`].
 pub const MENU_BAR_STYLE_OPTIONS: &[&str] = &["stacked", "labeled", "inline"];
+/// Key of the menu bar item's icon: the current network's kind, or the Soroband glyph.
+pub const MENU_BAR_ICON: &str = "menu_bar_icon";
+/// The values of [`MENU_BAR_ICON`].
+pub const MENU_BAR_ICON_OPTIONS: &[&str] = &["network", "soroband"];
 
 /// Key of the island's master switch: off makes Soroband a plain menu bar app.
 pub const ISLAND: &str = "island";
@@ -152,6 +156,16 @@ pub const SCHEMA: &[Setting] = &[
         description: "How the menu bar item draws its readings: stacked (in pairs, the first \
                       on top, in a smaller size), labeled (each under a small caption) or inline \
                       (one line).",
+    },
+    Setting {
+        key: MENU_BAR_ICON,
+        kind: Kind::Choice {
+            options: MENU_BAR_ICON_OPTIONS,
+            default: "network",
+        },
+        description: "The menu bar item's icon: network (the current network's kind) or soroband \
+                      (the Soroband glyph). While counting has stopped it shows a warning sign \
+                      either way.",
     },
     Setting {
         key: ISLAND,
@@ -509,8 +523,8 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::{
-        Error, ISLAND, ISLAND_IGNORED_APPS, ISLAND_MOMENTS, MENU_BAR_READINGS, MENU_BAR_SCOPE,
-        MENU_BAR_STYLE, RESET_HOUR, Settings,
+        Error, ISLAND, ISLAND_IGNORED_APPS, ISLAND_MOMENTS, MENU_BAR_ICON, MENU_BAR_READINGS,
+        MENU_BAR_SCOPE, MENU_BAR_STYLE, RESET_HOUR, Settings,
     };
     use std::path::PathBuf;
 
@@ -690,6 +704,31 @@ mod tests {
         assert_eq!(settings.get(MENU_BAR_SCOPE).unwrap().value, "network");
         assert_eq!(settings.get(MENU_BAR_READINGS).unwrap().value, "total");
         assert_eq!(settings.get(MENU_BAR_STYLE).unwrap().value, "stacked");
+        assert_eq!(settings.get(MENU_BAR_ICON).unwrap().value, "network");
+    }
+
+    /// The icon is one of its two words exactly: the app knows no other, so anything else is
+    /// refused rather than stored for the app to ignore.
+    #[test]
+    fn menu_bar_icon_is_network_or_soroband() {
+        let mut settings = Settings::default();
+        settings.set(MENU_BAR_ICON, "soroband").unwrap();
+        assert_eq!(settings.get(MENU_BAR_ICON).unwrap().value, "soroband");
+        // Typed text is trimmed, as for every word setting.
+        settings.set(MENU_BAR_ICON, " network ").unwrap();
+        assert_eq!(settings.get(MENU_BAR_ICON).unwrap().value, "network");
+        for bad in ["", "Soroband", "soroband,network", "glyph", "none"] {
+            let error = settings.set(MENU_BAR_ICON, bad).unwrap_err().to_string();
+            assert!(
+                error.contains("is not one of network, soroband"),
+                "{bad:?}: {error}"
+            );
+        }
+        assert_eq!(
+            settings.get(MENU_BAR_ICON).unwrap().value,
+            "network",
+            "a refused value changes nothing"
+        );
     }
 
     /// Readings are kept in the order given, which is the order the item draws them in.
@@ -733,6 +772,17 @@ mod tests {
         assert!(settings.set(MENU_BAR_STYLE, "stacked").is_ok());
         assert!(settings.set(MENU_BAR_STYLE, "vertical").is_err());
         assert!(settings.set(MENU_BAR_SCOPE, "today_all").is_err());
+    }
+
+    #[test]
+    fn stored_menu_bar_icon_from_a_hand_edit_falls_back_to_the_network_icon() {
+        let path = temp_file("menu-bar-icon-hand-edit");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, r#"{"menu_bar_icon": "rainbow"}"#).unwrap();
+        let current = Settings::load(&path).unwrap().get(MENU_BAR_ICON).unwrap();
+        assert_eq!(current.value, "network");
+        assert!(current.is_default);
+        assert!(current.problem.unwrap().contains("is not one of"));
     }
 
     #[test]
