@@ -154,15 +154,17 @@ struct SnapshotTests {
         try Snapshot.verify(view, named: "settings-menu-bar", size: CGSize(width: 560, height: 900))
     }
 
-    /// The item in each style: one reading, a pair, three, four, and the icon alone.
+    /// The item in each style: one reading, a pair, three, four, and the icon alone; then the
+    /// Soroband glyph with one reading, a pair and alone.
     @Test func menuBarPreviews() throws {
         let readings: [[MenuBarReading]] = [
             [.total], [.download, .upload], [.total, .speedDown, .speedUp],
             [.download, .upload, .speedDown, .speedUp], [],
         ]
-        let layouts = MenuBarStyle.allCases.flatMap { style in
-            readings.map { MenuBarLayout(readings: $0, style: style) }
-        }
+        let layouts =
+            MenuBarStyle.allCases.flatMap { style in
+                readings.map { MenuBarLayout(readings: $0, style: style) }
+            } + [[.total], [.download, .upload], []].map { MenuBarLayout(readings: $0, icon: .soroband) }
         let previews = VStack(spacing: 4) {
             ForEach(layouts.indices, id: \.self) { index in
                 MenuBarPreview(

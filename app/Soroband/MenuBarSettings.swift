@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Settings › Menu Bar: what the menu bar item shows, in which order and style, with a preview of
+/// Settings › Menu Bar: what the menu bar item shows, in which order and style, beside which icon,
+/// with a preview of
 /// the menu bar pinned above. Every change applies at once; Revert goes back to the layout the
 /// page opened with.
 struct MenuBarSettings: View {
@@ -32,14 +33,14 @@ struct MenuBarSettings: View {
             SettingsPage(
                 title: "Menu Bar",
                 subtitle:
-                    "Pick what Soroband shows beside its network icon, put it in order, and choose how it is drawn."
+                    "Pick what Soroband shows beside its icon, put it in order, and choose how it is drawn."
             ) {
                 SettingsSection(title: "Readings", trailing: "\(layout.readings.count) of \(MenuBarLayout.maxReadings)")
                 {
                     readings
                 }
                 SettingsSection(title: "Order", trailing: orderNote) {
-                    OrderTray(layout: layout, symbol: kind?.symbol ?? unknownNetworkSymbol, apply: apply)
+                    OrderTray(layout: layout, icon: MenuBarDisplay.icon(layout.icon, kind: kind), apply: apply)
                 }
                 SettingsSection(title: "Style") {
                     HStack(alignment: .top, spacing: 10) {
@@ -55,6 +56,18 @@ struct MenuBarSettings: View {
                     }
                 }
                 SettingsCard {
+                    SettingsRow(title: "Icon", detail: iconNote) {
+                        Picker(
+                            "Icon",
+                            selection: Binding(get: { layout.icon }, set: { icon in apply { $0.icon = icon } })
+                        ) {
+                            ForEach(MenuBarIcon.allCases) { Text($0.label).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                    }
+                    Divider().padding(.leading, 14)
                     SettingsRow(title: "Count today on", detail: scopeNote) {
                         Picker(
                             "Count today on",
@@ -118,6 +131,13 @@ struct MenuBarSettings: View {
             layout.readings.count > 1 ? "Each pair stacks, the first on top" : "One reading draws at full size"
         case .labeled: "Side by side, left to right"
         case .inline: "One line, left to right"
+        }
+    }
+
+    private var iconNote: String {
+        switch layout.icon {
+        case .network: "The kind of network you are on: Wi‑Fi, hotspot or Ethernet."
+        case .soroband: "The Soroband mark, on every network."
         }
     }
 
@@ -219,13 +239,13 @@ private struct EnergyNote: View {
 /// move it there.
 private struct OrderTray: View {
     let layout: MenuBarLayout
-    let symbol: String
+    let icon: MenuBarDisplay.Icon
     let apply: ((inout MenuBarLayout) -> Void) -> Void
 
     var body: some View {
         SettingsCard {
             HStack(spacing: 10) {
-                Image(systemName: symbol).font(.system(size: 15)).foregroundStyle(.tertiary)
+                iconImage.foregroundStyle(.tertiary)
                 if layout.readings.isEmpty {
                     Text("The icon alone. Pick a reading above to show it beside the icon.")
                         .foregroundStyle(.secondary)
@@ -251,6 +271,15 @@ private struct OrderTray: View {
             }
             .padding(.horizontal, 14).padding(.vertical, 12)
             .frame(minHeight: 76)
+        }
+    }
+
+    @ViewBuilder private var iconImage: some View {
+        switch icon {
+        case .symbol(let symbol): Image(systemName: symbol).font(.system(size: 15))
+        case .glyph:
+            Image(MenuBarDisplay.glyphName).resizable()
+                .frame(width: MenuBarDisplay.glyphSize, height: MenuBarDisplay.glyphSize)
         }
     }
 
