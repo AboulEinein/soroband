@@ -216,6 +216,22 @@ _Avoid_: helper, History process (its earlier, History-only form)
 The 10 minutes the menu bar process lets a UI process wait after its last window closed before it quits it. A popover opened within it opens warm.
 _Avoid_: keep-alive, grace period
 
+**Theme**:
+How Soroband's windows look: an appearance and an accent, set in Settings › Appearance (the `appearance` and `accent` settings). It applies to the windows of the UI process; the island keeps its own dark look.
+_Avoid_: skin, color scheme (SwiftUI's name for light or dark)
+
+**Appearance**:
+Light or dark for Soroband's windows: **system** (as macOS is, the default), **light** or **dark**.
+_Avoid_: mode, dark mode (macOS's own setting)
+
+**Accent**:
+The color of what Soroband draws to show a selection or highlight in its windows: **system** (macOS's accent color, the default), or coral, amber, emerald, teal, sky, indigo, plum or rose, the colors of Soroband's icons, each with a light and a dark step.
+_Avoid_: tint (SwiftUI's mechanism for it), highlight color
+
+**App icon**:
+Soroband's icon in the Dock, in Finder and in Settings › About: **graphite** (the bundle's own, the default) or one of Soroband's 12 other icons, set in Settings › Appearance (the `app_icon` setting). Finder shows it as the bundle's custom icon.
+_Avoid_: logo, glyph (the menu bar's mark), alternate icon (iOS's mechanism)
+
 **Range**:
 What History shows: a day, week, month or year of the calendar, or all time.
 _Avoid_: period (the calendar unit a range steps by)

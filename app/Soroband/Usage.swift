@@ -26,6 +26,12 @@ final class Usage {
     /// The island's settings, read in the UI process for Settings; the menu bar process's
     /// `IslandController` holds its own.
     private(set) var island = IslandSettings()
+    /// The windows' theme. The menu bar process only reads it and hands it on; the UI process
+    /// applies it (`Theme.apply`, `themed`).
+    private(set) var theme = Theme()
+    /// The app's icon. The menu bar process keeps the bundle's Finder icon to it (`FinderIcon`);
+    /// the UI process shows it in the Dock and Settings › About (`AppIcon.applyToApp`).
+    private(set) var appIcon = AppIcon.graphite
 
     /// Set by the popover: polls every second and publishes today's lists while true.
     var isLive = false {
@@ -96,12 +102,22 @@ final class Usage {
         if snapshot.menuBarLayout != menuBarLayout { menuBarLayout = snapshot.menuBarLayout }
         if snapshot.resetHour != resetHour { resetHour = snapshot.resetHour }
         if snapshot.island != island { island = snapshot.island }
+        if snapshot.theme != theme { theme = snapshot.theme }
+        theme.apply()
+        if snapshot.appIcon != appIcon {
+            appIcon = snapshot.appIcon
+            appIcon.applyToApp()
+        }
     }
 
     /// Rereads the settings the app shows, after `soroband config set` or a change in Settings.
-    /// Only a changed layout redraws the menu bar; a changed reset hour reaches it with the poll
-    /// the engine makes for it.
+    /// Only a changed layout, theme or app icon reaches the UI process at once, and only a changed layout
+    /// redraws the menu bar; a changed reset hour reaches both with the poll the engine makes for
+    /// it.
     func reloadSettings() {
+        let theme = Theme(value: Core.setting)
+        let appIcon = AppIcon(setting: Core.setting(AppIcon.settingKey))
+        FinderIcon.shared.update(appIcon)
         let layout = MenuBarLayout(
             scope: Core.setting(MenuBarScope.settingKey).flatMap(MenuBarScope.init(rawValue:)) ?? .network,
             readings: Core.setting(MenuBarLayout.readingsKey).flatMap(MenuBarLayout.readings(from:))
@@ -112,8 +128,10 @@ final class Usage {
                 ?? MenuBarLayout.default.icon)
         let resetHour = Core.setting("reset_hour").flatMap(Int.init) ?? 0
         if resetHour != self.resetHour { self.resetHour = resetHour }
-        guard layout != menuBarLayout else { return }
-        menuBarLayout = layout
+        guard layout != menuBarLayout || theme != self.theme || appIcon != self.appIcon else { return }
+        if layout != menuBarLayout { menuBarLayout = layout }
+        if theme != self.theme { self.theme = theme }
+        if appIcon != self.appIcon { self.appIcon = appIcon }
         onChange?()
     }
 
@@ -133,12 +151,18 @@ final class Usage {
         reloadSettings()
     }
 
-    /// Sets `key` as `soroband config set` would, for the island's settings. A value that does not
-    /// fit the setting is not saved.
+    /// Sets `key` as `soroband config set` would, for the island's, the theme's and the app icon's
+    /// settings. A value that does not fit the setting is not saved.
     func setSetting(_ key: String, to value: String) {
         if UIHost.forward(.setSetting(key: key, value: value)) {
             // Shown at once; the menu bar process's snapshot confirms it.
             island = island.setting(key, to: value)
+            theme = theme.setting(key, to: value)
+            theme.apply()
+            if key == AppIcon.settingKey {
+                appIcon = AppIcon(setting: value)
+                appIcon.applyToApp()
+            }
             return
         }
         guard Core.setSetting(key, to: value) else {
@@ -146,6 +170,7 @@ final class Usage {
             return
         }
         Core.reloadSettings()
+        reloadSettings()
         IslandController.shared.reloadSettings()
     }
 
