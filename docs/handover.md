@@ -181,6 +181,7 @@ Small items for a later nits pass.
 - **Overlapping updates.** Two `soroband update` runs at once on one app can remove each other's copies; no lock (`File::lock` needs Rust 1.89, above `rust-version` 1.85).
 - **Flaky update tests.** `core/crates/soroband-cli/tests/update.rs` runs `hdiutil create` from parallel tests, which now and then fail together at its line 55 (`assert!(created.success())`): 3 of about 8 `prepush.sh` runs on 2026-11-08, each passing on the rerun. Serializing the image creation, or retrying it, would fix it.
 - **For M8, from #66's last reviews.** Whether `soroband apps --by energy` and `top` hide energy when the hand check finds it more than 20% off, as the app does. M8's PR states, for the split of a shared coalition, what a process exiting between reads loses and to whom.
+- **`prototypes/sysmon-probe/run.sh` from another directory.** It resolves `measure-lock.py` from `${0:A:h}` after its `cd`, so `prototypes/sysmon-probe/run.sh` run from the repository root cannot find the lock; `./run.sh` from its own folder works. Compute the script's directory once, before the `cd` ([CodeRabbit on #66](https://github.com/AboulEinein/soroband/pull/66#discussion_r4504944754)).
 - **Evidence branches.** `evidence/pr-35` and `evidence/m6b` hold only screenshots, linked from [#35](https://github.com/AboulEinein/soroband/pull/35)'s comments and [#36](https://github.com/AboulEinein/soroband/pull/36)'s description. Keeping or deleting them is the user's call; deleting them breaks those images.
 
 ## Gotchas
