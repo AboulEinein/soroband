@@ -182,7 +182,7 @@ Soroband meters each app's CPU, memory, disk and energy beside its internet byte
 Deliverables:
 - **System gauges** on every engine poll, with no new thread or timer: CPU busy share (`host_statistics`, `HOST_CPU_LOAD_INFO`), memory used, compressed and swapped and the memory pressure level (`host_statistics64`, `HOST_VM_INFO64`, `kern.memorystatus_vm_pressure_level`), and free space on each local volume (`statfs`), read once a minute.
 - **The resource read.** `proc_listcoalitions` and `coalition_info_resource_usage` once a minute, and on every poll while the CPU is over 50% busy or memory is under pressure. Each app's resources are credited under the same name as its bytes, named the way flows are (the outermost `.app`, "macOS & Services", or a command-line tool). A coalition holding processes of several apps (a terminal and the commands it runs share one) is split among them, so each command keeps its own usage; how the split treats a process that exits between reads is M8's to measure, and the PR states what such a process loses and to whom. The counters: CPU time, CPU time billed to it by daemons working for it, disk bytes read and written, energy and GPU energy; the gauges: memory footprint.
-- **A guard and a fallback.** Both calls are exported by `libsystem_kernel` but absent from the public SDK, as the statistics socket is. The engine looks them up at launch and checks the layout against `proc_pid_rusage` reads of the same processes, at launch and at intervals M8 sets. A coalition also counts processes that exited and processes the user cannot read, and a footprint changes between reads, so the check allows for each of these; it must still fail on a layout that moves or swaps any stored field. When the lookup or the check fails, the engine reads the user's own processes with `proc_pid_rusage` instead and reports degraded in the self-check, as the layout guard does for the socket. In the probe, Cursor and Chrome, with 4 and 1 exited processes, read 3.1% and 1.2% above their live processes' CPU, and every listed footprint matched exactly.
+- **A guard and a fallback.** Both calls are exported by `libsystem_kernel` but absent from the public SDK, as the statistics socket is. The engine looks them up at launch and checks the layout against `proc_pid_rusage` reads of the same processes, at launch and at intervals M8 sets. A coalition also counts processes that exited and processes the user cannot read, and a footprint changes between reads, so the check allows for each of these; it must still fail on a layout that moves or swaps any stored field. When the lookup or the check fails, the engine reads the user's own processes with `proc_pid_rusage` instead and says so in `soroband debug state`; how the app shows it is M9's to design. In the probe, Cursor and Chrome, with 4 and 1 exited processes, read 3.1% and 1.2% above their live processes' CPU, and every listed footprint matched exactly.
 - **Storage** (a schema version, one-way like the others): per (hour, app) the counters and the average and peak footprint, with daily sums written in the same transaction; per minute the system gauges and the five busiest apps by CPU, by footprint and by disk bytes written, kept 7 days by default (`resource_minutes_days`); measured growth per day in the PR.
 - **`soroband`** gains `system` (the gauges now), `top` (the busiest apps now, by any resource) and `apps --by cpu|memory|disk|energy` over any range.
 - `GLOSSARY.md`: the new terms (coalition, resource read, system gauges, footprint, and whatever the milestone names).
@@ -197,26 +197,24 @@ Hand checklist: the energy counters against `sudo powermetrics` over the same mi
 ### M9: Resources in the popover, History and the menu bar
 
 Deliverables:
-- **Popover:** a System card (CPU, memory pressure, disk free, the three busiest apps now) and a resource picker on the Apps tab (internet, CPU, memory, disk, energy).
-- **History:** the same picker on every range, and per app the resource the user picks over time. A **minute view**: pick a moment in the last 7 days and see what was busy then, "what slowed my Mac at 3 pm".
-- **Menu bar readings:** memory pressure and the free space on the start-up disk. A CPU reading only if it redraws on steps (10% steps, measured), since each redraw costs about 18 ms of the main thread.
-- **Settings:** the resources pane: which resources are metered, the minute record's days, and the volumes shown.
+- Resources wherever internet bytes are shown: the popover, History on every range and per app, and the menu bar's readings.
+- A view of what was busy at a past minute, within the minute record M8 keeps ("what slowed my Mac at 3 pm").
+- Settings for which resources are metered and how long the minute record is kept.
+
+Each view's design is picked by the user from mockups before it is built, as the popover's and History's were. The design settles how the resource fallback (M8) is shown.
 
 Exit criteria:
-- Captures of each new view next to a mockup the user picked first (`prototypes/ui-spike`, as for the popover and History).
+- Captures of each new view next to the mockup the user picked.
 - History's open times and memory within M4's criteria with the resources on a synthetic year.
-- Idle CPU in each new menu bar reading over 10 minutes, beside `main` in the same session: within the 0.1% budget.
+- Idle CPU in each new menu bar reading over 10 minutes, beside `main` in the same session: within the 0.1% budget. Each redraw costs about 18 ms of the main thread, so a reading that changes on every poll is measured before it is offered.
 
 ### M10: Resource moments
 
-Moments that fire on change, not on a fixed number, each with Quit, Dismiss, Ignore this app and Snooze (no resource moment for an hour):
-- **Runaway:** an app holding a full core for 5 minutes.
-- **Growing memory:** an app's footprint rising steadily for an hour (a leak), with how much it grew.
-- **Memory pressure:** the level reaching warn or critical, with the app that grew most in the last 10 minutes.
-- **Disk filling:** the start-up disk full within 7 days at its 7-day trend, and the apps writing most.
-- **Heavy writer:** an app writing more than the user's threshold in an hour (`resource_writes_gb`).
+Deliverables:
+- Island moments that fire on a change in an app's or the Mac's resources rather than on a fixed number. The candidates: an app holding a full core for minutes, an app's memory growing for hours (a leak), memory pressure, the start-up disk filling at its recent rate, an app writing heavily.
+- The moments, their thresholds and actions, and how they sit with the existing moments (alerts, the ignored apps, notifications with the island off), are designed with the user at the start of M10, from these candidates and the data M8 stores.
 
-After Dismiss, the same moment for that app fires again only if it gets worse than when it was dismissed. Ignore this app adds it to the ignored apps (`island_ignored_apps`), which raise no moment, as for every other moment. Exit criteria:
+Exit criteria:
 - Each moment fires from a scripted load (`moments.sh` extended), and none fires on a recorded idle day.
 - No CPU cost while no moment is showing, measured as in M5.
 
