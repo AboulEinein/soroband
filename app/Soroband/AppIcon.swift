@@ -152,28 +152,51 @@ final class FinderIcon {
         }
         current = icon
         guard let change else { return }
-        // Off the main thread; the image is loaded for the write alone and released with the pool.
+        // One write at a time, in order, off the main thread.
         queue.async { [bundle] in Self.write(change, to: bundle) }
     }
 
+    /// The argument that makes the executable write Finder's icon and exit (`main.swift`).
+    nonisolated static let writerFlag = "--write-finder-icon"
+
+    /// Writes `change` in a process of its own: `NSWorkspace.setIcon` renders the icon at every
+    /// size and loads image frameworks, which kept about 23 MB in the menu bar process after one
+    /// write, over its budget, and no API returns.
     private nonisolated static func write(_ change: FinderIconChange, to bundle: URL) {
-        autoreleasepool {
-            var image: NSImage?
-            if case .set(let icon) = change {
-                image = icon.customImage()
-                guard image != nil else {
-                    NSLog("Soroband: the %@ icon is missing from the app", icon.rawValue)
-                    return
-                }
-            }
-            guard NSWorkspace.shared.setIcon(image, forFile: bundle.path, options: []) else {
-                NSLog("Soroband: Finder's icon for %@ was not changed", bundle.path)
-                return
-            }
-            switch change {
-            case .set(let icon): UserDefaults.standard.set(icon.rawValue, forKey: writtenKey)
-            case .remove: UserDefaults.standard.removeObject(forKey: writtenKey)
-            }
+        let icon: AppIcon
+        switch change {
+        case .set(let picked): icon = picked
+        case .remove: icon = .graphite
         }
+        let writer = Process()
+        writer.executableURL = Bundle.main.executableURL
+        writer.arguments = [writerFlag, icon.rawValue, bundle.path]
+        do {
+            try writer.run()
+            writer.waitUntilExit()
+        } catch {
+            NSLog("Soroband: the Finder icon writer did not start: %@", error.localizedDescription)
+            return
+        }
+        guard writer.terminationStatus == 0 else {
+            NSLog("Soroband: Finder's icon for %@ was not changed", bundle.path)
+            return
+        }
+        switch change {
+        case .set(let icon): UserDefaults.standard.set(icon.rawValue, forKey: writtenKey)
+        case .remove: UserDefaults.standard.removeObject(forKey: writtenKey)
+        }
+    }
+
+    /// In the writer process: sets `arguments`' icon on the bundle at its path, or takes the
+    /// custom icon off for graphite. Returns the exit status.
+    nonisolated static func runWriter(_ arguments: [String]) -> Int32 {
+        guard arguments.count == 2, let icon = AppIcon(rawValue: arguments[0]) else { return 2 }
+        let image = icon.customImage()
+        if icon != .graphite, image == nil {
+            NSLog("Soroband: the %@ icon is missing from the app", icon.rawValue)
+            return 1
+        }
+        return NSWorkspace.shared.setIcon(image, forFile: arguments[1], options: []) ? 0 : 1
     }
 }

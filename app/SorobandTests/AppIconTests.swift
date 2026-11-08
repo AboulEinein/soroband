@@ -111,6 +111,21 @@ struct AppIconTests {
         #expect(FinderIconPlan.changed(from: .graphite, to: .graphite, canWrite: true) == nil)
     }
 
+    /// The writer process, on a scratch folder: an icon gives it Finder's `Icon\r`, graphite
+    /// takes it off again, and arguments that name no icon or no path write nothing.
+    @Test func theWriterSetsAndRemovesTheCustomIcon() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("AppIconWriter-\(UUID())")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        #expect(FinderIcon.runWriter(["hairline-sky", folder.path]) == 0)
+        #expect(FinderIcon.hasCustomIcon(folder))
+        #expect(FinderIcon.runWriter(["graphite", folder.path]) == 0)
+        #expect(!FinderIcon.hasCustomIcon(folder))
+        #expect(FinderIcon.runWriter(["hairline", folder.path]) == 2)
+        #expect(FinderIcon.runWriter(["plum"]) == 2)
+        #expect(!FinderIcon.hasCustomIcon(folder))
+    }
+
     /// The checks the launch makes, on real folders: a folder this account owns is writable and
     /// one it cannot write is not, and only a folder with an `Icon\r` file has a custom icon.
     @Test func theLaunchChecksReadTheBundleItself() throws {
