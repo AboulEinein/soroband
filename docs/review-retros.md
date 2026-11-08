@@ -802,3 +802,8 @@ Planned rounds: 2.
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | 3 Low | `first look`: white on five accents' dark steps under 3:1; amber made the day ruler one color; no test carried the theme to the UI process. |
+| direct | Opus | none | [Verdict](https://github.com/AboulEinein/soroband/pull/67#issuecomment-6714905773) on 0ed1d42: all three handled. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 2 rounds; it took 1 and a direct review. Round 1's three Low findings came from reading the accent against what draws on it (a white glyph, the day ruler's other color) and from a test that stopped one process short of its name; checking each new color against every color it sits on or beside, and testing the value where the other process reads it, would have caught them before the round.
