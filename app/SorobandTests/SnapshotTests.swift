@@ -207,6 +207,24 @@ struct SnapshotTests {
         try Snapshot.verify(view, named: "settings-appearance-plum", size: CGSize(width: 560, height: 420))
     }
 
+    /// The day ruler with the day starting at 4 AM, tinted amber, the accent nearest to orange, in
+    /// dark and in light: the hours before it, and their legend dot, stay gray, apart from today's.
+    @Test func dayRulerWithAnAccent() throws {
+        let ruler = { (scheme: ColorScheme) in
+            DayRuler(resetHour: 4)
+                .padding(12)
+                .frame(width: 520)
+                .background(scheme == .dark ? Color(white: 0.16) : .white)
+                .environment(\.colorScheme, scheme)
+        }
+        let view = VStack(spacing: 0) {
+            ruler(.dark)
+            ruler(.light)
+        }
+        .tint(Accent.amber.color)
+        try Snapshot.verify(view, named: "settings-day-ruler-amber")
+    }
+
     /// The color picker of a network with a picked color (magenta, ringed) and of one without
     /// (Automatic checked, naming its place's color), in dark and in light mode.
     @Test func networkColorPicker() throws {

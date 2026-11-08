@@ -372,7 +372,7 @@ struct DayRuler: View {
                     RoundedRectangle(cornerRadius: 2)
                         .fill(
                             hour < resetHour
-                                ? AnyShapeStyle(Color.orange.opacity(0.75)) : AnyShapeStyle(.tint.opacity(0.8))
+                                ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint.opacity(0.8))
                         )
                         .frame(height: hour == resetHour ? 22 : 12)
                 }
@@ -386,7 +386,7 @@ struct DayRuler: View {
             .font(.caption2).foregroundStyle(.tertiary).monospacedDigit()
             if resetHour > 0 {
                 HStack(spacing: 12) {
-                    Label("The day before", systemImage: "circle.fill").foregroundStyle(.orange)
+                    Label("The day before", systemImage: "circle.fill").foregroundStyle(.secondary)
                     Label("Today", systemImage: "circle.fill").foregroundStyle(.tint)
                     Spacer()
                 }

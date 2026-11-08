@@ -56,13 +56,22 @@ struct ThemeTests {
         #expect(Self.contrast(steps.dark, 0x1E1E1E) >= 3, "\(accent) dark")
     }
 
+    /// A selected reading's tile draws a white glyph on the accent (Settings › Menu Bar), so white
+    /// stands out from each step by at least 3:1 too, in both windows.
+    @Test(arguments: Accent.allCases.filter { $0 != .system })
+    func aWhiteGlyphStandsOutOnEachStep(accent: Accent) throws {
+        let steps = try #require(accent.steps)
+        #expect(Self.contrast(0xFFFFFF, steps.light) >= 3, "\(accent) light")
+        #expect(Self.contrast(0xFFFFFF, steps.dark) >= 3, "\(accent) dark")
+    }
+
     /// The color the windows take is the light step in a light window and the dark step in a
     /// dark one.
     @Test func anAccentResolvesToItsStepForEachAppearance() throws {
         let color = try #require(Accent.sky.color)
         let ns = NSColor(color)
         #expect(Self.hex(ns, in: .aqua) == 0x327CE6)
-        #expect(Self.hex(ns, in: .darkAqua) == 0x4099F3)
+        #expect(Self.hex(ns, in: .darkAqua) == 0x3B8FEF)
     }
 
     /// No two accents share a step, so each swatch is a choice of its own.
