@@ -815,3 +815,5 @@ Planned rounds: 2.
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | 1 Minor | `first look`: CHANGELOG kept #57's Graphite-only App icon bullet beside the new one. |
+| 1 | Opus | 1 Medium, 2 Low | `first look`: a Debug build wrote Finder's icon into the bundle Xcode re-signs, so every worktree's next build failed to sign; a test compared the icons against a typed list instead of the core; nothing tested `app_icon` reaching the UI process. |
+| 2 | Opus | 1 Low | `first look`: the read-only footer blamed another user's install, which a read-only disk image also triggers. |
