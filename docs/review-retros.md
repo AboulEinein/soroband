@@ -802,3 +802,10 @@ Planned rounds: 1.
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | 1 Low, 1 Minor | `first look`: the `top` label's comment described a rule the code does not use; the GPU energy field was read and dropped. |
+| CodeRabbit | CodeRabbit CLI | 1 Major, 1 Minor | `first look`, on the fixes: `run.sh` reported success when a measurement failed, and broke on a path with a space. |
+| direct | Sonnet | none | Checked fa382e8 and c737560; resolved both threads. [Comment](https://github.com/AboulEinein/soroband/pull/65#issuecomment-6714565285). |
+| CodeRabbit | CodeRabbit | 2 Minor | On 95451c6. `first look`: the README's tiered thresholds and the attribution its cost leaves out. |
+| CodeRabbit | CodeRabbit | none | On 26c9067. |
+
+**Retro.** Planned 1 round, the user's cap for a prototype; it took 1 and a direct review. The round's two findings were in the probe's own reporting, not its measurements, and the reviewer checked the struct layouts against the SDK itself. The CLI's run of the fixes found what the blind round had not read closely, `run.sh`'s error path; CodeRabbit's two were the README row summarizing the measurements more loosely than the code. `main` moved twice during the review (#64, then #57 and #63), and each merge conflicted only in this file; after the second merge the CLI was not rerun, because the branch's diff against `main` was the one it had just reviewed. `scripts/verify/prepush.sh` failed three times on a flake outside this PR, `soroband-cli`'s `update` tests colliding in `hdiutil create`, and passed on the rerun each time. Changes: none to the rules; the flake becomes a follow-up.
