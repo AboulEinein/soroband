@@ -48,18 +48,18 @@ enum Accent: String, Codable, CaseIterable, Identifiable {
     /// (plum: between the plum icon's purple and its lilac; indigo's dark step: between its
     /// gradient's top and the mark's white), picked so the color stands out at 3:1 or more
     /// (WCAG's contrast for controls) against the light window (#ECECEC) and the dark one
-    /// (#1E1E1E, and #323232).
+    /// (#1E1E1E, and #323232), and a white glyph drawn on it does too (a selected reading's tile).
     var steps: (light: UInt32, dark: UInt32)? {
         switch self {
         case .system: nil
         case .coral: (0xD94E4B, 0xEC6C53)
-        case .amber: (0xE5521F, 0xF58C31)
-        case .emerald: (0x19945D, 0x24B36C)
-        case .teal: (0x109396, 0x13B8A8)
-        case .sky: (0x327CE6, 0x4099F3)
+        case .amber: (0xE5521F, 0xEA6525)
+        case .emerald: (0x19945D, 0x1D9E62)
+        case .teal: (0x109396, 0x119F9C)
+        case .sky: (0x327CE6, 0x3B8FEF)
         case .indigo: (0x6C5CFF, 0x8C80FF)
         case .plum: (0x7944A3, 0xA67EC6)
-        case .rose: (0xDD4B92, 0xFF5FA2)
+        case .rose: (0xDD4B92, 0xF4589D)
         }
     }
 
