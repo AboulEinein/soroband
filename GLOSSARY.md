@@ -228,6 +228,10 @@ _Avoid_: mode, dark mode (macOS's own setting)
 The color of what Soroband draws to show a selection or highlight in its windows: **system** (macOS's accent color, the default), or coral, amber, emerald, teal, sky, indigo, plum or rose, the colors of Soroband's icons, each with a light and a dark step.
 _Avoid_: tint (SwiftUI's mechanism for it), highlight color
 
+**App icon**:
+Soroband's icon in the Dock, in Finder and in Settings › About: **graphite** (the bundle's own, the default) or one of Soroband's 12 other icons, set in Settings › Appearance (the `app_icon` setting). Finder shows it as the bundle's custom icon.
+_Avoid_: logo, glyph (the menu bar's mark), alternate icon (iOS's mechanism)
+
 **Range**:
 What History shows: a day, week, month or year of the calendar, or all time.
 _Avoid_: period (the calendar unit a range steps by)

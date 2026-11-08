@@ -140,7 +140,7 @@ struct SettingsView: View {
             case .general:
                 GeneralSettings(usage: usage, launchAtLogin: launchAtLogin)
             case .appearance:
-                AppearanceSettings(theme: usage.theme, set: { usage.setSetting($0, to: $1) })
+                AppearanceSettings(theme: usage.theme, appIcon: usage.appIcon, set: { usage.setSetting($0, to: $1) })
             case .menuBar:
                 MenuBarSettings(usage: usage)
             case .island:
@@ -151,7 +151,9 @@ struct SettingsView: View {
                     save: { usage.updateNetwork(id: $0, name: $1, kind: $2) },
                     setColor: { usage.setNetworkColor(id: $0, color: $1) })
             case .about:
-                AboutSettings()
+                // Redrawn when the icon changes: it reads `NSApp.applicationIconImage`, which
+                // SwiftUI does not observe.
+                AboutSettings().id(usage.appIcon)
             }
         }
         .navigationTitle(selection.tab.title)

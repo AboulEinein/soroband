@@ -50,6 +50,24 @@ pub const ACCENT: &str = "accent";
 pub const ACCENT_OPTIONS: &[&str] = &[
     "system", "coral", "amber", "emerald", "teal", "sky", "indigo", "plum", "rose",
 ];
+/// Key of the app's icon in the Dock, in Finder and in Settings › About.
+pub const APP_ICON: &str = "app_icon";
+/// The values of [`APP_ICON`]: the bundle's own icon first, then the icon pack's others.
+pub const APP_ICON_OPTIONS: &[&str] = &[
+    "graphite",
+    "indigo",
+    "plum",
+    "light",
+    "hairline-coral",
+    "hairline-indigo",
+    "hairline-teal",
+    "hairline-emerald",
+    "hairline-amber",
+    "hairline-rose",
+    "hairline-sky",
+    "hairline-graphite",
+    "hairline-paper",
+];
 
 /// Key of the island's master switch: off makes Soroband a plain menu bar app.
 pub const ISLAND: &str = "island";
@@ -196,6 +214,17 @@ pub const SCHEMA: &[Setting] = &[
         description: "The color of selections and highlights in Soroband's windows: system \
                       (macOS's accent color), coral, amber, emerald, teal, sky, indigo, plum or \
                       rose.",
+    },
+    Setting {
+        key: APP_ICON,
+        kind: Kind::Choice {
+            options: APP_ICON_OPTIONS,
+            default: "graphite",
+        },
+        description: "Soroband's icon in the Dock, in Finder and in Settings › About: graphite \
+                      (the default), indigo, plum, light, or hairline-coral, hairline-indigo, \
+                      hairline-teal, hairline-emerald, hairline-amber, hairline-rose, \
+                      hairline-sky, hairline-graphite or hairline-paper.",
     },
     Setting {
         key: ISLAND,
@@ -553,8 +582,8 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::{
-        ACCENT, APPEARANCE, Error, ISLAND, ISLAND_IGNORED_APPS, ISLAND_MOMENTS, MENU_BAR_ICON,
-        MENU_BAR_READINGS, MENU_BAR_SCOPE, MENU_BAR_STYLE, RESET_HOUR, Settings,
+        ACCENT, APP_ICON, APPEARANCE, Error, ISLAND, ISLAND_IGNORED_APPS, ISLAND_MOMENTS,
+        MENU_BAR_ICON, MENU_BAR_READINGS, MENU_BAR_SCOPE, MENU_BAR_STYLE, RESET_HOUR, Settings,
     };
     use std::path::PathBuf;
 
@@ -879,6 +908,75 @@ mod tests {
             assert!(current.is_default);
             assert!(current.problem.is_some(), "{key} says why");
         }
+    }
+
+    /// A fresh install keeps the icon the bundle carries, so Finder's copy of it is never touched.
+    #[test]
+    fn a_fresh_install_keeps_the_graphite_app_icon() {
+        let current = Settings::default().get(APP_ICON).unwrap();
+        assert_eq!(current.value, "graphite");
+        assert!(current.is_default);
+    }
+
+    /// The app ships one icon per word, so the setting takes exactly those 13, the first and last
+    /// included, and refuses the pack's other spellings rather than store a word with no icon.
+    #[test]
+    fn app_icon_takes_only_its_own_words() {
+        let mut settings = Settings::default();
+        let valid = [
+            "graphite",
+            "indigo",
+            "plum",
+            "light",
+            "hairline-coral",
+            "hairline-indigo",
+            "hairline-teal",
+            "hairline-emerald",
+            "hairline-amber",
+            "hairline-rose",
+            "hairline-sky",
+            "hairline-graphite",
+            "hairline-paper",
+        ];
+        for value in valid {
+            settings.set(APP_ICON, value).unwrap();
+            assert_eq!(settings.get(APP_ICON).unwrap().value, value);
+        }
+        settings.set(APP_ICON, " graphite ").unwrap();
+        assert_eq!(settings.get(APP_ICON).unwrap().value, "graphite");
+        // The pack's family name for hairline coral, other spellings, an accent word and a list.
+        for bad in [
+            "",
+            "hairline",
+            "Graphite",
+            "hairline_coral",
+            "hairline coral",
+            "coral",
+            "hairline-paper,graphite",
+            "default",
+        ] {
+            let error = settings.set(APP_ICON, bad).unwrap_err().to_string();
+            assert!(
+                error.contains(&format!("is not one of {}", valid.join(", "))),
+                "{bad:?}: {error}"
+            );
+        }
+        assert_eq!(
+            settings.get(APP_ICON).unwrap().value,
+            "graphite",
+            "a refused value changes nothing"
+        );
+    }
+
+    #[test]
+    fn stored_app_icon_from_a_hand_edit_falls_back_to_graphite() {
+        let path = temp_file("app-icon-hand-edit");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, r#"{"app_icon": "hairline"}"#).unwrap();
+        let current = Settings::load(&path).unwrap().get(APP_ICON).unwrap();
+        assert_eq!(current.value, "graphite");
+        assert!(current.is_default);
+        assert!(current.problem.is_some(), "says why");
     }
 
     #[test]

@@ -807,3 +807,16 @@ Planned rounds: 2.
 | CodeRabbit | CodeRabbit | none | |
 
 **Retro.** Planned 2 rounds; it took 1 and a direct review. Round 1's three Low findings came from reading the accent against what draws on it (a white glyph, the day ruler's other color) and from a test that stopped one process short of its name; checking each new color against every color it sits on or beside, and testing the value where the other process reads it, would have caught them before the round.
+
+## [#68](https://github.com/AboulEinein/soroband/pull/68) feat(app): pick the app icon in Settings › Appearance (2026-11-08)
+
+Planned rounds: 2.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 1 Minor | `first look`: CHANGELOG kept #57's Graphite-only App icon bullet beside the new one. |
+| 1 | Opus | 1 Medium, 2 Low | `first look`: a Debug build wrote Finder's icon into the bundle Xcode re-signs, so every worktree's next build failed to sign; a test compared the icons against a typed list instead of the core; nothing tested `app_icon` reaching the UI process. |
+| 2 | Opus | 1 Low | `first look`: the read-only footer blamed another user's install, which a read-only disk image also triggers. |
+| CodeRabbit | CodeRabbit | 1 Minor | Outside the diff: About did not redraw when the icon changed; fixed in 35cc420, which CodeRabbit's next review accepted. |
+
+**Retro.** Planned 2 rounds; it took 2. Round 1's Medium came from state shared across worktrees (the Debug data directory deciding whether a Debug build writes into its own bundle), which no test host shows; the brief should have named the shared Debug data directory as a hazard for any setting that writes outside the app's data. CodeRabbit's finding was a view outside the diff holding a copy of the value, the kind REVIEW.md asks reviewers to trace; both blind rounds traced About's icon but not whether SwiftUI redraws it.

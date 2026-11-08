@@ -2,16 +2,19 @@ import AppKit
 import SwiftUI
 
 /// Settings › Appearance, in the UI process: the windows' theme, light or dark and their accent
-/// color. Every change goes to the core's settings at once (`Usage.setSetting`), as
-/// `soroband config set` would, and every window follows it.
+/// color, and the app's icon. Every change goes to the core's settings at once
+/// (`Usage.setSetting`), as `soroband config set` would, and every window follows it.
 struct AppearanceSettings: View {
     let theme: Theme
+    var appIcon = AppIcon.graphite
+    /// Whether this account can change the bundle, so Finder shows the icon too (`FinderIcon`).
+    var finderCanChange = FinderIcon.canWrite(Bundle.main.bundleURL)
     let set: (String, String) -> Void
 
     var body: some View {
         SettingsPage(
             title: "Appearance",
-            subtitle: "How Soroband’s windows look. The island at the notch always stays dark."
+            subtitle: "How Soroband’s windows and icon look. The island at the notch always stays dark."
         ) {
             SettingsSection(title: "Theme") {
                 SettingsCard {
@@ -44,7 +47,28 @@ struct AppearanceSettings: View {
                     .padding(14)
                 }
             }
+            SettingsSection(title: "App Icon", footer: iconNote) {
+                SettingsCard {
+                    LazyVGrid(columns: Self.iconColumns, spacing: 10) {
+                        ForEach(AppIcon.allCases) { icon in
+                            AppIconTile(
+                                icon: icon, isSelected: icon == appIcon,
+                                select: { set(AppIcon.settingKey, icon.rawValue) })
+                        }
+                    }
+                    .padding(12)
+                }
+            }
         }
+    }
+
+    /// Five to a row, so the 13 icons fill two rows and most of a third at any window width.
+    private static let iconColumns = Array(repeating: GridItem(.flexible(), spacing: 6, alignment: .top), count: 5)
+
+    private var iconNote: String {
+        finderCanChange
+            ? "In the Dock, in Finder and in About."
+            : "In the Dock and in About. Finder keeps the default icon, because this copy of Soroband cannot be changed from this account."
     }
 
     private var accentNote: String {
@@ -198,4 +222,76 @@ private struct AccentSwatch: View {
 
     /// System shows macOS's own accent color, whatever the windows are tinted with.
     private var fill: Color { accent.color ?? Color(nsColor: .controlAccentColor) }
+}
+
+/// An app icon to choose, labeled by name: several differ only in color, so none stands without
+/// its label (as `NetworkColorPicker`'s swatches).
+private struct AppIconTile: View {
+    let icon: AppIcon
+    let isSelected: Bool
+    let select: () -> Void
+
+    var body: some View {
+        Button(action: select) {
+            VStack(spacing: 4) {
+                Image(nsImage: AppIconThumbnails.image(icon))
+                    .frame(width: AppIconThumbnails.size, height: AppIconThumbnails.size)
+                Text(icon.label)
+                    .font(.caption)
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, 6).padding(.horizontal, 4)
+            .frame(maxWidth: .infinity, alignment: .top)
+            .background(
+                isSelected ? AnyShapeStyle(.tint.opacity(0.13)) : AnyShapeStyle(.clear), in: .rect(cornerRadius: 9)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 9)
+                    .strokeBorder(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear), lineWidth: 2)
+            )
+            .contentShape(.rect(cornerRadius: 9))
+        }
+        .buttonStyle(.plain)
+        .help(icon.label)
+        .accessibilityLabel("\(icon.label) app icon")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+/// The icons as Settings shows them, each drawn once into a bitmap of the size shown: an `.icns`
+/// in an image view would decode its 1024-pixel image for a 48 pt tile (see `MomentViews`). Kept
+/// for as long as the UI process runs, about 0.5 MB for all 13.
+@MainActor
+enum AppIconThumbnails {
+    static let size: CGFloat = 48
+    private static var cache: [AppIcon: NSImage] = [:]
+
+    static func image(_ icon: AppIcon) -> NSImage {
+        if let image = cache[icon] { return image }
+        let image = rasterized(icon.image())
+        cache[icon] = image
+        return image
+    }
+
+    private static func rasterized(_ icon: NSImage?) -> NSImage {
+        let pixels = Int(size * 2)
+        let image = NSImage(size: NSSize(width: size, height: size))
+        guard
+            let icon,
+            let bitmap = NSBitmapImageRep(
+                bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8, samplesPerPixel: 4,
+                hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)
+        else { return image }
+        bitmap.size = image.size
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
+        NSGraphicsContext.current?.imageInterpolation = .high
+        icon.draw(in: NSRect(origin: .zero, size: image.size))
+        NSGraphicsContext.restoreGraphicsState()
+        image.addRepresentation(bitmap)
+        return image
+    }
 }
