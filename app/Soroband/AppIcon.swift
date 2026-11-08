@@ -111,9 +111,21 @@ enum FinderIconPlan {
 final class FinderIcon {
     static let shared = FinderIcon(bundle: Bundle.main.bundleURL)
 
-    /// Off in the UI process and in the test host; `AppDelegate` turns it on in the menu bar
-    /// process before the first read of the settings.
+    /// Off in the UI process; `AppDelegate` sets it in the menu bar process before the first read
+    /// of the settings (`isEnabled`).
     var isActive = false
+
+    /// The variable that lets a Debug build write Finder's icon.
+    nonisolated static let debugEnvironmentKey = "SOROBAND_FINDER_ICON"
+
+    /// Whether the menu bar process keeps Finder's icon. Never in the test host. Debug builds share
+    /// one data directory across worktrees, and an `Icon\r` in a build's bundle makes Xcode's next
+    /// signing of it fail, so a Debug build writes only with `SOROBAND_FINDER_ICON=1`; its UI
+    /// process still shows the picked icon.
+    nonisolated static func isEnabled(isDebug: Bool, environment: [String: String]) -> Bool {
+        guard environment["XCTestConfigurationFilePath"] == nil else { return false }
+        return !isDebug || environment[debugEnvironmentKey] == "1"
+    }
 
     private let bundle: URL
     /// The icon the setting held at the last update; nil before the first, at launch.

@@ -6,17 +6,66 @@ import Testing
 
 @MainActor
 struct AppIconTests {
-    /// The app's words must be the core's, in the core's order (`APP_ICON_OPTIONS`): a word only
-    /// one side knows would be refused by `config set` or shown as graphite.
-    @Test func theIconsAreTheCoresWords() {
-        #expect(
-            AppIcon.allCases.map(\.rawValue) == [
-                "graphite", "indigo", "plum", "light", "hairline-coral", "hairline-indigo", "hairline-teal",
-                "hairline-emerald", "hairline-amber", "hairline-rose", "hairline-sky", "hairline-graphite",
-                "hairline-paper",
-            ])
+    /// Every icon Settings offers is a word the core stores: one the core refused would leave the
+    /// pick unsaved. Asked of the core itself, so a change to its list goes red here. The test
+    /// host's settings are shared, so the value is put back.
+    @Test func theCoreTakesEveryIconSettingsOffers() throws {
+        let original = try #require(Core.setting(AppIcon.settingKey))
+        defer { Core.setSetting(AppIcon.settingKey, to: original) }
+        for icon in AppIcon.allCases {
+            #expect(Core.setSetting(AppIcon.settingKey, to: icon.rawValue), "\(icon.rawValue)")
+            #expect(Core.setting(AppIcon.settingKey) == icon.rawValue)
+        }
+        #expect(!Core.setSetting(AppIcon.settingKey, to: "hairline"))
         #expect(AppIcon.hairlineCoral.label == "Hairline Coral")
         #expect(AppIcon.plum.label == "Plum")
+    }
+
+    /// Finder's icon is written by a Release build, and by a Debug build only when asked: Debug
+    /// builds of every worktree share one data directory, and an `Icon\r` in a build's bundle
+    /// fails Xcode's next signing of it. The test host never writes.
+    @Test func onlyReleaseOrAnAskingDebugBuildWritesFinder() {
+        let key = FinderIcon.debugEnvironmentKey
+        #expect(FinderIcon.isEnabled(isDebug: false, environment: [:]))
+        #expect(!FinderIcon.isEnabled(isDebug: true, environment: [:]))
+        #expect(FinderIcon.isEnabled(isDebug: true, environment: [key: "1"]))
+        #expect(!FinderIcon.isEnabled(isDebug: true, environment: [key: "0"]))
+        #expect(!FinderIcon.isEnabled(isDebug: true, environment: [key: ""]))
+        for isDebug in [false, true] {
+            #expect(
+                !FinderIcon.isEnabled(
+                    isDebug: isDebug, environment: [key: "1", "XCTestConfigurationFilePath": "/tmp/x"]))
+        }
+    }
+
+    /// `soroband config set app_icon` reaches the UI process: the snapshot the menu bar process
+    /// sends carries the icon it read, even when nothing else changed.
+    @Test func theSnapshotSentCarriesTheAppIcon() throws {
+        let original = try #require(Core.setting(AppIcon.settingKey))
+        defer {
+            Core.setSetting(AppIcon.settingKey, to: original)
+            Usage.shared.reloadSettings()
+        }
+        Usage.shared.reloadSettings()
+        let picked: AppIcon = original == AppIcon.plum.rawValue ? .hairlineSky : .plum
+        #expect(Core.setSetting(AppIcon.settingKey, to: picked.rawValue))
+        Usage.shared.reloadSettings()
+        #expect(UISnapshot.current().appIcon == picked)
+    }
+
+    /// The UI process takes the icon from the snapshot and shows it (About reads
+    /// `NSApp.applicationIconImage`); graphite gives the bundle's icon back.
+    @Test func theUIProcessAppliesTheMirroredIcon() {
+        let usage = Usage()
+        var snapshot = UISnapshot.current()
+        snapshot.appIcon = .hairlineSky
+        usage.mirror(snapshot)
+        #expect(usage.appIcon == .hairlineSky)
+        let custom = NSApp.applicationIconImage
+        snapshot.appIcon = .graphite
+        usage.mirror(snapshot)
+        #expect(usage.appIcon == .graphite)
+        #expect(NSApp.applicationIconImage !== custom, "graphite restores the bundle's icon")
     }
 
     /// A value the app does not know (a hand edit, a word from a newer Soroband) and a missing one
