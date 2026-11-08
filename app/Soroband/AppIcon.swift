@@ -139,8 +139,8 @@ final class FinderIcon {
         self.bundle = bundle
     }
 
-    /// Whether this account can change the bundle `url`: a copy another user installed keeps the
-    /// bundle's icon in Finder.
+    /// Whether this account can change the bundle `url`: a copy it cannot change (another user's
+    /// install, a read-only disk image) keeps the bundle's icon in Finder.
     nonisolated static func canWrite(_ url: URL) -> Bool {
         access(url.path, W_OK) == 0
     }

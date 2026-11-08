@@ -68,7 +68,7 @@ struct AppearanceSettings: View {
     private var iconNote: String {
         finderCanChange
             ? "In the Dock, in Finder and in About."
-            : "In the Dock and in About. Finder keeps the default icon, because this account cannot change this copy of Soroband (another user installed it)."
+            : "In the Dock and in About. Finder keeps the default icon, because this copy of Soroband cannot be changed from this account."
     }
 
     private var accentNote: String {

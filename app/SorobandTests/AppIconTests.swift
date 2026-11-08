@@ -134,7 +134,7 @@ struct AppIconTests {
                 == .set(.hairlineTeal))
     }
 
-    /// A bundle this account cannot change (another user installed it) is never written, at a
+    /// A bundle this account cannot change (another user's install, a read-only disk image) is never written, at a
     /// launch or a change, so nothing retries a write that would fail; Settings says Finder keeps
     /// the default instead.
     @Test(arguments: AppIcon.allCases)
