@@ -828,3 +828,4 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit CLI | none | On the restated guard and split. |
 | 4 | Opus | 1 Medium, 3 Low, 1 Minor | Resolved round 3's three threads. `first look`: M8's fallback claimed the layout guard reports degraded; M10's Disk filling, its per-app actions, whether its moments are alerts, and "Ignore this app". Findings did not shrink: second reassessment ([comment](https://github.com/AboulEinein/soroband/pull/66#issuecomment-6715571613)); the user chose to trim M9 and M10 to outcomes. |
 | CodeRabbit | CodeRabbit CLI | 1 Major | `first look`: GPU energy had no per-process counter for the guard to check it against. |
+| CodeRabbit | CodeRabbit CLI | 1 Minor | `first look`: energy counters that stay at zero (Intel) would be stored as zero energy. |
