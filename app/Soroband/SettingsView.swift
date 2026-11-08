@@ -140,7 +140,7 @@ struct SettingsView: View {
             case .general:
                 GeneralSettings(usage: usage, launchAtLogin: launchAtLogin)
             case .appearance:
-                AppearanceSettings(theme: usage.theme, set: { usage.setSetting($0, to: $1) })
+                AppearanceSettings(theme: usage.theme, appIcon: usage.appIcon, set: { usage.setSetting($0, to: $1) })
             case .menuBar:
                 MenuBarSettings(usage: usage)
             case .island:

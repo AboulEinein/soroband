@@ -189,7 +189,7 @@ struct SnapshotTests {
     /// sketches a window in its appearance, and every accent has its label.
     @Test(arguments: [ColorScheme.dark, .light])
     func settingsAppearance(scheme: ColorScheme) throws {
-        let view = AppearanceSettings(theme: Theme(), set: { _, _ in })
+        let view = AppearanceSettings(theme: Theme(), finderCanChange: true, set: { _, _ in })
             .background(Color(nsColor: .windowBackgroundColor))
         try Snapshot.verify(
             view, named: "settings-appearance-\(scheme == .dark ? "dark" : "light")",
@@ -201,10 +201,22 @@ struct SnapshotTests {
     /// on the System swatch only.
     @Test func settingsAppearanceTinted() throws {
         let theme = Theme(appearance: .dark, accent: .plum)
-        let view = AppearanceSettings(theme: theme, set: { _, _ in })
+        let view = AppearanceSettings(theme: theme, finderCanChange: true, set: { _, _ in })
             .tint(theme.accent.color)
             .background(Color(nsColor: .windowBackgroundColor))
         try Snapshot.verify(view, named: "settings-appearance-plum", size: CGSize(width: 560, height: 420))
+    }
+
+    /// The whole page with the App Icon section, Hairline Teal picked on a copy this account
+    /// cannot change: all 13 icons drawn small and sharp with their labels, the pick ringed, and
+    /// the note that Finder keeps the default.
+    @Test func settingsAppearanceAppIcon() throws {
+        let view = AppearanceSettings(
+            theme: Theme(), appIcon: .hairlineTeal, finderCanChange: false, set: { _, _ in }
+        )
+        .background(Color(nsColor: .windowBackgroundColor))
+        try Snapshot.verify(
+            view, named: "settings-appearance-app-icon", size: CGSize(width: 560, height: 770), scheme: .dark)
     }
 
     /// The color picker of a network with a picked color (magenta, ringed) and of one without
