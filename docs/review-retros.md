@@ -823,3 +823,4 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit CLI | 1 Major | `fix regression`: a command that exits between minute reads lost its usage to the terminal. |
 | CodeRabbit | CodeRabbit CLI | 2 Major | `fix regression`: the guard did not check energy; an unreadable command's usage went to the terminal. |
 | 2 | Opus | 4 Low | Resolved round 1's five threads. `fix regression`: the guard's "over the interval" read as deltas; a failed energy check had no outcome; a shared coalition's per-poll split did not say how its processes are found. `first look`: Snooze was not defined. |
+| CodeRabbit | CodeRabbit CLI | 1 Major | `fix regression`: a layout swapping two counters could pass lower-bound checks. |
