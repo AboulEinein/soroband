@@ -807,3 +807,11 @@ Planned rounds: 2.
 | CodeRabbit | CodeRabbit | none | |
 
 **Retro.** Planned 2 rounds; it took 1 and a direct review. Round 1's three Low findings came from reading the accent against what draws on it (a white glyph, the day ruler's other color) and from a test that stopped one process short of its name; checking each new color against every color it sits on or beside, and testing the value where the other process reads it, would have caught them before the round.
+
+## [#68](https://github.com/AboulEinein/soroband/pull/68) feat(app): pick the app icon in Settings › Appearance (2026-11-08)
+
+Planned rounds: 2.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 1 Minor | `first look`: CHANGELOG kept #57's Graphite-only App icon bullet beside the new one. |
