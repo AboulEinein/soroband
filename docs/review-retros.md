@@ -835,3 +835,29 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | none | On 26c9067. |
 
 **Retro.** Planned 1 round, the user's cap for a prototype; it took 1 and a direct review. The round's two findings were in the probe's own reporting, not its measurements, and the reviewer checked the struct layouts against the SDK itself. The CLI's run of the fixes found what the blind round had not read closely, `run.sh`'s error path; CodeRabbit's two were the README row summarizing the measurements more loosely than the code. `main` moved twice during the review (#64, then #57 and #63), and each merge conflicted only in this file; after the second merge the CLI was not rerun, because the branch's diff against `main` was the one it had just reviewed. `scripts/verify/prepush.sh` failed three times on a flake outside this PR, `soroband-cli`'s `update` tests colliding in `hdiutil create`, and passed on the rerun each time. Changes: none to the rules; the flake becomes a follow-up.
+
+## [#66](https://github.com/AboulEinein/soroband/pull/66) docs(plan): plan the resource meter as M8 to M10 (2026-11-08)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | 2 Medium, 3 Low | `first look`: M8's guard would trip on correct reads (a coalition also counts exited and unreadable processes) and its cost was not counted; M10's Ignore contradicted the ignored apps; the handover pointed at results the README does not hold; M8's verification row had no memory measurement. |
+| CodeRabbit | CodeRabbit CLI | 2 Major | `fix regression`: the guard bounded footprint on one side only and left disk and energy unchecked; a footprint changing between reads would degrade the engine. |
+| CodeRabbit | CodeRabbit CLI | 3 Major | `first look`: a terminal's coalition credited its commands to the terminal; the minute record could not name a disk-heavy app. `fix regression`: a footprint outside its range still failed the guard. |
+| CodeRabbit | CodeRabbit CLI | 1 Major | `fix regression`: a command that exits between minute reads lost its usage to the terminal. |
+| CodeRabbit | CodeRabbit CLI | 2 Major | `fix regression`: the guard did not check energy; an unreadable command's usage went to the terminal. |
+| 2 | Opus | 4 Low | Resolved round 1's five threads. `fix regression`: the guard's "over the interval" read as deltas; a failed energy check had no outcome; a shared coalition's per-poll split did not say how its processes are found. `first look`: Snooze was not defined. |
+| CodeRabbit | CodeRabbit CLI | 1 Major | `fix regression`: a layout swapping two counters could pass lower-bound checks. |
+| 3 | Opus | 1 Medium, 2 Low | Resolved round 2's four threads. `fix regression`: the scripted load's `dd` finished between minute reads, so the split could not credit it. `first look`: two stored fields had no guard check; Snooze had no test. Led to the reassessment ([comment](https://github.com/AboulEinein/soroband/pull/66#issuecomment-6715438056)): the guard and the split restated as requirements. |
+| CodeRabbit | CodeRabbit CLI | none | On the restated guard and split. |
+| 4 | Opus | 1 Medium, 3 Low, 1 Minor | Resolved round 3's three threads. `first look`: M8's fallback claimed the layout guard reports degraded; M10's Disk filling, its per-app actions, whether its moments are alerts, and "Ignore this app". Findings did not shrink: second reassessment ([comment](https://github.com/AboulEinein/soroband/pull/66#issuecomment-6715571613)); the user chose to trim M9 and M10 to outcomes. |
+| CodeRabbit | CodeRabbit CLI | 1 Major | `first look`: GPU energy had no per-process counter for the guard to check it against. |
+| CodeRabbit | CodeRabbit CLI | 1 Minor | `first look`: energy counters that stay at zero (Intel) would be stored as zero energy. |
+| 5 | Opus | none | Resolved round 4's five threads; checked the GPU energy claim by running the probe. |
+| CodeRabbit | CodeRabbit | 1 Major, 2 Minor | On d2a5d8d. `first look`: equal values can hide a swapped layout; the fallback's numbers were unmarked; the 0.014% did not say what it leaves out. |
+| CodeRabbit | CodeRabbit | none | On d6985e0. No sixth blind round: the user chose to note any nits for later and merge. |
+| CodeRabbit | CodeRabbit | 1 Minor | On 602f170, after #65 merged into this branch. `judged fine`: `run.sh` from another directory cannot find the lock; #65's script, left as a follow-up. |
+
+**Retro.** Planned 1 round; it took 5, two reassessments and ten CLI runs. Rounds 2 and 3 and every CLI run found a new edge in the same two bullets of M8, the guard and the coalition split, because each fix specified more mechanism than a plan can test; the first reassessment restated them as requirements, and the CLI then found nothing on them. Round 4's findings were of a new kind, M10's moments against existing terms, but did not shrink, so the second reassessment went to the user, who chose to trim M9 and M10 to outcomes; round 5 found nothing. The findings after that were requirement additions (distinct values for the layout check, marked fallback rows, energy unavailable where it stays at zero). Changes: a plan states what a milestone must deliver and how it is checked, and leaves mechanism and view design to the milestone; proposed as a rule for `plan.md` with the user's approval, not made here.

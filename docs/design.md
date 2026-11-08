@@ -14,6 +14,15 @@ Screenshots of the app: [`screenshots/`](screenshots). The UI prototype's screen
 | Bytetally | Pro: filter history by Wi‑Fi, per-network caps | Yes | Pro: any range, heatmap, CSV/JSON export | Sandboxed, per-app attribution incl. VPN |
 | NetPulse | No | Yes, top 10 | Daily trends | Not documented |
 
+For CPU, memory and disk (2026-11-08; CPU and memory measured on one Mac over 10 minutes, with `ps` and `footprint`):
+
+| App | Per app | History | Alerts | CPU, memory |
+| --- | --- | --- | --- | --- |
+| Stats 3.0 | Top processes now | 24 hours of totals | Fixed thresholds per module | 3.3–4.0%, 99–131 MB |
+| Vorssaint 3.4 | Top processes now | About 4 minutes, in memory | Sustained 12 s, with a cooldown; a notch island | 1.3%, 23 MB (monitors on, notch off) |
+| iStat Menus 7 | Helpers combined with their app | 10 minutes to 28 days of totals | Rules | Not measured |
+| Mac Performance Monitor | Per app with helpers, timelines | A recorder with chosen retention | Growth that lasts, fast growth | Not measured |
+
 Hotspot Meter keeps a record per network, can start tracking on its own when a hotspot joins, and alerts per session and per network. It meters the interface, so it cannot say which app used the data. That gap is the point of Soroband.
 
 ## Decisions
