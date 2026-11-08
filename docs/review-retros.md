@@ -825,3 +825,4 @@ Planned rounds: 1.
 | 2 | Opus | 4 Low | Resolved round 1's five threads. `fix regression`: the guard's "over the interval" read as deltas; a failed energy check had no outcome; a shared coalition's per-poll split did not say how its processes are found. `first look`: Snooze was not defined. |
 | CodeRabbit | CodeRabbit CLI | 1 Major | `fix regression`: a layout swapping two counters could pass lower-bound checks. |
 | 3 | Opus | 1 Medium, 2 Low | Resolved round 2's four threads. `fix regression`: the scripted load's `dd` finished between minute reads, so the split could not credit it. `first look`: two stored fields had no guard check; Snooze had no test. Led to the reassessment ([comment](https://github.com/AboulEinein/soroband/pull/66#issuecomment-6715438056)): the guard and the split restated as requirements. |
+| CodeRabbit | CodeRabbit CLI | none | On the restated guard and split. |
