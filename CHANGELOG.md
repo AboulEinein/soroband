@@ -9,6 +9,7 @@ The first release.
 ### Added
 
 - **Menu bar item.** Today's usage on the network you are on, with a network icon. Up to four readings (today's total, download, upload, live download or upload speed), stacked, labeled or inline, counting the current network or every network. The icon is the network's kind, or the Soroband glyph (Settings › Menu Bar › Icon, or `menu_bar_icon`).
+- **Appearance.** Soroband's windows can follow macOS or stay light or dark, and take macOS's accent color or one of eight from Soroband's icons (Settings › Appearance, or `appearance` and `accent`).
 - **Popover.** The current network with today's total, its download and upload, and today's hours as bars; today's apps on this network or on all networks; today per network; and "Other / overhead", the gap between what crossed the network and what apps account for.
 - **History.** Day, week, month, year and all time, per network or across all of them: a usage chart, the apps with their split per network, a weekday-by-hour heatmap, and CSV export. Usage is kept forever, per hour, per network and per app.
 - **Networks.** Wi‑Fi (by name once Location access is allowed, by its router until then), Ethernet (by its router) and iPhone hotspots are told apart and metered on their own. Each network can be renamed and given a color.

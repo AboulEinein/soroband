@@ -33,6 +33,14 @@ final class PopoverController: NSObject, NSPopoverDelegate {
 
     var isShown: Bool { popover.isShown }
 
+    /// The theme's light or dark (`Theme.apply`), or nil for macOS's. Set on the popover itself,
+    /// which does not take the app's appearance: its frame would stay macOS's around content in
+    /// the theme's.
+    var appearance: NSAppearance? {
+        get { popover.appearance }
+        set { popover.appearance = newValue }
+    }
+
     override init() {
         super.init()
         popover.behavior = .transient
@@ -72,7 +80,8 @@ final class PopoverController: NSObject, NSPopoverDelegate {
                     SettingsWindow.shared.show(activates: true)
                     self?.popover.performClose(nil)
                 },
-                quit: { UIHost.send(.quit) }))
+                quit: { UIHost.send(.quit) }
+            ).themed())
     }
 
     private func presentBuilt(_ request: PopoverRequest) {

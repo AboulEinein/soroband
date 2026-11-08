@@ -26,6 +26,9 @@ final class Usage {
     /// The island's settings, read in the UI process for Settings; the menu bar process's
     /// `IslandController` holds its own.
     private(set) var island = IslandSettings()
+    /// The windows' theme. The menu bar process only reads it and hands it on; the UI process
+    /// applies it (`Theme.apply`, `themed`).
+    private(set) var theme = Theme()
 
     /// Set by the popover: polls every second and publishes today's lists while true.
     var isLive = false {
@@ -96,12 +99,16 @@ final class Usage {
         if snapshot.menuBarLayout != menuBarLayout { menuBarLayout = snapshot.menuBarLayout }
         if snapshot.resetHour != resetHour { resetHour = snapshot.resetHour }
         if snapshot.island != island { island = snapshot.island }
+        if snapshot.theme != theme { theme = snapshot.theme }
+        theme.apply()
     }
 
     /// Rereads the settings the app shows, after `soroband config set` or a change in Settings.
-    /// Only a changed layout redraws the menu bar; a changed reset hour reaches it with the poll
-    /// the engine makes for it.
+    /// Only a changed layout or theme reaches the UI process at once, and only a changed layout
+    /// redraws the menu bar; a changed reset hour reaches both with the poll the engine makes for
+    /// it.
     func reloadSettings() {
+        let theme = Theme(value: Core.setting)
         let layout = MenuBarLayout(
             scope: Core.setting(MenuBarScope.settingKey).flatMap(MenuBarScope.init(rawValue:)) ?? .network,
             readings: Core.setting(MenuBarLayout.readingsKey).flatMap(MenuBarLayout.readings(from:))
@@ -112,8 +119,9 @@ final class Usage {
                 ?? MenuBarLayout.default.icon)
         let resetHour = Core.setting("reset_hour").flatMap(Int.init) ?? 0
         if resetHour != self.resetHour { self.resetHour = resetHour }
-        guard layout != menuBarLayout else { return }
-        menuBarLayout = layout
+        guard layout != menuBarLayout || theme != self.theme else { return }
+        if layout != menuBarLayout { menuBarLayout = layout }
+        if theme != self.theme { self.theme = theme }
         onChange?()
     }
 
@@ -133,12 +141,14 @@ final class Usage {
         reloadSettings()
     }
 
-    /// Sets `key` as `soroband config set` would, for the island's settings. A value that does not
-    /// fit the setting is not saved.
+    /// Sets `key` as `soroband config set` would, for the island's and the theme's settings. A
+    /// value that does not fit the setting is not saved.
     func setSetting(_ key: String, to value: String) {
         if UIHost.forward(.setSetting(key: key, value: value)) {
             // Shown at once; the menu bar process's snapshot confirms it.
             island = island.setting(key, to: value)
+            theme = theme.setting(key, to: value)
+            theme.apply()
             return
         }
         guard Core.setSetting(key, to: value) else {
@@ -146,6 +156,7 @@ final class Usage {
             return
         }
         Core.reloadSettings()
+        reloadSettings()
         IslandController.shared.reloadSettings()
     }
 

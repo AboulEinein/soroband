@@ -185,6 +185,46 @@ struct SnapshotTests {
         try Snapshot.verify(view, named: "settings-networks", size: CGSize(width: 560, height: 400))
     }
 
+    /// The Appearance page on its defaults (System and System), in dark and in light: each card
+    /// sketches a window in its appearance, and every accent has its label.
+    @Test(arguments: [ColorScheme.dark, .light])
+    func settingsAppearance(scheme: ColorScheme) throws {
+        let view = AppearanceSettings(theme: Theme(), set: { _, _ in })
+            .background(Color(nsColor: .windowBackgroundColor))
+        try Snapshot.verify(
+            view, named: "settings-appearance-\(scheme == .dark ? "dark" : "light")",
+            size: CGSize(width: 560, height: 420), scheme: scheme)
+    }
+
+    /// Plum picked on the Dark card, from a tint as the windows' root gives it (`themed`): the
+    /// selected card, its radio and the sketches take plum's dark step, and macOS's accent stays
+    /// on the System swatch only.
+    @Test func settingsAppearanceTinted() throws {
+        let theme = Theme(appearance: .dark, accent: .plum)
+        let view = AppearanceSettings(theme: theme, set: { _, _ in })
+            .tint(theme.accent.color)
+            .background(Color(nsColor: .windowBackgroundColor))
+        try Snapshot.verify(view, named: "settings-appearance-plum", size: CGSize(width: 560, height: 420))
+    }
+
+    /// The day ruler with the day starting at 4 AM, tinted amber, the accent nearest to orange, in
+    /// dark and in light: the hours before it, and their legend dot, stay gray, apart from today's.
+    @Test func dayRulerWithAnAccent() throws {
+        let ruler = { (scheme: ColorScheme) in
+            DayRuler(resetHour: 4)
+                .padding(12)
+                .frame(width: 520)
+                .background(scheme == .dark ? Color(white: 0.16) : .white)
+                .environment(\.colorScheme, scheme)
+        }
+        let view = VStack(spacing: 0) {
+            ruler(.dark)
+            ruler(.light)
+        }
+        .tint(Accent.amber.color)
+        try Snapshot.verify(view, named: "settings-day-ruler-amber")
+    }
+
     /// The color picker of a network with a picked color (magenta, ringed) and of one without
     /// (Automatic checked, naming its place's color), in dark and in light mode.
     @Test func networkColorPicker() throws {
