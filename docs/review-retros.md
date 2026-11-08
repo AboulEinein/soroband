@@ -817,3 +817,7 @@ Planned rounds: 1.
 | Review | Model | Findings | Origins |
 | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | 2 Medium, 3 Low | `first look`: M8's guard would trip on correct reads (a coalition also counts exited and unreadable processes) and its cost was not counted; M10's Ignore contradicted the ignored apps; the handover pointed at results the README does not hold; M8's verification row had no memory measurement. |
+| CodeRabbit | CodeRabbit CLI | 2 Major | `fix regression`: the guard bounded footprint on one side only and left disk and energy unchecked; a footprint changing between reads would degrade the engine. |
+| CodeRabbit | CodeRabbit CLI | 3 Major | `first look`: a terminal's coalition credited its commands to the terminal; the minute record could not name a disk-heavy app. `fix regression`: a footprint outside its range still failed the guard. |
+| CodeRabbit | CodeRabbit CLI | 1 Major | `fix regression`: a command that exits between minute reads lost its usage to the terminal. |
