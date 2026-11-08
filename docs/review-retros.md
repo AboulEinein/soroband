@@ -821,3 +821,5 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit CLI | 2 Major | `fix regression`: the guard bounded footprint on one side only and left disk and energy unchecked; a footprint changing between reads would degrade the engine. |
 | CodeRabbit | CodeRabbit CLI | 3 Major | `first look`: a terminal's coalition credited its commands to the terminal; the minute record could not name a disk-heavy app. `fix regression`: a footprint outside its range still failed the guard. |
 | CodeRabbit | CodeRabbit CLI | 1 Major | `fix regression`: a command that exits between minute reads lost its usage to the terminal. |
+| CodeRabbit | CodeRabbit CLI | 2 Major | `fix regression`: the guard did not check energy; an unreadable command's usage went to the terminal. |
+| 2 | Opus | 4 Low | Resolved round 1's five threads. `fix regression`: the guard's "over the interval" read as deltas; a failed energy check had no outcome; a shared coalition's per-poll split did not say how its processes are found. `first look`: Snooze was not defined. |
