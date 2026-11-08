@@ -151,7 +151,9 @@ struct SettingsView: View {
                     save: { usage.updateNetwork(id: $0, name: $1, kind: $2) },
                     setColor: { usage.setNetworkColor(id: $0, color: $1) })
             case .about:
-                AboutSettings()
+                // Redrawn when the icon changes: it reads `NSApp.applicationIconImage`, which
+                // SwiftUI does not observe.
+                AboutSettings().id(usage.appIcon)
             }
         }
         .navigationTitle(selection.tab.title)
