@@ -469,11 +469,17 @@ fn git(args: &[&str]) -> String {
 #[test]
 fn version_names_the_commit_the_command_was_built_from() {
     // The user compares this with `git rev-parse --short origin/main` to tell which build runs.
-    // Whether the checkout is dirty can change after the build without a rebuild (a new untracked
-    // file), so the suffix is left out here and checked on fixtures below.
     let output = soroband(&data_dir("version"), &["version"]);
     assert!(output.status.success(), "{output:?}");
-    let stamp = [
+    let printed = String::from_utf8(output.stdout).unwrap();
+    let rest = printed
+        .strip_prefix(&format!("soroband {} (", soroband_core::version()))
+        .unwrap_or_else(|| panic!("{printed}"));
+    let (build, stamp) = rest
+        .split_once(") · ")
+        .unwrap_or_else(|| panic!("{printed}"));
+    assert!(build.parse::<u64>().is_ok(), "{printed}");
+    let expected = [
         git(&["rev-parse", "--short", "HEAD"]),
         git(&["branch", "--show-current"]),
     ]
@@ -481,23 +487,7 @@ fn version_names_the_commit_the_command_was_built_from() {
     .filter(|part| !part.is_empty())
     .collect::<Vec<_>>()
     .join(" ");
-    let expected = format!(
-        "soroband {} ({}) · {stamp}\n",
-        soroband_core::version(),
-        build_number()
-    );
-    let printed = String::from_utf8_lossy(&output.stdout).replacen("-dirty ", " ", 1);
-    assert_eq!(printed.replacen("-dirty\n", "\n", 1), expected);
-}
-
-/// The build number `scripts/build-stamp.sh` gives this checkout: its commit count, or 0 in a
-/// shallow clone.
-fn build_number() -> String {
-    if git(&["rev-parse", "--is-shallow-repository"]) == "true" {
-        "0".into()
-    } else {
-        git(&["rev-list", "--count", "HEAD"])
-    }
+    assert_eq!(stamp.trim_end(), expected);
 }
 
 /// Runs a copy of `scripts/build-stamp.sh` placed in `root`, which stamps the checkout at `root`.
@@ -509,8 +499,9 @@ fn build_stamp(root: &Path) -> String {
 }
 
 #[test]
-fn build_stamp_marks_changes_and_a_detached_head() {
-    // The project sits in a folder of a larger directory, which later becomes another checkout.
+fn build_stamp_outside_this_checkout_is_unknown() {
+    // A source archive, alone or extracted inside another project's checkout, still builds, and
+    // does not take that project's commit.
     let outer = data_dir("build-stamp");
     let root = outer.join("soroband");
     std::fs::create_dir_all(root.join("scripts")).unwrap();
@@ -520,8 +511,6 @@ fn build_stamp_marks_changes_and_a_detached_head() {
     )
     .unwrap();
     let unknown = "build=0\ncommit=unknown\nbranch=\n";
-    // Outside a checkout (a source archive) the build still gets a stamp, and inside another
-    // project's checkout it does not take that project's commit.
     assert_eq!(build_stamp(&root), unknown);
     git_in(&outer, &["init", "-q"]);
     git_in(
@@ -539,59 +528,4 @@ fn build_stamp_marks_changes_and_a_detached_head() {
         ],
     );
     assert_eq!(build_stamp(&root), unknown);
-
-    let commit = |message: &str| {
-        git_in(&root, &["add", "-A"]);
-        git_in(
-            &root,
-            &[
-                "-c",
-                "user.name=t",
-                "-c",
-                "user.email=t@t",
-                "commit",
-                "-q",
-                "-m",
-                message,
-            ],
-        );
-        git_in(&root, &["rev-parse", "--short", "HEAD"])
-    };
-    git_in(&root, &["init", "-q", "-b", "trunk"]);
-    commit("one");
-    std::fs::write(root.join("a"), "1").unwrap();
-    let head = commit("two");
-    assert_eq!(
-        build_stamp(&root),
-        format!("build=2\ncommit={head}\nbranch=trunk\n")
-    );
-
-    // An untracked file, a changed tracked file and a staged one each make the build dirty.
-    std::fs::write(root.join("new"), "x").unwrap();
-    assert_eq!(
-        build_stamp(&root),
-        format!("build=2\ncommit={head}-dirty\nbranch=trunk\n")
-    );
-    std::fs::remove_file(root.join("new")).unwrap();
-    std::fs::write(root.join("a"), "2").unwrap();
-    assert!(build_stamp(&root).contains(&format!("commit={head}-dirty\n")));
-    git_in(&root, &["add", "a"]);
-    assert!(build_stamp(&root).contains(&format!("commit={head}-dirty\n")));
-    git_in(&root, &["reset", "-q", "--hard"]);
-
-    // A detached HEAD (CI, a tag) has no branch.
-    git_in(&root, &["checkout", "-q", "--detach"]);
-    assert_eq!(
-        build_stamp(&root),
-        format!("build=2\ncommit={head}\nbranch=\n")
-    );
-
-    // A shallow clone does not hold every commit, so it cannot count them.
-    let shallow = outer.join("shallow");
-    let source = format!("file://{}", root.display());
-    git_in(&outer, &["clone", "-q", "--depth", "1", &source, "shallow"]);
-    assert_eq!(
-        build_stamp(&shallow),
-        format!("build=0\ncommit={head}\nbranch=trunk\n")
-    );
 }

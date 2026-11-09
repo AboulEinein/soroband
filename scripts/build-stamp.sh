@@ -7,7 +7,7 @@
 #   branch=main             the checked-out branch, empty on a detached HEAD
 # Outside a git checkout of this project (a source archive, even one inside another checkout) it
 # prints build=0, commit=unknown and an empty branch, so the build still succeeds. The Xcode
-# project's "Stamp the build" phase and soroband-cli's build.rs both run it.
+# project's "Stamp the build" phase and soroband-cli's build.rs (which drops -dirty) both run it.
 set -uo pipefail
 
 root=${0:A:h:h}

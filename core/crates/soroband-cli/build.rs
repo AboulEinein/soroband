@@ -1,5 +1,7 @@
 //! Stamps the `soroband` command with the commit it is built from, read by `scripts/build-stamp.sh`,
-//! as the environment variables `SOROBAND_BUILD`, `SOROBAND_COMMIT` and `SOROBAND_BRANCH`.
+//! as the environment variables `SOROBAND_BUILD`, `SOROBAND_COMMIT` and `SOROBAND_BRANCH`. The
+//! command leaves out the app's `-dirty` suffix: it is rebuilt only when the commit or the branch
+//! changes, so a suffix would go stale.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -27,7 +29,10 @@ fn main() {
         "cargo:rustc-env=SOROBAND_BUILD={}",
         value("build").unwrap_or_else(|| "0".to_owned())
     );
-    println!("cargo:rustc-env=SOROBAND_COMMIT={commit}");
+    println!(
+        "cargo:rustc-env=SOROBAND_COMMIT={}",
+        commit.trim_end_matches("-dirty")
+    );
     println!(
         "cargo:rustc-env=SOROBAND_BRANCH={}",
         value("branch").unwrap_or_default()
@@ -38,9 +43,7 @@ fn main() {
     }
 }
 
-/// The files whose change can change the stamp: git's record of HEAD, the branch and the index,
-/// and every tracked file (an edit makes the build dirty). A new untracked file is not among them,
-/// so it marks the command dirty only from the next build that reruns this script.
+/// git's record of the checked-out commit and branch: HEAD, the branch's ref and packed-refs.
 fn watched(root: &Path) -> Vec<PathBuf> {
     let git = |args: &[&str]| {
         let output = Command::new("git")
@@ -68,14 +71,10 @@ fn watched(root: &Path) -> Vec<PathBuf> {
     };
     let mut watched = vec![
         Path::new(git_dir).join("HEAD"),
-        Path::new(git_dir).join("index"),
         Path::new(common_dir).join("packed-refs"),
     ];
     if let Some(branch) = git(&["symbolic-ref", "-q", "HEAD"]) {
         watched.push(Path::new(common_dir).join(branch.trim()));
-    }
-    if let Some(files) = git(&["ls-files"]) {
-        watched.extend(files.lines().map(|file| root.join(file)));
     }
     // A missing path makes Cargo rerun this script on every build.
     watched.retain(|path| path.exists());

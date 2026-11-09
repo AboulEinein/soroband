@@ -87,9 +87,9 @@ jobs:
       # A release names the commit it was built from; -dirty means the job changed the checkout.
       - name: Check the build stamp
         run: |
-          stamp=$(build/dmg/Soroband.app/Contents/Helpers/soroband version)
-          echo "$stamp"
-          if [[ $stamp == *-dirty* ]]; then
+          commit=$(plutil -extract SorobandCommit raw -o - build/dmg/Soroband.app/Contents/Info.plist)
+          echo "Soroband.app: $commit; $(build/dmg/Soroband.app/Contents/Helpers/soroband version)"
+          if [[ $commit == *-dirty ]]; then
             echo "::error::The release is stamped dirty: the job changed the checkout before building ($(git status --porcelain | tr '\n' ' '))."
             exit 1
           fi

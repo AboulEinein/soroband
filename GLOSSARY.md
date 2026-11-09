@@ -309,7 +309,7 @@ The installed source build the user runs daily.
 A version published on GitHub by the release workflow from a version tag: `Soroband.dmg` (the app, with the `soroband` command in `Contents/Helpers`), its SHA-256 checksum, and its section of `CHANGELOG.md` as notes. Signed ad hoc, not notarized; `soroband update` installs the newest one.
 
 **Build stamp**:
-The commit a build was made from, written into the app and the `soroband` command when they are built (`scripts/build-stamp.sh`): HEAD's short SHA, with `-dirty` when the checkout had uncommitted changes, and the branch. Settings › About and `soroband version` show it after the version and the build number, the count of commits up to it: `0.1.0 (412) · 16e85ce main`.
+The commit a build was made from, written into the app and the `soroband` command when they are built (`scripts/build-stamp.sh`): HEAD's short SHA and the branch, and in the app `-dirty` when the checkout had uncommitted changes. Settings › About and `soroband version` show it after the version and the build number, the count of commits up to it (0 when the clone cannot count them): `0.1.0 (412) · 16e85ce main`.
 _Avoid_: build ID, revision
 
 **Source build**:
