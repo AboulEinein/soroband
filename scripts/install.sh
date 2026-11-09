@@ -135,7 +135,7 @@ done
 [[ -n $pid ]] || fail "Soroband did not start; see Console.app for crash reports."
 
 print
-print "Soroband $($bin/soroband version | cut -d' ' -f2) is installed and running (pid $pid)."
+print "Soroband ${$($bin/soroband version)#soroband } is installed and running (pid $pid)."
 print "  App:     $app ($(codesign -dvv $app 2>&1 | sed -nE 's/^Authority=(.*)/signed by \1/p;s/^Signature=adhoc/signed ad hoc/p'))"
 print "  Command: $bin/soroband"
 [[ :$PATH: == *:$bin:* ]] || print "  Add $bin to your PATH to run soroband from any directory."
