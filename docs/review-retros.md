@@ -933,7 +933,7 @@ Planned rounds: 2. The CodeRabbit CLI hit its rate limit before the draft; the u
 | CodeRabbit | CodeRabbit | 1 Minor | On 3374931. `fix regression`: linking M8's load to plan.md lost the 90 s for the resident allocation. | 1 sibling search |
 | CodeRabbit | CodeRabbit | 1 Major | On 018bbe1. `fix regression`: step 8 had no end for a commit changing only the logs' rules, which cabbef6 made reviewable outside CodeRabbit. | 1 sibling search |
 | direct | Sonnet | none | On 3374931..2c96176 ([comment](https://github.com/AboulEinein/soroband/pull/70#issuecomment-6744497424)). | none |
-| CodeRabbit | CodeRabbit | 1 Major | On 2c96176. Not valid: step 4's wait on such a commit ends, since the check reads `SUCCESS` when every file is filtered out. | none |
+| CodeRabbit | CodeRabbit | 1 Major | On 2c96176. `fix regression`: step 4 waited for `SUCCESS` on a log-only commit, whose check reads `SKIPPED` (seen on d3e5798); fixed in 70aa065. | 1 sibling search |
 
 **Retro.** Planned 2; took 2 blind rounds, 9 CodeRabbit reviews and 2 direct reviews. The CodeRabbit CLI never ran (rate limited, then skipped at the user's choice), and the last six pushes ran the records lint and the retired-terms check but not the full `prepush.sh`, all docs or lint changes.
 - **Cause:** eight concerns in one PR, two of them scripts, reached the hosted review with no CLI pass, so CodeRabbit found the scripts' edges and the fixes' slips one push at a time; each process-rule fix counted as a rule change and drew another review.
