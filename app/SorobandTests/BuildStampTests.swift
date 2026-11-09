@@ -40,6 +40,7 @@ struct BuildStampTests {
         let output = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         try #require(process.terminationStatus == 0, "git \(arguments) exited \(process.terminationStatus)")
-        return String(decoding: output, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = try #require(String(bytes: output, encoding: .utf8))
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
