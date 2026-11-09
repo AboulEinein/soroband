@@ -900,3 +900,9 @@ Planned rounds: 2. The CodeRabbit CLI hit its rate limit before the draft; the u
 | Review | Model | Findings | Origins | Caught earlier by |
 | --- | --- | --- | --- | --- |
 | 1 | Opus | 2 Low, 1 unrated | `first look`: `retired-terms.py` read `git diff` under the user's diff config, so `diff.noprefix` and the like made it pass having read nothing; review.md step 1 restated the checklist's CLI step; step 7 had no next step if CodeRabbit posts no status on a records-only commit (Discussion). All fixed in a24e0ba and 7788e4f. | 1 Reach list |
+| 2 | Opus | none | Resolved round 1's two Low threads; left the step 7 thread open until a records-only commit shows the `CodeRabbit` check completing. | none |
+
+**Retro.** Planned 2; took 2. The CodeRabbit CLI did not run: rate limited before the draft, then skipped at the user's choice.
+- **Cause:** round 1's fix to `retired-terms.py` changed behavior, so round 2 ran; it found nothing.
+- **Would have prevented it:** a Boundaries line in the Reach list for the script's hidden input, the user's git config; the PR's Reach list named the base ref but not that.
+- **Rule:** none; REVIEW.md's Boundaries rule and the Reach list already cover it.
