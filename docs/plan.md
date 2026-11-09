@@ -34,6 +34,8 @@ Statuses: `planned`, `in progress`, `in review`, `done`, `blocked (<reason>)`.
 
 Every milestone ends on its exit criteria. A milestone is `done` only when each criterion is checked with evidence in the PR description, as [`verification.md`](verification.md) describes for that milestone.
 
+A milestone states outcomes and how each is tested: what it delivers, its exit criteria, and the evidence that checks them. The mechanism (the algorithm, the data layout, how a check is computed) and the design of a view are the milestone's to choose, and its PR states and tests them.
+
 ### M0: Repository foundation
 
 Deliverables:
@@ -257,11 +259,9 @@ Paste this into a new session, with the milestone ID and branch filled in:
 ```text
 Run milestone M4 of Soroband on branch m4-history, created from main, with its PR against main.
 
-Before anything else, read AGENTS.md, docs/handover.md, docs/plan.md, docs/verification.md and docs/review.md.
+Before anything else, read docs/checklist.md and follow it for every change and every push; then read docs/handover.md and the milestone in docs/plan.md. docs/verification.md and docs/review.md are the reference the checklist links to.
 
-Deliver everything listed for the milestone in plan.md. Verify it the way verification.md describes for this milestone: tests that go red when the behavior breaks, then build and run the real app and capture evidence. Nothing counts as done on reasoning alone.
-
-Open the PR as a draft and run the review loop in review.md: state the planned rounds, use a fresh blind reviewer with the pr-review skill (--no-story --submit, so its comments are posted on the PR) each round, never stop with fixes no reviewer has seen, and reassess with an advisor agent as review.md describes. Where the milestone's section in plan.md changes the review loop (M5's review experiment), follow that section. When the blind loop ends, mark the PR ready and handle CodeRabbit's review as review.md describes, logging every finding in docs/coderabbit-findings.md. Start the PR's entry in docs/review-retros.md before round 1, add a row for every blind round and direct review, commit the rows of the reviews after the PR is ready and the retro as review.md describes, and if you stop blocked, commit every record noted so far with the retro. Stop as plan.md's "When a session stops" says: in review, or blocked. Update the ledger and the handover before you stop, in the commit that carries the review's records.
+Deliver everything listed for the milestone in plan.md, with the evidence verification.md asks for this milestone. Review it as docs/review.md describes, with any change the milestone's section makes to the loop (M5's review experiment). Stop as plan.md's "When a session stops" says, with the ledger and the handover updated.
 
 Report: the PR link, each exit criterion with its evidence, any checklist I need to run by hand, and anything blocked with what you need from me.
 ```
