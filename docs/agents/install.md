@@ -94,14 +94,14 @@ It takes a few minutes on the first run. It:
 - installs `Soroband.app` into `/Applications` and the `soroband` command into `~/.local/bin`;
 - launches the app.
 
-The script ends with `Soroband <version> is installed and running (pid <pid>)`. If it fails, read the error: each requirement failure names its fix. Do not work around a failure by editing the script. Then go to section 4; the app is already running.
+The script ends with `Soroband <version> (<build>) · <commit> <branch> is installed and running (pid <pid>)`, the build stamp naming the commit it was built from. If it fails, read the error: each requirement failure names its fix. Do not work around a failure by editing the script. Then go to section 4; the app is already running.
 
 ## 4. Open and verify
 
 ```sh
 open /Applications/Soroband.app                                     # the release route; install.sh already opened it
 pgrep -fl '^/Applications/Soroband.app/Contents/MacOS/Soroband$'   # prints the running app
-~/.local/bin/soroband version                                       # prints "soroband <version>"
+~/.local/bin/soroband version                                       # prints "soroband <version> (<build>) · <commit> <branch>"
 ```
 
 If `pgrep` prints nothing after the release route, macOS blocked the launch: ask the user to click **Open Anyway** as in section 2, then run `open` again.
