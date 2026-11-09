@@ -892,3 +892,7 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | none | |
 
 **Retro.** Planned 1 round; it took 1. The test steps the real springs instead of interpolating the metrics, which is what made the bug show: a linear sweep (the earlier no-notch test) never reaches the frames where width and height are out of step. The local CodeRabbit CLI caught the fillet still curving 8 pt into the menu bar, which the first test missed because it checked 28 pt down, not the edge; a boundary test checks the boundary.
+
+## [#70](https://github.com/AboulEinein/soroband/pull/70) docs(review): ship at the reviewer's bar before the PR opens (2026-11-09)
+
+Planned rounds: 2. The CodeRabbit CLI hit its rate limit before the draft; the user chose not to wait for it.
