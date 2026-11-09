@@ -43,7 +43,8 @@ fn main() {
     }
 }
 
-/// git's record of the checked-out commit and branch: HEAD, the branch's ref and packed-refs.
+/// git's record of the checked-out commit and branch: HEAD, its reflog (written by every commit,
+/// checkout and reset, also once the branch's ref is packed), the branch's ref and packed-refs.
 fn watched(root: &Path) -> Vec<PathBuf> {
     let git = |args: &[&str]| {
         let output = Command::new("git")
@@ -71,6 +72,7 @@ fn watched(root: &Path) -> Vec<PathBuf> {
     };
     let mut watched = vec![
         Path::new(git_dir).join("HEAD"),
+        Path::new(git_dir).join("logs/HEAD"),
         Path::new(common_dir).join("packed-refs"),
     ];
     if let Some(branch) = git(&["symbolic-ref", "-q", "HEAD"]) {
