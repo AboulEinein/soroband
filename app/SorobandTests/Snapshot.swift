@@ -51,6 +51,12 @@ enum Snapshot {
     static func render(
         _ view: some View, size: CGSize?, scheme: ColorScheme = .dark, windowColorSpace: NSColorSpace? = nil
     ) -> CGImage? {
+        withScreensInSnapshotColorSpace { draw(view, size: size, scheme: scheme, windowColorSpace: windowColorSpace) }
+    }
+
+    private static func draw(
+        _ view: some View, size: CGSize?, scheme: ColorScheme, windowColorSpace: NSColorSpace?
+    ) -> CGImage? {
         let host = NSHostingView(rootView: view.environment(\.colorScheme, scheme))
         let window = NSWindow(
             contentRect: CGRect(origin: .zero, size: size ?? host.fittingSize),
@@ -76,6 +82,18 @@ enum Snapshot {
         bitmap.size = host.bounds.size
         host.cacheDisplay(in: host.bounds, to: bitmap)
         return bitmap.cgImage
+    }
+
+    /// AppKit draws an image without a bitmap of its own (a drawing handler, an SVG such as the
+    /// menu bar glyph) in the main screen's color space, which neither the window nor the bitmap
+    /// sets, so its blended and antialiased pixels follow the display. While `body` runs, every
+    /// screen reports `colorSpace` instead.
+    private static func withScreensInSnapshotColorSpace<T>(_ body: () -> T) -> T {
+        let real = class_getInstanceMethod(NSScreen.self, #selector(getter: NSScreen.colorSpace))!
+        let pinned = class_getInstanceMethod(NSScreen.self, #selector(getter: NSScreen.snapshotColorSpace))!
+        method_exchangeImplementations(real, pinned)
+        defer { method_exchangeImplementations(real, pinned) }
+        return body()
     }
 
     /// Number of pixels that differ by more than `tolerance` in a channel, or every pixel when the sizes differ.
@@ -104,4 +122,9 @@ enum Snapshot {
     private static func png(_ image: CGImage) throws -> Data {
         try #require(NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]))
     }
+}
+
+extension NSScreen {
+    /// What a screen reports as its color space while `Snapshot.render` draws.
+    @objc fileprivate var snapshotColorSpace: NSColorSpace? { MainActor.assumeIsolated { Snapshot.colorSpace } }
 }
