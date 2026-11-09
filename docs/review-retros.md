@@ -887,3 +887,26 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | none | |
 
 **Retro.** Planned 1 round; it took 1. The test steps the real springs instead of interpolating the metrics, which is what made the bug show: a linear sweep (the earlier no-notch test) never reaches the frames where width and height are out of step. The local CodeRabbit CLI caught the fillet still curving 8 pt into the menu bar, which the first test missed because it checked 28 pt down, not the edge; a boundary test checks the boundary.
+
+## [#69](https://github.com/AboulEinein/soroband/pull/69) feat(build): stamp every build with the commit it came from (2026-11-09)
+
+Planned rounds: 2. Ran: 3 blind rounds, 1 direct review, 7 CodeRabbit CLI reviews (two more hit its rate limit and did not run), 2 CodeRabbit reviews.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 1 Major | `first look`: the CLI's live test expected `-dirty` from the checkout's current status, which a new untracked file changes without rebuilding the command. |
+| CodeRabbit | CodeRabbit CLI | 1 Minor | `fix regression`: the app's live test had the same race. |
+| CodeRabbit | CodeRabbit CLI | 2 Minor | `first look`: a source archive inside another checkout took that checkout's stamp; a shallow clone numbered every build 1. |
+| CodeRabbit | CodeRabbit CLI | none | |
+| CodeRabbit | CodeRabbit CLI | none | On d19fbff. The first release dry run had stamped its DMG `-dirty` (`new evidence`, found by the implementer in the log): the job wrote its notes into the checkout. |
+| 1 | Opus | 1 Low | `new evidence`: opening the project in Xcode writes untracked `xcuserdata/`, so every later build is `-dirty`. |
+| CodeRabbit | CodeRabbit CLI | 1 Minor | On the user's trim (bfe0869). `first look`: `status.showUntrackedFiles=no` hid untracked files from the dirty check. |
+| CodeRabbit | CodeRabbit CLI | none | |
+| 2 | Opus | 1 Medium, 1 Low | Resolved round 1's thread. `missed earlier`: after `git pack-refs` the command kept its old commit, because no watched file changed. `fix regression`: the trim dropped the only test of `-dirty`. |
+| CodeRabbit | CodeRabbit CLI | 1 Minor | `judged fine`: the app test fails when run from a source archive; tests run in a checkout, as the CLI's do. Not changed. |
+| 3 | Opus | none | Resolved round 2's two threads, each checked by running it. |
+| CodeRabbit | CodeRabbit | 1 Minor, 1 Trivial | On d0548bd. `first look`: a failing `git status` read as a clean checkout; the test helper decoded git's output without checking UTF-8. |
+| direct | Sonnet | none | Checked 170b836 and 62178b1; resolved the thread. [Comment](https://github.com/AboulEinein/soroband/pull/69#issuecomment-6743523483). The user chose a direct review over a fourth round for a one-line edge fix. |
+| CodeRabbit | CodeRabbit | none | On 62178b1. |
+
+**Retro.** Planned 2 rounds; it took 3 and a direct review. Before the first round, the CLI's runs and the release dry run caught races between the stamp and the checkout, and the dry run showed what no reading would: the release job dirtied its own checkout, which a new step now guards. After round 1, the user trimmed the command's stamp to the commit and branch: only the app keeps `-dirty`, and `build.rs` stopped watching every tracked file. Every finding after the trim was an edge of the `-dirty` flag (a git setting hiding untracked files, a missing test, an unreadable status) or of the narrower rerun watch (packed refs). The user then judged further hardening of `-dirty` not worth the cycles. `prepush.sh` failed on 7 SnapshotTests in every run, as `main` does on this Mac, and once on the `hdiutil` flake already in Follow-ups. Changes: none to the rules. A pattern to watch: a flag derived from mutable local state (here the checkout's status) draws edge findings in proportion to the machinery behind it; deciding its precision before round 1 would have saved the trim and its rounds.
