@@ -63,7 +63,7 @@ CodeRabbit reviews each pull request, whatever its base, once the blind loop has
    If it does not exit 0, read CodeRabbit's latest comment on the pull request. Unless it says how to go on (a rate limit to wait out, a command to post), stop as `blocked (review: CodeRabbit did not review)`.
 3. **Judge every finding:**
    - **Valid:** fix it, and reply on its thread naming the commit.
-   - **Valid, but left as it is:** only when fixing it would contradict a decision recorded in `design.md`, `plan.md` or the handover, or when it is outside the pull request's scope and becomes a follow-up in the handover. The reply quotes the decision or names the follow-up.
+   - **Valid, but left as it is:** only when fixing it would contradict a decision recorded in `design.md`, `plan.md` or the handover, when it is outside the pull request's scope, or when it is a Minor finding on internal tooling that would not bite in real use (step 4); the last two become follow-ups in the handover. The reply quotes the decision or names the follow-up.
    - **Not valid:** reply with the evidence.
    - **Wording nitpicks go in one commit:** every valid wording or style finding of a review, fixed together, so they draw one CodeRabbit review instead of one each.
    - **Findings without a thread** (the nitpicks and the comments outside the diff that CodeRabbit lists in its review body, and the warnings of its pre-merge checks in its summary comment) get one PR comment listing each with its verdict and the fix commit or the evidence.

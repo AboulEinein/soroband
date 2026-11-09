@@ -29,7 +29,7 @@ Every fix, to your own bug or to a review finding:
 
 A requirement, rule, number or command lives in one doc; every other doc links to it. Requirements are in [`plan.md`](plan.md), how they are proven in [`verification.md`](verification.md), how reviews run in [`review.md`](review.md), the domain terms in [`GLOSSARY.md`](../GLOSSARY.md). A number or a "within budget" claim is copied from the measurement that produced it.
 
-**Done when** the change states each fact in its home only, and a term it renames or retires is updated in `GLOSSARY.md` and no longer named in the docs (`docs/review.md`, Retired terms).
+**Done when** the change states each fact in its home only, and a term it renames or retires is updated in `GLOSSARY.md` and no longer named in the docs outside the places `docs/review.md`'s Retired terms line exempts.
 
 ## 5. Pre-push checks
 
