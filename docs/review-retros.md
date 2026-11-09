@@ -5,8 +5,13 @@ One entry per pull request. Which rows it gets and when each part is committed i
 Each entry has:
 - **A heading:** the pull request, its title and the date it opened.
 - **Planned rounds** and what ran: blind rounds, direct reviews, CodeRabbit reviews.
-- **A table, one row per review:** the review (blind round number, `direct`, or `CodeRabbit`), the reviewer's model, the findings by severity (the pr-review skill's `Critical`, `High`, `Medium`, `Low` and `Minor`, or `unrated` for a finding without one, such as its `Discussion`; CodeRabbit's `Critical`, `Major`, `Minor` and `Trivial` as given), and the origin of each finding.
-- **Retro:** why the review took the rounds it did, what the extra rounds caught that earlier ones did not, and the changes it led to (a rule, a check, a doc), or "none".
+- **A table, one row per review:** the review (blind round number, `direct`, or `CodeRabbit`, the CLI's runs with the model `CodeRabbit CLI`), the reviewer's model, the findings by severity (the pr-review skill's `Critical`, `High`, `Medium`, `Low` and `Minor`, or `unrated` for a finding without one, such as its `Discussion`; CodeRabbit's `Critical`, `Major`, `Minor` and `Trivial` as given), the origin of each finding, and **Caught earlier by**: how many of its findings a complete Reach list or sibling search ([`checklist.md`](checklist.md), steps 2 and 3) would have caught before this review, as `1 Reach list, 2 sibling search`, or `none`. Header: `| Review | Model | Findings | Origins | Caught earlier by |`.
+- **Retro:** a line `**Retro.** Planned <n>; took <m>.`, then three lines:
+  - `- **Cause:**` why the review took the rounds beyond the first, or "none" when it took one;
+  - `- **Would have prevented it:**` the step or check that would have caught it before the review;
+  - `- **Rule:**` the rule, check or doc change it led to, or "none".
+
+Entries before #70 have four columns and a retro in prose; `records-lint.py` holds entries from #70 on to this format.
 
 Origins, most specific first; use the first that fits:
 - `fix regression`: came in with a fix for an earlier finding.
@@ -910,3 +915,30 @@ Planned rounds: 2. Ran: 3 blind rounds, 1 direct review, 7 CodeRabbit CLI review
 | CodeRabbit | CodeRabbit | none | On 62178b1. |
 
 **Retro.** Planned 2 rounds; it took 3 and a direct review. Before the first round, the CLI's runs and the release dry run caught races between the stamp and the checkout, and the dry run showed what no reading would: the release job dirtied its own checkout, which a new step now guards. After round 1, the user trimmed the command's stamp to the commit and branch: only the app keeps `-dirty`, and `build.rs` stopped watching every tracked file. Every finding after the trim was an edge of the `-dirty` flag (a git setting hiding untracked files, a missing test, an unreadable status) or of the narrower rerun watch (packed refs). The user then judged further hardening of `-dirty` not worth the cycles. `prepush.sh` failed on 7 SnapshotTests in every run, as `main` does on this Mac, and once on the `hdiutil` flake already in Follow-ups. Changes: none to the rules. A pattern to watch: a flag derived from mutable local state (here the checkout's status) draws edge findings in proportion to the machinery behind it; deciding its precision before round 1 would have saved the trim and its rounds.
+
+## [#70](https://github.com/AboulEinein/soroband/pull/70) docs(review): ship at the reviewer's bar before the PR opens (2026-11-09)
+
+Planned rounds: 2. The CodeRabbit CLI hit its rate limit before the draft; the user chose not to wait for it.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| 1 | Opus | 2 Low, 1 unrated | `first look`: `retired-terms.py` read `git diff` under the user's diff config, so `diff.noprefix` and the like made it pass having read nothing; review.md step 1 restated the checklist's CLI step; step 7 had no next step if CodeRabbit posts no status on a records-only commit (Discussion). All fixed in a24e0ba and 7788e4f. | 1 Reach list |
+| 2 | Opus | none | Resolved round 1's two Low threads; left the step 7 thread open until a records-only commit shows the `CodeRabbit` check completing. | none |
+| CodeRabbit | CodeRabbit | 1 Minor, 3 Trivial | On 72f78a9. `first look`: a merged entry without its retro passes the lint (accepted); AGENTS.md no longer named the CLI; step 4 did not define a records-only commit by its files. Not valid: the retired-terms scan's cost. | 1 sibling search |
+| CodeRabbit | CodeRabbit | 1 Major, 3 Minor | On 4209345. `first look`: checklist step 3 needed a thread a pre-draft CLI finding lacks; prepush reads the working tree (accepted, handover follow-up); a change to the logs' rules went unreviewed. `fix regression`: step 4's `git show` read `HEAD`. | 2 Reach list |
+| CodeRabbit | CodeRabbit | 1 Major | On cabbef6. `fix regression`: the records-only definition allowed additions only. | 1 sibling search |
+| CodeRabbit | CodeRabbit | 1 Trivial | On 189e5e8. `fix regression`: GLOSSARY restated review behavior. | 1 sibling search |
+| CodeRabbit | CodeRabbit | 1 Major, 1 Minor | On 8d7a6da. `first look`: an empty retro part passed the lint. Not valid: an exception list for `retired-terms.py` with no false positive to hold. | 1 Reach list |
+| direct | Sonnet | none | On 7fad1f1..3374931 ([comment](https://github.com/AboulEinein/soroband/pull/70#issuecomment-6744126752)); no blind round 3, the user's choice after the findings kept coming one push at a time. | none |
+| CodeRabbit | CodeRabbit | 1 Minor | On 3374931. `fix regression`: linking M8's load to plan.md lost the 90 s for the resident allocation. | 1 sibling search |
+| CodeRabbit | CodeRabbit | 1 Major | On 018bbe1. `fix regression`: step 8 had no end for a commit changing only the logs' rules, which cabbef6 made reviewable outside CodeRabbit. | 1 sibling search |
+| direct | Sonnet | none | On 3374931..2c96176 ([comment](https://github.com/AboulEinein/soroband/pull/70#issuecomment-6744497424)). | none |
+| CodeRabbit | CodeRabbit | 1 Major | On 2c96176. `fix regression`: step 4 waited for `SUCCESS` on a log-only commit, whose check reads `SKIPPED` (seen on d3e5798); fixed in 70aa065. | 1 sibling search |
+| direct | Sonnet | 1 Low | On 44cf10b, which dropped `retired-terms.py` and bounded CodeRabbit's fix loop at the user's request ([comment](https://github.com/AboulEinein/soroband/pull/70#issuecomment-6744995335)). `first look`: step 3 did not name step 4's tooling route. | 1 sibling search |
+| CodeRabbit | CodeRabbit | 2 Minor | On 2ee7723. `fix regression`: the checklist's retired-terms bar ignored review.md's exemptions. `outside the diff`: the Retired terms line counts words, not the retired sense (accepted, handover follow-up). | 1 sibling search |
+| CodeRabbit | CodeRabbit | none | On e0a410b. | none |
+
+**Retro.** Planned 2; took 2 blind rounds, 11 CodeRabbit reviews and 3 direct reviews. The CodeRabbit CLI never ran (rate limited, then skipped at the user's choice), and the pushes after the first round of CodeRabbit fixes ran the records lint and the retired-terms check but not the full `prepush.sh`, all docs or lint changes.
+- **Cause:** eight concerns in one PR, two of them scripts, reached the hosted review with no CLI pass, so CodeRabbit found the scripts' edges and the fixes' slips one push at a time; each process-rule fix counted as a rule change and drew another review.
+- **Would have prevented it:** the CLI run before the draft (its first job is to batch exactly these findings), a Boundaries line for each script's hidden inputs (git config, the working tree, an empty cell), and a sibling search over every restatement this PR replaced with a link.
+- **Rule:** review.md CodeRabbit step 4 now batches each review's fixes in one push, sends Minor tooling findings to follow-ups, and reassesses after two reviews in a row find new edges; `retired-terms.py` was dropped, with no real catch in 45 replayed PRs. The checklist's steps 2, 3 and 6 cover the rest, and this PR did not follow step 6.

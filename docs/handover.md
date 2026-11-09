@@ -163,6 +163,8 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 | 2026-11-06 | M7: no Homebrew tap for v0.1.0 (a formula cannot install an app into `/Applications`, and casks are ruled out); v0.1.0 ships with per-app counting on macOS 27 and network totals on 14–26, as the README and CHANGELOG say. The user's choices. |
 | 2026-11-06 | A release's DMG carries the `soroband` command inside the app (`Contents/Helpers`), so linking it is one symlink and `soroband update` finds the app from the command's own path; a source build has no command in the app and is updated from its clone. `soroband update` asks for no elevation: an account that cannot write to `/Applications` is sent to the Finder copy. |
 | 2026-11-06 | The agents' working records (handover, plan, review logs) stay where they are in the public repository, indexed by `docs/README.md`; no code of conduct for now. The user's choices. |
+| 2026-11-09 | Checks move before the PR: the developer works through `docs/checklist.md` (Reach list, sibling search, one home per fact), and the review spends fewer rounds (`docs/review.md`), with no finding dropped and the nit cap at none. The user's request. |
+| 2026-11-09 | A milestone in `plan.md` states outcomes and how they are tested, not mechanism (proposed in #66's retro; the user's approval). |
 | 2026-10-26 | Agent-friendly by design: a published install prompt any coding agent can follow, a `soroband config` command for every setting, and `--json` output on every query. |
 
 ## Open decisions
@@ -182,8 +184,10 @@ Small items for a later nits pass.
 - **Overlapping updates.** Two `soroband update` runs at once on one app can remove each other's copies; no lock (`File::lock` needs Rust 1.89, above `rust-version` 1.85).
 - **SnapshotTests fail on this Mac.** `popoverApps`, `popoverAppsOnAllNetworks`, `popoverAsksForLocation`, `popoverDegraded`, `menuBarPreviews`, `historyMonth` and `historyMonthWithAnAppOpenAndADayHovered` fail in `prepush.sh` on `main` at 16e85ce as on #69's branch, while CI (which skips snapshots) passes. Find what changed on this Mac before re-recording them.
 - **Flaky update tests.** `core/crates/soroband-cli/tests/update.rs` runs `hdiutil create` from parallel tests, which now and then fail together at its line 55 (`assert!(created.success())`): 3 of about 8 `prepush.sh` runs on 2026-11-08, each passing on the rerun. Serializing the image creation, or retrying it, would fix it.
-- **For M8, from #66's last reviews.** Whether `soroband apps --by energy` and `top` hide energy when the hand check finds it more than 20% off, as the app does. M8's PR states, for the split of a shared coalition, what a process exiting between reads loses and to whom.
+- **For M8, from #66's last reviews.** Whether `soroband apps --by energy` and `top` hide energy when the hand check finds it more than 20% off, as the app does.
 - **`prototypes/sysmon-probe/run.sh` from another directory.** It resolves `measure-lock.py` from `${0:A:h}` after its `cd`, so `prototypes/sysmon-probe/run.sh` run from the repository root cannot find the lock; `./run.sh` from its own folder works. Compute the script's directory once, before the `cd` ([CodeRabbit on #66](https://github.com/AboulEinein/soroband/pull/66#discussion_r4504944754)).
+- **Retired terms by meaning.** `docs/review.md`'s Retired terms line counts every hit of an old word, though `GLOSSARY.md` keeps some in other senses ("meter" for the module, "hotspot meter"); it should count only hits in the retired sense ([CodeRabbit on #70](https://github.com/AboulEinein/soroband/pull/70)).
+- **`prepush.sh` checks the working tree.** Every check in it (records lint, cargo, swift-format, the app's tests) reads the working tree, not the commit being pushed, so an uncommitted edit can pass or fail what is pushed. Failing on tracked changes, or checking a clean checkout of `HEAD`, would fix all of them at once ([CodeRabbit on #70](https://github.com/AboulEinein/soroband/pull/70)).
 - **Evidence branches.** `evidence/pr-35` and `evidence/m6b` hold only screenshots, linked from [#35](https://github.com/AboulEinein/soroband/pull/35)'s comments and [#36](https://github.com/AboulEinein/soroband/pull/36)'s description. Keeping or deleting them is the user's call; deleting them breaks those images.
 
 ## Gotchas
@@ -265,6 +269,7 @@ Things learned the hard way that no file or config will tell you.
 - `GLOSSARY.md`: the domain language used in code, docs and PRs, with the names to avoid.
 - `docs/design.md`: product and architecture, performance budget, visual language.
 - `docs/plan.md`: milestones, exit criteria, ledger, stopping rules, session prompt.
+- `docs/checklist.md`: what a change needs before its PR opens and before each push.
 - `docs/review.md`: the review loop, the blind reviewer brief, when to run another round, and the reassessment with an advisor agent.
 - `docs/coderabbit-findings.md`: every CodeRabbit finding, and why the blind loop missed the valid ones.
 - `docs/review-retros.md`: each PR's reviews, what each found, and its retro.

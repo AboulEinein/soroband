@@ -343,6 +343,15 @@ Why a finding showed up in the review it did, one of a fixed set in `docs/review
 **Miss cause**:
 Why the blind loop missed a valid CodeRabbit finding, one of a fixed set in `docs/coderabbit-findings.md`.
 
+**Reach list**:
+The Reach section of a PR body: the callers, consumers, paths into changed state and boundaries the diff reaches, each with how it is covered, written by the developer from `REVIEW.md`'s rules before review. A reach the reviewer finds missing from it is a finding against it.
+
+**Sibling search**:
+The search that comes with every fix: name the defect class, find the same defect elsewhere in the repository, test and fix each, and state it as `Siblings checked: <search>, <result>`.
+
+**Records-only commit**:
+A commit that changes only the records (rows, entries and retros) in `docs/review-retros.md` and `docs/coderabbit-findings.md`. How it is reviewed is in `docs/review.md` (Rounds step 4, CodeRabbit step 7).
+
 **Blind reviewer**:
 A fresh agent each round that sees only the PR and its requirements.
 
