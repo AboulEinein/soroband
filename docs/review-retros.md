@@ -901,8 +901,18 @@ Planned rounds: 2. The CodeRabbit CLI hit its rate limit before the draft; the u
 | --- | --- | --- | --- | --- |
 | 1 | Opus | 2 Low, 1 unrated | `first look`: `retired-terms.py` read `git diff` under the user's diff config, so `diff.noprefix` and the like made it pass having read nothing; review.md step 1 restated the checklist's CLI step; step 7 had no next step if CodeRabbit posts no status on a records-only commit (Discussion). All fixed in a24e0ba and 7788e4f. | 1 Reach list |
 | 2 | Opus | none | Resolved round 1's two Low threads; left the step 7 thread open until a records-only commit shows the `CodeRabbit` check completing. | none |
+| CodeRabbit | CodeRabbit | 1 Minor, 3 Trivial | On 72f78a9. `first look`: a merged entry without its retro passes the lint (accepted); AGENTS.md no longer named the CLI; step 4 did not define a records-only commit by its files. Not valid: the retired-terms scan's cost. | 1 sibling search |
+| CodeRabbit | CodeRabbit | 1 Major, 3 Minor | On 4209345. `first look`: checklist step 3 needed a thread a pre-draft CLI finding lacks; prepush reads the working tree (accepted, handover follow-up); a change to the logs' rules went unreviewed. `fix regression`: step 4's `git show` read `HEAD`. | 2 Reach list |
+| CodeRabbit | CodeRabbit | 1 Major | On cabbef6. `fix regression`: the records-only definition allowed additions only. | 1 sibling search |
+| CodeRabbit | CodeRabbit | 1 Trivial | On 189e5e8. `fix regression`: GLOSSARY restated review behavior. | 1 sibling search |
+| CodeRabbit | CodeRabbit | 1 Major, 1 Minor | On 8d7a6da. `first look`: an empty retro part passed the lint. Not valid: an exception list for `retired-terms.py` with no false positive to hold. | 1 Reach list |
+| direct | Sonnet | none | On 7fad1f1..3374931 ([comment](https://github.com/AboulEinein/soroband/pull/70#issuecomment-6744126752)); no blind round 3, the user's choice after the findings kept coming one push at a time. | none |
+| CodeRabbit | CodeRabbit | 1 Minor | On 3374931. `fix regression`: linking M8's load to plan.md lost the 90 s for the resident allocation. | 1 sibling search |
+| CodeRabbit | CodeRabbit | 1 Major | On 018bbe1. `fix regression`: step 8 had no end for a commit changing only the logs' rules, which cabbef6 made reviewable outside CodeRabbit. | 1 sibling search |
+| direct | Sonnet | none | On 3374931..2c96176 ([comment](https://github.com/AboulEinein/soroband/pull/70#issuecomment-6744497424)). | none |
+| CodeRabbit | CodeRabbit | 1 Major | On 2c96176. Not valid: step 4's wait on such a commit ends, since the check reads `SUCCESS` when every file is filtered out. | none |
 
-**Retro.** Planned 2; took 2. The CodeRabbit CLI did not run: rate limited before the draft, then skipped at the user's choice.
-- **Cause:** round 1's fix to `retired-terms.py` changed behavior, so round 2 ran; it found nothing.
-- **Would have prevented it:** a Boundaries line in the Reach list for the script's hidden input, the user's git config; the PR's Reach list named the base ref but not that.
-- **Rule:** none; REVIEW.md's Boundaries rule and the Reach list already cover it.
+**Retro.** Planned 2; took 2 blind rounds, 9 CodeRabbit reviews and 2 direct reviews. The CodeRabbit CLI never ran (rate limited, then skipped at the user's choice), and the last six pushes ran the records lint and the retired-terms check but not the full `prepush.sh`, all docs or lint changes.
+- **Cause:** eight concerns in one PR, two of them scripts, reached the hosted review with no CLI pass, so CodeRabbit found the scripts' edges and the fixes' slips one push at a time; each process-rule fix counted as a rule change and drew another review.
+- **Would have prevented it:** the CLI run before the draft (its first job is to batch exactly these findings), a Boundaries line for each script's hidden inputs (git config, the working tree, an empty cell), and a sibling search over every restatement this PR replaced with a link.
+- **Rule:** none new; the checklist's steps 2, 3 and 6 cover each cause, and this PR is the first under them.
