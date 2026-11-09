@@ -861,3 +861,29 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | 1 Minor | On 602f170, after #65 merged into this branch. `judged fine`: `run.sh` from another directory cannot find the lock; #65's script, left as a follow-up. |
 
 **Retro.** Planned 1 round; it took 5, two reassessments and ten CLI runs. Rounds 2 and 3 and every CLI run found a new edge in the same two bullets of M8, the guard and the coalition split, because each fix specified more mechanism than a plan can test; the first reassessment restated them as requirements, and the CLI then found nothing on them. Round 4's findings were of a new kind, M10's moments against existing terms, but did not shrink, so the second reassessment went to the user, who chose to trim M9 and M10 to outcomes; round 5 found nothing. The findings after that were requirement additions (distinct values for the layout check, marked fallback rows, energy unavailable where it stays at zero). Changes: a plan states what a milestone must deliver and how it is checked, and leaves mechanism and view design to the milestone; proposed as a rule for `plan.md` with the user's approval, not made here.
+
+## [#58](https://github.com/AboulEinein/soroband/pull/58) fix(island): close the island with a click (2026-11-07)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 2 Minor | A click on the moment's content would be dropped by `FlippedView`'s first-mouse answer: not valid, a real click on the content closed the island. A clicked-away ended transfer kept its app marked for 30 s: fixed, with a test. |
+| 1 | Opus | 2 Low, 1 unrated | A click in the gap between moments did nothing; the transfer bookkeeping was copied in two places; a click on the peek dropped alerts queued behind it (Discussion). All fixed in a753e0a. |
+| 2 | Opus | 1 Medium, 3 Low | A second click in the gap after the peek, or one after the peek closed on its own, still dropped the alerts behind it: a path into the same state the round-1 fix missed. The gap guard sat in the controller, untested; this entry had no round rows; the PR body named `dismissAll`. Code fixed in 57408f1, body edited. |
+| 3 | Opus | 1 Low | No new findings in the code; the round rows 57408f1's message named were not in it. Added here. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 3, with no CodeRabbit CLI pass on the fixes (its quota was spent). Round 1's findings were real gaps in the first design (the gap between moments, the peek's waiting alerts); round 2 caught a second path into the peek state that the round-1 fix missed, which the "fix every path into the state" rule in `docs/verification.md` names; listing the paths into `MomentQueue`'s state (open, gap, after the peek) before the first fix would have saved a round. A records edit that failed silently (a script error before the commit) made one commit's message claim rows it did not hold: check the diff of a records commit before writing its message.
+
+## [#59](https://github.com/AboulEinein/soroband/pull/59) fix(island): keep the menu bar clear while a moment grows or shrinks (2026-11-07)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 1 Minor | The neck's fillets curved outward from 8 pt above the menu bar's lower edge: fixed, the test now checks 0.5 pt above it. |
+| 1 | Opus | none | Posted as a COMMENT review with a no-findings body; the reviewer's own harness found `main` covering the menu bar on 286 sampled frames and the PR on none. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. The test steps the real springs instead of interpolating the metrics, which is what made the bug show: a linear sweep (the earlier no-notch test) never reaches the frames where width and height are out of step. The local CodeRabbit CLI caught the fillet still curving 8 pt into the menu bar, which the first test missed because it checked 28 pt down, not the edge; a boundary test checks the boundary.

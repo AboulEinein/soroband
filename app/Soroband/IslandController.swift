@@ -149,6 +149,7 @@ final class IslandController {
         panels = screens.map { screen in
             let panel = IslandPanel(screen: screen)
             panel.island.onHover = { inside in IslandController.shared.hover(inside) }
+            panel.island.onClick = { IslandController.shared.clicked() }
             return panel
         }
         shown = .rest
@@ -298,6 +299,14 @@ final class IslandController {
                 self.post(content, source: "hover")
             }
         }
+        render()
+    }
+
+    /// A click on the island puts it away (`MomentQueue.putAway`), also while it closes between two
+    /// moments. The peek opens again only after the pointer leaves and rests on the notch anew.
+    private func clicked() {
+        guard queue.putAway(now: now) else { return }
+        peekWait?.cancel()
         render()
     }
 
