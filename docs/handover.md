@@ -265,7 +265,7 @@ Things learned the hard way that no file or config will tell you.
 - `GLOSSARY.md`: the domain language used in code, docs and PRs, with the names to avoid.
 - `docs/design.md`: product and architecture, performance budget, visual language.
 - `docs/plan.md`: milestones, exit criteria, ledger, stopping rules, session prompt.
-- `docs/checklist.md`: what a change needs before its PR opens and before each push: Reach list, sibling search, red tests, prepush, CodeRabbit CLI.
+- `docs/checklist.md`: what a change needs before its PR opens and before each push.
 - `docs/review.md`: the review loop, the blind reviewer brief, when to run another round, and the reassessment with an advisor agent.
 - `docs/coderabbit-findings.md`: every CodeRabbit finding, and why the blind loop missed the valid ones.
 - `docs/review-retros.md`: each PR's reviews, what each found, and its retro.

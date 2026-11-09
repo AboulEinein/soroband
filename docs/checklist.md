@@ -39,7 +39,7 @@ Run `scripts/verify/prepush.sh` (with `PREPUSH_BASE=<base branch>` for a PR stac
 
 ## 6. CodeRabbit CLI
 
-Run `coderabbit review --agent --base <base branch>` and handle every finding as [`review.md`](review.md#coderabbit) step 3 judges them, each fix through step 3 above. Note each finding for `coderabbit-findings.md` (miss cause `caught by the CLI`) and the run for the PR's entry in `review-retros.md`.
+Run `coderabbit review --agent --base <base branch>` (installed as the handover says) and handle every finding as [`review.md`](review.md#coderabbit) step 3 judges them, each fix through step 3 above. Note each finding for `coderabbit-findings.md` (miss cause `caught by the CLI`) and the run for the PR's entry in `review-retros.md`.
 
 **Done when** the CLI's last run raises nothing to act on, and every finding has its verdict noted.
 
