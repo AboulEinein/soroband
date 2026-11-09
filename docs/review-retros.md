@@ -942,3 +942,7 @@ Planned rounds: 2. The CodeRabbit CLI hit its rate limit before the draft; the u
 - **Cause:** eight concerns in one PR, two of them scripts, reached the hosted review with no CLI pass, so CodeRabbit found the scripts' edges and the fixes' slips one push at a time; each process-rule fix counted as a rule change and drew another review.
 - **Would have prevented it:** the CLI run before the draft (its first job is to batch exactly these findings), a Boundaries line for each script's hidden inputs (git config, the working tree, an empty cell), and a sibling search over every restatement this PR replaced with a link.
 - **Rule:** review.md CodeRabbit step 4 now batches each review's fixes in one push, sends Minor tooling findings to follow-ups, and reassesses after two reviews in a row find new edges; `retired-terms.py` was dropped, with no real catch in 45 replayed PRs. The checklist's steps 2, 3 and 6 cover the rest, and this PR did not follow step 6.
+
+## [#71](https://github.com/AboulEinein/soroband/pull/71) test(app): draw snapshot images in Display P3 whatever the main screen (2026-11-09)
+
+Planned rounds: 1. The CodeRabbit CLI failed three times before the draft with `Connection failed: WebSocket closed` (signed in, service reachable); it runs again before any later push.
