@@ -29,11 +29,11 @@ Every fix, to your own bug or to a review finding:
 
 A requirement, rule, number or command lives in one doc; every other doc links to it. Requirements are in [`plan.md`](plan.md), how they are proven in [`verification.md`](verification.md), how reviews run in [`review.md`](review.md), the domain terms in [`GLOSSARY.md`](../GLOSSARY.md). A number or a "within budget" claim is copied from the measurement that produced it.
 
-**Done when** the change states each fact in its home only, and a term it renames or retires is updated in `GLOSSARY.md` and no longer named in the docs (`retired-terms.py` in the next step finds removed identifiers).
+**Done when** the change states each fact in its home only, and a term it renames or retires is updated in `GLOSSARY.md` and no longer named in the docs (`docs/review.md`, Retired terms).
 
 ## 5. Pre-push checks
 
-Run `scripts/verify/prepush.sh` (with `PREPUSH_BASE=<base branch>` for a PR stacked on another branch); [`verification.md`](verification.md#before-pushing) says what it covers and what only CI runs.
+Run `scripts/verify/prepush.sh`; [`verification.md`](verification.md#before-pushing) says what it covers and what only CI runs.
 
 **Done when** it ends with `prepush: all checks passed`.
 
