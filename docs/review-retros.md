@@ -875,3 +875,15 @@ Planned rounds: 1.
 | CodeRabbit | CodeRabbit | none | |
 
 **Retro.** Planned 1 round; it took 3, with no CodeRabbit CLI pass on the fixes (its quota was spent). Round 1's findings were real gaps in the first design (the gap between moments, the peek's waiting alerts); round 2 caught a second path into the peek state that the round-1 fix missed, which the "fix every path into the state" rule in `docs/verification.md` names; listing the paths into `MomentQueue`'s state (open, gap, after the peek) before the first fix would have saved a round. A records edit that failed silently (a script error before the commit) made one commit's message claim rows it did not hold: check the diff of a records commit before writing its message.
+
+## [#59](https://github.com/AboulEinein/soroband/pull/59) fix(island): keep the menu bar clear while a moment grows or shrinks (2026-11-07)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 1 Minor | The neck's fillets curved outward from 8 pt above the menu bar's lower edge: fixed, the test now checks 0.5 pt above it. |
+| 1 | Opus | none | Posted as a COMMENT review with a no-findings body; the reviewer's own harness found `main` covering the menu bar on 286 sampled frames and the PR on none. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. The test steps the real springs instead of interpolating the metrics, which is what made the bug show: a linear sweep (the earlier no-notch test) never reaches the frames where width and height are out of step. The local CodeRabbit CLI caught the fillet still curving 8 pt into the menu bar, which the first test missed because it checked 28 pt down, not the edge; a boundary test checks the boundary.
