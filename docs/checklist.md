@@ -21,9 +21,9 @@ Every fix, to your own bug or to a review finding:
 1. Name the defect class in one phrase ("a path into `MomentQueue`'s state that skips the gap guard", "a doc restating a requirement from `plan.md`").
 2. Search the repository for its siblings: the same pattern elsewhere (`git grep`, the callers, the other paths into the state).
 3. Add a test per sibling that is wrong and see it go red, then fix them all in the same commit.
-4. Write `Siblings checked: <search>, <result>` in the commit message body and in the reply on the finding's thread.
+4. Write `Siblings checked: <search>, <result>` in the commit message body, and in the reply on the finding's thread when it has one (a CLI finding before the draft has none; the commit message is its record).
 
-**Done when** the commit and the reply carry the `Siblings checked` line, and every sibling found has its red-then-green test.
+**Done when** the commit, and the reply where there is a thread, carry the `Siblings checked` line, and every sibling found has its red-then-green test.
 
 ## 4. One home per fact
 
