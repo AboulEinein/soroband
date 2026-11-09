@@ -16,6 +16,7 @@ The first release.
 - **Networks.** Wi‑Fi (by name once Location access is allowed, by its router until then), Ethernet (by its router) and iPhone hotspots are told apart and metered on their own. Each network can be renamed and given a color.
 - **Dynamic Island moments** (off until turned on). Short updates that grow from the notch: a peek on hover, network joined and left, a hotspot meter, a data hog, background activity, large transfers and a daily recap. Each can be switched off, and alerts become notifications while the island is off.
 - **The `soroband` command.** `soroband today`, `soroband apps` and `soroband live` print usage, with `--json` for scripts and agents; `soroband config` lists and changes every setting, and the running app applies a change at once; `soroband update` installs the newest release.
+- **Build stamp.** Settings › About and `soroband version` name the commit a build was made from, with its branch and whether the checkout had uncommitted changes: `Version 0.1.0 (412) · 16e85ce main`.
 - **Install guides for coding agents:** [`docs/agents/install.md`](docs/agents/install.md) and [`docs/agents/configure.md`](docs/agents/configure.md).
 
 ### Known limitations
