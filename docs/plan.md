@@ -191,7 +191,7 @@ Deliverables:
 
 Exit criteria:
 - Replay of recorded coalition reads: exited processes' CPU counted, coalitions folded into apps, a shared coalition split among its apps; the guard passes on recorded correct reads (exited and unreadable processes, a footprint that changed between reads) and fails on the same reads with each stored field moved or swapped, and the fallback takes over; `cargo mutants` on the new modules.
-- A scripted load from one shell (`yes > /dev/null` for 90 s, a `dd` writing 1 GB over at least 90 s, an allocation that stays resident) shows in `soroband top` and in the stored hour against its known CPU time, bytes and footprint, within 5%, each under its own command's name.
+- A scripted load from one shell (`yes > /dev/null`, a `dd` writing 1 GB, an allocation that stays resident), with each command running over 90 s, shows in `soroband top` and in the stored hour against its known CPU time, bytes and footprint, within 5%, each under its own command's name.
 - Idle CPU of the menu bar process over 10 minutes with the resource meter on (its guard and split included), beside a build without it in the same session: no more than 0.02% higher, and within the 0.1% budget in the default layout. Memory with no window open ≤ 25 MB.
 
 Hand checklist: the energy counters against `sudo powermetrics` over the same minutes (the probe could not check them without root); if they disagree by more than 20%, energy is stored but not shown. On a Mac whose kernel leaves the energy counters at zero (Intel Macs may), energy is shown as unavailable, not as zero.
