@@ -499,7 +499,7 @@ fn build_stamp(root: &Path) -> String {
 }
 
 #[test]
-fn build_stamp_outside_this_checkout_is_unknown() {
+fn build_stamp_is_unknown_outside_this_checkout_and_dirty_with_untracked_files() {
     // A source archive, alone or extracted inside another project's checkout, still builds, and
     // does not take that project's commit.
     let outer = data_dir("build-stamp");
@@ -528,4 +528,26 @@ fn build_stamp_outside_this_checkout_is_unknown() {
         ],
     );
     assert_eq!(build_stamp(&root), unknown);
+
+    // In this project's checkout, an untracked file marks the app's stamp dirty, also when git is
+    // set to hide untracked files.
+    let git_root = |args: &[&str]| {
+        let mut all = vec!["-c", "user.name=t", "-c", "user.email=t@t"];
+        all.extend_from_slice(args);
+        git_in(&root, &all)
+    };
+    git_root(&["init", "-q", "-b", "trunk"]);
+    git_root(&["add", "-A"]);
+    git_root(&["commit", "-q", "-m", "one"]);
+    git_root(&["config", "status.showUntrackedFiles", "no"]);
+    let head = git_root(&["rev-parse", "--short", "HEAD"]);
+    assert_eq!(
+        build_stamp(&root),
+        format!("build=1\ncommit={head}\nbranch=trunk\n")
+    );
+    std::fs::write(root.join("new"), "x").unwrap();
+    assert_eq!(
+        build_stamp(&root),
+        format!("build=1\ncommit={head}-dirty\nbranch=trunk\n")
+    );
 }
