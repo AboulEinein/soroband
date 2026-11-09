@@ -162,7 +162,7 @@ def counts(cell: str, scale: set[str], column: str, where: str, problems: list[s
 
 
 def check_structured_retros(lines: list[str], name: str, problems: list[str]):
-    """Reports a retro of an entry from #STRUCTURED_FROM on that lacks one of its parts. An entry with
+    """Reports a retro of an entry from #STRUCTURED_FROM on that lacks one of its parts, or leaves one empty. An entry with
     no retro yet passes: the retro comes with the final records commit."""
     starts = [i for i, line in enumerate(lines) if line.startswith("## ")] + [len(lines)]
     for start, end in zip(starts, starts[1:]):
@@ -173,8 +173,8 @@ def check_structured_retros(lines: list[str], name: str, problems: list[str]):
         if retro is None:
             continue
         for part in RETRO_PARTS:
-            if not any(lines[i].startswith(part) for i in range(retro, end)):
-                problems.append(f"{name}:{retro + 1}: #{match.group(1)}'s retro has no line starting {part!r}")
+            if not any(lines[i].startswith(part) and lines[i][len(part) :].strip() for i in range(retro, end)):
+                problems.append(f"{name}:{retro + 1}: #{match.group(1)}'s retro has no line {part!r} with a value")
 
 
 def check_findings(text: str, name: str = "coderabbit-findings.md") -> list[str]:
@@ -312,6 +312,8 @@ def self_test() -> list[str]:
         new_entry + new_header + "| 1 | Opus | 1 Low | x | 1 Reach |\n",
         new_entry + new_header + "| 1 | Opus | 1 Low | x | Reach list |\n",
         new_entry + new_header + "| 1 | Opus | none | x | none |\n\n**Retro.** x\n- **Cause:** x\n- **Rule:** none\n",
+        new_entry + new_header + "| 1 | Opus | none | x | none |\n\n**Retro.** x\n- **Cause:**\n- **Would have prevented it:** x\n- **Rule:** none\n",
+        new_entry + new_header + "| 1 | Opus | none | x | none |\n\n**Retro.** x\n- **Cause:** x\n- **Would have prevented it:**   \n- **Rule:** none\n",
         entry + new_header + "| 1 | Opus | none | x |\n",
     ]
     failures = []
