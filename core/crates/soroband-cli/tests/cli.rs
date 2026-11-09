@@ -484,10 +484,20 @@ fn version_names_the_commit_the_command_was_built_from() {
     let expected = format!(
         "soroband {} ({}) · {stamp}\n",
         soroband_core::version(),
-        git(&["rev-list", "--count", "HEAD"])
+        build_number()
     );
     let printed = String::from_utf8_lossy(&output.stdout).replacen("-dirty ", " ", 1);
     assert_eq!(printed.replacen("-dirty\n", "\n", 1), expected);
+}
+
+/// The build number `scripts/build-stamp.sh` gives this checkout: its commit count, or 0 in a
+/// shallow clone.
+fn build_number() -> String {
+    if git(&["rev-parse", "--is-shallow-repository"]) == "true" {
+        "0".into()
+    } else {
+        git(&["rev-list", "--count", "HEAD"])
+    }
 }
 
 /// Runs a copy of `scripts/build-stamp.sh` placed in `root`, which stamps the checkout at `root`.
@@ -500,15 +510,35 @@ fn build_stamp(root: &Path) -> String {
 
 #[test]
 fn build_stamp_marks_changes_and_a_detached_head() {
-    let root = data_dir("build-stamp");
+    // The project sits in a folder of a larger directory, which later becomes another checkout.
+    let outer = data_dir("build-stamp");
+    let root = outer.join("soroband");
     std::fs::create_dir_all(root.join("scripts")).unwrap();
     std::fs::copy(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../scripts/build-stamp.sh"),
         root.join("scripts/build-stamp.sh"),
     )
     .unwrap();
-    // Outside a checkout the build still gets a stamp.
-    assert_eq!(build_stamp(&root), "build=0\ncommit=unknown\nbranch=\n");
+    let unknown = "build=0\ncommit=unknown\nbranch=\n";
+    // Outside a checkout (a source archive) the build still gets a stamp, and inside another
+    // project's checkout it does not take that project's commit.
+    assert_eq!(build_stamp(&root), unknown);
+    git_in(&outer, &["init", "-q"]);
+    git_in(
+        &outer,
+        &[
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "-m",
+            "outer",
+        ],
+    );
+    assert_eq!(build_stamp(&root), unknown);
 
     let commit = |message: &str| {
         git_in(&root, &["add", "-A"]);
@@ -554,5 +584,14 @@ fn build_stamp_marks_changes_and_a_detached_head() {
     assert_eq!(
         build_stamp(&root),
         format!("build=2\ncommit={head}\nbranch=\n")
+    );
+
+    // A shallow clone does not hold every commit, so it cannot count them.
+    let shallow = outer.join("shallow");
+    let source = format!("file://{}", root.display());
+    git_in(&outer, &["clone", "-q", "--depth", "1", &source, "shallow"]);
+    assert_eq!(
+        build_stamp(&shallow),
+        format!("build=0\ncommit={head}\nbranch=trunk\n")
     );
 }

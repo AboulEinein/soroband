@@ -13,7 +13,10 @@ struct BuildStampTests {
         let commit = (info["SorobandCommit"] as? String)?.replacingOccurrences(of: "-dirty", with: "")
         #expect(commit == (try git("rev-parse", "--short", "HEAD")))
         #expect(info["SorobandBranch"] as? String == (try git("branch", "--show-current")))
-        #expect(info["CFBundleVersion"] as? String == (try git("rev-list", "--count", "HEAD")))
+        // The build number is the commit count, or 0 in a shallow clone, which cannot count them.
+        let shallow = try git("rev-parse", "--is-shallow-repository") == "true"
+        let count = shallow ? "0" : try git("rev-list", "--count", "HEAD")
+        #expect(info["CFBundleVersion"] as? String == count)
     }
 
     @Test func aboutShowsTheVersionBuildAndStamp() {
