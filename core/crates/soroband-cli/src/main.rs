@@ -20,7 +20,7 @@ Commands:
   config               List, read and change settings (see soroband config --help)
   live                 Internet bytes per app, live (see soroband live --help)
   update               Install the newest release (see soroband update --help)
-  version              Print the version of the soroband command and its core
+  version              Print the version and the commit the soroband command was built from
   help                 Print this help";
 
 #[cfg(debug_assertions)]
@@ -34,7 +34,7 @@ fn main() -> ExitCode {
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     match args.as_slice() {
         ["version" | "--version" | "-V"] => {
-            println!("soroband {}", soroband_core::version());
+            println!("soroband {}", version_line());
             ExitCode::SUCCESS
         }
         [] | ["help" | "--help" | "-h"] => {
@@ -74,6 +74,21 @@ fn main() -> ExitCode {
             ExitCode::from(2)
         }
     }
+}
+
+/// The version, the build number and the build stamp, as Settings › About shows them:
+/// `0.1.0 (412) · 16e85ce main`. The build number counts the commits up to the stamped one.
+fn version_line() -> String {
+    let stamp = [env!("SOROBAND_COMMIT"), env!("SOROBAND_BRANCH")]
+        .into_iter()
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    format!(
+        "{} ({}) · {stamp}",
+        soroband_core::version(),
+        env!("SOROBAND_BUILD")
+    )
 }
 
 fn print_usage() {

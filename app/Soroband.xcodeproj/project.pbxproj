@@ -105,6 +105,7 @@
 				D0A7A5000000000000000050 /* Sources */,
 				D0A7A5000000000000000051 /* Frameworks */,
 				D0A7A5000000000000000052 /* Resources */,
+				D0A7A5000000000000000056 /* Stamp the build */,
 			);
 			buildRules = (
 			);
@@ -195,6 +196,30 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		D0A7A5000000000000000056 /* Stamp the build */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Stamp the build";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/zsh;
+			shellScript = "# Writes the build stamp (scripts/build-stamp.sh) into the built Info.plist: CFBundleVersion,\n# SorobandCommit and SorobandBranch. Runs on every build, because the commit can change while no\n# source file does.\nset -euo pipefail\nplist=$TARGET_BUILD_DIR/$INFOPLIST_PATH\nstamp=$(\"$SRCROOT/../scripts/build-stamp.sh\")\nvalue() { print -r -- $stamp | sed -n \"s/^$1=//p\" }\nplutil -replace CFBundleVersion -string \"$(value build)\" $plist\nplutil -replace SorobandCommit -string \"$(value commit)\" $plist\nplutil -replace SorobandBranch -string \"$(value branch)\" $plist\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		D0A7A5000000000000000050 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -279,6 +304,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/Debug-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Soroband;
@@ -306,6 +332,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Soroband;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";

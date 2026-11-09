@@ -609,7 +609,7 @@ struct AboutSettings: View {
                 .resizable()
                 .frame(width: 96, height: 96)
             Text("Soroband").font(.system(size: 22, weight: .bold)).padding(.top, 8)
-            Text("Version \(Self.version) · core \(Core.version)")
+            Text(Self.versionLine(Bundle.main.infoDictionary ?? [:]))
                 .font(.callout).foregroundStyle(.secondary).monospacedDigit()
             Text(
                 "Counts the internet your Mac uses, per app and per network. Counters and metadata only; nothing leaves this Mac."
@@ -626,7 +626,13 @@ struct AboutSettings: View {
         .padding(24)
     }
 
-    static var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+    /// The version, the build number and the build stamp from an Info.plist, as `soroband version`
+    /// prints them: `Version 0.1.0 (412) · 16e85ce main`. The build number counts the commits up
+    /// to the stamped one; the stamp is written by the "Stamp the build" phase.
+    nonisolated static func versionLine(_ info: [String: Any]) -> String {
+        let string = { (key: String) in info[key] as? String ?? "" }
+        let stamp = [string("SorobandCommit"), string("SorobandBranch")].filter { !$0.isEmpty }
+        return "Version \(string("CFBundleShortVersionString")) (\(string("CFBundleVersion"))) · "
+            + (stamp.isEmpty ? ["unknown"] : stamp).joined(separator: " ")
     }
 }

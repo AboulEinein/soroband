@@ -155,7 +155,7 @@ How the island is built and what it costs:
 - Menu Bar: a preview of the menu bar pinned above the page, drawing the item with the same image the menu bar uses (today's numbers, or sample ones before the first count), its width, and a warning past 160 pt, where it may be hidden beside a MacBook's notch. Readings are tiles to check, up to four, in two groups (today, live speed) with what each reads now; the order tray groups them as the style draws them and moves one by dragging it onto another, or by its context menu; three style cards each draw the item in their style; "Count today on" picks the scope. Every change applies at once; Revert Changes goes back to the layout the page opened with, Restore Default to today's total.
 - Island: master switch (off means a plain menu bar app), style (seamless or keep menu bar clear), or "send alerts as notifications" while the island is off; each moment on/off, thresholds for data hog, background activity and large transfer; full-screen behavior, the pause action, built-in or all displays; the ignored apps, each with Remove.
 - Networks: each known network with its color (click it to pick one of the five slots, or Automatic for its place's), rename in place, kind, and whether it is connected or when it was last used.
-- About: the app icon, version, core version.
+- About: the app icon, and the version with its build number and build stamp (`Version 0.1.0 (412) · 16e85ce main`), as `soroband version` prints them.
 - Data: export CSV, show database.
 
 ## Visual language

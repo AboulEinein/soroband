@@ -11,6 +11,7 @@ on:
       - .github/workflows/release.yml
       - .github/workflows/ci.yml
       - scripts/build.sh
+      - scripts/build-stamp.sh
       - scripts/build-core.sh
       - scripts/package.sh
       - CHANGELOG.md
@@ -36,6 +37,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+          # The whole history: the build number counts the commits up to the tag.
+          fetch-depth: 0
       - run: rustup toolchain install stable --profile minimal -t aarch64-apple-darwin,x86_64-apple-darwin && rustup default stable
       - run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)" && xcodebuild -version
       # The tag, the core's version and the app's version must agree: soroband update compares
@@ -62,27 +65,37 @@ jobs:
       - name: Write the release notes
         run: |
           # The version's section of CHANGELOG.md, up to the next version's heading.
+          # Written outside the checkout, which would otherwise build as -dirty.
           awk -v heading="## [$VERSION]" '
             index($0, heading) == 1 { found = 1; next }
             found && /^## \[/ { exit }
             found { print }
-          ' CHANGELOG.md > build-notes.md
-          if ! grep -q '[^[:space:]]' build-notes.md; then
+          ' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          if ! grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md"; then
             echo "::error::CHANGELOG.md has no section for $VERSION."
             exit 1
           fi
           # A tag publishes only a finished section: dated (YYYY-MM-DD), and with no TODO(release)
           # left in its notes.
           if [[ $GITHUB_REF == refs/tags/* ]]; then
-            if ! grep -qE "^## \\[$VERSION\\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$" CHANGELOG.md || grep -q 'TODO(release)' build-notes.md; then
+            if ! grep -qE "^## \\[$VERSION\\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$" CHANGELOG.md || grep -q 'TODO(release)' "$RUNNER_TEMP/notes.md"; then
               echo "::error::CHANGELOG.md's $VERSION section is not dated YYYY-MM-DD or holds a TODO(release); finish it."
               exit 1
             fi
           fi
       - run: scripts/package.sh
+      # A release names the commit it was built from; -dirty means the job changed the checkout.
+      - name: Check the build stamp
+        run: |
+          commit=$(plutil -extract SorobandCommit raw -o - build/dmg/Soroband.app/Contents/Info.plist)
+          echo "Soroband.app: $commit; $(build/dmg/Soroband.app/Contents/Helpers/soroband version)"
+          if [[ $commit == *-dirty ]]; then
+            echo "::error::The release is stamped dirty: the job changed the checkout before building ($(git status --porcelain | tr '\n' ' '))."
+            exit 1
+          fi
       - name: Add the checksum to the notes
         run: |
-          mv build-notes.md build/notes.md
+          mv "$RUNNER_TEMP/notes.md" build/notes.md
           {
             echo
             echo "SHA-256 of \`Soroband.dmg\`: \`$(cut -d' ' -f1 build/Soroband.dmg.sha256)\`"
