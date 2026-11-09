@@ -550,4 +550,11 @@ fn build_stamp_is_unknown_outside_this_checkout_and_dirty_with_untracked_files()
         build_stamp(&root),
         format!("build=1\ncommit={head}-dirty\nbranch=trunk\n")
     );
+    // A status git cannot read is not taken for a clean checkout.
+    std::fs::remove_file(root.join("new")).unwrap();
+    std::fs::write(root.join(".git/index"), "not an index").unwrap();
+    assert_eq!(
+        build_stamp(&root),
+        format!("build=1\ncommit={head}-dirty\nbranch=trunk\n")
+    );
 }

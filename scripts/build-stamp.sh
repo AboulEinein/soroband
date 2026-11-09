@@ -21,7 +21,10 @@ if [[ -z $top || ${top:A} != $root ]] || ! commit=$(git rev-parse --short HEAD 2
   print "build=0\ncommit=unknown\nbranch="
   exit 0
 fi
-[[ -z $(git status --porcelain --untracked-files=normal) ]] || commit+=-dirty
+# A status git cannot read counts as dirty, not clean.
+if ! changes=$(git status --porcelain --untracked-files=normal) || [[ -n $changes ]]; then
+  commit+=-dirty
+fi
 if [[ $(git rev-parse --is-shallow-repository) == true ]]; then
   print "build=0"
 else
