@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Testing
 
 @testable import Soroband
@@ -26,7 +26,7 @@ struct MenuBarDisplayTests {
 
     @Test func defaultShowsTodaysTotalOnTheCurrentNetworkAsCrossedItsInterfaces() {
         let display = MenuBarDisplay.make(layout: .default, status: status, kind: .wifi)
-        #expect(display.symbol == "wifi")
+        #expect(display.icon == .symbol("wifi"))
         #expect(display.text == "1.1 GB")
         #expect(display.drawsTitle, "one reading is the item's title, as before readings could stack")
     }
@@ -106,8 +106,8 @@ struct MenuBarDisplayTests {
         #expect(MenuBarDisplay.redrawDelay(from: old, to: redesigned, lastRedraw: t, now: t + 5) == 0, "new layout")
     }
 
-    func display(_ texts: [String], symbol: String = "wifi") -> MenuBarDisplay {
-        MenuBarDisplay(symbol: symbol, readings: texts.map { MenuBarDisplay.Reading(value: $0, text: $0) })
+    func display(_ texts: [String], icon: MenuBarDisplay.Icon = .symbol("wifi")) -> MenuBarDisplay {
+        MenuBarDisplay(icon: icon, readings: texts.map { MenuBarDisplay.Reading(value: $0, text: $0) })
     }
 
     @Test func readingsStylesAndScopesAreTheCoreSettingsValues() {
@@ -150,7 +150,7 @@ struct MenuBarDisplayTests {
         #expect(delay(grown, 61) == 0)
         // What the user changed or must see shows at once.
         var other = grown
-        other.display.symbol = "personalhotspot"
+        other.display.icon = .symbol("personalhotspot")
         #expect(delay(other, 5) == 0, "new network of another kind")
         // Wi‑Fi to Wi‑Fi: same icon, and the new network's total may well be larger.
         other = grown
@@ -177,17 +177,37 @@ struct MenuBarDisplayTests {
     }
 
     @Test func noIdentifiedNetworkShowsThePlainNetworkIcon() {
-        #expect(MenuBarDisplay.make(layout: .default, status: status, kind: nil).symbol == "network")
+        #expect(MenuBarDisplay.make(layout: .default, status: status, kind: nil).icon == .symbol("network"))
+    }
+
+    /// The Soroband icon is the user's choice of a fixed mark, so no network, known or not,
+    /// changes it, before the first poll either; the network icon stays the default.
+    @Test func theSorobandIconIsTheGlyphOnEveryNetwork() {
+        let soroband = MenuBarLayout(icon: .soroband)
+        for kind in [NetworkKind.wifi, .ethernet, .hotspot, nil] {
+            for status in [status, EngineStatus(state: .starting)] {
+                #expect(MenuBarDisplay.make(layout: soroband, status: status, kind: kind).icon == .glyph, "\(kind)")
+            }
+        }
+        #expect(MenuBarLayout.default.icon == .network)
+        #expect(
+            MenuBarDisplay.make(layout: .default, status: status, kind: .hotspot).icon == .symbol("personalhotspot"))
     }
 
     @Test func aStoppedEngineSaysSoInsteadOfAFrozenCount() {
         let failed = EngineStatus(state: .failed, todayNetworkInterfaces: ByteCounts(rx: 5_000_000, tx: 0))
         let display = MenuBarDisplay.make(
             layout: MenuBarLayout(readings: [.download, .upload]), status: failed, kind: .wifi)
-        #expect(display.symbol == "exclamationmark.triangle")
+        #expect(display.icon == .symbol("exclamationmark.triangle"))
         #expect(display.text == "Not counting")
         #expect(display.drawsTitle)
         #expect(texts([], status: failed).isEmpty, "icon only stays an icon")
+        // The glyph would look as if all were well: the warning replaces it too.
+        for readings in [[MenuBarReading.total], []] {
+            let glyph = MenuBarDisplay.make(
+                layout: MenuBarLayout(readings: readings, icon: .soroband), status: failed, kind: .wifi)
+            #expect(glyph.icon == .symbol("exclamationmark.triangle"), "\(readings)")
+        }
     }
 
     @Test func bytesReadInDecimalUnits() {
@@ -216,7 +236,7 @@ struct MenuBarDisplayTests {
         // A speed keeps the width of its widest value, so the item does not resize at each poll.
         let speed = { (value: String) in
             MenuBarDisplay(
-                symbol: "wifi",
+                icon: .symbol("wifi"),
                 readings: [
                     MenuBarDisplay.Reading(value: "893 MB", text: "↓ 893 MB"),
                     MenuBarDisplay.Reading(
@@ -249,5 +269,40 @@ struct MenuBarDisplayTests {
         #expect(!debug.isTemplate)
         #expect(display.accessibilityLabel(debug: false) == "Soroband, 1.1 GB")
         #expect(display.accessibilityLabel(debug: true) == "Soroband Debug, 1.1 GB")
+    }
+
+    /// The glyph keeps both: the installed app's follows the menu bar's color as a template, and a
+    /// Debug build's is drawn orange where the shape is and clear around it.
+    @MainActor @Test func theGlyphIsATemplateOrADebugBuildsOrange() throws {
+        let installed = try #require(MenuBarDisplay.glyphImage(debug: false))
+        let debug = try #require(MenuBarDisplay.glyphImage(debug: true))
+        #expect(installed.isTemplate)
+        #expect(!debug.isTemplate)
+        #expect(installed.size == NSSize(width: 14, height: 14))
+        #expect(debug.size == installed.size)
+        var resolved: NSColor?
+        NSAppearance(named: .aqua)?.performAsCurrentDrawingAppearance {
+            resolved = NSColor(cgColor: NSColor.systemOrange.cgColor)?.usingColorSpace(.deviceRGB)
+        }
+        let orange = try #require(resolved)
+        let pixels = try #require(
+            NSBitmapImageRep(
+                bitmapDataPlanes: nil, pixelsWide: 28, pixelsHigh: 28, bitsPerSample: 8, samplesPerPixel: 4,
+                hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        pixels.size = debug.size
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: pixels)
+        NSAppearance(named: .aqua)?.performAsCurrentDrawingAppearance {
+            debug.draw(in: NSRect(origin: .zero, size: debug.size))
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        // The glyph's left half, away from the S cut through its middle, at a fifth of its width.
+        let inside = try #require(pixels.colorAt(x: 6, y: 14))
+        #expect(inside.alphaComponent > 0.99)
+        #expect(abs(inside.redComponent - orange.redComponent) < 0.02)
+        #expect(abs(inside.greenComponent - orange.greenComponent) < 0.02)
+        #expect(abs(inside.blueComponent - orange.blueComponent) < 0.02)
+        // A corner of the square lies outside the diamond.
+        #expect(try #require(pixels.colorAt(x: 1, y: 1)).alphaComponent == 0)
     }
 }

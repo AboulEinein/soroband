@@ -1,6 +1,6 @@
 ## Summary
 
-<!-- The smallest view that makes the key point clear (a diagram, diff sketch, call tree or file tree) with brief text. Link the milestone, for example M1 in docs/plan.md. For work that is not a milestone, quote the user's request first: it is the requirement the reviewer checks against. -->
+<!-- The smallest view that makes the key point clear (a diagram, diff sketch, call tree or file tree) with brief text. Link the milestone, for example M1 in docs/plan.md. For work that is not a milestone, state the request in one line, in your own words: it is the requirement the reviewer checks against. The repository is public: no local paths, usernames or other personal details. -->
 
 **Planned review rounds:** <!-- see docs/review.md -->
 

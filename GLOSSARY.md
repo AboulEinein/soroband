@@ -167,11 +167,11 @@ _Avoid_: over-counted, over-count
 ## Interface
 
 **Menu bar item**:
-The always-present item in the menu bar: network icon and today's interface bytes on the current network by default. "Not counting" when the engine has stopped.
+The always-present item in the menu bar: the network kind's icon (or the Soroband glyph) and today's interface bytes on the current network by default. "Not counting" when the engine has stopped.
 _Avoid_: status item, menu bar label
 
 **Menu bar layout**:
-What the menu bar item shows next to its icon: up to four readings in order, counting today on the current network or on every network, drawn in a menu bar style (the `menu_bar_readings`, `menu_bar_scope` and `menu_bar_style` settings). No reading leaves the icon alone.
+What the menu bar item shows: its icon, the network kind's or the Soroband glyph, and next to it up to four readings in order, counting today on the current network or on every network, drawn in a menu bar style (the `menu_bar_icon`, `menu_bar_readings`, `menu_bar_scope` and `menu_bar_style` settings). No reading leaves the icon alone.
 _Avoid_: display mode, menu bar mode, menu bar count, menu bar line
 
 **Reading**:
@@ -179,6 +179,10 @@ One value the menu bar item can show: today's total, download or upload as cross
 
 **Menu bar style**:
 How the readings are drawn: **stacked** (in pairs, the first on top, in a smaller size; a reading without a partner at full size), **labeled** (each value under a small caption) or **inline** (one line at the menu bar's size).
+
+**Soroband glyph**:
+The Soroband mark (a rounded diamond cut by an S) as the menu bar item's icon, in place of the network kind's, whatever the network (`menu_bar_icon` `soroband`). While the engine has stopped, a warning sign replaces it as it replaces the network icon.
+_Avoid_: logo, app icon (the icon in Finder and the Dock)
 
 **Live speed**:
 Interface bytes per second, down and up, over the last poll.
@@ -211,6 +215,22 @@ _Avoid_: helper, History process (its earlier, History-only form)
 **Linger**:
 The 10 minutes the menu bar process lets a UI process wait after its last window closed before it quits it. A popover opened within it opens warm.
 _Avoid_: keep-alive, grace period
+
+**Theme**:
+How Soroband's windows look: an appearance and an accent, set in Settings › Appearance (the `appearance` and `accent` settings). It applies to the windows of the UI process; the island keeps its own dark look.
+_Avoid_: skin, color scheme (SwiftUI's name for light or dark)
+
+**Appearance**:
+Light or dark for Soroband's windows: **system** (as macOS is, the default), **light** or **dark**.
+_Avoid_: mode, dark mode (macOS's own setting)
+
+**Accent**:
+The color of what Soroband draws to show a selection or highlight in its windows: **system** (macOS's accent color, the default), or coral, amber, emerald, teal, sky, indigo, plum or rose, the colors of Soroband's icons, each with a light and a dark step.
+_Avoid_: tint (SwiftUI's mechanism for it), highlight color
+
+**App icon**:
+Soroband's icon in the Dock, in Finder and in Settings › About: **graphite** (the bundle's own, the default) or one of Soroband's 12 other icons, set in Settings › Appearance (the `app_icon` setting). Finder shows it as the bundle's custom icon.
+_Avoid_: logo, glyph (the menu bar's mark), alternate icon (iOS's mechanism)
 
 **Range**:
 What History shows: a day, week, month or year of the calendar, or all time.
