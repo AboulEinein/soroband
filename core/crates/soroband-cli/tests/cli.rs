@@ -448,3 +448,41 @@ fn config_reports_an_unreadable_settings_file_without_replacing_it() {
         "{ reset_hour: 4"
     );
 }
+
+/// Runs git in the repository the command was built from.
+fn git(args: &[&str]) -> String {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(env!("CARGO_MANIFEST_DIR"))
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "git {args:?}: {output:?}");
+    String::from_utf8(output.stdout).unwrap().trim().to_owned()
+}
+
+#[test]
+fn version_names_the_commit_the_command_was_built_from() {
+    // The user compares this with `git rev-parse --short origin/main` to tell which build runs.
+    let output = soroband(&data_dir("version"), &["version"]);
+    assert!(output.status.success(), "{output:?}");
+    let dirty = if git(&["status", "--porcelain"]).is_empty() {
+        ""
+    } else {
+        "-dirty"
+    };
+    let stamp = [
+        format!("{}{dirty}", git(&["rev-parse", "--short", "HEAD"])),
+        git(&["branch", "--show-current"]),
+    ]
+    .into_iter()
+    .filter(|part| !part.is_empty())
+    .collect::<Vec<_>>()
+    .join(" ");
+    let expected = format!(
+        "soroband {} ({}) · {stamp}\n",
+        soroband_core::version(),
+        git(&["rev-list", "--count", "HEAD"])
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout), expected);
+}
