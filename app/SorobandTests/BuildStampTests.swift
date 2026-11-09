@@ -8,8 +8,10 @@ import Testing
 struct BuildStampTests {
     @Test func theAppIsStampedWithTheCommitItWasBuiltFrom() throws {
         let info = try #require(Bundle.main.infoDictionary)
-        let dirty = try git("status", "--porcelain").isEmpty ? "" : "-dirty"
-        #expect(info["SorobandCommit"] as? String == (try git("rev-parse", "--short", "HEAD")) + dirty)
+        // The checkout can turn dirty between the build and the test, so the suffix is left out
+        // here; soroband-cli's tests check it on fixtures of the same script.
+        let commit = (info["SorobandCommit"] as? String)?.replacingOccurrences(of: "-dirty", with: "")
+        #expect(commit == (try git("rev-parse", "--short", "HEAD")))
         #expect(info["SorobandBranch"] as? String == (try git("branch", "--show-current")))
         #expect(info["CFBundleVersion"] as? String == (try git("rev-list", "--count", "HEAD")))
     }
