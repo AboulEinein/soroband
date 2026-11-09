@@ -169,7 +169,12 @@ def main() -> int:
         print(f"retired-terms: no merge base with {base_ref!r}; pass the PR's base branch or set PREPUSH_BASE")
         return 1
     code, docs = read_tracked()
-    gone = retired(removed_tokens(git("diff", "--unified=0", base, "--")), code)
+    # Fixed prefixes and no external or colored diff, whatever the user's git config.
+    diff = git(
+        "diff", "--unified=0", "--no-ext-diff", "--no-textconv", "--no-color",
+        "--src-prefix=a/", "--dst-prefix=b/", base, "--",
+    )
+    gone = retired(removed_tokens(diff), code)
     errors = hits(gone, docs)
     try:
         base_glossary = git("show", f"{base}:GLOSSARY.md")
