@@ -346,7 +346,7 @@ The Reach section of a PR body: the callers, consumers, paths into changed state
 The search that comes with every fix: name the defect class, find the same defect elsewhere in the repository, test and fix each, and state it as `Siblings checked: <search>, <result>`.
 
 **Records-only commit**:
-A commit that only adds rows, entries and retros to `docs/review-retros.md` and `docs/coderabbit-findings.md`. CodeRabbit leaves those files out, so it starts no review.
+A commit that changes only the records (rows, entries and retros) in `docs/review-retros.md` and `docs/coderabbit-findings.md`. CodeRabbit leaves those files out, so it starts no review.
 
 **Blind reviewer**:
 A fresh agent each round that sees only the PR and its requirements.
