@@ -1,11 +1,11 @@
 # CodeRabbit findings
 
-Every finding CodeRabbit makes on a pull request, one row each, recorded as [`review.md`](review.md#coderabbit) describes. The valid ones show what the blind review loop misses.
+Every finding CodeRabbit makes on a pull request, the local CLI's included, one row each, recorded as [`review.md`](review.md#coderabbit) describes. The hosted review's valid findings show what the blind review loop misses; the CLI's show what the developer ships before review. The CLI's findings are logged from #70 on; earlier ones appear only in the retros' rows.
 
 Columns:
 - **Category:** `correctness`, `error handling`, `concurrency`, `tests`, `docs drift`, `security and privacy`, `performance`, `build and CI`, or `style`. Add a category only when none fits.
 - **Verdict:** `valid` (fixed), `accepted` (valid, left as it is, with the reason in the Finding column) or `not valid` (answered with evidence).
-- **Missed because** (`valid` and `accepted` findings): `not checked` (the reviewer did not look for this kind of problem), `judged fine` (a reviewer saw it and accepted it), `outside the diff` (the problem is in code the PR did not change), `not in the requirements` (`plan.md` did not ask for it), or `after the loop` (the problem came in with a fix made after the blind loop ended, which only CodeRabbit reviewed). `–` for `not valid` findings.
+- **Missed because** (`valid` and `accepted` findings): `not checked` (the reviewer did not look for this kind of problem), `judged fine` (a reviewer saw it and accepted it), `outside the diff` (the problem is in code the PR did not change), `not in the requirements` (`plan.md` did not ask for it), `after the loop` (the problem came in with a fix made after the blind loop ended, which only CodeRabbit reviewed), or `caught by the CLI` (the local CodeRabbit CLI raised it before a push, so no review missed it; it shows what the developer shipped). `–` for `not valid` findings.
 - **Follow-up:** the rule, check or skill proposal it led to, or `–`.
 
 | Date | PR | Finding | Category | Verdict | Missed because | Follow-up |

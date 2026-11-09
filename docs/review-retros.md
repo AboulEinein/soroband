@@ -5,8 +5,13 @@ One entry per pull request. Which rows it gets and when each part is committed i
 Each entry has:
 - **A heading:** the pull request, its title and the date it opened.
 - **Planned rounds** and what ran: blind rounds, direct reviews, CodeRabbit reviews.
-- **A table, one row per review:** the review (blind round number, `direct`, or `CodeRabbit`), the reviewer's model, the findings by severity (the pr-review skill's `Critical`, `High`, `Medium`, `Low` and `Minor`, or `unrated` for a finding without one, such as its `Discussion`; CodeRabbit's `Critical`, `Major`, `Minor` and `Trivial` as given), and the origin of each finding.
-- **Retro:** why the review took the rounds it did, what the extra rounds caught that earlier ones did not, and the changes it led to (a rule, a check, a doc), or "none".
+- **A table, one row per review:** the review (blind round number, `direct`, or `CodeRabbit`, the CLI's runs with the model `CodeRabbit CLI`), the reviewer's model, the findings by severity (the pr-review skill's `Critical`, `High`, `Medium`, `Low` and `Minor`, or `unrated` for a finding without one, such as its `Discussion`; CodeRabbit's `Critical`, `Major`, `Minor` and `Trivial` as given), the origin of each finding, and **Caught earlier by**: how many of its findings a complete Reach list or sibling search ([`checklist.md`](checklist.md), steps 2 and 3) would have caught before this review, as `1 Reach list, 2 sibling search`, or `none`. Header: `| Review | Model | Findings | Origins | Caught earlier by |`.
+- **Retro:** a line `**Retro.** Planned <n>; took <m>.`, then three lines:
+  - `- **Cause:**` why the review took the rounds beyond the first, or "none" when it took one;
+  - `- **Would have prevented it:**` the step or check that would have caught it before the review;
+  - `- **Rule:**` the rule, check or doc change it led to, or "none".
+
+Entries before #70 have four columns and a retro in prose; `records-lint.py` holds entries from #70 on to this format.
 
 Origins, most specific first; use the first that fits:
 - `fix regression`: came in with a fix for an earlier finding.

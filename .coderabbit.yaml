@@ -3,7 +3,11 @@
 # stacked milestone PRs are reviewed too, never pauses on a long PR, and fails its
 # status when a review errors instead of passing it. CodeRabbit reads
 # this file from the PR's head branch. docs/review.md describes the flow.
+# The review logs are left out: scripts/verify/records-lint.py is their check.
 reviews:
+  path_filters:
+    - "!docs/review-retros.md"
+    - "!docs/coderabbit-findings.md"
   fail_commit_status: true
   auto_review:
     enabled: true
