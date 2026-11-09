@@ -346,6 +346,8 @@ struct DebugState: Encodable {
         let visible: Bool
         /// Frame in `screencapture -R` coordinates: points, origin at the top left of the main display.
         let rect: Rect
+        /// `aqua` or `darkAqua`: the light or dark it draws in.
+        let appearance: String
     }
 
     struct Rect: Codable {
@@ -383,6 +385,9 @@ struct DebugState: Encodable {
         /// As `menu_bar_readings` stores them.
         let readings: String
         let style: String
+        /// The `menu_bar_icon` setting.
+        let icon: String
+        /// The SF Symbol drawn; nil while the Soroband glyph is.
         let symbol: String?
         let text: String?
     }
@@ -437,7 +442,8 @@ struct DebugState: Encodable {
                 scope: Usage.shared.menuBarLayout.scope.rawValue,
                 readings: Usage.shared.menuBarLayout.readingsValue,
                 style: Usage.shared.menuBarLayout.style.rawValue,
-                symbol: MenuBarController.shared.display?.symbol,
+                icon: Usage.shared.menuBarLayout.icon.rawValue,
+                symbol: MenuBarController.shared.display?.icon.symbol,
                 text: MenuBarController.shared.display?.text),
             popoverShown: ui?.popoverShown ?? false,
             settingsTab: ui?.settingsTab,
@@ -481,7 +487,8 @@ struct DebugState: Encodable {
                 visible: window.isVisible,
                 rect: Rect(
                     x: frame.minX, y: mainDisplayHeight - frame.maxY,
-                    width: frame.width, height: frame.height))
+                    width: frame.width, height: frame.height),
+                appearance: window.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]).map(\.rawValue) ?? "")
         }
     }
 }
@@ -496,6 +503,9 @@ struct UIState: Codable {
     let settingsTab: String?
     let historyShown: Bool
     let welcomeShown: Bool
+    /// The theme it applies, and the appearance its windows take (`aqua` or `darkAqua`).
+    let theme: Theme
+    let appearance: String
     /// Whether it waits to quit, with no window open; the menu bar process, which runs the linger,
     /// fills it in.
     var lingering: Bool
@@ -510,6 +520,8 @@ struct UIState: Codable {
             settingsTab: SettingsWindow.shared.window == nil ? nil : SettingsWindow.shared.tab.rawValue,
             historyShown: HistoryWindow.shared.window != nil,
             welcomeShown: OnboardingWindow.shared.window != nil,
+            theme: Usage.shared.theme,
+            appearance: NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]).map(\.rawValue) ?? "",
             lingering: false,
             windows: DebugState.windows())
     }

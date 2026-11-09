@@ -23,6 +23,9 @@ struct MomentQueue: Equatable {
     /// When the next waiting moment may open, after the island closed.
     private(set) var opensAt: TimeInterval?
     private(set) var hovering = false
+    /// The last moment to close was the peek: until the next one opens, the moments waiting were
+    /// queued behind it and have not been seen.
+    private var closedPeek = false
     /// Apps whose transfer has shown, with when the queue last heard of it, until it ends or
     /// goes quiet for `transferSilence`.
     private var shownTransfers: [String: TimeInterval] = [:]
@@ -83,15 +86,10 @@ struct MomentQueue: Equatable {
         guard current == nil, !waiting.isEmpty, now >= (opensAt ?? now) else { return }
         let moment = waiting.removeFirst()
         current = moment
+        closedPeek = false
         opensAt = nil
         closesAt = hovering ? nil : now + moment.kind.duration
-        if let app = Self.transferApp(moment.content) {
-            if case .transfer(_, _, _, _, true) = moment.content {
-                shownTransfers[app] = nil
-            } else {
-                shownTransfers[app] = now
-            }
-        }
+        markShown(moment, now: now)
     }
 
     /// The pointer entered or left the island's outline.
@@ -107,6 +105,24 @@ struct MomentQueue: Equatable {
         guard current != nil else { return }
         close(now: now)
         advance(now: now)
+    }
+
+    /// A click on the island: closes the open moment and drops the waiting ones, also in the gap
+    /// between two moments. Returns whether there was anything to put away. A dropped transfer
+    /// counts as shown, as if it had opened: a running one's progress opens nothing and its end
+    /// still does; an ended one is forgotten. A click on the peek, or in the gap after it, closes
+    /// only the peek, since the moments waiting behind it have not been seen.
+    @discardableResult
+    mutating func putAway(now: TimeInterval) -> Bool {
+        guard current != nil || !waiting.isEmpty else { return false }
+        if current?.kind == .peek || (current == nil && closedPeek) {
+            dismiss(now: now)
+            return true
+        }
+        for moment in waiting { markShown(moment, now: now) }
+        waiting.removeAll()
+        dismiss(now: now)
+        return true
     }
 
     /// Drops every moment of `kind`, open or waiting, when it is turned off or no longer applies.
@@ -132,9 +148,21 @@ struct MomentQueue: Equatable {
 
     private mutating func close(now: TimeInterval) {
         if case .transfer(let app, _, _, _, true) = current?.content { shownTransfers[app.id] = nil }
+        closedPeek = current?.kind == .peek
         current = nil
         closesAt = nil
         opensAt = now + Self.gap
+    }
+
+    /// A transfer that opened, or was put away: its app's progress opens nothing until it goes
+    /// quiet; its end clears the app, so the next transfer starts afresh.
+    private mutating func markShown(_ moment: Moment, now: TimeInterval) {
+        guard let app = Self.transferApp(moment.content) else { return }
+        if case .transfer(_, _, _, _, true) = moment.content {
+            shownTransfers[app] = nil
+        } else {
+            shownTransfers[app] = now
+        }
     }
 
     private static func transferApp(_ content: MomentContent) -> String? {

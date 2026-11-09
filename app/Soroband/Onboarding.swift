@@ -37,7 +37,8 @@ final class OnboardingWindow: NSObject, NSWindowDelegate {
     func show(aboveOtherApps: Bool = false, activates: Bool) {
         if window == nil {
             let window = NSWindow(
-                contentViewController: NSHostingController(rootView: OnboardingView { [weak self] in self?.close() }))
+                contentViewController: NSHostingController(
+                    rootView: OnboardingView { [weak self] in self?.close() }.themed()))
             window.title = "Welcome to Soroband"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false

@@ -759,6 +759,123 @@ Planned rounds: 1.
 
 **Retro.** Planned 1 round; it took 1. Each fix came with a reproduction of the flake (a widened gap, the mutant applied) and a check that the test still fails on the behavior it guards, so the reviewer could confirm both by reading.
 
+## [#57](https://github.com/AboulEinein/soroband/pull/57) feat(app): ship the Soroband app icon (2026-11-07)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | none | Posted as a COMMENT review with a no-findings body. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. An asset and a build setting with the bundle's icon keys and a capture as evidence left nothing to find. The first PR body quoted the request with a local path; #64 changes the template so bodies state the request instead.
+
+## [#64](https://github.com/AboulEinein/soroband/pull/64) docs(review): state the request instead of quoting it (2026-11-08)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | none | Posted as a COMMENT review with a no-findings body. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. Two sentences changed, and the reviewer's retired-terms search found no other place that still asks for the quoted request.
+
+## [#63](https://github.com/AboulEinein/soroband/pull/63) feat(app): offer the Soroband glyph as the menu bar icon (2026-11-08)
+
+Planned rounds: 2.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | 2 Minor | `first look`: a doc comment wrapped mid-sentence; design.md still said the renderer makes its icon once per symbol. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 2 rounds; it took 1. The round's two Minor findings were wording, fixed and left to CodeRabbit's review of the fix, which raised nothing. The CPU samples overlapped between the glyph and the network icon on a busy Mac; a 10-minute interleaved pair would have settled it, and the code sets the image only when the display changes.
+
+## [#67](https://github.com/AboulEinein/soroband/pull/67) feat(app): theme Soroband's windows with an appearance and an accent color (2026-11-08)
+
+Planned rounds: 2.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | 3 Low | `first look`: white on five accents' dark steps under 3:1; amber made the day ruler one color; no test carried the theme to the UI process. |
+| direct | Opus | none | [Verdict](https://github.com/AboulEinein/soroband/pull/67#issuecomment-6714905773) on 0ed1d42: all three handled. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 2 rounds; it took 1 and a direct review. Round 1's three Low findings came from reading the accent against what draws on it (a white glyph, the day ruler's other color) and from a test that stopped one process short of its name; checking each new color against every color it sits on or beside, and testing the value where the other process reads it, would have caught them before the round.
+
+## [#68](https://github.com/AboulEinein/soroband/pull/68) feat(app): pick the app icon in Settings › Appearance (2026-11-08)
+
+Planned rounds: 2.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 1 Minor | `first look`: CHANGELOG kept #57's Graphite-only App icon bullet beside the new one. |
+| 1 | Opus | 1 Medium, 2 Low | `first look`: a Debug build wrote Finder's icon into the bundle Xcode re-signs, so every worktree's next build failed to sign; a test compared the icons against a typed list instead of the core; nothing tested `app_icon` reaching the UI process. |
+| 2 | Opus | 1 Low | `first look`: the read-only footer blamed another user's install, which a read-only disk image also triggers. |
+| CodeRabbit | CodeRabbit | 1 Minor | Outside the diff: About did not redraw when the icon changed; fixed in 35cc420, which CodeRabbit's next review accepted. |
+
+**Retro.** Planned 2 rounds; it took 2. Round 1's Medium came from state shared across worktrees (the Debug data directory deciding whether a Debug build writes into its own bundle), which no test host shows; the brief should have named the shared Debug data directory as a hazard for any setting that writes outside the app's data. CodeRabbit's finding was a view outside the diff holding a copy of the value, the kind REVIEW.md asks reviewers to trace; both blind rounds traced About's icon but not whether SwiftUI redraws it.
+
+## [#65](https://github.com/AboulEinein/soroband/pull/65) chore(prototypes): add the system monitor probe (2026-11-08)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | 1 Low, 1 Minor | `first look`: the `top` label's comment described a rule the code does not use; the GPU energy field was read and dropped. |
+| CodeRabbit | CodeRabbit CLI | 1 Major, 1 Minor | `first look`, on the fixes: `run.sh` reported success when a measurement failed, and broke on a path with a space. |
+| direct | Sonnet | none | Checked fa382e8 and c737560; resolved both threads. [Comment](https://github.com/AboulEinein/soroband/pull/65#issuecomment-6714565285). |
+| CodeRabbit | CodeRabbit | 2 Minor | On 95451c6. `first look`: the README's tiered thresholds and the attribution its cost leaves out. |
+| CodeRabbit | CodeRabbit | none | On 26c9067. |
+
+**Retro.** Planned 1 round, the user's cap for a prototype; it took 1 and a direct review. The round's two findings were in the probe's own reporting, not its measurements, and the reviewer checked the struct layouts against the SDK itself. The CLI's run of the fixes found what the blind round had not read closely, `run.sh`'s error path; CodeRabbit's two were the README row summarizing the measurements more loosely than the code. `main` moved twice during the review (#64, then #57 and #63), and each merge conflicted only in this file; after the second merge the CLI was not rerun, because the branch's diff against `main` was the one it had just reviewed. `scripts/verify/prepush.sh` failed three times on a flake outside this PR, `soroband-cli`'s `update` tests colliding in `hdiutil create`, and passed on the rerun each time. Changes: none to the rules; the flake becomes a follow-up.
+
+## [#66](https://github.com/AboulEinein/soroband/pull/66) docs(plan): plan the resource meter as M8 to M10 (2026-11-08)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | 2 Medium, 3 Low | `first look`: M8's guard would trip on correct reads (a coalition also counts exited and unreadable processes) and its cost was not counted; M10's Ignore contradicted the ignored apps; the handover pointed at results the README does not hold; M8's verification row had no memory measurement. |
+| CodeRabbit | CodeRabbit CLI | 2 Major | `fix regression`: the guard bounded footprint on one side only and left disk and energy unchecked; a footprint changing between reads would degrade the engine. |
+| CodeRabbit | CodeRabbit CLI | 3 Major | `first look`: a terminal's coalition credited its commands to the terminal; the minute record could not name a disk-heavy app. `fix regression`: a footprint outside its range still failed the guard. |
+| CodeRabbit | CodeRabbit CLI | 1 Major | `fix regression`: a command that exits between minute reads lost its usage to the terminal. |
+| CodeRabbit | CodeRabbit CLI | 2 Major | `fix regression`: the guard did not check energy; an unreadable command's usage went to the terminal. |
+| 2 | Opus | 4 Low | Resolved round 1's five threads. `fix regression`: the guard's "over the interval" read as deltas; a failed energy check had no outcome; a shared coalition's per-poll split did not say how its processes are found. `first look`: Snooze was not defined. |
+| CodeRabbit | CodeRabbit CLI | 1 Major | `fix regression`: a layout swapping two counters could pass lower-bound checks. |
+| 3 | Opus | 1 Medium, 2 Low | Resolved round 2's four threads. `fix regression`: the scripted load's `dd` finished between minute reads, so the split could not credit it. `first look`: two stored fields had no guard check; Snooze had no test. Led to the reassessment ([comment](https://github.com/AboulEinein/soroband/pull/66#issuecomment-6715438056)): the guard and the split restated as requirements. |
+| CodeRabbit | CodeRabbit CLI | none | On the restated guard and split. |
+| 4 | Opus | 1 Medium, 3 Low, 1 Minor | Resolved round 3's three threads. `first look`: M8's fallback claimed the layout guard reports degraded; M10's Disk filling, its per-app actions, whether its moments are alerts, and "Ignore this app". Findings did not shrink: second reassessment ([comment](https://github.com/AboulEinein/soroband/pull/66#issuecomment-6715571613)); the user chose to trim M9 and M10 to outcomes. |
+| CodeRabbit | CodeRabbit CLI | 1 Major | `first look`: GPU energy had no per-process counter for the guard to check it against. |
+| CodeRabbit | CodeRabbit CLI | 1 Minor | `first look`: energy counters that stay at zero (Intel) would be stored as zero energy. |
+| 5 | Opus | none | Resolved round 4's five threads; checked the GPU energy claim by running the probe. |
+| CodeRabbit | CodeRabbit | 1 Major, 2 Minor | On d2a5d8d. `first look`: equal values can hide a swapped layout; the fallback's numbers were unmarked; the 0.014% did not say what it leaves out. |
+| CodeRabbit | CodeRabbit | none | On d6985e0. No sixth blind round: the user chose to note any nits for later and merge. |
+| CodeRabbit | CodeRabbit | 1 Minor | On 602f170, after #65 merged into this branch. `judged fine`: `run.sh` from another directory cannot find the lock; #65's script, left as a follow-up. |
+
+**Retro.** Planned 1 round; it took 5, two reassessments and ten CLI runs. Rounds 2 and 3 and every CLI run found a new edge in the same two bullets of M8, the guard and the coalition split, because each fix specified more mechanism than a plan can test; the first reassessment restated them as requirements, and the CLI then found nothing on them. Round 4's findings were of a new kind, M10's moments against existing terms, but did not shrink, so the second reassessment went to the user, who chose to trim M9 and M10 to outcomes; round 5 found nothing. The findings after that were requirement additions (distinct values for the layout check, marked fallback rows, energy unavailable where it stays at zero). Changes: a plan states what a milestone must deliver and how it is checked, and leaves mechanism and view design to the milestone; proposed as a rule for `plan.md` with the user's approval, not made here.
+
+## [#58](https://github.com/AboulEinein/soroband/pull/58) fix(island): close the island with a click (2026-11-07)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 2 Minor | A click on the moment's content would be dropped by `FlippedView`'s first-mouse answer: not valid, a real click on the content closed the island. A clicked-away ended transfer kept its app marked for 30 s: fixed, with a test. |
+| 1 | Opus | 2 Low, 1 unrated | A click in the gap between moments did nothing; the transfer bookkeeping was copied in two places; a click on the peek dropped alerts queued behind it (Discussion). All fixed in a753e0a. |
+| 2 | Opus | 1 Medium, 3 Low | A second click in the gap after the peek, or one after the peek closed on its own, still dropped the alerts behind it: a path into the same state the round-1 fix missed. The gap guard sat in the controller, untested; this entry had no round rows; the PR body named `dismissAll`. Code fixed in 57408f1, body edited. |
+| 3 | Opus | 1 Low | No new findings in the code; the round rows 57408f1's message named were not in it. Added here. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 3, with no CodeRabbit CLI pass on the fixes (its quota was spent). Round 1's findings were real gaps in the first design (the gap between moments, the peek's waiting alerts); round 2 caught a second path into the peek state that the round-1 fix missed, which the "fix every path into the state" rule in `docs/verification.md` names; listing the paths into `MomentQueue`'s state (open, gap, after the peek) before the first fix would have saved a round. A records edit that failed silently (a script error before the commit) made one commit's message claim rows it did not hold: check the diff of a records commit before writing its message.
+
 ## [#59](https://github.com/AboulEinein/soroband/pull/59) fix(island): keep the menu bar clear while a moment grows or shrinks (2026-11-07)
 
 Planned rounds: 1.

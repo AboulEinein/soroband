@@ -76,7 +76,8 @@ enum UIEvent: Codable, Equatable {
     case live(Bool)
     case setMenuBarLayout(MenuBarLayout)
     case setResetHour(Int)
-    /// A setting the core stores as `soroband config set` would: the island's, from Settings.
+    /// A setting the core stores as `soroband config set` would: the island's, the theme's or the
+    /// app icon's, from Settings.
     case setSetting(key: String, value: String)
     case setNetworkColor(id: Int64, color: Int?)
     case updateNetwork(id: Int64, name: String, kind: NetworkKind)
@@ -105,6 +106,8 @@ struct UISnapshot: Codable, Equatable {
     var current: Network?
     var connectedSince: Date?
     var island = IslandSettings()
+    var theme = Theme()
+    var appIcon = AppIcon.graphite
 
     @MainActor
     static func current() -> UISnapshot {
@@ -113,7 +116,8 @@ struct UISnapshot: Codable, Equatable {
             status: usage.status, todayJSON: usage.todayJSON, registry: usage.registry,
             menuBarLayout: usage.menuBarLayout,
             resetHour: usage.resetHour, current: NetworkMonitor.shared.current,
-            connectedSince: NetworkMonitor.shared.connectedSince, island: IslandController.shared.settings)
+            connectedSince: NetworkMonitor.shared.connectedSince, island: IslandController.shared.settings,
+            theme: usage.theme, appIcon: usage.appIcon)
     }
 }
 

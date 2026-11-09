@@ -35,6 +35,39 @@ pub const MENU_BAR_MAX_READINGS: usize = 4;
 pub const MENU_BAR_STYLE: &str = "menu_bar_style";
 /// The values of [`MENU_BAR_STYLE`].
 pub const MENU_BAR_STYLE_OPTIONS: &[&str] = &["stacked", "labeled", "inline"];
+/// Key of the menu bar item's icon: the current network's kind, or the Soroband glyph.
+pub const MENU_BAR_ICON: &str = "menu_bar_icon";
+/// The values of [`MENU_BAR_ICON`].
+pub const MENU_BAR_ICON_OPTIONS: &[&str] = &["network", "soroband"];
+
+/// Key of the windows' appearance: macOS's, or always light or dark.
+pub const APPEARANCE: &str = "appearance";
+/// The values of [`APPEARANCE`].
+pub const APPEARANCE_OPTIONS: &[&str] = &["system", "light", "dark"];
+/// Key of the windows' accent color: macOS's, or one of the icon pack's colors.
+pub const ACCENT: &str = "accent";
+/// The values of [`ACCENT`].
+pub const ACCENT_OPTIONS: &[&str] = &[
+    "system", "coral", "amber", "emerald", "teal", "sky", "indigo", "plum", "rose",
+];
+/// Key of the app's icon in the Dock, in Finder and in Settings › About.
+pub const APP_ICON: &str = "app_icon";
+/// The values of [`APP_ICON`]: the bundle's own icon first, then the icon pack's others.
+pub const APP_ICON_OPTIONS: &[&str] = &[
+    "graphite",
+    "indigo",
+    "plum",
+    "light",
+    "hairline-coral",
+    "hairline-indigo",
+    "hairline-teal",
+    "hairline-emerald",
+    "hairline-amber",
+    "hairline-rose",
+    "hairline-sky",
+    "hairline-graphite",
+    "hairline-paper",
+];
 
 /// Key of the island's master switch: off makes Soroband a plain menu bar app.
 pub const ISLAND: &str = "island";
@@ -152,6 +185,46 @@ pub const SCHEMA: &[Setting] = &[
         description: "How the menu bar item draws its readings: stacked (in pairs, the first \
                       on top, in a smaller size), labeled (each under a small caption) or inline \
                       (one line).",
+    },
+    Setting {
+        key: MENU_BAR_ICON,
+        kind: Kind::Choice {
+            options: MENU_BAR_ICON_OPTIONS,
+            default: "network",
+        },
+        description: "The menu bar item's icon: network (the current network's kind) or soroband \
+                      (the Soroband glyph). While counting has stopped it shows a warning sign \
+                      either way.",
+    },
+    Setting {
+        key: APPEARANCE,
+        kind: Kind::Choice {
+            options: APPEARANCE_OPTIONS,
+            default: "system",
+        },
+        description: "How Soroband's windows look: system (light or dark, as macOS is), light or \
+                      dark. The island stays dark.",
+    },
+    Setting {
+        key: ACCENT,
+        kind: Kind::Choice {
+            options: ACCENT_OPTIONS,
+            default: "system",
+        },
+        description: "The color of selections and highlights in Soroband's windows: system \
+                      (macOS's accent color), coral, amber, emerald, teal, sky, indigo, plum or \
+                      rose.",
+    },
+    Setting {
+        key: APP_ICON,
+        kind: Kind::Choice {
+            options: APP_ICON_OPTIONS,
+            default: "graphite",
+        },
+        description: "Soroband's icon in the Dock, in Finder and in Settings › About: graphite \
+                      (the default), indigo, plum, light, or hairline-coral, hairline-indigo, \
+                      hairline-teal, hairline-emerald, hairline-amber, hairline-rose, \
+                      hairline-sky, hairline-graphite or hairline-paper.",
     },
     Setting {
         key: ISLAND,
@@ -509,8 +582,8 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::{
-        Error, ISLAND, ISLAND_IGNORED_APPS, ISLAND_MOMENTS, MENU_BAR_READINGS, MENU_BAR_SCOPE,
-        MENU_BAR_STYLE, RESET_HOUR, Settings,
+        ACCENT, APP_ICON, APPEARANCE, Error, ISLAND, ISLAND_IGNORED_APPS, ISLAND_MOMENTS,
+        MENU_BAR_ICON, MENU_BAR_READINGS, MENU_BAR_SCOPE, MENU_BAR_STYLE, RESET_HOUR, Settings,
     };
     use std::path::PathBuf;
 
@@ -690,6 +763,31 @@ mod tests {
         assert_eq!(settings.get(MENU_BAR_SCOPE).unwrap().value, "network");
         assert_eq!(settings.get(MENU_BAR_READINGS).unwrap().value, "total");
         assert_eq!(settings.get(MENU_BAR_STYLE).unwrap().value, "stacked");
+        assert_eq!(settings.get(MENU_BAR_ICON).unwrap().value, "network");
+    }
+
+    /// The icon is one of its two words exactly: the app knows no other, so anything else is
+    /// refused rather than stored for the app to ignore.
+    #[test]
+    fn menu_bar_icon_is_network_or_soroband() {
+        let mut settings = Settings::default();
+        settings.set(MENU_BAR_ICON, "soroband").unwrap();
+        assert_eq!(settings.get(MENU_BAR_ICON).unwrap().value, "soroband");
+        // Typed text is trimmed, as for every word setting.
+        settings.set(MENU_BAR_ICON, " network ").unwrap();
+        assert_eq!(settings.get(MENU_BAR_ICON).unwrap().value, "network");
+        for bad in ["", "Soroband", "soroband,network", "glyph", "none"] {
+            let error = settings.set(MENU_BAR_ICON, bad).unwrap_err().to_string();
+            assert!(
+                error.contains("is not one of network, soroband"),
+                "{bad:?}: {error}"
+            );
+        }
+        assert_eq!(
+            settings.get(MENU_BAR_ICON).unwrap().value,
+            "network",
+            "a refused value changes nothing"
+        );
     }
 
     /// Readings are kept in the order given, which is the order the item draws them in.
@@ -733,6 +831,163 @@ mod tests {
         assert!(settings.set(MENU_BAR_STYLE, "stacked").is_ok());
         assert!(settings.set(MENU_BAR_STYLE, "vertical").is_err());
         assert!(settings.set(MENU_BAR_SCOPE, "today_all").is_err());
+    }
+
+    /// A fresh install looks as macOS does: its light or dark, its accent color.
+    #[test]
+    fn a_fresh_install_follows_the_system_appearance_and_accent() {
+        let settings = Settings::default();
+        for key in [APPEARANCE, ACCENT] {
+            let current = settings.get(key).unwrap();
+            assert_eq!(current.value, "system", "{key}");
+            assert!(current.is_default);
+        }
+    }
+
+    /// Each theme setting takes its words exactly, the first and last of its list included: the
+    /// app knows no other, so anything else is refused rather than stored for the app to ignore.
+    #[test]
+    fn appearance_and_accent_take_only_their_own_words() {
+        let mut settings = Settings::default();
+        for (key, valid, others) in [
+            (
+                APPEARANCE,
+                &["system", "light", "dark"][..],
+                "system, light, dark",
+            ),
+            (
+                ACCENT,
+                &[
+                    "system", "coral", "amber", "emerald", "teal", "sky", "indigo", "plum", "rose",
+                ][..],
+                "system, coral, amber, emerald, teal, sky, indigo, plum, rose",
+            ),
+        ] {
+            for value in valid {
+                settings.set(key, value).unwrap();
+                assert_eq!(settings.get(key).unwrap().value, *value, "{key}");
+            }
+            // Typed text is trimmed, as for every word setting.
+            settings.set(key, " system ").unwrap();
+            assert_eq!(settings.get(key).unwrap().value, "system");
+            // Case, lists, near misses, the other setting's words and other apps' names.
+            for bad in [
+                "",
+                "System",
+                "dark,light",
+                "auto",
+                "blue",
+                "graphite",
+                "none",
+            ] {
+                let error = settings.set(key, bad).unwrap_err().to_string();
+                assert!(
+                    error.contains(&format!("is not one of {others}")),
+                    "{key} {bad:?}: {error}"
+                );
+            }
+            assert_eq!(
+                settings.get(key).unwrap().value,
+                "system",
+                "a refused value changes nothing"
+            );
+        }
+        assert!(settings.set(APPEARANCE, "coral").is_err());
+        assert!(settings.set(ACCENT, "dark").is_err());
+    }
+
+    #[test]
+    fn stored_theme_from_a_hand_edit_falls_back_to_the_system() {
+        let path = temp_file("theme-hand-edit");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, r#"{"appearance": "sepia", "accent": 3}"#).unwrap();
+        let settings = Settings::load(&path).unwrap();
+        for key in [APPEARANCE, ACCENT] {
+            let current = settings.get(key).unwrap();
+            assert_eq!(current.value, "system", "{key}");
+            assert!(current.is_default);
+            assert!(current.problem.is_some(), "{key} says why");
+        }
+    }
+
+    /// A fresh install keeps the icon the bundle carries, so Finder's copy of it is never touched.
+    #[test]
+    fn a_fresh_install_keeps_the_graphite_app_icon() {
+        let current = Settings::default().get(APP_ICON).unwrap();
+        assert_eq!(current.value, "graphite");
+        assert!(current.is_default);
+    }
+
+    /// The app ships one icon per word, so the setting takes exactly those 13, the first and last
+    /// included, and refuses the pack's other spellings rather than store a word with no icon.
+    #[test]
+    fn app_icon_takes_only_its_own_words() {
+        let mut settings = Settings::default();
+        let valid = [
+            "graphite",
+            "indigo",
+            "plum",
+            "light",
+            "hairline-coral",
+            "hairline-indigo",
+            "hairline-teal",
+            "hairline-emerald",
+            "hairline-amber",
+            "hairline-rose",
+            "hairline-sky",
+            "hairline-graphite",
+            "hairline-paper",
+        ];
+        for value in valid {
+            settings.set(APP_ICON, value).unwrap();
+            assert_eq!(settings.get(APP_ICON).unwrap().value, value);
+        }
+        settings.set(APP_ICON, " graphite ").unwrap();
+        assert_eq!(settings.get(APP_ICON).unwrap().value, "graphite");
+        // The pack's family name for hairline coral, other spellings, an accent word and a list.
+        for bad in [
+            "",
+            "hairline",
+            "Graphite",
+            "hairline_coral",
+            "hairline coral",
+            "coral",
+            "hairline-paper,graphite",
+            "default",
+        ] {
+            let error = settings.set(APP_ICON, bad).unwrap_err().to_string();
+            assert!(
+                error.contains(&format!("is not one of {}", valid.join(", "))),
+                "{bad:?}: {error}"
+            );
+        }
+        assert_eq!(
+            settings.get(APP_ICON).unwrap().value,
+            "graphite",
+            "a refused value changes nothing"
+        );
+    }
+
+    #[test]
+    fn stored_app_icon_from_a_hand_edit_falls_back_to_graphite() {
+        let path = temp_file("app-icon-hand-edit");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, r#"{"app_icon": "hairline"}"#).unwrap();
+        let current = Settings::load(&path).unwrap().get(APP_ICON).unwrap();
+        assert_eq!(current.value, "graphite");
+        assert!(current.is_default);
+        assert!(current.problem.is_some(), "says why");
+    }
+
+    #[test]
+    fn stored_menu_bar_icon_from_a_hand_edit_falls_back_to_the_network_icon() {
+        let path = temp_file("menu-bar-icon-hand-edit");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, r#"{"menu_bar_icon": "rainbow"}"#).unwrap();
+        let current = Settings::load(&path).unwrap().get(MENU_BAR_ICON).unwrap();
+        assert_eq!(current.value, "network");
+        assert!(current.is_default);
+        assert!(current.problem.unwrap().contains("is not one of"));
     }
 
     #[test]

@@ -47,7 +47,7 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
             window.toolbar = toolbar.toolbar
             window.toolbarStyle = .unified
         }
-        let host = NSHostingController(rootView: HistoryView(model: model))
+        let host = NSHostingController(rootView: HistoryView(model: model).themed())
         // The toolbar is AppKit's own (`HistoryToolbar`): bridging SwiftUI toolbar items into
         // the window took about 40% of the time to open it. The window sets the size; asking
         // SwiftUI for the content's fitting size first would lay out the detail once more.

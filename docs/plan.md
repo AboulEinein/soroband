@@ -15,6 +15,9 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | M5 | Dynamic Island moments | 2 | blocked (hand checklist: peek, look and feel, the hog's buttons, notifications, full screen, a real hotspot, the Island pane) | [#50](https://github.com/AboulEinein/soroband/pull/50) |
 | M6 | Memory and performance | 3 | blocked (M6a hand checklist) | [#35](https://github.com/AboulEinein/soroband/pull/35), [#36](https://github.com/AboulEinein/soroband/pull/36), [#37](https://github.com/AboulEinein/soroband/pull/37) |
 | M7 | Release v0.1.0 | 3 | blocked (hand checklist: second-account install, a fresh agent's install by each route, Location after an update; then the v0.1.0 tag, with the user's approval) | [#54](https://github.com/AboulEinein/soroband/pull/54) |
+| M8 | Resource meter engine and storage | 4 | planned | – |
+| M9 | Resources in the popover, History and the menu bar | 4 | planned | – |
+| M10 | Resource moments | 4 | planned | – |
 
 M0–M6 are merged to `main`. A milestone with a hand checklist stays `blocked` until the user has run it; the checklists are in [`handover.md`](handover.md#next-action).
 
@@ -25,6 +28,7 @@ Statuses: `planned`, `in progress`, `in review`, `done`, `blocked (<reason>)`.
 1. **Foundation and first features (M0–M3).** Ends with a build you run every day: real per-app, per-network counting, stored forever, shown in the menu bar and popover.
 2. **History and island (M4–M5).** M4 and M5 touch separate parts of the app and can run in parallel once M3 is merged.
 3. **Performance and release (M6–M7).** The menu bar app back within its budget after every window, then a release workflow with a DMG and an install prompt for agents.
+4. **Resource meter (M8–M10).** CPU, memory, disk and energy per app beside the internet bytes, with history, then their views, then their moments. M8 runs first; M9 and M10 can run in parallel once it is merged.
 
 ## Milestones
 
@@ -171,6 +175,51 @@ Exit criteria:
 - A coding agent following the README's install prompt ends with Soroband running, by either route.
 - Whether macOS asks for Location permission again after an update is tested and written in the release notes.
 
+### M8: Resource meter engine and storage
+
+Soroband meters each app's CPU, memory, disk and energy beside its internet bytes, keeps them as long as the bytes, and keeps a minute-by-minute record of the busiest apps. Measured in `prototypes/sysmon-probe` (2026-11-08, M2 Max, 1131 processes): one coalition read per app gives its CPU time, memory footprint, disk bytes and energy, counts processes that already exited, and reads apps run as root without privilege; read on every 5 s poll it costs 0.072% CPU, read once a minute and whenever the gauges show load 0.014%, leaving out mapping each coalition to an app (about 0.25 ms a pass). On the same Mac, Stats used 3.3–4.0% CPU and 99–131 MB, Vorssaint 3.4.2 1.3% and 23 MB (its monitors on, its notch off).
+
+Deliverables:
+- **System gauges** on every engine poll, with no new thread or timer: CPU busy share (`host_statistics`, `HOST_CPU_LOAD_INFO`), memory used, compressed and swapped and the memory pressure level (`host_statistics64`, `HOST_VM_INFO64`, `kern.memorystatus_vm_pressure_level`), and free space on each local volume (`statfs`), read once a minute.
+- **The resource read.** `proc_listcoalitions` and `coalition_info_resource_usage` once a minute, and on every poll while the CPU is over 50% busy or memory is under pressure. Each app's resources are credited under the same name as its bytes, named the way flows are (the outermost `.app`, "macOS & Services", or a command-line tool). A coalition holding processes of several apps (a terminal and the commands it runs share one) is split among them, so each command keeps its own usage; how the split treats a process that exits between reads is M8's to measure, and the PR states what such a process loses and to whom. The counters: CPU time, CPU time billed to it by daemons working for it, disk bytes read and written and energy; the gauges: memory footprint. GPU energy is left out: no per-process counter can check it, and the probe read it as zero for every app, since the compositing is billed to WindowServer.
+- **A guard and a fallback.** Both calls are exported by `libsystem_kernel` but absent from the public SDK, as the statistics socket is. The engine looks them up at launch and checks the layout against `proc_pid_rusage` reads of the same processes, at launch and at intervals M8 sets. A coalition also counts processes that exited and processes the user cannot read, and a footprint changes between reads, so the check allows for each of these; it must still fail on a layout that moves or swaps any stored field, so it judges a field only on coalitions where that field's value differs from the others', and a layout it cannot verify that way counts as failed. When the lookup or the check fails, the engine reads the user's own processes with `proc_pid_rusage` instead and says so in `soroband debug state`; the rows it stores while falling back are marked, and `soroband top` and `apps` say when their numbers come from the fallback, which leaves out other users' and root processes. How the app shows it is M9's to design. In the probe, Cursor and Chrome, with 4 and 1 exited processes, read 3.1% and 1.2% above their live processes' CPU, and every listed footprint matched exactly.
+- **Storage** (a schema version, one-way like the others): per (hour, app) the counters and the average and peak footprint, with daily sums written in the same transaction; per minute the system gauges and the five busiest apps by CPU, by footprint and by disk bytes written, kept 7 days by default (`resource_minutes_days`); measured growth per day in the PR.
+- **`soroband`** gains `system` (the gauges now), `top` (the busiest apps now, by any resource) and `apps --by cpu|memory|disk|energy` over any range.
+- `GLOSSARY.md`: the new terms (coalition, resource read, system gauges, footprint, and whatever the milestone names).
+
+Exit criteria:
+- Replay of recorded coalition reads: exited processes' CPU counted, coalitions folded into apps, a shared coalition split among its apps; the guard passes on recorded correct reads (exited and unreadable processes, a footprint that changed between reads) and fails on the same reads with each stored field moved or swapped, and the fallback takes over; `cargo mutants` on the new modules.
+- A scripted load from one shell (`yes > /dev/null` for 90 s, a `dd` writing 1 GB over at least 90 s, an allocation that stays resident) shows in `soroband top` and in the stored hour against its known CPU time, bytes and footprint, within 5%, each under its own command's name.
+- Idle CPU of the menu bar process over 10 minutes with the resource meter on (its guard and split included), beside a build without it in the same session: no more than 0.02% higher, and within the 0.1% budget in the default layout. Memory with no window open ≤ 25 MB.
+
+Hand checklist: the energy counters against `sudo powermetrics` over the same minutes (the probe could not check them without root); if they disagree by more than 20%, energy is stored but not shown. On a Mac whose kernel leaves the energy counters at zero (Intel Macs may), energy is shown as unavailable, not as zero.
+
+### M9: Resources in the popover, History and the menu bar
+
+Deliverables:
+- Resources wherever internet bytes are shown: the popover, History on every range and per app, and the menu bar's readings.
+- A view of what was busy at a past minute, within the minute record M8 keeps ("what slowed my Mac at 3 pm").
+- Settings for which resources are metered and how long the minute record is kept.
+
+Each view's design is picked by the user from mockups before it is built, as the popover's and History's were. The design settles how the resource fallback (M8) is shown.
+
+Exit criteria:
+- Captures of each new view next to the mockup the user picked.
+- History's open times and memory within M4's criteria with the resources on a synthetic year.
+- Idle CPU in each new menu bar reading over 10 minutes, beside `main` in the same session: within the 0.1% budget. Each redraw costs about 18 ms of the main thread, so a reading that changes on every poll is measured before it is offered.
+
+### M10: Resource moments
+
+Deliverables:
+- Island moments that fire on a change in an app's or the Mac's resources rather than on a fixed number. The candidates: an app holding a full core for minutes, an app's memory growing for hours (a leak), memory pressure, the start-up disk filling at its recent rate, an app writing heavily.
+- The moments, their thresholds and actions, and how they sit with the existing moments (alerts, the ignored apps, notifications with the island off), are designed with the user at the start of M10, from these candidates and the data M8 stores.
+
+Exit criteria:
+- Each moment fires from a scripted load (`moments.sh` extended), and none fires on a recorded idle day.
+- No CPU cost while no moment is showing, measured as in M5.
+
+Decided for M8–M10 (2026-11-08): the user asked for CPU, memory and disk monitoring "to create the best monitoring app available with a significant margin". What sets it apart, from the competitor research (2026-11-08): per-app history kept as long as the internet bytes (Stats keeps 24 hours of totals, iStat Menus 28 days of totals, Vorssaint about 4 minutes, in memory), moments that fire on change, helpers counted with their app, and a cost one to two orders of magnitude below. Out of scope: temperatures, fans and anything needing SMC reads or a privileged helper.
+
 ## Later
 
 Data caps and alerts, per-domain usage (DNS correlation), desktop widget, CSV and JSON export of any range, localization.
@@ -181,7 +230,7 @@ Data caps and alerts, per-domain usage (DNS correlation), desktop widget, CSV an
 - **Orchestrator plus agents inside a session.** The session lead plans the milestone, does the coupled work itself, and spawns agents only for independent tracks (for example, in M4 the chart views and the SQL queries), for the blind reviewer of each round, for the direct review of comment or wording fixes, and for an advisor agent on a review judgment or reassessment.
 - **Parallel sessions only after M3.** M0–M3 change shared interfaces (the bridge, the schema), so they run in order. M4 and M5 can run as two sessions in separate worktrees.
 
-Estimated sessions: M0 1, M1 1–2, M2 1, M3 1–2, M4 1, M5 2, M6 1, M7 1, so about 10 sessions. Calendar time depends mostly on review turnaround and the M3 daily-use week.
+Estimated sessions: M0 1, M1 1–2, M2 1, M3 1–2, M4 1, M5 2, M6 1, M7 1, M8 2, M9 2, M10 1, so about 15 sessions. Calendar time depends mostly on review turnaround and the M3 daily-use week.
 
 ### Unattended runs
 
