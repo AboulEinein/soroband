@@ -383,6 +383,24 @@ struct SnapshotTests {
         }
     }
 
+    /// An image without a bitmap of its own is drawn in the snapshots' color space, not the main
+    /// screen's: the fixed app icons and the menu bar glyph are such images.
+    @Test func imagesAreDrawnInTheSnapshotColorSpace() throws {
+        final class Spaces: @unchecked Sendable { var drawnIn: [CGColorSpace?] = [] }
+        let spaces = Spaces()
+        let image = NSImage(size: NSSize(width: 8, height: 8), flipped: false) { rect in
+            spaces.drawnIn.append(NSGraphicsContext.current?.cgContext.colorSpace)
+            NSColor(white: 1, alpha: 0.85).setFill()
+            rect.fill()
+            return true
+        }
+        _ = try #require(Snapshot.render(Image(nsImage: image), size: nil))
+        #expect(!spaces.drawnIn.isEmpty, "the image was never drawn")
+        for space in spaces.drawnIn {
+            #expect(space == Snapshot.colorSpace.cgColorSpace, "drawn in \(space?.name as String? ?? "?")")
+        }
+    }
+
     @Test func comparisonFindsAChangedPixel() throws {
         // Guards the comparison itself: without it, every snapshot test would pass.
         let one = try #require(ImageRenderer(content: Color.black.frame(width: 4, height: 4)).cgImage)

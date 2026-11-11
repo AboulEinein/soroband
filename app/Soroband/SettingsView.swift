@@ -157,7 +157,21 @@ struct SettingsView: View {
             }
         }
         .navigationTitle(selection.tab.title)
+        .withoutTitleBarTitle()
         .frame(width: 760, height: 600)
+    }
+}
+
+extension View {
+    /// The window's title bar is transparent, so the pane's name, shown there once the page's own
+    /// title scrolls away, would be drawn over the rows passing under it. Each page has its own
+    /// large title instead.
+    @ViewBuilder func withoutTitleBarTitle() -> some View {
+        if #available(macOS 15, *) {
+            toolbar(removing: .title)
+        } else {
+            self
+        }
     }
 }
 

@@ -472,6 +472,28 @@ struct UIHostTests {
         #expect(UIHost.windowsReport(open: false, reported: false, after: .closePopover) == nil)
     }
 
+    @Test func sorobandIsInTheDockOnlyWhileAWindowOtherThanThePopoverIsOpen() {
+        // Settings or History open: a Dock icon and ⌘-Tab bring it back from behind other windows.
+        #expect(UIHost.activationPolicy(current: .accessory, windowOpen: true) == .regular)
+        // The last one closed, or only the popover open: a menu bar app again.
+        #expect(UIHost.activationPolicy(current: .regular, windowOpen: false) == .accessory)
+        #expect(UIHost.activationPolicy(current: .accessory, windowOpen: false) == nil)
+        #expect(UIHost.activationPolicy(current: .regular, windowOpen: true) == nil)
+        #expect(
+            UIHost.activationPolicy(current: .prohibited, windowOpen: false) == nil,
+            "a UI process that has shown nothing yet never takes activation")
+    }
+
+    @Test func quitFromTheDockQuitsSorobandButLogOutIsNeverRefused() {
+        #expect(
+            UIHost.quitReply(askedByMenuBar: false, hasQuitReason: false) == .askMenuBar,
+            "Dock Quit or ⌘Q: the menu bar process quits Soroband, not only the windows")
+        #expect(UIHost.quitReply(askedByMenuBar: true, hasQuitReason: false) == .quit, "the linger ran out")
+        #expect(
+            UIHost.quitReply(askedByMenuBar: false, hasQuitReason: true) == .quit,
+            "log out, restart and shut down are never cancelled")
+    }
+
     @Test func aWindowCaptureGoesToTheProcessThatHasTheWindow() {
         #expect(DebugCommands.captureTarget(number: 7, here: [3, 7], uiProcessRuns: true) == .here)
         #expect(DebugCommands.captureTarget(number: 9, here: [3, 7], uiProcessRuns: true) == .uiProcess)
