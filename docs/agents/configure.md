@@ -21,6 +21,7 @@ Exit status: 0 on success; 2 for an unknown key or a value outside the setting's
 | Key | Type | Default | Effect |
 | --- | --- | --- | --- |
 | `reset_hour` | integer 0–23 | 0 | Hour of the day, local time, when "today" starts again. History is not affected: changing it only moves the start of today. |
+| `resource_minutes_days` | integer 1–90 | 7 | Days the minute-by-minute record of the system gauges and the busiest apps is kept. Hourly resource usage is kept forever. |
 | `menu_bar_scope` | choice: `network`, `all` | `network` | Whose usage today the menu bar item counts: the current network's or every network's. |
 | `menu_bar_readings` | list: up to 4 of `total`, `download`, `upload`, `speed_down`, `speed_up`, separated by commas, or `none` | `total` | What the menu bar item shows beside its icon, in order: today's total, download or upload, or the live download or upload speed. `none` leaves the icon alone. Example: `soroband config set menu_bar_readings download,upload`. |
 | `menu_bar_style` | choice: `stacked`, `labeled`, `inline` | `stacked` | How the readings are drawn: in pairs, the first on top, in a smaller size; each under a small caption; or on one line. |

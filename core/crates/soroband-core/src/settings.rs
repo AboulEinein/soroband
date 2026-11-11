@@ -18,6 +18,8 @@ pub const FILE_NAME: &str = "settings.json";
 
 /// Key of the hour of the day, local time, at which the daily counter resets.
 pub const RESET_HOUR: &str = "reset_hour";
+/// Key of the days the minute-by-minute resource record is kept.
+pub const RESOURCE_MINUTES_DAYS: &str = "resource_minutes_days";
 /// Key of whose usage the menu bar item counts: the current network's or every network's.
 pub const MENU_BAR_SCOPE: &str = "menu_bar_scope";
 /// The values of [`MENU_BAR_SCOPE`].
@@ -155,6 +157,16 @@ pub const SCHEMA: &[Setting] = &[
         },
         description: "Hour of the day (0-23, local time) when the daily counter starts again. \
                       History is not affected.",
+    },
+    Setting {
+        key: RESOURCE_MINUTES_DAYS,
+        kind: Kind::Integer {
+            min: 1,
+            max: 90,
+            default: 7,
+        },
+        description: "Days the minute-by-minute record of the system gauges and the busiest apps \
+                      is kept. Hourly resource usage is kept forever.",
     },
     Setting {
         key: MENU_BAR_SCOPE,
@@ -476,6 +488,16 @@ impl Settings {
         })?;
         self.values.insert(key.into(), value);
         Ok(())
+    }
+
+    /// Days the minute-by-minute resource record is kept.
+    #[must_use]
+    pub fn resource_minutes_days(&self) -> u32 {
+        self.get(RESOURCE_MINUTES_DAYS)
+            .ok()
+            .and_then(|current| current.value.as_u64())
+            .and_then(|days| u32::try_from(days).ok())
+            .unwrap_or(7)
     }
 
     /// The hour of the day, local time, at which the daily counter resets.

@@ -11,6 +11,13 @@
 //! - `interface_usage`: bytes that crossed the interfaces per (hour, network), less the
 //!   local-network bytes, for the network totals and for Macs whose engine runs on interface
 //!   totals only.
+//! - `resource_usage`: each app's resources per hour ([`crate::resources`]): CPU time and billed
+//!   CPU time in nanoseconds, disk bytes read and written, energy in nanojoules, the footprint's
+//!   time-weighted sum (byte-seconds) over `seconds`, its peak, and whether a read came from the
+//!   fallback. `resource_usage_day` holds the same per UTC day, written with it.
+//! - `resource_minutes` and `resource_minute_apps`: per minute, the system gauges and the five
+//!   busiest apps by CPU (0), footprint (1) and disk bytes written (2), kept for the days of the
+//!   `resource_minutes_days` setting.
 //!
 //! Hours are Unix times of the start of a UTC hour ([`crate::day::hour_start`]). Network id 0
 //! means no network was identified (before the app named one, or while it waits for a network's
@@ -20,6 +27,8 @@
 #![allow(clippy::missing_errors_doc)]
 
 use crate::meter::{App, Bytes};
+use crate::resources::Counters;
+use crate::resources::ledger::{ResourceHour, ResourceMinute};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
@@ -27,8 +36,9 @@ use std::path::Path;
 pub use rusqlite::Error;
 pub type Result<T> = rusqlite::Result<T>;
 
-const SCHEMA_VERSION: i64 = 3;
-/// The tables as of version 2; [`NETWORK_COLOR`] brings them to the current version.
+const SCHEMA_VERSION: i64 = 4;
+/// The tables as of version 2; [`NETWORK_COLOR`] and [`RESOURCES`] bring them to the current
+/// version.
 const SCHEMA: &str = "
     CREATE TABLE networks (
         id INTEGER PRIMARY KEY,
@@ -84,6 +94,59 @@ const DAY_ROLLUP: &str = "
 /// From version 2: the color the user picked for a network, a slot of the app's palette; NULL
 /// while the network takes the slot of its place in the registry.
 const NETWORK_COLOR: &str = "ALTER TABLE networks ADD COLUMN color INTEGER;";
+
+/// From version 3: each app's resources per hour and per day, and the minute-by-minute record.
+const RESOURCES: &str = "
+    CREATE TABLE resource_usage (
+        hour INTEGER NOT NULL,
+        app INTEGER NOT NULL,
+        cpu INTEGER NOT NULL,
+        billed_cpu INTEGER NOT NULL,
+        disk_read INTEGER NOT NULL,
+        disk_written INTEGER NOT NULL,
+        energy INTEGER NOT NULL,
+        footprint_seconds INTEGER NOT NULL,
+        seconds INTEGER NOT NULL,
+        footprint_peak INTEGER NOT NULL,
+        fallback INTEGER NOT NULL,
+        PRIMARY KEY (hour, app)
+    ) WITHOUT ROWID;
+    CREATE TABLE resource_usage_day (
+        day INTEGER NOT NULL,
+        app INTEGER NOT NULL,
+        cpu INTEGER NOT NULL,
+        billed_cpu INTEGER NOT NULL,
+        disk_read INTEGER NOT NULL,
+        disk_written INTEGER NOT NULL,
+        energy INTEGER NOT NULL,
+        footprint_seconds INTEGER NOT NULL,
+        seconds INTEGER NOT NULL,
+        footprint_peak INTEGER NOT NULL,
+        fallback INTEGER NOT NULL,
+        PRIMARY KEY (day, app)
+    ) WITHOUT ROWID;
+    CREATE TABLE resource_minutes (
+        minute INTEGER PRIMARY KEY,
+        cpu_busy REAL,
+        memory_used INTEGER,
+        memory_compressed INTEGER,
+        swap_used INTEGER,
+        pressure INTEGER,
+        disk_free INTEGER,
+        fallback INTEGER NOT NULL
+    );
+    CREATE TABLE resource_minute_apps (
+        minute INTEGER NOT NULL,
+        measure INTEGER NOT NULL,
+        rank INTEGER NOT NULL,
+        app INTEGER NOT NULL,
+        value INTEGER NOT NULL,
+        PRIMARY KEY (minute, measure, rank)
+    ) WITHOUT ROWID;
+";
+
+/// Seconds in a minute, the unit of `resource_minutes`.
+const MINUTE: i64 = 60;
 
 /// Seconds in a UTC day, the unit of `usage_day`.
 pub const DAY: i64 = 86_400;
@@ -153,6 +216,31 @@ pub struct NetworkTotal {
     pub interfaces: Bytes,
 }
 
+/// What [`Store::resource_totals`] orders apps by.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResourceOrder {
+    Cpu,
+    /// The average footprint.
+    Memory,
+    /// Bytes read and written.
+    Disk,
+    Energy,
+}
+
+/// One app's resources over a span.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResourceTotal {
+    pub app: App,
+    /// CPU times in nanoseconds.
+    pub counters: Counters,
+    /// The average footprint over the time it was read, in bytes.
+    pub footprint: u64,
+    pub peak: u64,
+    /// Whether any of it came from the fallback, which leaves out other users' and root
+    /// processes.
+    pub fallback: bool,
+}
+
 #[derive(Debug)]
 pub struct Store {
     conn: Connection,
@@ -172,17 +260,22 @@ impl Store {
         match version {
             0 => {
                 conn.execute_batch(&format!(
-                    "BEGIN; {SCHEMA} {NETWORK_COLOR} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
+                    "BEGIN; {SCHEMA} {NETWORK_COLOR} {RESOURCES} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
                 ))?;
             }
             1 => {
                 conn.execute_batch(&format!(
-                    "BEGIN; {DAY_ROLLUP} {NETWORK_COLOR} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
+                    "BEGIN; {DAY_ROLLUP} {NETWORK_COLOR} {RESOURCES} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
                 ))?;
             }
             2 => {
                 conn.execute_batch(&format!(
-                    "BEGIN; {NETWORK_COLOR} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
+                    "BEGIN; {NETWORK_COLOR} {RESOURCES} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
+                ))?;
+            }
+            3 => {
+                conn.execute_batch(&format!(
+                    "BEGIN; {RESOURCES} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
                 ))?;
             }
             SCHEMA_VERSION => {}
@@ -502,6 +595,172 @@ impl Store {
             .collect()
     }
 
+    /// Adds resource rows (hours and their day sums) and minutes in one transaction, and drops
+    /// the minutes before `keep_since` (Unix time).
+    pub fn add_resources(
+        &mut self,
+        hours: &[ResourceHour],
+        minutes: &[ResourceMinute],
+        keep_since: i64,
+    ) -> Result<()> {
+        let tx = self.conn.transaction()?;
+        let mut new_ids = Vec::new();
+        {
+            let mut app_row = tx.prepare(
+                "INSERT INTO apps (key, name) VALUES (?1, ?2)
+                 ON CONFLICT (key) DO UPDATE SET name = excluded.name
+                 RETURNING id",
+            )?;
+            let mut app_id = |app: &App, new_ids: &mut Vec<(String, i64)>| -> Result<i64> {
+                if let Some(&id) = self.app_ids.get(&app.id) {
+                    return Ok(id);
+                }
+                if let Some((_, id)) = new_ids.iter().find(|(key, _)| *key == app.id) {
+                    return Ok(*id);
+                }
+                let id: i64 = app_row.query_row(params![app.id, app.name], |r| r.get(0))?;
+                new_ids.push((app.id.clone(), id));
+                Ok(id)
+            };
+            for (table, unit) in [("resource_usage", "hour"), ("resource_usage_day", "day")] {
+                let mut row = tx.prepare(&format!(
+                    "INSERT INTO {table} ({unit}, app, cpu, billed_cpu, disk_read, disk_written,
+                         energy, footprint_seconds, seconds, footprint_peak, fallback)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                     ON CONFLICT ({unit}, app) DO UPDATE SET
+                         cpu = cpu + excluded.cpu,
+                         billed_cpu = billed_cpu + excluded.billed_cpu,
+                         disk_read = disk_read + excluded.disk_read,
+                         disk_written = disk_written + excluded.disk_written,
+                         energy = energy + excluded.energy,
+                         footprint_seconds = footprint_seconds + excluded.footprint_seconds,
+                         seconds = seconds + excluded.seconds,
+                         footprint_peak = MAX(footprint_peak, excluded.footprint_peak),
+                         fallback = MAX(fallback, excluded.fallback)"
+                ))?;
+                for h in hours {
+                    let start = if unit == "day" {
+                        h.hour.div_euclid(DAY) * DAY
+                    } else {
+                        h.hour
+                    };
+                    let c = h.counters;
+                    row.execute(params![
+                        start,
+                        app_id(&h.app, &mut new_ids)?,
+                        sql_bytes(c.cpu),
+                        sql_bytes(c.billed),
+                        sql_bytes(c.read),
+                        sql_bytes(c.written),
+                        sql_bytes(c.energy),
+                        sql_bytes(h.footprint_seconds),
+                        sql_bytes(h.seconds),
+                        sql_bytes(h.peak),
+                        h.fallback,
+                    ])?;
+                }
+            }
+            let mut minute_row = tx.prepare(
+                "INSERT OR REPLACE INTO resource_minutes (minute, cpu_busy, memory_used,
+                     memory_compressed, swap_used, pressure, disk_free, fallback)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            )?;
+            let mut top_row = tx.prepare(
+                "INSERT OR REPLACE INTO resource_minute_apps (minute, measure, rank, app, value)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+            )?;
+            for m in minutes {
+                minute_row.execute(params![
+                    m.minute,
+                    m.cpu_busy,
+                    m.memory_used.map(sql_bytes),
+                    m.memory_compressed.map(sql_bytes),
+                    m.swap_used.map(sql_bytes),
+                    m.pressure,
+                    m.disk_free.map(sql_bytes),
+                    m.fallback,
+                ])?;
+                for (measure, apps) in &m.top {
+                    for (rank, (app, value)) in apps.iter().enumerate() {
+                        top_row.execute(params![
+                            m.minute,
+                            measure.code(),
+                            i64::try_from(rank).unwrap_or(i64::MAX),
+                            app_id(app, &mut new_ids)?,
+                            sql_bytes(*value),
+                        ])?;
+                    }
+                }
+            }
+        }
+        let since = keep_since - keep_since.rem_euclid(MINUTE);
+        tx.execute("DELETE FROM resource_minutes WHERE minute < ?1", [since])?;
+        tx.execute(
+            "DELETE FROM resource_minute_apps WHERE minute < ?1",
+            [since],
+        )?;
+        tx.commit()?;
+        self.app_ids.extend(new_ids);
+        Ok(())
+    }
+
+    /// Each app's resources over the hours from `from` up to `to`, by `order`, largest first.
+    pub fn resource_totals(
+        &self,
+        from: i64,
+        to: i64,
+        order: ResourceOrder,
+    ) -> Result<Vec<ResourceTotal>> {
+        let key = match order {
+            ResourceOrder::Cpu => "SUM(r.cpu)",
+            ResourceOrder::Memory => "SUM(r.footprint_seconds) / MAX(SUM(r.seconds), 1)",
+            ResourceOrder::Disk => "SUM(r.disk_read) + SUM(r.disk_written)",
+            ResourceOrder::Energy => "SUM(r.energy)",
+        };
+        let mut statement = self.conn.prepare(&format!(
+            "SELECT apps.key, apps.name, SUM(r.cpu), SUM(r.billed_cpu), SUM(r.disk_read),
+                 SUM(r.disk_written), SUM(r.energy), SUM(r.footprint_seconds), SUM(r.seconds),
+                 MAX(r.footprint_peak), MAX(r.fallback)
+             FROM resource_usage r JOIN apps ON apps.id = r.app
+             WHERE r.hour >= ?1 AND r.hour < ?2
+             GROUP BY r.app
+             ORDER BY {key} DESC, apps.name"
+        ))?;
+        statement
+            .query_map(params![from, to], |row| {
+                let seconds = u64_from_sql(row.get(8)?);
+                let peak = u64_from_sql(row.get(9)?);
+                Ok(ResourceTotal {
+                    app: App {
+                        id: row.get(0)?,
+                        name: row.get(1)?,
+                    },
+                    counters: Counters {
+                        cpu: u64_from_sql(row.get(2)?),
+                        billed: u64_from_sql(row.get(3)?),
+                        read: u64_from_sql(row.get(4)?),
+                        written: u64_from_sql(row.get(5)?),
+                        energy: u64_from_sql(row.get(6)?),
+                    },
+                    // A row read only at a baseline has no seconds: its peak is all there is.
+                    footprint: u64_from_sql(row.get(7)?)
+                        .checked_div(seconds)
+                        .unwrap_or(peak),
+                    peak,
+                    fallback: row.get(10)?,
+                })
+            })?
+            .collect()
+    }
+
+    /// Minutes in the minute-by-minute resource record.
+    pub fn resource_minute_count(&self) -> Result<i64> {
+        self.conn
+            .query_row("SELECT COUNT(*) FROM resource_minutes", [], |row| {
+                row.get(0)
+            })
+    }
+
     pub(crate) fn connection(&self) -> &Connection {
         &self.conn
     }
@@ -572,8 +831,10 @@ fn u64_from_sql(value: i64) -> u64 {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::{AppUsage, InterfaceUsage, NetworkKind, NetworkTotal, Store};
+    use super::{AppUsage, DAY, InterfaceUsage, NetworkKind, NetworkTotal, ResourceOrder, Store};
     use crate::meter::{App, Bytes};
+    use crate::resources::Counters;
+    use crate::resources::ledger::{ResourceHour, ResourceMinute};
     use std::path::PathBuf;
 
     pub(crate) fn temp_db(name: &str) -> PathBuf {
@@ -910,11 +1171,153 @@ pub(crate) mod tests {
         let path = temp_db("newer");
         drop(Store::open(&path).unwrap());
         let conn = rusqlite::Connection::open(&path).unwrap();
-        conn.pragma_update(None, "user_version", 4).unwrap();
+        conn.pragma_update(None, "user_version", 5).unwrap();
         drop(conn);
         let error = Store::open(&path).unwrap_err().to_string();
-        assert!(error.contains("schema version 4"), "{error}");
+        assert!(error.contains("schema version 5"), "{error}");
         assert!(Store::open_read_only(&path).is_err());
+    }
+
+    fn resource_hour(
+        hour: i64,
+        name: &str,
+        cpu: u64,
+        footprint: u64,
+        fallback: bool,
+    ) -> ResourceHour {
+        ResourceHour {
+            hour,
+            app: app(name),
+            counters: Counters {
+                cpu,
+                billed: 1,
+                read: cpu / 2,
+                written: cpu * 2,
+                energy: cpu * 3,
+            },
+            footprint_seconds: footprint * 60,
+            seconds: 60,
+            peak: footprint,
+            fallback,
+        }
+    }
+
+    #[test]
+    fn a_version_3_database_gains_the_resource_tables_and_keeps_its_bytes() {
+        let path = temp_db("v3");
+        {
+            let conn = rusqlite::Connection::open(&path).unwrap();
+            conn.execute_batch(&format!(
+                "{} {} PRAGMA user_version = 3;",
+                super::SCHEMA,
+                super::NETWORK_COLOR
+            ))
+            .unwrap();
+            conn.execute_batch(
+                "INSERT INTO apps (key, name) VALUES ('/Applications/Mail.app', 'Mail');
+                 INSERT INTO usage VALUES (3600, 0, 1, 10, 20);",
+            )
+            .unwrap();
+        }
+        let mut store = Store::open(&path).unwrap();
+        assert_eq!(
+            store.app_totals(0, None).unwrap(),
+            [(app("Mail"), Bytes { rx: 10, tx: 20 })]
+        );
+        store
+            .add_resources(&[resource_hour(3600, "Mail", 5, 100, false)], &[], 0)
+            .unwrap();
+        assert_eq!(
+            store.resource_totals(0, 7200, ResourceOrder::Cpu).unwrap()[0]
+                .counters
+                .cpu,
+            5
+        );
+        drop(store);
+        assert!(Store::open_read_only(&path).is_ok());
+    }
+
+    #[test]
+    fn resource_rows_add_up_per_hour_and_per_day() {
+        let mut store = Store::open(&temp_db("resources")).unwrap();
+        store
+            .add_resources(
+                &[
+                    resource_hour(DAY + 3600, "Mail", 5, 100, false),
+                    resource_hour(DAY + 7200, "Mail", 7, 300, true),
+                    resource_hour(DAY + 7200, "Xcode", 50, 900, false),
+                ],
+                &[],
+                0,
+            )
+            .unwrap();
+        store
+            .add_resources(&[resource_hour(DAY + 3600, "Mail", 1, 500, false)], &[], 0)
+            .unwrap();
+        let totals = store
+            .resource_totals(DAY, 2 * DAY, ResourceOrder::Cpu)
+            .unwrap();
+        assert_eq!(totals[0].app, app("Xcode"));
+        let mail = &totals[1];
+        assert_eq!(mail.counters.cpu, 13);
+        assert_eq!(mail.counters.written, 26);
+        // Time-weighted over three reads of 60 s each: (100 + 300 + 500) / 3.
+        assert_eq!(mail.footprint, 300);
+        assert_eq!(mail.peak, 500);
+        assert!(mail.fallback, "one of its hours came from the fallback");
+        // The hour range leaves out what is outside it.
+        let first_hour = store
+            .resource_totals(DAY + 3600, DAY + 7200, ResourceOrder::Memory)
+            .unwrap();
+        assert_eq!(first_hour.len(), 1);
+        assert!(!first_hour[0].fallback);
+        let day: (i64, i64) = store
+            .conn
+            .query_row(
+                "SELECT SUM(cpu), MAX(footprint_peak) FROM resource_usage_day
+                 WHERE day = ?1 AND app = (SELECT id FROM apps WHERE name = 'Mail')",
+                [DAY],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(day, (13, 500));
+    }
+
+    #[test]
+    fn minutes_older_than_the_kept_days_are_dropped() {
+        use crate::resources::ledger::Measure;
+        let mut store = Store::open(&temp_db("minutes")).unwrap();
+        let minute = |start: i64| ResourceMinute {
+            minute: start,
+            cpu_busy: Some(0.25),
+            memory_used: Some(8 << 30),
+            memory_compressed: Some(1 << 30),
+            swap_used: Some(0),
+            pressure: Some(1),
+            disk_free: Some(100 << 30),
+            top: vec![(Measure::Cpu, vec![(app("Mail"), 9), (app("Xcode"), 4)])],
+            fallback: false,
+        };
+        store
+            .add_resources(&[], &[minute(0), minute(60), minute(120)], 0)
+            .unwrap();
+        store.add_resources(&[], &[minute(180)], 90).unwrap();
+        let kept: Vec<i64> = store
+            .conn
+            .prepare("SELECT minute FROM resource_minutes ORDER BY minute")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        assert_eq!(kept, [60, 120, 180], "kept from the minute 90 falls in");
+        let apps: i64 = store
+            .conn
+            .query_row("SELECT COUNT(*) FROM resource_minute_apps", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(apps, 6);
     }
 
     #[test]
