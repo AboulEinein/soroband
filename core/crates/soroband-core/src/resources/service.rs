@@ -117,3 +117,94 @@ impl<R: ResourceHost> ResourceService<R> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::resources::Volume;
+    use crate::resources::record::{RecordedRead, Recording, Replay};
+
+    fn read(time: u64, pressure: u8, free: u64) -> RecordedRead {
+        RecordedRead {
+            time,
+            coalitions: Some(Vec::new()),
+            processes: Vec::new(),
+            gauges: Gauges {
+                pressure: Some(pressure),
+                ..Gauges::default()
+            },
+            volumes: vec![
+                Volume {
+                    path: "/Volumes/Backup".into(),
+                    free: 1,
+                    size: 2,
+                },
+                Volume {
+                    path: "/".into(),
+                    free,
+                    size: free * 2,
+                },
+            ],
+        }
+    }
+
+    fn minutes(store: &Mutex<Store>) -> Vec<(i64, Option<i64>)> {
+        let store = store.lock().unwrap();
+        let mut statement = store
+            .connection()
+            .prepare("SELECT minute, disk_free FROM resource_minutes ORDER BY minute")
+            .unwrap();
+        statement
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap()
+    }
+
+    #[test]
+    fn polls_read_the_volumes_once_a_minute_and_write_once_a_minute() {
+        let path = crate::store::tests::temp_db("resource-service");
+        let store = Arc::new(Mutex::new(Store::open(&path).unwrap()));
+        let reads = (0..6).map(|i| read(i, 1, 100 + i)).collect();
+        let meter = ResourceMeter::trusting(Replay::new(Recording {
+            timebase: (1, 1),
+            reads,
+        }));
+        let mut service = ResourceService::new(meter, Arc::clone(&store), 7, 0);
+        assert_eq!(service.gauges(), None);
+        // Quiet: the first poll reads; the next reads come a minute on.
+        for now in [0, 30, 59, 60, 61, 125] {
+            service.poll(now).unwrap();
+        }
+        assert_eq!(service.gauges().unwrap().pressure, Some(1));
+        // Written at 60 (the minute from 0) and at 125 (the minute from 60). The volumes were read
+        // at 0, 60 and 125, each before that poll's resource read moved the replay on: at 0 and 60
+        // from its first read, at 125 from its second.
+        assert_eq!(minutes(&store), [(0, Some(100)), (60, Some(100))]);
+        service.write(130, true).unwrap();
+        assert_eq!(
+            minutes(&store),
+            [(0, Some(100)), (60, Some(100)), (120, Some(101))]
+        );
+    }
+
+    #[test]
+    fn the_minute_record_keeps_the_days_set() {
+        let path = crate::store::tests::temp_db("resource-days");
+        let store = Arc::new(Mutex::new(Store::open(&path).unwrap()));
+        let reads = (0..3).map(|i| read(i, 1, 100)).collect();
+        let meter = ResourceMeter::trusting(Replay::new(Recording {
+            timebase: (1, 1),
+            reads,
+        }));
+        let mut service = ResourceService::new(meter, Arc::clone(&store), 7, 0);
+        service.poll(0).unwrap();
+        service.write(60, false).unwrap();
+        assert_eq!(minutes(&store).len(), 1);
+        // Two days on, with one day kept: the minute from 0 goes.
+        service.set_minutes_days(1);
+        service.poll(2 * DAY).unwrap();
+        service.write(2 * DAY + 60, false).unwrap();
+        assert_eq!(minutes(&store), [(2 * DAY, Some(100))]);
+    }
+}

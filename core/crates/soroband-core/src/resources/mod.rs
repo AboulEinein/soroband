@@ -199,11 +199,6 @@ impl Counters {
         let (a, b) = (self.to_array(), other.to_array());
         Self::from_array(std::array::from_fn(|i| a[i].saturating_sub(b[i])))
     }
-
-    #[must_use]
-    pub fn is_zero(self) -> bool {
-        self == Self::default()
-    }
 }
 
 impl std::ops::AddAssign for Counters {
@@ -383,6 +378,16 @@ impl<R: ResourceHost> ResourceMeter<R> {
             next_check: Some(i64::MIN),
             last: None,
             apps: HashMap::new(),
+        }
+    }
+
+    /// A meter that reads coalitions with [`LAYOUT`] and never runs the guard: for tests of the
+    /// crediting rules on reads built by hand, whose coalitions have nothing to compare.
+    #[must_use]
+    pub fn trusting(host: R) -> Self {
+        Self {
+            next_check: None,
+            ..Self::new(host)
         }
     }
 

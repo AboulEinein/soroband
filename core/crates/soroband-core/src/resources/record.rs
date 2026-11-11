@@ -383,3 +383,94 @@ impl ResourceHost for Replay {
         self.read().volumes.clone()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn process(pid: u32, path: &str, usage: Vec<ProcessUsage>) -> RecordedProcess {
+        RecordedProcess {
+            pid,
+            coalition: Some(1),
+            path: Some(path.into()),
+            usage,
+        }
+    }
+
+    fn read(time: u64, processes: Vec<RecordedProcess>) -> RecordedRead {
+        RecordedRead {
+            time,
+            coalitions: Some(Vec::new()),
+            processes,
+            gauges: Gauges::default(),
+            volumes: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn paths_outside_macos_are_made_up_keeping_which_processes_share_an_app() {
+        let mut recording = Recording {
+            timebase: (1, 1),
+            reads: vec![read(
+                0,
+                vec![
+                    process(1, "/Applications/Chat.app/Contents/MacOS/Chat", vec![]),
+                    process(
+                        2,
+                        "/Applications/Chat.app/Contents/Frameworks/Helper.app/Contents/MacOS/Helper",
+                        vec![],
+                    ),
+                    process(3, "/opt/homebrew/bin/node", vec![]),
+                    process(4, "/Users/sam/bin/sync", vec![]),
+                    process(5, "/usr/libexec/logd", vec![]),
+                    process(6, "/Applications/Mail.app/Contents/MacOS/Mail", vec![]),
+                ],
+            )],
+        };
+        anonymize(&mut recording);
+        let paths: Vec<&str> = recording.reads[0]
+            .processes
+            .iter()
+            .map(|p| p.path.as_deref().unwrap())
+            .collect();
+        assert_eq!(
+            paths,
+            [
+                "/Applications/App 1.app/Contents/MacOS/App 1",
+                "/Applications/App 1.app/Contents/MacOS/App 1",
+                "/Users/user/bin/tool-1",
+                "/Users/user/bin/tool-2",
+                "/usr/libexec/logd",
+                "/Applications/App 2.app/Contents/MacOS/App 2",
+            ]
+        );
+    }
+
+    #[test]
+    fn a_replay_answers_each_read_in_turn_and_a_process_before_then_after() {
+        let usage = |cpu| ProcessUsage {
+            cpu,
+            ..ProcessUsage::default()
+        };
+        let mut replay = Replay::new(Recording {
+            timebase: (1, 1),
+            reads: vec![
+                read(10, vec![process(7, "/bin/zsh", vec![usage(1), usage(2)])]),
+                read(20, vec![process(7, "/bin/zsh", vec![usage(3), usage(4)])]),
+            ],
+        });
+        assert_eq!(replay.now(), 10, "before the first read: the first");
+        replay.begin();
+        assert_eq!(replay.now(), 10);
+        let cpu = |r: &mut Replay| r.process_usage(7).unwrap().cpu;
+        assert_eq!(
+            [cpu(&mut replay), cpu(&mut replay), cpu(&mut replay)],
+            [1, 2, 2]
+        );
+        replay.begin();
+        assert_eq!(replay.now(), 20);
+        assert_eq!(cpu(&mut replay), 3, "each read starts over");
+        replay.begin();
+        assert_eq!(replay.now(), 20, "after the last read: the last");
+    }
+}

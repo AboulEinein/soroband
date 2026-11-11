@@ -354,4 +354,52 @@ mod tests {
         assert_eq!(again.len(), 2);
         assert_eq!(again[0].top, minutes[0].top);
     }
+
+    #[test]
+    fn measures_are_stored_as_distinct_codes() {
+        let codes: Vec<i64> = Measure::ALL.iter().map(|m| m.code()).collect();
+        assert_eq!(codes, [0, 1, 2]);
+    }
+
+    #[test]
+    fn a_minute_keeps_the_startup_volume_and_marks_the_fallback() {
+        let mut ledger = ResourceLedger::default();
+        assert!(ledger.is_empty());
+        ledger.disk_free(123, 70);
+        let mut fallback = reading(60.0, &[("Mail", 0, 100)]);
+        fallback.source = Source::Processes {
+            reason: "test".into(),
+        };
+        ledger.book(&fallback, 75);
+        ledger.book(&reading(60.0, &[("Mail", 3, 100)]), 3600);
+        assert!(!ledger.is_empty());
+        let (hours, minutes) = ledger.take(4000, false);
+        assert!(ledger.is_empty());
+        assert_eq!(minutes[0].disk_free, Some(123));
+        assert!(minutes[0].fallback && !minutes[1].fallback);
+        assert!(hours.iter().find(|h| h.hour == 0).unwrap().fallback);
+        assert!(!hours.iter().find(|h| h.hour == 3600).unwrap().fallback);
+        // An app at zero is not among the busiest by CPU.
+        assert!(minutes[0].top[0].1.is_empty());
+        assert_eq!(minutes[0].top[1].1.len(), 1);
+    }
+
+    #[test]
+    fn an_hour_with_one_read_from_the_fallback_stays_marked() {
+        let mut ledger = ResourceLedger::default();
+        let mut fallback = reading(60.0, &[("Mail", 1, 100)]);
+        fallback.source = Source::Processes {
+            reason: "test".into(),
+        };
+        ledger.book(&fallback, 60);
+        ledger.book(&reading(60.0, &[("Mail", 1, 100)]), 120);
+        let (hours, _) = ledger.take(4000, true);
+        assert!(hours[0].fallback);
+        // A minute's disk written adds over its reads.
+        let mut ledger = ResourceLedger::default();
+        ledger.book(&reading(60.0, &[("Mail", 2, 100)]), 60);
+        ledger.book(&reading(5.0, &[("Mail", 3, 100)]), 65);
+        let (_, minutes) = ledger.take(4000, true);
+        assert_eq!(minutes[0].top[2].1, [(app("Mail"), 10)]);
+    }
 }

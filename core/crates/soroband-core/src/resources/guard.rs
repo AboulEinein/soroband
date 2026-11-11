@@ -198,4 +198,39 @@ mod tests {
         s.raw[LAYOUT.cpu] = 7_900;
         assert!(check(&LAYOUT, &[s]).is_err());
     }
+
+    #[test]
+    fn a_counter_may_run_a_little_past_its_processes_read_after_it() {
+        let mut s = sample(10_000, 4_000_000);
+        s.raw[LAYOUT.read] = 30_300; // 1% over the members' 30,000
+        assert_eq!(check(&LAYOUT, &[s.clone()]), Ok(()));
+        s.raw[LAYOUT.read] = 30_700; // 2.3% over
+        assert!(check(&LAYOUT, &[s]).is_err());
+    }
+
+    #[test]
+    fn a_field_is_not_judged_where_another_field_passed_through_its_range_between_the_reads() {
+        // Written grew from what read is (30,000) to far above it between the two reads: a
+        // swap of the two could pass here, so read is not judged.
+        let mut s = sample(10_000, 4_000_000);
+        s.before[0].as_mut().unwrap().written = 30_000;
+        s.after[0].as_mut().unwrap().written = 90_000;
+        s.raw[LAYOUT.written] = 70_000;
+        assert_eq!(
+            check(&LAYOUT, &[s]),
+            Err("disk read: no coalition to compare it on".into())
+        );
+    }
+
+    #[test]
+    fn nine_of_ten_coalitions_agreeing_is_enough() {
+        let mut samples: Vec<Sample> = (1..=10).map(|n| sample(n * 1_000, n * 999_983)).collect();
+        samples[0].raw[LAYOUT.energy] = 1;
+        assert_eq!(check(&LAYOUT, &samples), Ok(()));
+        samples[1].raw[LAYOUT.energy] = 1;
+        assert_eq!(
+            check(&LAYOUT, &samples),
+            Err("energy: 8 of 10 coalitions agree with their processes".into())
+        );
+    }
 }

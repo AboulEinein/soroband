@@ -8,7 +8,7 @@
 //! account (`wait4`) is under `"expect"`. Paths outside macOS's own directories are made up.
 
 use soroband_core::resources::record::{Recording, Replay};
-use soroband_core::resources::{Field, LAYOUT, Layout, Reading, ResourceMeter, Source};
+use soroband_core::resources::{Counters, Field, LAYOUT, Layout, Reading, ResourceMeter, Source};
 
 fn fixture() -> (Recording, serde_json::Value) {
     let path = format!(
@@ -44,7 +44,12 @@ fn the_recorded_layout_passes_the_guard() {
     let readings = replay(LAYOUT);
     assert!(readings.iter().all(|r| r.source == Source::Coalitions));
     assert_eq!(readings[0].seconds, 0.0, "the first read is the baseline");
-    assert!(readings[0].apps.iter().all(|(_, r)| r.counters.is_zero()));
+    assert!(
+        readings[0]
+            .apps
+            .iter()
+            .all(|(_, r)| r.counters == Counters::default())
+    );
 }
 
 #[test]
