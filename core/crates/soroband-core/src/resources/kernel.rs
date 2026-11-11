@@ -82,6 +82,24 @@ unsafe extern "C" {
     fn mach_host_self() -> libc::mach_port_t;
 }
 
+/// The Mac's physical memory in bytes (`hw.memsize`).
+#[must_use]
+pub fn memory_total() -> Option<u64> {
+    let mut bytes = 0u64;
+    let mut len = size_of::<u64>();
+    // SAFETY: `bytes` is writable for `len` bytes and the name is NUL-terminated.
+    let status = unsafe {
+        libc::sysctlbyname(
+            c"hw.memsize".as_ptr(),
+            (&raw mut bytes).cast(),
+            &raw mut len,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    (status == 0).then_some(bytes)
+}
+
 /// The resource meter's [`ResourceHost`] on this Mac.
 #[derive(Debug)]
 pub struct SystemResources {

@@ -558,3 +558,144 @@ fn build_stamp_is_unknown_outside_this_checkout_and_dirty_with_untracked_files()
         format!("build=1\ncommit={head}-dirty\nbranch=trunk\n")
     );
 }
+
+/// Resources of Mail and Xcode in the current hour, and Xcode's two days ago that today leaves
+/// out; Mail's hour came from the fallback.
+fn seed_resources(dir: &Path) {
+    use soroband_core::resources::Counters;
+    use soroband_core::resources::ledger::ResourceHour;
+    let mut store = Store::open(&dir.join("usage.sqlite")).unwrap();
+    let hour = hour_start(now());
+    let row = |hour, name: &str, cpu: u64, footprint: u64, fallback| ResourceHour {
+        hour,
+        app: app(name),
+        counters: Counters {
+            cpu,
+            billed: 0,
+            read: cpu / 1_000,
+            written: cpu / 100,
+            energy: cpu * 2,
+        },
+        footprint_seconds: footprint * 60,
+        seconds: 60,
+        peak: footprint,
+        fallback,
+    };
+    store
+        .add_resources(
+            &[
+                row(hour, "Mail", 2_000_000_000, 300_000_000, true),
+                row(hour, "Xcode", 9_000_000_000, 100_000_000, false),
+                row(hour - 48 * H, "Xcode", 99_000_000_000, 1, false),
+            ],
+            &[],
+            0,
+        )
+        .unwrap();
+}
+
+#[test]
+fn apps_by_a_resource_orders_todays_apps_by_it() {
+    let dir = data_dir("apps-by");
+    seed_resources(&dir);
+    let by_cpu = json_of(&soroband(&dir, &["apps", "--by", "cpu", "--json"]));
+    let names: Vec<&str> = by_cpu["apps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| a["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["Xcode", "Mail"]);
+    assert_eq!(by_cpu["apps"][0]["cpu_ns"], 9_000_000_000_u64, "today only");
+    assert_eq!(by_cpu["fallback"], true);
+    assert_eq!(by_cpu["apps"][1]["fallback"], true);
+    let by_memory = json_of(&soroband(&dir, &["apps", "--by", "memory", "--json"]));
+    assert_eq!(by_memory["apps"][0]["name"], "Mail");
+    assert_eq!(by_memory["apps"][0]["footprint"], 300_000_000_u64);
+    let text = soroband(&dir, &["apps", "--by", "cpu"]);
+    let text = String::from_utf8(text.stdout).unwrap();
+    assert!(text.contains("0:00:09"), "{text}");
+    assert!(text.contains("your own processes only"), "{text}");
+}
+
+#[test]
+fn apps_by_takes_a_range_of_local_dates() {
+    let dir = data_dir("apps-range");
+    seed_resources(&dir);
+    // From long before both rows to today: Xcode's older hour is in.
+    let all = json_of(&soroband(
+        &dir,
+        &["apps", "--by", "cpu", "--from", "2000-01-01", "--json"],
+    ));
+    assert_eq!(all["apps"][0]["cpu_ns"], 108_000_000_000_u64);
+    let none = json_of(&soroband(
+        &dir,
+        &[
+            "apps",
+            "--by",
+            "cpu",
+            "--from",
+            "2000-01-01",
+            "--to",
+            "2000-01-02",
+            "--json",
+        ],
+    ));
+    assert_eq!(none["apps"], json!([]));
+    for bad in [
+        &["apps", "--by", "gpu"][..],
+        &["apps", "--by", "cpu", "--from", "2026-02-30"],
+        &["apps", "--by", "cpu", "--network", "Home"],
+    ] {
+        assert_eq!(soroband(&dir, bad).status.code(), Some(2), "{bad:?}");
+    }
+    let backwards = soroband(
+        &dir,
+        &[
+            "apps",
+            "--by",
+            "cpu",
+            "--from",
+            "2026-01-02",
+            "--to",
+            "2026-01-01",
+        ],
+    );
+    assert!(!backwards.status.success());
+}
+
+#[test]
+fn system_reports_the_gauges_now() {
+    let dir = data_dir("system");
+    let system = json_of(&soroband(&dir, &["system", "--json"]));
+    let busy = system["cpu_busy"].as_f64().unwrap();
+    assert!((0.0..=1.0).contains(&busy), "{system}");
+    assert!(system["memory_used"].as_u64().unwrap() < system["memory_total"].as_u64().unwrap());
+    let volumes = system["volumes"].as_array().unwrap();
+    assert!(volumes.iter().any(|v| v["path"] == "/"), "{system}");
+}
+
+/// `top` measures a command this test runs: `yes` uses about one core while it is measured.
+#[test]
+fn top_finds_a_busy_command() {
+    let dir = data_dir("top");
+    let mut yes = std::process::Command::new("/usr/bin/yes")
+        .stdout(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let top = soroband(&dir, &["top", "--for", "2", "--json"]);
+    yes.kill().unwrap();
+    yes.wait().unwrap();
+    let top = json_of(&top);
+    let seconds = top["seconds"].as_f64().unwrap();
+    let yes_row = top["apps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["name"] == "yes")
+        .unwrap_or_else(|| panic!("yes is missing: {top}"));
+    #[allow(clippy::cast_precision_loss)]
+    let share = yes_row["cpu_ns"].as_u64().unwrap() as f64 / 1e9 / seconds;
+    assert!((0.8..=1.05).contains(&share), "yes used {share} of a core");
+    assert!(["coalitions", "processes"].contains(&top["source"].as_str().unwrap()));
+}

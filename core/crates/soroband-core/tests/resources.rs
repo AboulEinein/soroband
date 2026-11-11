@@ -151,7 +151,7 @@ fn the_service_writes_what_it_read_to_the_store() {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let store = Arc::new(Mutex::new(Store::open(&dir.join("usage.sqlite")).unwrap()));
-    let hour = 1_800_000_000 - 1_800_000_000 % 3600;
+    let hour = 1_800_000_000 / 3600 * 3600;
     let mut service = ResourceService::new(
         ResourceMeter::new(Replay::new(recording)),
         Arc::clone(&store),
