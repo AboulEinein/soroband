@@ -983,3 +983,13 @@ Planned rounds: 2.
 ## [#71](https://github.com/AboulEinein/soroband/pull/71) test(app): draw snapshot images in Display P3 whatever the main screen (2026-11-09)
 
 Planned rounds: 1. The CodeRabbit CLI failed three times before the draft with `Connection failed: WebSocket closed` (signed in, service reachable); it runs again before any later push.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| 1 | Opus | 1 Medium, 1 unrated | `first look`: the handover still listed the 7 snapshot failures as open; the swizzled `NSScreen.colorSpace` getter used `MainActor.assumeIsolated`, which traps on any other thread while the swap covers the whole process. Both fixed in 7b3e255. | 1 sibling search, 1 Reach list |
+| 2 | Opus | none | On 0096570. Both round-1 threads confirmed fixed and resolved; the merges from `main` checked. | none |
+
+**Retro.** Planned 1; took 2 blind rounds. The hosted CodeRabbit review was skipped at the user's choice.
+- **Cause:** the fix left the handover's open item for the failures it fixed, and its Reach list counted only the snapshot suite's `.serialized` ordering, not the other suites sharing the test process with the swap. The `Siblings checked` line in 7b3e255 called the getter the only `assumeIsolated` in the app, where 17 others run in main-queue callbacks; the thread reply corrects it.
+- **Would have prevented it:** a sibling search for the failing tests' names in the docs, and a Reach list naming every thread in the test process that can read a swizzled method.
+- **Rule:** none; checklist.md's sibling search and Reach list already ask for both.
