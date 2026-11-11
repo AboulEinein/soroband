@@ -10,6 +10,9 @@ enum UIHost {
     private(set) static var isUIProcess = false
     /// Whether a window was open at the last report to the menu bar process, which runs the linger.
     private static var reportedWindowsOpen: Bool?
+    /// The menu bar process asked this one to quit, or is gone: the quit is this process's own,
+    /// not the user's.
+    private(set) static var quitting = false
 
     static func start() {
         isUIProcess = true
@@ -23,7 +26,7 @@ enum UIHost {
             }
             handle(request)
         } ended: {
-            NSApp.terminate(nil)
+            quit()
         }
         windowsChanged()
         send(.ready)
@@ -45,14 +48,42 @@ enum UIHost {
     }
 
     /// Called whenever a window opens or closes, and after each request for one: the menu bar
-    /// process starts the linger once none is open.
+    /// process starts the linger once none is open, and Soroband shows in the Dock while a window
+    /// other than the popover is open.
     static func windowsChanged(after request: UIRequest? = nil) {
-        let open =
-            PopoverController.shared.isShown || SettingsWindow.shared.window != nil
-            || HistoryWindow.shared.window != nil || OnboardingWindow.shared.window != nil
+        let windowOpen =
+            SettingsWindow.shared.window != nil || HistoryWindow.shared.window != nil
+            || OnboardingWindow.shared.window != nil
+        if let policy = activationPolicy(current: NSApp.activationPolicy(), windowOpen: windowOpen) {
+            NSApp.setActivationPolicy(policy)
+        }
+        let open = PopoverController.shared.isShown || windowOpen
         guard let report = windowsReport(open: open, reported: reportedWindowsOpen, after: request) else { return }
         reportedWindowsOpen = open
         send(report)
+    }
+
+    /// The activation policy to change to, or nil to keep `current`. Settings, History and the
+    /// Welcome window are windows the user switches to and from, so while one is open Soroband is
+    /// in the Dock and the app switcher; the popover alone keeps it a menu bar app. Before its
+    /// first window the process stays prohibited from activating (`handle`).
+    nonisolated static func activationPolicy(
+        current: NSApplication.ActivationPolicy, windowOpen: Bool
+    ) -> NSApplication.ActivationPolicy? {
+        guard current != .prohibited else { return nil }
+        let policy: NSApplication.ActivationPolicy = windowOpen ? .regular : .accessory
+        return policy == current ? nil : policy
+    }
+
+    /// What the UI process does with a quit. One the menu bar process asked for (the linger ran
+    /// out, Soroband quits) or one with a quit reason (log out, restart, shut down) goes ahead;
+    /// any other, Quit from the Dock or ⌘Q, means Soroband, so it goes to the menu bar process.
+    enum QuitReply: Equatable {
+        case quit, askMenuBar
+    }
+
+    nonisolated static func quitReply(askedByMenuBar: Bool, hasQuitReason: Bool) -> QuitReply {
+        askedByMenuBar || hasQuitReason ? .quit : .askMenuBar
     }
 
     /// What to tell the menu bar process about the windows: a change, and the state after every
@@ -66,7 +97,7 @@ enum UIHost {
     }
 
     private static func handle(_ request: UIRequest) {
-        if request.showsWindow {
+        if request.showsWindow && NSApp.activationPolicy() == .prohibited {
             // Started with activation prohibited, so a launch never takes the keyboard by itself.
             NSApp.setActivationPolicy(.accessory)
         }
@@ -88,7 +119,7 @@ enum UIHost {
                 HistoryWindow.shared.show(options, replacing: replacing, activates: request.activates)
             }
         case .closeHistory: HistoryWindow.shared.close()
-        case .quit: NSApp.terminate(nil)
+        case .quit: quit()
         case .dumpState:
             #if DEBUG
             send(.debugState(DebugCommands.uiState()))
@@ -103,6 +134,14 @@ enum UIHost {
             #endif
         }
         if request.showsWindow { windowsChanged(after: request) }
+    }
+}
+
+extension UIHost {
+    /// Quits this process at the menu bar process's request, or once it is gone.
+    static func quit() {
+        quitting = true
+        NSApp.terminate(nil)
     }
 }
 

@@ -179,6 +179,7 @@ Small items for a later nits pass.
 
 - **Wi‑Fi moves without a path change.** CoreWLAN's SSID-change events are not watched; a Wi‑Fi move that does not change the `NWPath` keeps the old network until the next path update.
 
+- **The Dock's window count is untested.** `UIHost.windowsChanged` decides which windows put Soroband in the Dock by reading the window singletons and `NSApp`, which the test host shares; only its policy function is tested, and the window count was checked in the real app ([#62](https://github.com/AboulEinein/soroband/pull/62)). Passing the window states in would let a test cover it.
 - **History is up to a minute behind.** It reads what the engine has written (once a minute), so it can trail the popover by a minute's usage.
 - **Snapshots on a 1x display are untested.** `Snapshot.render` draws into a fixed 2x Display P3 bitmap, and every screen reports Display P3 while it draws, because AppKit draws an image without a bitmap (a drawing handler, an SVG) in the main screen's color space; `renderingIgnoresTheDisplayColorSpace` and `imagesAreDrawnInTheSnapshotColorSpace` check the color space only, and no run has been made with a 1x main display.
 - **Overlapping updates.** Two `soroband update` runs at once on one app can remove each other's copies; no lock (`File::lock` needs Rust 1.89, above `rust-version` 1.85).
