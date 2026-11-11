@@ -13,7 +13,7 @@ enum Snapshot {
     /// Channel values may differ by this much before a pixel counts as changed.
     static let channelTolerance = 2
     /// Snapshots are rendered and compared in this color space, whatever the display's.
-    static let colorSpace = NSColorSpace.displayP3
+    nonisolated static let colorSpace = NSColorSpace.displayP3
 
     /// Renders `view` in dark mode, or in `scheme`, at its fitting size, or at `size`, hosted in a
     /// window as the app shows it: `ImageRenderer` leaves out AppKit-backed controls such as
@@ -126,5 +126,5 @@ enum Snapshot {
 
 extension NSScreen {
     /// What a screen reports as its color space while `Snapshot.render` draws.
-    @objc fileprivate var snapshotColorSpace: NSColorSpace? { MainActor.assumeIsolated { Snapshot.colorSpace } }
+    @objc fileprivate var snapshotColorSpace: NSColorSpace? { Snapshot.colorSpace }
 }
