@@ -5,6 +5,9 @@ use crate::day;
 use crate::history;
 use crate::meter::{Bytes, Engine, Mode, SystemHost, Waker};
 use crate::moments::{self, Limits, Pending, Session, Watch};
+use crate::resources::kernel::SystemResources;
+use crate::resources::service::ResourceService;
+use crate::resources::{ResourceMeter, Source};
 use crate::service::{self, Command, Service};
 use crate::settings::{self, Settings};
 use crate::store::{NetworkKind, Store};
@@ -127,6 +130,9 @@ static WATCHING_TOP_APPS: AtomicBool = AtomicBool::new(false);
 /// Today's top apps on the current network as JSON, published after each poll while
 /// [`WATCHING_TOP_APPS`] is set.
 static TOP_APPS: Mutex<String> = Mutex::new(String::new());
+/// Where the resource meter reads from, and the gauges at the last poll, as JSON
+/// ([`soroband_resources_json`]).
+static RESOURCES: Mutex<String> = Mutex::new(String::new());
 /// Apps [`TOP_APPS`] lists.
 const TOP_APP_COUNT: usize = 3;
 
@@ -141,6 +147,8 @@ struct Running {
     reset_hour: Mutex<u8>,
     /// When the moments fire, from the settings, read by the engine at each poll.
     limits: Mutex<Limits>,
+    /// Days the resource meter keeps its minute record, from the settings.
+    minutes_days: Mutex<u32>,
     commands: Mutex<Vec<Command>>,
     /// Set once the engine has started; a command sent before then waits for the first poll.
     waker: Mutex<Option<Waker>>,
@@ -151,14 +159,15 @@ struct Running {
 impl Running {
     fn new(store: Store, settings_path: PathBuf) -> Self {
         let reset_hour = load_reset_hour(&settings_path, 0);
-        let limits = Settings::load(&settings_path)
-            .map(|settings| limits(&settings))
-            .unwrap_or_default();
+        let settings = Settings::load(&settings_path).ok();
+        let limits = settings.as_ref().map(limits).unwrap_or_default();
+        let minutes_days = settings.map_or(7, |s| s.resource_minutes_days());
         Self {
             store: Arc::new(Mutex::new(store)),
             settings_path,
             reset_hour: Mutex::new(reset_hour),
             limits: Mutex::new(limits),
+            minutes_days: Mutex::new(minutes_days),
             commands: Mutex::new(Vec::new()),
             waker: Mutex::new(None),
             stopped: Mutex::new(false),
@@ -173,6 +182,7 @@ impl Running {
     fn reload_settings(&self) {
         if let Ok(settings) = Settings::load(&self.settings_path) {
             *lock(&self.limits) = limits(&settings);
+            *lock(&self.minutes_days) = settings.resource_minutes_days();
         }
         let mut reset_hour = lock(&self.reset_hour);
         let reloaded = load_reset_hour(&self.settings_path, *reset_hour);
@@ -542,6 +552,44 @@ pub extern "C" fn soroband_top_apps_json() -> *mut c_char {
     owned_c_string(if top.is_empty() { "[]" } else { &top })
 }
 
+/// Where the resource meter reads from, and the system gauges at the last poll, as JSON:
+///
+/// ```json
+/// {"source": "coalitions", "reason": null, "memory_used": 0, "memory_compressed": 0,
+///  "swap_used": 0, "pressure": 1}
+/// ```
+///
+/// `source` is `processes` while the meter falls back to the user's own processes, with
+/// `reason` saying why. `{}` until the engine's first poll.
+///
+/// The caller owns the string and frees it with [`soroband_string_free`].
+#[unsafe(no_mangle)]
+pub extern "C" fn soroband_resources_json() -> *mut c_char {
+    let resources = lock(&RESOURCES);
+    owned_c_string(if resources.is_empty() {
+        "{}"
+    } else {
+        &resources
+    })
+}
+
+fn resources_json(resources: &ResourceService<SystemResources>) -> String {
+    let (source, reason) = match resources.source() {
+        Source::Coalitions => ("coalitions", None),
+        Source::Processes { reason } => ("processes", Some(reason.as_str())),
+    };
+    let gauges = resources.gauges().unwrap_or_default();
+    json!({
+        "source": source,
+        "reason": reason,
+        "memory_used": gauges.memory_used,
+        "memory_compressed": gauges.memory_compressed,
+        "swap_used": gauges.swap_used,
+        "pressure": gauges.pressure,
+    })
+    .to_string()
+}
+
 /// Today's usage as of the last poll, as JSON:
 ///
 /// ```json
@@ -906,6 +954,12 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
         day::local_offset,
         day::now(),
     )?;
+    let mut resources = ResourceService::new(
+        ResourceMeter::new(SystemResources::new()),
+        Arc::clone(&running.store),
+        *lock(&running.minutes_days),
+        day::now(),
+    );
     let mut speed = Bytes::default();
     let mut last_poll = Instant::now();
     let mut moments = Moments {
@@ -922,6 +976,9 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
             if *command == Command::Stop {
                 if let Err(error) = applied {
                     eprintln!("soroband: the last usage was not written: {error}");
+                }
+                if let Err(error) = resources.write(day::now(), true) {
+                    eprintln!("soroband: the last resource usage was not written: {error}");
                 }
                 return Ok(());
             }
@@ -944,6 +1001,9 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
         speed = per_second(service.last_booked().interfaces, polled - last_poll);
         last_poll = polled;
         moments.polled(&mut service, &running.limits, day::now());
+        resources.set_minutes_days(*lock(&running.minutes_days));
+        outlive_database_errors(resources.poll(day::now()).map_err(service::Error::Store))?;
+        *lock(&RESOURCES) = resources_json(&resources);
     }
 }
 

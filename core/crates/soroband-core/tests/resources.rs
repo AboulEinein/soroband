@@ -140,3 +140,42 @@ fn a_moved_or_swapped_field_fails_the_guard_and_the_fallback_takes_over() {
         assert!(credited(&readings, "yes") > 0, "{name}");
     }
 }
+
+#[test]
+fn the_service_writes_what_it_read_to_the_store() {
+    use soroband_core::resources::service::ResourceService;
+    use soroband_core::store::{ResourceOrder, Store};
+    use std::sync::{Arc, Mutex};
+    let (recording, expect) = fixture();
+    let dir = std::env::temp_dir().join(format!("soroband-resources-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let store = Arc::new(Mutex::new(Store::open(&dir.join("usage.sqlite")).unwrap()));
+    let hour = 1_800_000_000 - 1_800_000_000 % 3600;
+    let mut service = ResourceService::new(
+        ResourceMeter::new(Replay::new(recording)),
+        Arc::clone(&store),
+        7,
+        hour,
+    );
+    // A minute apart, so each poll reads; the second and third write.
+    for i in 0..3 {
+        service.poll(hour + i * 60).unwrap();
+    }
+    service.write(hour + 180, true).unwrap();
+    let totals = store
+        .lock()
+        .unwrap()
+        .resource_totals(hour, hour + 3600, ResourceOrder::Cpu)
+        .unwrap();
+    let yes = totals.iter().find(|t| t.app.name == "yes").expect("yes");
+    let want = expect["yes_cpu_ns"].as_u64().unwrap();
+    assert!(
+        yes.counters.cpu.abs_diff(want) * 20 < want,
+        "{} against {want}",
+        yes.counters.cpu
+    );
+    assert!(totals.iter().all(|t| !t.fallback));
+    let minutes: i64 = store.lock().unwrap().resource_minute_count().unwrap();
+    assert_eq!(minutes, 3, "one row per minute polled");
+}

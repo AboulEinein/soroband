@@ -26,6 +26,7 @@ pub mod guard;
 pub mod kernel;
 pub mod ledger;
 pub mod record;
+pub mod service;
 
 use crate::meter::App;
 use std::collections::{BTreeMap, HashMap};
@@ -747,4 +748,38 @@ pub fn read_due(now: i64, last: Option<i64>, busy: Option<f64>, gauges: &Gauges)
     last.is_none_or(|last| now - last >= READ_INTERVAL)
         || busy.is_some_and(|b| b > BUSY)
         || gauges.under_pressure()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn gauges(pressure: u8) -> Gauges {
+        Gauges {
+            pressure: Some(pressure),
+            ..Gauges::default()
+        }
+    }
+
+    #[test]
+    fn a_read_is_due_once_a_minute_and_at_every_poll_under_load() {
+        let quiet = gauges(1);
+        assert!(read_due(100, None, None, &quiet), "the first poll reads");
+        assert!(!read_due(159, Some(100), Some(0.5), &quiet));
+        assert!(read_due(160, Some(100), Some(0.1), &quiet));
+        assert!(read_due(105, Some(100), Some(0.51), &quiet), "busy");
+        assert!(read_due(105, Some(100), Some(0.1), &gauges(2)), "pressure");
+        assert!(read_due(105, Some(100), None, &gauges(4)), "critical");
+    }
+
+    #[test]
+    fn busy_share_is_the_non_idle_part_of_the_ticks_between_two_polls() {
+        let at = |user, system, idle, nice| Gauges {
+            cpu_ticks: Some([user, system, idle, nice]),
+            ..Gauges::default()
+        };
+        assert_eq!(at(30, 10, 130, 0).busy_since(&at(10, 0, 100, 0)), Some(0.5));
+        assert_eq!(at(10, 0, 100, 0).busy_since(&at(10, 0, 100, 0)), None);
+        assert_eq!(Gauges::default().busy_since(&at(1, 1, 1, 1)), None);
+    }
 }
