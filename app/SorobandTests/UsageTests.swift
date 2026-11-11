@@ -48,4 +48,53 @@ struct UsageTests {
         #expect(usage.menuBarLayout.readingsValue == changed)
         #expect(changes == 1)
     }
+
+    /// The icon reaches the menu bar from `soroband config set menu_bar_icon`, and Settings' Icon
+    /// picker saves it where the command reads it. The value is put back, as above.
+    @Test func theIconSettingReachesTheLayoutAndIsSavedFromIt() throws {
+        let original = try #require(Core.setting(MenuBarIcon.settingKey))
+        defer { Core.setSetting(MenuBarIcon.settingKey, to: original) }
+        let usage = Usage()
+        var changes = 0
+        usage.onChange = { changes += 1 }
+        #expect(Core.setSetting(MenuBarIcon.settingKey, to: "soroband"))
+        usage.reloadSettings()
+        #expect(usage.menuBarLayout.icon == .soroband)
+        var layout = usage.menuBarLayout
+        layout.icon = .network
+        usage.setMenuBarLayout(layout)
+        #expect(Core.setting(MenuBarIcon.settingKey) == "network")
+        #expect(usage.menuBarLayout.icon == .network)
+        #expect(changes == 2)
+    }
+
+    /// `soroband config set accent` reaches the UI process: the menu bar process's `Usage` keeps
+    /// the new theme and announces it once (its `onChange` publishes the snapshot), and Settings'
+    /// pick is saved where the command reads it. The values are put back, as above.
+    @Test func theThemeSettingsReachTheSnapshotAndAreSavedFromSettings() throws {
+        let original = (
+            try #require(Core.setting(Appearance.settingKey)), try #require(Core.setting(Accent.settingKey))
+        )
+        defer {
+            Core.setSetting(Appearance.settingKey, to: original.0)
+            Core.setSetting(Accent.settingKey, to: original.1)
+        }
+        let usage = Usage()
+        usage.reloadSettings()
+        var changes = 0
+        usage.onChange = { changes += 1 }
+        #expect(Core.setSetting(Accent.settingKey, to: original.1 == "coral" ? "amber" : "coral"))
+        usage.reloadSettings()
+        #expect(usage.theme.accent == (original.1 == "coral" ? .amber : .coral))
+        #expect(changes == 1)
+        let appearance: Appearance = original.0 == "dark" ? .light : .dark
+        usage.setSetting(Appearance.settingKey, to: appearance.rawValue)
+        #expect(Core.setting(Appearance.settingKey) == appearance.rawValue)
+        #expect(usage.theme.appearance == appearance)
+        #expect(changes == 2)
+        // A value the core refuses is not kept.
+        usage.setSetting(Accent.settingKey, to: "rainbow")
+        #expect(usage.theme.accent == (original.1 == "coral" ? .amber : .coral))
+        #expect(changes == 2)
+    }
 }

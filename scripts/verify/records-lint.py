@@ -2,7 +2,9 @@
 """Checks the review records against the values their own rules allow.
 
 docs/review-retros.md: each review row's findings are counts of a defined severity, or none; an entry's
-table has no line that is not a row up to its **Retro.** paragraph.
+table has no line that is not a row up to its **Retro.** paragraph. Entries from PR #STRUCTURED_FROM on
+also have the "Caught earlier by" column (counts of Reach list and sibling search, or none), and their
+retro, once written, has its Cause, Would have prevented it and Rule lines.
 docs/coderabbit-findings.md: each row has its columns, a defined verdict and a defined miss cause; the
 table has no line that is not a row to the end of the file.
 Both: no git conflict markers.
@@ -20,13 +22,27 @@ ROOT = Path(__file__).resolve().parents[2]
 SEVERITIES = {"Critical", "High", "Medium", "Low", "Minor", "unrated"}
 CODERABBIT_SEVERITIES = {"Critical", "Major", "Minor", "Trivial"}
 VERDICTS = {"valid", "accepted", "not valid"}
-MISSED = {"not checked", "judged fine", "outside the diff", "not in the requirements", "after the loop", "–"}
+MISSED = {
+    "not checked",
+    "judged fine",
+    "outside the diff",
+    "not in the requirements",
+    "after the loop",
+    "caught by the CLI",
+    "–",
+}
 SEPARATOR = re.compile(r":?-{3,}:?")
 REVIEW_LABEL = re.compile(r"\d+(?: \(.+\))?|direct|CodeRabbit")
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 CONFLICT_MARKER = re.compile(r"(?:<{7}|\|{7}|>{7})(?: .*)?|={7}")
 NEVER = re.compile(r"(?!)")
-RETROS_HEADER = "| Review | Model | Findings | Origins |"
+# Entries for PRs before this number keep the four-column table and a retro in prose.
+STRUCTURED_FROM = 70
+RETROS_HEADER_PROSE = "| Review | Model | Findings | Origins |"
+RETROS_HEADER = "| Review | Model | Findings | Origins | Caught earlier by |"
+CAUGHT_EARLIER = {"Reach list", "sibling search"}
+RETRO_PARTS = ("- **Cause:**", "- **Would have prevented it:**", "- **Rule:**")
+ENTRY = re.compile(r"## \[#(\d+)\]")
 FINDINGS_HEADER = "| Date | PR | Finding | Category | Verdict | Missed because | Follow-up |"
 
 
@@ -58,26 +74,25 @@ def conflict_markers(text: str, name: str, problems: list[str]):
 
 
 def unbroken_tables(
-    text: str, name: str, header: str, header_row: str, table_end: re.Pattern[str], problems: list[str]
+    text: str, name: str, header: str, header_rows: tuple[str, ...], table_end: re.Pattern[str], problems: list[str]
 ):
     """Reports each line that is not a row inside a table headed by `header`, and each row outside
-    every such table. A table is the log's own form: exactly `header_row`, then a separator of
+    every such table. A table is the log's own form: exactly one of `header_rows`, then a separator of
     one `---` cell per column, then rows, each starting at the line's first character. It
     ends at the first line `table_end` matches or at the end of the file; the blank lines before
     that end belong to no table."""
     lines = text.splitlines()
-    columns = len(cells(header_row))
-    separator = "|" + " --- |" * columns
     in_table: set[int] = set()
     index = 0
     while index < len(lines):
         if not lines[index].startswith("|") or cells(lines[index])[0] != header:
             index += 1
             continue
-        if lines[index].rstrip() != header_row:
-            problems.append(f"{name}:{index + 1}: table header is not {header_row!r}")
+        if lines[index].rstrip() not in header_rows:
+            problems.append(f"{name}:{index + 1}: table header is not {' or '.join(map(repr, header_rows))}")
             index += 1
             continue
+        separator = "|" + " --- |" * len(cells(lines[index]))
         if index + 1 >= len(lines) or lines[index + 1].rstrip() != separator:
             problems.append(f"{name}:{index + 1}: table header not followed by its separator {separator!r}")
             index += 1
@@ -106,30 +121,66 @@ def unbroken_tables(
 def check_retros(text: str, name: str = "review-retros.md") -> list[str]:
     problems: list[str] = []
     conflict_markers(text, name, problems)
-    unbroken_tables(text, name, "Review", RETROS_HEADER, re.compile(r"\*\*Retro\.\*\*|## "), problems)
+    unbroken_tables(
+        text, name, "Review", (RETROS_HEADER_PROSE, RETROS_HEADER), re.compile(r"\*\*Retro\.\*\*|## "), problems
+    )
+    lines = text.splitlines()
+    # The column count of the table each line is in, and the PR of the entry it belongs to.
+    width_at: dict[int, int] = {}
+    entry_at: dict[int, int] = {}
+    width, entry = 4, 0
+    for number, line in enumerate(lines, 1):
+        if match := ENTRY.match(line):
+            entry = int(match.group(1))
+        if line.rstrip() in (RETROS_HEADER_PROSE, RETROS_HEADER):
+            width = len(cells(line))
+            if entry >= STRUCTURED_FROM and line.rstrip() != RETROS_HEADER:
+                problems.append(f"{name}:{number}: entries from #{STRUCTURED_FROM} on use the header {RETROS_HEADER!r}")
+        width_at[number], entry_at[number] = width, entry
     for number, row in table_rows(text, name, "Review", REVIEW_LABEL, "a round number, direct or CodeRabbit", problems):
-        if len(row) != 4:
-            problems.append(f"{name}:{number}: {len(row)} columns, the table has 4")
-            continue
-        findings = row[2]
-        if findings == "none":
+        if len(row) != width_at[number]:
+            problems.append(f"{name}:{number}: {len(row)} columns, the table has {width_at[number]}")
             continue
         scale = CODERABBIT_SEVERITIES if row[0] == "CodeRabbit" else SEVERITIES
-        # Commas inside a note in parentheses do not separate counts.
-        for part in re.split(r",\s*(?![^()]*\))", findings):
-            match = re.fullmatch(r"([1-9]\d*) (\w+)(?: \(.+\))?", part.strip())
-            if not match or match.group(2) not in scale:
-                problems.append(
-                    f"{name}:{number}: findings {part.strip()!r} is not a count of "
-                    f"{', '.join(sorted(scale))}, or none"
-                )
+        counts(row[2], scale, "findings", f"{name}:{number}", problems)
+        if len(row) == 5:
+            counts(row[4], CAUGHT_EARLIER, "caught earlier by", f"{name}:{number}", problems)
+    check_structured_retros(lines, name, problems)
     return problems
+
+
+def counts(cell: str, scale: set[str], column: str, where: str, problems: list[str]):
+    """Reports a cell that is not `none` or comma-separated counts of names in `scale`, each with an
+    optional note in parentheses."""
+    if cell == "none":
+        return
+    # Commas inside a note in parentheses do not separate counts.
+    for part in re.split(r",\s*(?![^()]*\))", cell):
+        match = re.fullmatch(r"([1-9]\d*) ([\w ]+?)(?: \(.+\))?", part.strip())
+        if not match or match.group(2) not in scale:
+            problems.append(f"{where}: {column} {part.strip()!r} is not a count of {', '.join(sorted(scale))}, or none")
+
+
+def check_structured_retros(lines: list[str], name: str, problems: list[str]):
+    """Reports a retro of an entry from #STRUCTURED_FROM on that lacks one of its parts, or leaves one empty. An entry with
+    no retro yet passes: the retro comes with the final records commit."""
+    starts = [i for i, line in enumerate(lines) if line.startswith("## ")] + [len(lines)]
+    for start, end in zip(starts, starts[1:]):
+        match = ENTRY.match(lines[start])
+        if not match or int(match.group(1)) < STRUCTURED_FROM:
+            continue
+        retro = next((i for i in range(start, end) if lines[i].startswith("**Retro.**")), None)
+        if retro is None:
+            continue
+        for part in RETRO_PARTS:
+            if not any(lines[i].startswith(part) and lines[i][len(part) :].strip() for i in range(retro, end)):
+                problems.append(f"{name}:{retro + 1}: #{match.group(1)}'s retro has no line {part!r} with a value")
 
 
 def check_findings(text: str, name: str = "coderabbit-findings.md") -> list[str]:
     problems: list[str] = []
     conflict_markers(text, name, problems)
-    unbroken_tables(text, name, "Date", FINDINGS_HEADER, NEVER, problems)
+    unbroken_tables(text, name, "Date", (FINDINGS_HEADER,), NEVER, problems)
     for number, row in table_rows(text, name, "Date", DATE, "a date (YYYY-MM-DD)", problems):
         try:
             datetime.date.fromisoformat(row[0])
@@ -179,6 +230,7 @@ def self_test() -> list[str]:
     ]
     findings_ok = [
         "| 2026-10-29 | #1 | x | correctness | valid | not checked | – |",
+        "| 2026-10-29 | #1 | x | correctness | valid | caught by the CLI | – |",
         "| 2026-10-29 | #1 | x | correctness | not valid | – | – |",
     ]
     findings_bad = [
@@ -186,6 +238,7 @@ def self_test() -> list[str]:
         "| --- | --- | --- | --- | --- | --- | --- |",
         "| 2026-10-29 | #1 | x | correctness | valid | – | – |",
         "| 2026-10-29 | #1 | x | correctness | not valid | not checked | – |",
+        "| 2026-10-29 | #1 | x | correctness | not valid | caught by the CLI | – |",
         "| 2026-10-29 | #1 | x | correctness | bogus | – | – |",
         "| 2026-10-8 | #1 | x | correctness | valid | not checked | – |",
         "| 2026-13-45 | #1 | x | correctness | valid | not checked | – |",
@@ -242,6 +295,26 @@ def self_test() -> list[str]:
         + "| --- | --- | --- | --- | --- | --- | --- |\n"
         + row,
         "# Title\n\n" + findings_table + row + "||||||| ---\n" + row,
+    ]
+    new_entry = f"## [#{STRUCTURED_FROM}](u) t (2026-01-01)\n\nPlanned rounds: 1.\n\n"
+    new_header = RETROS_HEADER + "\n| --- | --- | --- | --- | --- |\n"
+    new_retro = "\n**Retro.** Planned 1; took 1.\n- **Cause:** x\n- **Would have prevented it:** x\n- **Rule:** none\n"
+    retros_docs_ok += [
+        new_entry + new_header + "| 1 | Opus | 2 Low | x | 1 Reach list, 1 sibling search |\n" + new_retro,
+        new_entry + new_header + "| 1 | Opus | none | x | none |\n",
+        new_entry + new_header + "| CodeRabbit | CodeRabbit CLI | 1 Minor | x | 1 sibling search (the other caller) |\n",
+        entry + table + retro + "\n" + new_entry + new_header + "| 1 | Opus | none | x | none |\n" + new_retro,
+    ]
+    retros_docs_bad += [
+        new_entry + table + retro,
+        new_entry + table,
+        new_entry + new_header + "| 1 | Opus | none | x |\n",
+        new_entry + new_header + "| 1 | Opus | 1 Low | x | 1 Reach |\n",
+        new_entry + new_header + "| 1 | Opus | 1 Low | x | Reach list |\n",
+        new_entry + new_header + "| 1 | Opus | none | x | none |\n\n**Retro.** x\n- **Cause:** x\n- **Rule:** none\n",
+        new_entry + new_header + "| 1 | Opus | none | x | none |\n\n**Retro.** x\n- **Cause:**\n- **Would have prevented it:** x\n- **Rule:** none\n",
+        new_entry + new_header + "| 1 | Opus | none | x | none |\n\n**Retro.** x\n- **Cause:** x\n- **Would have prevented it:**   \n- **Rule:** none\n",
+        entry + new_header + "| 1 | Opus | none | x |\n",
     ]
     failures = []
     for text in retros_docs_ok:

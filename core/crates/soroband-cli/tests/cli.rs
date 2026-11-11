@@ -448,3 +448,113 @@ fn config_reports_an_unreadable_settings_file_without_replacing_it() {
         "{ reset_hour: 4"
     );
 }
+
+/// Runs git in `dir`.
+fn git_in(dir: &Path, args: &[&str]) -> String {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "git {args:?}: {output:?}");
+    String::from_utf8(output.stdout).unwrap().trim().to_owned()
+}
+
+/// Runs git in the repository the command was built from.
+fn git(args: &[&str]) -> String {
+    git_in(Path::new(env!("CARGO_MANIFEST_DIR")), args)
+}
+
+#[test]
+fn version_names_the_commit_the_command_was_built_from() {
+    // The user compares this with `git rev-parse --short origin/main` to tell which build runs.
+    let output = soroband(&data_dir("version"), &["version"]);
+    assert!(output.status.success(), "{output:?}");
+    let printed = String::from_utf8(output.stdout).unwrap();
+    let rest = printed
+        .strip_prefix(&format!("soroband {} (", soroband_core::version()))
+        .unwrap_or_else(|| panic!("{printed}"));
+    let (build, stamp) = rest
+        .split_once(") · ")
+        .unwrap_or_else(|| panic!("{printed}"));
+    assert!(build.parse::<u64>().is_ok(), "{printed}");
+    let expected = [
+        git(&["rev-parse", "--short", "HEAD"]),
+        git(&["branch", "--show-current"]),
+    ]
+    .into_iter()
+    .filter(|part| !part.is_empty())
+    .collect::<Vec<_>>()
+    .join(" ");
+    assert_eq!(stamp.trim_end(), expected);
+}
+
+/// Runs a copy of `scripts/build-stamp.sh` placed in `root`, which stamps the checkout at `root`.
+fn build_stamp(root: &Path) -> String {
+    let script = root.join("scripts/build-stamp.sh");
+    let output = std::process::Command::new(&script).output().unwrap();
+    assert!(output.status.success(), "{output:?}");
+    String::from_utf8(output.stdout).unwrap()
+}
+
+#[test]
+fn build_stamp_is_unknown_outside_this_checkout_and_dirty_with_untracked_files() {
+    // A source archive, alone or extracted inside another project's checkout, still builds, and
+    // does not take that project's commit.
+    let outer = data_dir("build-stamp");
+    let root = outer.join("soroband");
+    std::fs::create_dir_all(root.join("scripts")).unwrap();
+    std::fs::copy(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../scripts/build-stamp.sh"),
+        root.join("scripts/build-stamp.sh"),
+    )
+    .unwrap();
+    let unknown = "build=0\ncommit=unknown\nbranch=\n";
+    assert_eq!(build_stamp(&root), unknown);
+    git_in(&outer, &["init", "-q"]);
+    git_in(
+        &outer,
+        &[
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "-m",
+            "outer",
+        ],
+    );
+    assert_eq!(build_stamp(&root), unknown);
+
+    // In this project's checkout, an untracked file marks the app's stamp dirty, also when git is
+    // set to hide untracked files.
+    let git_root = |args: &[&str]| {
+        let mut all = vec!["-c", "user.name=t", "-c", "user.email=t@t"];
+        all.extend_from_slice(args);
+        git_in(&root, &all)
+    };
+    git_root(&["init", "-q", "-b", "trunk"]);
+    git_root(&["add", "-A"]);
+    git_root(&["commit", "-q", "-m", "one"]);
+    git_root(&["config", "status.showUntrackedFiles", "no"]);
+    let head = git_root(&["rev-parse", "--short", "HEAD"]);
+    assert_eq!(
+        build_stamp(&root),
+        format!("build=1\ncommit={head}\nbranch=trunk\n")
+    );
+    std::fs::write(root.join("new"), "x").unwrap();
+    assert_eq!(
+        build_stamp(&root),
+        format!("build=1\ncommit={head}-dirty\nbranch=trunk\n")
+    );
+    // A status git cannot read is not taken for a clean checkout.
+    std::fs::remove_file(root.join("new")).unwrap();
+    std::fs::write(root.join(".git/index"), "not an index").unwrap();
+    assert_eq!(
+        build_stamp(&root),
+        format!("build=1\ncommit={head}-dirty\nbranch=trunk\n")
+    );
+}

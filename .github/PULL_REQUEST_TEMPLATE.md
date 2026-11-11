@@ -1,8 +1,17 @@
 ## Summary
 
-<!-- The smallest view that makes the key point clear (a diagram, diff sketch, call tree or file tree) with brief text. Link the milestone, for example M1 in docs/plan.md. For work that is not a milestone, quote the user's request first: it is the requirement the reviewer checks against. -->
+<!-- The smallest view that makes the key point clear (a diagram, diff sketch, call tree or file tree) with brief text. Link the milestone, for example M1 in docs/plan.md. For work that is not a milestone, state the request in one line, in your own words: it is the requirement the reviewer checks against. The repository is public: no local paths, usernames or other personal details. -->
 
 **Planned review rounds:** <!-- see docs/review.md -->
+
+## Reach
+
+<!-- What the diff reaches, found by applying REVIEW.md's reach rules to your own diff (docs/checklist.md, step 2). One line per item, each with how it is covered: a test name, or "read:" and why it is safe. Write "None" under a group the diff does not touch. The reviewer checks this list against the diff. -->
+
+- **Callers:**
+- **Consumers:**
+- **Paths:**
+- **Boundaries:**
 
 ## Evidence
 

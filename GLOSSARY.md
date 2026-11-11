@@ -167,11 +167,11 @@ _Avoid_: over-counted, over-count
 ## Interface
 
 **Menu bar item**:
-The always-present item in the menu bar: network icon and today's interface bytes on the current network by default. "Not counting" when the engine has stopped.
+The always-present item in the menu bar: the network kind's icon (or the Soroband glyph) and today's interface bytes on the current network by default. "Not counting" when the engine has stopped.
 _Avoid_: status item, menu bar label
 
 **Menu bar layout**:
-What the menu bar item shows next to its icon: up to four readings in order, counting today on the current network or on every network, drawn in a menu bar style (the `menu_bar_readings`, `menu_bar_scope` and `menu_bar_style` settings). No reading leaves the icon alone.
+What the menu bar item shows: its icon, the network kind's or the Soroband glyph, and next to it up to four readings in order, counting today on the current network or on every network, drawn in a menu bar style (the `menu_bar_icon`, `menu_bar_readings`, `menu_bar_scope` and `menu_bar_style` settings). No reading leaves the icon alone.
 _Avoid_: display mode, menu bar mode, menu bar count, menu bar line
 
 **Reading**:
@@ -179,6 +179,10 @@ One value the menu bar item can show: today's total, download or upload as cross
 
 **Menu bar style**:
 How the readings are drawn: **stacked** (in pairs, the first on top, in a smaller size; a reading without a partner at full size), **labeled** (each value under a small caption) or **inline** (one line at the menu bar's size).
+
+**Soroband glyph**:
+The Soroband mark (a rounded diamond cut by an S) as the menu bar item's icon, in place of the network kind's, whatever the network (`menu_bar_icon` `soroband`). While the engine has stopped, a warning sign replaces it as it replaces the network icon.
+_Avoid_: logo, app icon (the icon in Finder and the Dock)
 
 **Live speed**:
 Interface bytes per second, down and up, over the last poll.
@@ -211,6 +215,22 @@ _Avoid_: helper, History process (its earlier, History-only form)
 **Linger**:
 The 10 minutes the menu bar process lets a UI process wait after its last window closed before it quits it. A popover opened within it opens warm.
 _Avoid_: keep-alive, grace period
+
+**Theme**:
+How Soroband's windows look: an appearance and an accent, set in Settings › Appearance (the `appearance` and `accent` settings). It applies to the windows of the UI process; the island keeps its own dark look.
+_Avoid_: skin, color scheme (SwiftUI's name for light or dark)
+
+**Appearance**:
+Light or dark for Soroband's windows: **system** (as macOS is, the default), **light** or **dark**.
+_Avoid_: mode, dark mode (macOS's own setting)
+
+**Accent**:
+The color of what Soroband draws to show a selection or highlight in its windows: **system** (macOS's accent color, the default), or coral, amber, emerald, teal, sky, indigo, plum or rose, the colors of Soroband's icons, each with a light and a dark step.
+_Avoid_: tint (SwiftUI's mechanism for it), highlight color
+
+**App icon**:
+Soroband's icon in the Dock, in Finder and in Settings › About: **graphite** (the bundle's own, the default) or one of Soroband's 12 other icons, set in Settings › Appearance (the `app_icon` setting). Finder shows it as the bundle's custom icon.
+_Avoid_: logo, glyph (the menu bar's mark), alternate icon (iOS's mechanism)
 
 **Range**:
 What History shows: a day, week, month or year of the calendar, or all time.
@@ -288,6 +308,10 @@ The installed source build the user runs daily.
 **Release**:
 A version published on GitHub by the release workflow from a version tag: `Soroband.dmg` (the app, with the `soroband` command in `Contents/Helpers`), its SHA-256 checksum, and its section of `CHANGELOG.md` as notes. Signed ad hoc, not notarized; `soroband update` installs the newest one.
 
+**Build stamp**:
+The commit a build was made from, written into the app and the `soroband` command when they are built (`scripts/build-stamp.sh`): HEAD's short SHA and the branch, and in the app `-dirty` when the checkout had uncommitted changes. Settings › About and `soroband version` show it after the version and the build number, the count of commits up to it (0 when the clone cannot count them): `0.1.0 (412) · 16e85ce main`.
+_Avoid_: build ID, revision
+
 **Source build**:
 Soroband built and installed on the user's Mac by `scripts/install.sh`, signed with "Soroband Local Signing"; updated from its clone, never by `soroband update`.
 
@@ -318,6 +342,15 @@ Why a finding showed up in the review it did, one of a fixed set in `docs/review
 
 **Miss cause**:
 Why the blind loop missed a valid CodeRabbit finding, one of a fixed set in `docs/coderabbit-findings.md`.
+
+**Reach list**:
+The Reach section of a PR body: the callers, consumers, paths into changed state and boundaries the diff reaches, each with how it is covered, written by the developer from `REVIEW.md`'s rules before review. A reach the reviewer finds missing from it is a finding against it.
+
+**Sibling search**:
+The search that comes with every fix: name the defect class, find the same defect elsewhere in the repository, test and fix each, and state it as `Siblings checked: <search>, <result>`.
+
+**Records-only commit**:
+A commit that changes only the records (rows, entries and retros) in `docs/review-retros.md` and `docs/coderabbit-findings.md`. How it is reviewed is in `docs/review.md` (Rounds step 4, CodeRabbit step 7).
 
 **Blind reviewer**:
 A fresh agent each round that sees only the PR and its requirements.
