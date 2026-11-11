@@ -943,6 +943,29 @@ Planned rounds: 2. The CodeRabbit CLI hit its rate limit before the draft; the u
 - **Would have prevented it:** the CLI run before the draft (its first job is to batch exactly these findings), a Boundaries line for each script's hidden inputs (git config, the working tree, an empty cell), and a sibling search over every restatement this PR replaced with a link.
 - **Rule:** review.md CodeRabbit step 4 now batches each review's fixes in one push, sends Minor tooling findings to follow-ups, and reassesses after two reviews in a row find new edges; `retired-terms.py` was dropped, with no real catch in 45 replayed PRs. The checklist's steps 2, 3 and 6 cover the rest, and this PR did not follow step 6.
 
+## [#60](https://github.com/AboulEinein/soroband/pull/60) fix(settings): mark the Island pane with a screen's top band (2026-11-07)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | |
+| 1 | Opus | none | Posted as a COMMENT review with a no-findings body. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. The symbol was the user's pick from rendered candidates, so the review had only the one call site and the symbol's availability to check.
+
+## [#61](https://github.com/AboulEinein/soroband/pull/61) fix(settings): drop the pane's name from the title bar (2026-11-08)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins |
+| --- | --- | --- | --- |
+| 1 | Opus | 1 Minor | The PR body said `toolbar(removing:)` needs macOS 15; only its `.title` kind does. Body fixed. |
+| CodeRabbit | CodeRabbit | none | |
+
+**Retro.** Planned 1 round; it took 1. The local CodeRabbit CLI did not run: its quota was spent (rate limit) when the PR opened. The first fix, a hard scroll edge, was installed without a real scroll and did nothing; the user's screenshot caught it. The second was checked with a real scroll and a capture before it reached the user. Lesson: a visual fix is verified on screen before it is handed over, even when that means bringing a window forward.
+
 ## [#71](https://github.com/AboulEinein/soroband/pull/71) test(app): draw snapshot images in Display P3 whatever the main screen (2026-11-09)
 
 Planned rounds: 1. The CodeRabbit CLI failed three times before the draft with `Connection failed: WebSocket closed` (signed in, service reachable); it runs again before any later push.
