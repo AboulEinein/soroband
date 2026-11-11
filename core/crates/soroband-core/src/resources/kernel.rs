@@ -68,20 +68,6 @@ struct SwapUsage {
 type ListCoalitions = unsafe extern "C" fn(c_int, c_int, *mut c_void, c_int) -> c_int;
 type CoalitionUsage = unsafe extern "C" fn(u64, *mut u64, libc::size_t) -> c_int;
 
-/// `struct mach_timebase_info`.
-#[repr(C)]
-struct Timebase {
-    numer: u32,
-    denom: u32,
-}
-
-unsafe extern "C" {
-    fn proc_listallpids(buffer: *mut c_void, size: c_int) -> c_int;
-    fn mach_absolute_time() -> u64;
-    fn mach_timebase_info(info: *mut Timebase) -> c_int;
-    fn mach_host_self() -> libc::mach_port_t;
-}
-
 /// The Mac's physical memory in bytes (`hw.memsize`).
 #[must_use]
 pub fn memory_total() -> Option<u64> {
@@ -134,9 +120,13 @@ impl SystemResources {
         let list = unsafe { libc::dlsym(libc::RTLD_DEFAULT, list.as_ptr()) };
         // SAFETY: as above.
         let usage = unsafe { libc::dlsym(libc::RTLD_DEFAULT, usage.as_ptr()) };
-        let mut timebase = Timebase { numer: 0, denom: 0 };
+        #[allow(deprecated)] // libc points at the `mach2` crate, which adds nothing needed here
+        let mut timebase = libc::mach_timebase_info { numer: 0, denom: 0 };
         // SAFETY: `timebase` is a valid out-pointer.
-        unsafe { mach_timebase_info(&raw mut timebase) };
+        #[allow(deprecated)]
+        unsafe {
+            libc::mach_timebase_info(&raw mut timebase)
+        };
         let mut mib = vec![0; 8];
         let mut len = mib.len();
         // SAFETY: `mib` holds `len` ints and the name is NUL-terminated.
@@ -158,9 +148,11 @@ impl SystemResources {
             // SAFETY: as above.
             coalition_usage: (!usage.is_null())
                 .then(|| unsafe { std::mem::transmute::<*mut c_void, CoalitionUsage>(usage) }),
+            #[allow(deprecated)]
             timebase: (timebase.numer, timebase.denom),
             // SAFETY: `mach_host_self` has no preconditions.
-            host: unsafe { mach_host_self() },
+            #[allow(deprecated)]
+            host: unsafe { libc::mach_host_self() },
             pressure_mib: mib,
             page_size: u64::try_from(page_size).unwrap_or(4096),
             pids: vec![0; 4096],
@@ -172,7 +164,10 @@ impl SystemResources {
 impl ResourceHost for SystemResources {
     fn now(&mut self) -> u64 {
         // SAFETY: no preconditions.
-        unsafe { mach_absolute_time() }
+        #[allow(deprecated)]
+        unsafe {
+            libc::mach_absolute_time()
+        }
     }
 
     fn timebase(&self) -> (u32, u32) {
@@ -216,7 +211,7 @@ impl ResourceHost for SystemResources {
         loop {
             let size = c_int::try_from(self.pids.len() * size_of::<c_int>()).unwrap_or(c_int::MAX);
             // SAFETY: `pids` is writable for `size` bytes.
-            let count = unsafe { proc_listallpids(self.pids.as_mut_ptr().cast(), size) };
+            let count = unsafe { libc::proc_listallpids(self.pids.as_mut_ptr().cast(), size) };
             let count = usize::try_from(count).unwrap_or(0);
             if count < self.pids.len() {
                 return self.pids[..count]

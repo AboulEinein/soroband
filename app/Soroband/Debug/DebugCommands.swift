@@ -424,6 +424,7 @@ struct DebugState: Encodable {
     let launchAtLogin: LaunchAtLoginState
     let location: String
     let engine: Engine
+    let resources: Core.Resources?
     let network: Network?
     let today: Today
     let island: IslandController.DebugState
@@ -455,6 +456,7 @@ struct DebugState: Encodable {
                 state: engine.state, flows: engine.flows, apps: engine.apps,
                 appBytes: Bytes(engine.appBytes), interfaceBytes: Bytes(engine.interfaceBytes),
                 check: engine.check),
+            resources: Core.resources,
             network: NetworkMonitor.shared.current.map { network in
                 Network(
                     id: network.id, key: network.key, name: network.name, kind: network.kind,

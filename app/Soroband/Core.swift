@@ -122,6 +122,31 @@ enum Core {
         soroband_engine_on_poll(callback)
     }
 
+    /// Where the resource meter reads from, and the memory gauges at its last poll. Every field is
+    /// nil before the engine's first poll.
+    struct Resources: Codable {
+        /// `coalitions`, or `processes` while it falls back to the user's own processes.
+        let source: String?
+        /// Why it falls back.
+        let reason: String?
+        let memoryUsed: UInt64?
+        let memoryCompressed: UInt64?
+        let swapUsed: UInt64?
+        /// `kern.memorystatus_vm_pressure_level`: 1 normal, 2 warning, 4 critical.
+        let pressure: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case source, reason, pressure
+            case memoryUsed = "memory_used"
+            case memoryCompressed = "memory_compressed"
+            case swapUsed = "swap_used"
+        }
+    }
+
+    static var resources: Resources? {
+        decode(Resources.self, soroband_resources_json())
+    }
+
     /// Today's usage per network and app as the core's JSON, as of the last poll; empty lists
     /// unless live.
     static func todayJSON() -> String {

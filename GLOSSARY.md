@@ -67,6 +67,44 @@ The descriptor sizes observed on a real Mac, per macOS version and provider. A s
 **Recording**:
 A captured session of kernel messages, replayed by the tests as a fixture.
 
+## Resources
+
+**Resource meter**:
+The part of the core that credits each app's CPU, memory, disk and energy (`resources`), run by the engine at its polls. It names apps as the engine does.
+
+**Coalition**:
+The kernel's group of an app and the processes it starts (its helpers, and the commands a terminal runs), with counters that keep what its processes used after they exit. The resource meter reads resource coalitions.
+_Avoid_: process group, job
+
+**Shared coalition**:
+A coalition holding processes of more than one app, such as a terminal and the commands it runs; the resource meter splits it among them.
+
+**Coalition leader**:
+The app of a coalition's lowest process id, which takes what a shared coalition used that no member it read can account for.
+
+**Resource read**:
+One read of every coalition (or, in the fallback, every process of the user's) and the crediting of what each app used since the last one. It runs once a minute, and at every poll while the CPU is over 50% busy or memory is under pressure.
+_Avoid_: scan, sample
+
+**System gauges**:
+CPU busy share, memory used, compressed and swapped, memory pressure, and each local volume's free space, read at every poll (the volumes once a minute).
+
+**Footprint**:
+The memory a process holds as macOS counts it for Activity Monitor's Memory column (`phys_footprint`), summed over an app's processes.
+_Avoid_: RSS, resident memory
+
+**Memory pressure**:
+The kernel's level of memory shortage: normal, warning or critical (`kern.memorystatus_vm_pressure_level`). Under pressure means warning or critical.
+
+**Layout guard**:
+The check, at the first resource read and hourly, that the coalition fields the resource meter reads agree with its processes' own counts. A layout that fails it puts the resource meter in the fallback.
+
+**Fallback**:
+The resource meter reading the user's own processes one by one, when the coalition calls are missing or fail the layout guard. It leaves out other users' and root processes; rows it stored are marked.
+
+**Minute record**:
+The system gauges and the five busiest apps by CPU, footprint and disk bytes written, per minute, kept for `resource_minutes_days` days.
+
 ## Networks
 
 **Network**:

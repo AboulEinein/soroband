@@ -297,6 +297,19 @@ mod tests {
     }
 
     #[test]
+    fn reads_either_side_of_an_hour_go_to_their_own_hours() {
+        let mut ledger = ResourceLedger::default();
+        ledger.book(&reading(60.0, &[("Mail", 5, 300)]), 3599);
+        ledger.book(&reading(60.0, &[("Mail", 7, 100)]), 3600);
+        let (hours, _) = ledger.take(3700, false);
+        let rows: Vec<(i64, u64, u64)> = hours
+            .iter()
+            .map(|h| (h.hour, h.counters.cpu, h.peak))
+            .collect();
+        assert_eq!(rows, [(0, 5, 300), (3600, 7, 100)]);
+    }
+
+    #[test]
     fn a_minute_is_taken_once_it_is_over_and_ranks_its_busiest_apps() {
         let mut ledger = ResourceLedger::default();
         let ticks = |busy: u64, idle: u64| Gauges {

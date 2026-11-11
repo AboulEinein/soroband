@@ -76,6 +76,16 @@ Risks and how the design handles them:
 
 Shape: Rust crate `soroband-core` (socket client, aggregation, SQLite, settings) exposed through a small C API to the app. The app runs as two processes of one binary: the menu bar process (the engine, the network monitor, the menu bar item and the island) runs all day on AppKit alone, and the UI process runs the SwiftUI app and shows every window (see "Two processes" under Performance budget). A network change from the app wakes the engine thread through a pipe, so it polls at once and books what moved so far to the previous network before switching. The same crate gives a `soroband` CLI (`soroband today`, `soroband apps --network Office`, `soroband config`), installed next to the app.
 
+## Resource meter
+
+Each app's CPU time, CPU time billed to it by daemons, disk bytes read and written, energy and memory footprint, beside its internet bytes (`core/crates/soroband-core/src/resources`).
+
+- **Coalitions, not processes.** The kernel groups an app and the processes it starts into a resource coalition, whose counters keep what its processes used after they exit. `proc_listcoalitions` and `coalition_info_resource_usage` read every coalition with no privilege, root apps included, in one call each; they are exported by `libsystem_kernel` but absent from the public SDK, so they are looked up with `dlsym` at launch. Each coalition maps to the app of its processes (`proc_pidinfo`, `PROC_PIDCOALITIONINFO`), named as flows are.
+- **Shared coalitions.** A terminal and the commands it runs, or an editor and its tools, share one coalition. Its members are read with `proc_pid_rusage` and each keeps its own growth; the rest (processes that exited, or that the user cannot read) goes to the members that exited, by their earlier rate, and what is left to the coalition's leader. When the coalition's count of exited processes shows that every process that exited was read before, the rest is theirs in full; a command that starts and exits between two reads is the leader's.
+- **When it reads.** The system gauges at every engine poll; the resource read once a minute, and at every poll while the CPU is over 50% busy or memory is under pressure, so a burst is seen at poll resolution only when there is one; the volumes once a minute. No thread or timer of its own.
+- **Layout guard.** At the first read and hourly, each coalition with at most one exited process (the launcher `xpcproxy`) and only readable members is compared with its members' `proc_pid_rusage` read before and after it. Measured on macOS 27 (894 coalitions, 168 comparable): disk bytes, energy and footprint matched exactly; the coalition's CPU time ran 0–15% below its members' user and system time (median 1%), and billed CPU time up to 53% below on 9 of 168. The guard allows those and judges a field only where no other field's sum would pass for it. A missing call or a failed check moves the meter to the user's own processes (`proc_pid_rusage`), marked on every row it stores.
+- **Storage.** Per (hour, app) and per (UTC day, app) in one transaction once a minute; the footprint as a time-weighted sum and its peak. The minute record keeps the gauges and the five busiest apps by CPU, footprint and disk written for `resource_minutes_days` days.
+
 ## Performance budget
 
 | Measure | Budget | Evidence |
