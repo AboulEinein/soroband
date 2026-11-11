@@ -57,6 +57,83 @@ struct MomentQueueTests {
         #expect(queue.current == nil)
     }
 
+    @Test func clickingTheIslandClosesItAndDropsTheMomentsWaitingBehindIt() {
+        // Back-to-back moments keep the island open for half a minute with only 0.45 s gaps; one
+        // click puts it away for all of them.
+        var queue = MomentQueue()
+        queue.post(hog, now: 0)
+        queue.post(joined, now: 0)
+        queue.post(transfer(60_000_000), now: 0)
+        queue.hover(true, now: 1)
+        queue.putAway(now: 2)
+        #expect(queue.current == nil && queue.waiting.isEmpty)
+        #expect(queue.nextChange == nil, "nothing opens after the gap")
+        // The transfer's progress opens nothing new; a new alert still shows.
+        queue.post(transfer(80_000_000), now: 3)
+        #expect(queue.current == nil)
+        queue.post(hog, now: 4)
+        #expect(queue.current?.kind == .hog)
+    }
+
+    @Test func clickingBetweenTwoMomentsDropsTheOnesWaiting() {
+        var queue = MomentQueue()
+        queue.post(joined, now: 0)
+        queue.post(.left(network: office, since: .now, bytes: 0, top: nil), now: 0)
+        queue.advance(now: 5)
+        #expect(queue.current == nil && queue.waiting.count == 1, "the island is closing")
+        let putAwayWhileClosing = queue.putAway(now: 5.2)
+        #expect(putAwayWhileClosing, "a click while it closes still counts")
+        queue.advance(now: 6)
+        #expect(queue.current == nil && queue.waiting.isEmpty)
+        let putAwayAtRest = queue.putAway(now: 7)
+        #expect(!putAwayAtRest, "nothing open or waiting: nothing to put away")
+    }
+
+    @Test func clickingThePeekKeepsTheAlertsWaitingBehindIt() {
+        // An alert that came while the pointer held the peek open has not been seen.
+        var queue = MomentQueue()
+        queue.post(.peek(network: nil, today: 0, down: 0, up: 0, speed: 0, apps: []), now: 0)
+        queue.hover(true, now: 0)
+        queue.post(hog, now: 1)
+        queue.putAway(now: 2)
+        #expect(queue.current == nil && queue.waiting.map(\.kind) == [.hog])
+        // A second click while the peek closes keeps it too.
+        queue.putAway(now: 2.2)
+        #expect(queue.waiting.map(\.kind) == [.hog])
+        queue.advance(now: 2.65)
+        #expect(queue.current?.kind == .hog)
+        // Once the hog has opened, a click puts it away as any moment.
+        queue.post(joined, now: 3)
+        queue.putAway(now: 4)
+        #expect(queue.current == nil && queue.waiting.isEmpty)
+    }
+
+    @Test func aClickInTheGapAfterThePeekClosedOnItsOwnKeepsTheAlertsBehindIt() {
+        var queue = MomentQueue()
+        queue.post(.peek(network: nil, today: 0, down: 0, up: 0, speed: 0, apps: []), now: 0)
+        queue.post(hog, now: 0.1)
+        queue.advance(now: 0.4)
+        #expect(queue.current == nil && queue.waiting.map(\.kind) == [.hog], "the peek closed after 0.4 s")
+        queue.putAway(now: 0.5)
+        queue.advance(now: 0.9)
+        #expect(queue.current?.kind == .hog)
+    }
+
+    @Test func aClickedAwayTransferEndLetsTheAppsNextTransferShow() {
+        var queue = MomentQueue()
+        queue.post(transfer(60_000_000), now: 0)
+        queue.post(hog, now: 1)
+        queue.advance(now: 6)
+        queue.advance(now: 6.45)
+        #expect(queue.current?.kind == .hog)
+        // The transfer ends while the hog is open, so its end waits, and a click drops it.
+        queue.post(transfer(90_000_000, done: true), now: 7)
+        queue.putAway(now: 8)
+        // The app's next transfer opens a moment, as any first progress does.
+        queue.post(transfer(10_000_000), now: 9)
+        #expect(queue.current?.kind == .transfer)
+    }
+
     @Test func aTransferIsOneMomentWhoseProgressUpdatesItAndWhoseEndOpensItAgain() {
         var queue = MomentQueue()
         let started = queue.post(transfer(50_000_000), now: 0)
@@ -242,6 +319,34 @@ struct IslandOutlineTests {
                 radius: 26, bandWidth: rest.bandWidth + (open.bandWidth - rest.bandWidth) * f, top: open.top)
             let path = islandPath(frame, band: 24, in: panel)
             #expect(!path.contains(point(0, below: 6)) && !path.contains(point(0, below: 20)), "frame \(step)")
+        }
+    }
+
+    @Test func keepMenuBarClearNeverCoversTheMenuBarBesideTheNotchWhileItGrowsOrShrinks() {
+        // Every frame the springs draw while a moment opens and closes: the shape may widen only
+        // below the menu bar, so the menu bar beside the notch stays uncovered throughout.
+        let rest = IslandMetrics.rest(geometry, style: .clear)
+        for kind in [MomentKind.joined, .hog, .peek] {
+            let open = IslandMetrics.open(kind, geometry, style: .clear)
+            for (from, to) in [(rest, open), (open, rest)] {
+                var springs = [from.width, from.height, from.radius, from.bandWidth].map { Spring(value: $0) }
+                for (index, value) in [to.width, to.height, to.radius, to.bandWidth].enumerated() {
+                    springs[index].target = value
+                }
+                for frame in 0..<120 {
+                    for index in springs.indices { springs[index].advance(1.0 / 60) }
+                    let metrics = IslandMetrics(
+                        width: springs[0].value, height: springs[1].value, radius: springs[2].value,
+                        bandWidth: springs[3].value)
+                    // 4 pt beside the notch: near the top of the menu bar, and just above its
+                    // lower edge.
+                    for below in [CGFloat(6), 31.5] {
+                        #expect(
+                            !contains(metrics, point(geometry.notchWidth / 2 + 4, below: below)),
+                            "\(kind) \(to == open ? "opening" : "closing") frame \(frame), \(below) pt down")
+                    }
+                }
+            }
         }
     }
 
