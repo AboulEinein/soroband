@@ -91,7 +91,7 @@ struct SettingsView: View {
             case .general: "gearshape.fill"
             case .appearance: "circle.lefthalf.filled"
             case .menuBar: "menubar.rectangle"
-            case .island: "capsule.tophalf.filled"
+            case .island: "rectangle.topthird.inset.filled"
             case .networks: "wifi"
             case .about: "info"
             }
