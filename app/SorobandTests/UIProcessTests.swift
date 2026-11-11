@@ -554,9 +554,13 @@ struct UIHostTests {
             registry: [
                 RegisteredNetwork(id: 2, key: "wifi:Home", name: "Home", kind: .wifi, lastUsed: 1_793_000_000, color: 3)
             ],
-            menuBarLayout: MenuBarLayout(scope: .all, readings: [.download, .speedUp], style: .labeled), resetHour: 4,
+            menuBarLayout: MenuBarLayout(
+                scope: .all, readings: [.download, .speedUp], style: .labeled, icon: .soroband),
+            resetHour: 4,
             current: Network(id: 2, key: "wifi:Home", name: "Home", kind: .wifi),
-            connectedSince: Date(timeIntervalSince1970: 1_792_990_000))
+            connectedSince: Date(timeIntervalSince1970: 1_792_990_000),
+            // An accent only: an appearance would change the test host's own.
+            theme: Theme(accent: .plum))
         let line = try JSONEncoder().encode(UIRequest.snapshot(snapshot))
         #expect(try JSONDecoder().decode(UIRequest.self, from: line) == .snapshot(snapshot), "every field crosses")
 
@@ -574,5 +578,20 @@ struct UIHostTests {
         #expect(usage.registry == snapshot.registry)
         #expect(usage.menuBarLayout == snapshot.menuBarLayout)
         #expect(usage.resetHour == 4)
+        #expect(usage.theme == Theme(accent: .plum))
+    }
+
+    /// The snapshot the menu bar process sends carries the theme it read, so `soroband config set
+    /// accent` reaches the windows. The test host's settings are shared, so the value is put back.
+    @Test func theSnapshotSentCarriesTheTheme() throws {
+        let original = try #require(Core.setting(Accent.settingKey))
+        defer {
+            Core.setSetting(Accent.settingKey, to: original)
+            Usage.shared.reloadSettings()
+        }
+        let picked: Accent = original == Accent.teal.rawValue ? .rose : .teal
+        #expect(Core.setSetting(Accent.settingKey, to: picked.rawValue))
+        Usage.shared.reloadSettings()
+        #expect(UISnapshot.current().theme.accent == picked)
     }
 }

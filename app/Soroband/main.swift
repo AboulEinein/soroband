@@ -1,5 +1,11 @@
 import AppKit
 
+// The menu bar process starts the executable for a moment to write Finder's icon (`FinderIcon`):
+// no app, no window, nothing kept.
+if let flag = CommandLine.arguments.firstIndex(of: FinderIcon.writerFlag) {
+    exit(FinderIcon.runWriter(Array(CommandLine.arguments[(flag + 1)...])))
+}
+
 #if DEBUG
 Core.isolateTestHost()
 #endif

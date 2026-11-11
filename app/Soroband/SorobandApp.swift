@@ -40,6 +40,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !Core.startEngine() {
             NSLog("Soroband: the usage database in %@ cannot be opened; nothing is recorded", Core.dataDirectory.path)
         }
+        #if DEBUG
+        let isDebug = true
+        #else
+        let isDebug = false
+        #endif
+        FinderIcon.shared.isActive = FinderIcon.isEnabled(
+            isDebug: isDebug, environment: ProcessInfo.processInfo.environment)
         Usage.shared.start()
         MenuBarController.shared.start()
         // A UI process gone with the popover open leaves nobody to turn the live polls off.

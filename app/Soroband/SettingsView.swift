@@ -28,7 +28,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         if window == nil {
             Usage.shared.reloadRegistry()
             launchAtLogin.refresh()
-            let window = NSWindow(contentViewController: NSHostingController(rootView: view))
+            let window = NSWindow(contentViewController: NSHostingController(rootView: view.themed()))
             window.title = "Soroband Settings"
             // The sidebar runs the window's full height, under the traffic lights, as in System
             // Settings.
@@ -67,6 +67,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
 struct SettingsView: View {
     enum Tab: String, CaseIterable, Identifiable {
         case general
+        case appearance
         case menuBar = "menu-bar"
         case island
         case networks
@@ -77,6 +78,7 @@ struct SettingsView: View {
         var title: String {
             switch self {
             case .general: "General"
+            case .appearance: "Appearance"
             case .menuBar: "Menu Bar"
             case .island: "Island"
             case .networks: "Networks"
@@ -87,8 +89,9 @@ struct SettingsView: View {
         var symbol: String {
             switch self {
             case .general: "gearshape.fill"
+            case .appearance: "circle.lefthalf.filled"
             case .menuBar: "menubar.rectangle"
-            case .island: "capsule.tophalf.filled"
+            case .island: "rectangle.topthird.inset.filled"
             case .networks: "wifi"
             case .about: "info"
             }
@@ -98,6 +101,7 @@ struct SettingsView: View {
         var tint: Color {
             switch self {
             case .general: .gray
+            case .appearance: .indigo
             case .menuBar: .blue
             case .island: Color(white: 0.12)
             case .networks: .green
@@ -135,6 +139,8 @@ struct SettingsView: View {
             switch selection.tab {
             case .general:
                 GeneralSettings(usage: usage, launchAtLogin: launchAtLogin)
+            case .appearance:
+                AppearanceSettings(theme: usage.theme, appIcon: usage.appIcon, set: { usage.setSetting($0, to: $1) })
             case .menuBar:
                 MenuBarSettings(usage: usage)
             case .island:
@@ -145,11 +151,27 @@ struct SettingsView: View {
                     save: { usage.updateNetwork(id: $0, name: $1, kind: $2) },
                     setColor: { usage.setNetworkColor(id: $0, color: $1) })
             case .about:
-                AboutSettings()
+                // Redrawn when the icon changes: it reads `NSApp.applicationIconImage`, which
+                // SwiftUI does not observe.
+                AboutSettings().id(usage.appIcon)
             }
         }
         .navigationTitle(selection.tab.title)
+        .withoutTitleBarTitle()
         .frame(width: 760, height: 600)
+    }
+}
+
+extension View {
+    /// The window's title bar is transparent, so the pane's name, shown there once the page's own
+    /// title scrolls away, would be drawn over the rows passing under it. Each page has its own
+    /// large title instead.
+    @ViewBuilder func withoutTitleBarTitle() -> some View {
+        if #available(macOS 15, *) {
+            toolbar(removing: .title)
+        } else {
+            self
+        }
     }
 }
 
@@ -364,7 +386,10 @@ struct DayRuler: View {
             HStack(spacing: 3) {
                 ForEach(0..<24, id: \.self) { hour in
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(hour < resetHour ? Color.orange.opacity(0.75) : Color.accentColor.opacity(0.8))
+                        .fill(
+                            hour < resetHour
+                                ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint.opacity(0.8))
+                        )
                         .frame(height: hour == resetHour ? 22 : 12)
                 }
             }
@@ -377,8 +402,8 @@ struct DayRuler: View {
             .font(.caption2).foregroundStyle(.tertiary).monospacedDigit()
             if resetHour > 0 {
                 HStack(spacing: 12) {
-                    Label("The day before", systemImage: "circle.fill").foregroundStyle(.orange)
-                    Label("Today", systemImage: "circle.fill").foregroundStyle(Color.accentColor)
+                    Label("The day before", systemImage: "circle.fill").foregroundStyle(.secondary)
+                    Label("Today", systemImage: "circle.fill").foregroundStyle(.tint)
                     Spacer()
                 }
                 .font(.caption2).labelStyle(DotLabelStyle())
@@ -598,7 +623,7 @@ struct AboutSettings: View {
                 .resizable()
                 .frame(width: 96, height: 96)
             Text("Soroband").font(.system(size: 22, weight: .bold)).padding(.top, 8)
-            Text("Version \(Self.version) · core \(Core.version)")
+            Text(Self.versionLine(Bundle.main.infoDictionary ?? [:]))
                 .font(.callout).foregroundStyle(.secondary).monospacedDigit()
             Text(
                 "Counts the internet your Mac uses, per app and per network. Counters and metadata only; nothing leaves this Mac."
@@ -615,7 +640,13 @@ struct AboutSettings: View {
         .padding(24)
     }
 
-    static var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+    /// The version, the build number and the build stamp from an Info.plist, as `soroband version`
+    /// prints them: `Version 0.1.0 (412) · 16e85ce main`. The build number counts the commits up
+    /// to the stamped one; the stamp is written by the "Stamp the build" phase.
+    nonisolated static func versionLine(_ info: [String: Any]) -> String {
+        let string = { (key: String) in info[key] as? String ?? "" }
+        let stamp = [string("SorobandCommit"), string("SorobandBranch")].filter { !$0.isEmpty }
+        return "Version \(string("CFBundleShortVersionString")) (\(string("CFBundleVersion"))) · "
+            + (stamp.isEmpty ? ["unknown"] : stamp).joined(separator: " ")
     }
 }

@@ -23,6 +23,7 @@ Soroband is developed in sessions with coding agents, each picking up where the 
 
 - [`plan.md`](plan.md): the roadmap, one milestone per pull request, and the ledger of their state.
 - [`handover.md`](handover.md): the current state, the next action, every decision with its date, and what was learned the hard way.
+- [`checklist.md`](checklist.md): what an agent's change needs before its pull request opens.
 - [`review.md`](review.md) and [`../REVIEW.md`](../REVIEW.md): how pull requests are reviewed, by a fresh reviewer each round and then CodeRabbit.
 - [`review-retros.md`](review-retros.md): each pull request's reviews and why it took the rounds it did.
 - [`coderabbit-findings.md`](coderabbit-findings.md): every CodeRabbit finding, and why the reviewers before it missed the valid ones.
