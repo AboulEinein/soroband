@@ -84,6 +84,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard isUIProcess else { return .terminateNow }
+        let event = NSAppleEventManager.shared().currentAppleEvent
+        let hasQuitReason = event?.attributeDescriptor(forKeyword: AEKeyword(kAEQuitReason)) != nil
+        if UIHost.quitReply(askedByMenuBar: UIHost.quitting, hasQuitReason: hasQuitReason) == .askMenuBar {
+            UIHost.send(.quit)
+            return .terminateCancel
+        }
         return HistoryWindow.shared.shouldTerminate { sender.reply(toApplicationShouldTerminate: true) }
     }
 
