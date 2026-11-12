@@ -130,6 +130,53 @@ fn the_gauges_and_volumes_are_plausible() {
     );
 }
 
+/// A disk image attached for one test, detached when the test ends however it ends.
+struct Attached(std::path::PathBuf);
+
+impl Drop for Attached {
+    fn drop(&mut self) {
+        let _ = std::process::Command::new("hdiutil")
+            .args(["detach", "-quiet", "-force"])
+            .arg(&self.0)
+            .status();
+    }
+}
+
+/// Every volume a person sees in the Finder is listed, not only the first the kernel returns:
+/// a disk image attached for the test appears beside the startup volume.
+#[test]
+fn every_browsable_volume_is_listed() {
+    let name = format!("SorobandTest{}", own_pid());
+    let image = std::env::temp_dir().join(format!("{name}.dmg"));
+    let _ = std::fs::remove_file(&image);
+    let hdiutil = |args: &[&str]| {
+        let status = std::process::Command::new("hdiutil")
+            .args(args)
+            .status()
+            .expect("hdiutil");
+        assert!(status.success(), "hdiutil {args:?}");
+    };
+    let image_path = image.to_str().unwrap();
+    hdiutil(&[
+        "create", "-quiet", "-size", "8m", "-fs", "HFS+", "-volname", &name, image_path,
+    ]);
+    hdiutil(&["attach", "-quiet", image_path]);
+    let mount = std::path::PathBuf::from("/Volumes").join(&name);
+    let attached = Attached(mount.clone());
+    let paths: Vec<String> = SystemResources::new()
+        .volumes()
+        .into_iter()
+        .map(|v| v.path)
+        .collect();
+    drop(attached);
+    let _ = std::fs::remove_file(&image);
+    assert!(paths.iter().any(|p| p == "/"), "{paths:?}");
+    assert!(
+        paths.iter().any(|p| *p == mount.to_string_lossy()),
+        "{paths:?}"
+    );
+}
+
 /// Memory used is app memory (anonymous less purgeable), wired and compressed, as `vm_stat`
 /// counts them a moment later.
 #[test]
