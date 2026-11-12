@@ -256,7 +256,8 @@ fn a_capture_replays_and_its_paths_are_made_up() {
         || p.starts_with("/Library/Apple/")
         || p.starts_with("/private/var/db/")
         || p.starts_with("/Applications/App ")
-        || p.starts_with("/Users/user/bin/tool-")));
+        || p.starts_with("/Users/user/bin/tool-")
+        || p.starts_with("/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS.simruntime/")));
     let text = recording.to_json();
     let parsed = Recording::parse(&text).expect("parses");
     assert_eq!(parsed, recording);

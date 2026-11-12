@@ -12,6 +12,7 @@
 //! which processes share an app.
 
 use super::{Gauges, ProcessUsage, RAW_WORDS, ResourceHost, Volume};
+use crate::meter::process::SIMULATOR_RUNTIME_ROOT;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 
@@ -88,8 +89,9 @@ const KEPT: [&str; 6] = [
     "/private/var/db/",
 ];
 
-/// Inside [`KEPT`] but not macOS's own: where Homebrew and other vendors install tools.
-const NOT_KEPT: [&str; 1] = ["/usr/local/"];
+/// Inside [`KEPT`] but not macOS's own: where Homebrew and other vendors install tools, and the
+/// Data volume, which holds the user's files.
+const NOT_KEPT: [&str; 2] = ["/usr/local/", "/System/Volumes/Data/"];
 
 /// Replaces each path outside macOS's own directories: an app bundle's with
 /// `/Applications/App <n>.app/Contents/MacOS/App <n>`, any other with `/Users/user/bin/tool-<n>`,
@@ -112,10 +114,23 @@ pub fn anonymize(recording: &mut Recording) {
         }
         for process in &mut read.processes {
             let Some(path) = &process.path else { continue };
-            if KEPT.iter().any(|dir| path.starts_with(dir))
-                && !NOT_KEPT.iter().any(|dir| path.starts_with(dir))
-            {
+            let kept = |path: &str| {
+                KEPT.iter().any(|dir| path.starts_with(dir))
+                    && !NOT_KEPT.iter().any(|dir| path.starts_with(dir))
+            };
+            if kept(path) {
                 continue;
+            }
+            // A simulated OS's own files keep their path inside a made-up runtime, so a replay
+            // names them macOS & Services as the live meter does.
+            if let Some(at) = path.find(SIMULATOR_RUNTIME_ROOT) {
+                let inside = &path[at + SIMULATOR_RUNTIME_ROOT.len()..];
+                if kept(inside) {
+                    process.path = Some(format!(
+                        "/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS{SIMULATOR_RUNTIME_ROOT}{inside}"
+                    ));
+                    continue;
+                }
             }
             let bundle = path.find(".app/").map(|end| path[..end + 4].to_owned());
             let is_bundle = bundle.is_some();
@@ -447,6 +462,12 @@ mod tests {
                     process(5, "/usr/libexec/logd", vec![]),
                     process(6, "/Applications/Mail.app/Contents/MacOS/Mail", vec![]),
                     process(7, "/usr/local/bin/acme-agent", vec![]),
+                    process(8, "/System/Volumes/Data/Users/sam/bin/sync", vec![]),
+                    process(
+                        9,
+                        "/Library/Developer/CoreSimulator/Volumes/iOS_23A343/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/backboardd",
+                        vec![],
+                    ),
                 ],
             )],
         };
@@ -466,7 +487,15 @@ mod tests {
                 "/usr/libexec/logd",
                 "/Applications/App 2.app/Contents/MacOS/App 2",
                 "/Users/user/bin/tool-3",
+                "/Users/user/bin/tool-4",
+                "/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/backboardd",
             ]
+        );
+        // The simulated OS's daemon is still macOS & Services after the paths are made up.
+        let daemon = crate::meter::App::from_executable(paths[8]);
+        assert_eq!(
+            daemon,
+            crate::meter::App::from_executable("/usr/libexec/backboardd")
         );
     }
 

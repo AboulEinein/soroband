@@ -31,7 +31,7 @@ const CRYPTEX_ROOTS: [&str; 4] = [
 /// Where an iOS Simulator runtime keeps the simulated OS's own files (`<runtime>.simruntime/
 /// Contents/Resources/RuntimeRoot/usr/libexec/...`). A path under it is read as the path that
 /// follows it, as under a cryptex root, so the simulated OS's daemons are services too.
-const SIMULATOR_RUNTIME_ROOT: &str = ".simruntime/Contents/Resources/RuntimeRoot";
+pub(crate) const SIMULATOR_RUNTIME_ROOT: &str = ".simruntime/Contents/Resources/RuntimeRoot";
 
 /// The app a flow is credited to.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
