@@ -38,7 +38,7 @@ The state of the project for whoever picks it up next. Read this file, then the 
 
 ### M8 hand checklist
 
-1. **Energy against `powermetrics`.** With the installed app running, run `sudo powermetrics --samplers tasks --show-process-energy -i 60000 -n 5` and, over the same five minutes, `soroband top --by energy --for 60` once a minute. Compare each busy app's energy: if they disagree by more than 20%, energy stays stored but is not shown (`plan.md`, M8).
+1. **Energy against `powermetrics`.** `powermetrics`' per-process figure is an energy impact score, not energy, so the totals are compared. With the installed app running, run `sudo powermetrics --samplers cpu_power -i 60000 -n 5` and, over the same five minutes, `soroband top --by energy --for 60 --json` once a minute. For each minute, add every app's `energy_nj`, divide by the `seconds` and by 10⁹ for watts, and compare with that minute's `CPU Power`: if they disagree by more than 20%, energy stays stored but is not shown (`plan.md`, M8).
 
 ### M7 hand checklist
 
