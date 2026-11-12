@@ -171,17 +171,18 @@ fn a_coalition_of_one_app_is_credited_its_own_counters() {
 
 /// A terminal (pid 10) running a tool (pid 20) in coalition 1, read four times, each 10 apart.
 fn terminal() -> Vec<Reading> {
+    // The tool had used 5 before the first read: only its growth from there counts.
     run(
         vec![
             read(
                 0,
                 vec![coalition(1, 0, 0, 0)],
-                vec![process(10, 1, LEADER, 0, 0), process(20, 1, TOOL, 0, 0)],
+                vec![process(10, 1, LEADER, 0, 0), process(20, 1, TOOL, 5, 0)],
             ),
             read(
                 10,
                 vec![coalition(1, 30, 0, 9_000)],
-                vec![process(10, 1, LEADER, 10, 0), process(20, 1, TOOL, 20, 0)],
+                vec![process(10, 1, LEADER, 10, 0), process(20, 1, TOOL, 25, 0)],
             ),
             // The tool exits; the coalition grew 50: the terminal's own and the tool's last
             // moments.
