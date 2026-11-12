@@ -1011,7 +1011,7 @@ Planned rounds: 1. Ran: 1 CodeRabbit CLI run, 1 blind round, 1 direct review.
 
 ## [#72](https://github.com/AboulEinein/soroband/pull/72) feat: M8 resource meter engine and storage (2026-11-12)
 
-Planned rounds: 3. The CodeRabbit CLI could not run before the draft: its API key has expired (`Invalid or expired API key`); the hosted review runs after the blind loop.
+Planned rounds: 3. Ran: 8 blind rounds, 3 direct reviews, 2 CodeRabbit CLI runs, 2 CodeRabbit reviews. The CLI could not run before the draft (its key had expired) and, after round 4, failed to sign in again; it ran twice after round 3.
 
 | Review | Model | Findings | Origins | Caught earlier by |
 | --- | --- | --- | --- | --- |
@@ -1025,3 +1025,13 @@ Planned rounds: 3. The CodeRabbit CLI could not run before the draft: its API ke
 | 6 | Opus | 1 Low, 1 Minor | `missed earlier`: `--json` printed 0 energy where the kernel counts none, against the plan's "unavailable, not zero" (90e27f4). `fix regression`: d98c4e2's path was not in the Reach list (PR body). | 1 Reach list |
 | 7 | Opus | 1 Low | `fix regression`: 90e27f4's `null` energy was tested only through `top_json` (0d0d5be, tests only). | 1 sibling search (`apps --by` beside `top`) |
 | direct | Opus | none | Reviewed 0d0d5be (tests only): handles round 7's finding; [comment](https://github.com/AboulEinein/soroband/pull/72#issuecomment-6820755776). The blind loop ends. | none |
+| CodeRabbit | CodeRabbit | 3 Major, 6 Minor | `first look`: `/System/Volumes/Data/` paths kept in recordings (7f55c8b); `dd`'s CPU to the leader untested (3cfbcd4); two Layout guard entries (259adff); an earlier run's allocator could pass (f157443). `fix regression`: the made-up path of a simulated OS's daemon (7f55c8b) and the EXIT trap under `set -e` (f157443), both from fixes after round 3. 2 not valid. | 1 sibling search (the glossary term) |
+| 8 | Opus | 2 Low, 1 Minor | `missed earlier`: the agents' doc and the README listed none of the new commands (6c90d48); `anonymize` was not in the Reach list (PR body). `fix regression`: 3cfbcd4's Siblings line missed the shared test helpers (handover follow-up). | 1 Reach list |
+| direct | Opus | 1 Low | Reviewed 6c90d48: `apps --by`'s footprint called an hour's average (aaee3a6); [comment](https://github.com/AboulEinein/soroband/pull/72#issuecomment-6822625769). | none |
+| direct | Opus | none | Reviewed aaee3a6: nothing to act on; [comment](https://github.com/AboulEinein/soroband/pull/72#issuecomment-6822705394). | none |
+| CodeRabbit | CodeRabbit | none | Reviewed fd5b1eb to aaee3a6 (the fixes for its first review, round 8 and the direct reviews): nothing new; it withdrew the open-range finding and confirmed the rest. | none |
+
+**Retro.** Planned 3; took 8.
+- **Cause:** fixes after round 3 kept opening edges in the same place: the failed coalition list took a CLI run and rounds 4 and 5 (credit nothing, then fall back for good, then never fall back, then reset the baseline), and the CLI, which could not run before the draft, raised 23 findings only after round 3.
+- **Would have prevented it:** the CLI run before the draft, and, for a new failure path, tracing every piece of state it leaves (the source, the baseline, the ledger's last apps, the guard's schedule) before the first fix rather than one per round.
+- **Rule:** none; checklist step 3's sibling search covers the state a path leaves, and the CLI's key is the user's to renew (handover).
