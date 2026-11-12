@@ -103,7 +103,7 @@ The check, at the first resource read and hourly, that the coalition fields the 
 The resource meter reading the user's own processes one by one, when the coalition calls are missing or fail the layout guard. It leaves out other users' and root processes; rows it stored are marked.
 
 **Minute record**:
-The system gauges and the five busiest apps by CPU, footprint and disk bytes written, per minute, kept for `resource_minutes_days` days.
+The system gauges (each local volume's free space included) and the five busiest apps by CPU, footprint and disk bytes written, per minute, kept for `resource_minutes_days` days.
 
 ## Networks
 

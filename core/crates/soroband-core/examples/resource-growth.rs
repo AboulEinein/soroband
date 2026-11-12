@@ -71,7 +71,11 @@ fn main() {
             memory_compressed: Some(11_000_000_000),
             swap_used: Some(1_000_000_000),
             pressure: Some(1),
-            disk_free: Some(120_000_000_000),
+            volumes: vec![soroband_core::resources::Volume {
+                path: "/".into(),
+                free: 120_000_000_000,
+                size: 1_000_000_000_000,
+            }],
             top: vec![
                 (Measure::Cpu, top(0)),
                 (Measure::Memory, top(7)),

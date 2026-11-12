@@ -10,7 +10,7 @@
 //! pressure in it) and the five busiest apps by CPU, by footprint and by disk bytes written in the
 //! reads that fell in it. A minute is written once it is over, unless everything is taken.
 
-use super::{AppResources, Counters, Gauges, Reading};
+use super::{AppResources, Counters, Gauges, Reading, Volume};
 use crate::day::hour_start;
 use crate::meter::App;
 use std::collections::BTreeMap;
@@ -83,8 +83,9 @@ pub struct ResourceMinute {
     pub swap_used: Option<u64>,
     /// The highest pressure level read in the minute.
     pub pressure: Option<u8>,
-    /// Free bytes on the startup volume, when it was read in the minute.
-    pub disk_free: Option<u64>,
+    /// Each local volume's free and total bytes, as last read in the minute; empty when none was
+    /// read in it.
+    pub volumes: Vec<Volume>,
     /// Up to [`TOP`] apps per measure, largest first, leaving out apps at zero.
     pub top: Vec<(Measure, Vec<(App, u64)>)>,
     pub fallback: bool,
@@ -96,7 +97,7 @@ struct Minute {
     before: Option<Gauges>,
     last: Gauges,
     pressure: Option<u8>,
-    disk_free: Option<u64>,
+    volumes: Vec<Volume>,
     apps: BTreeMap<App, [u64; 3]>,
     fallback: bool,
 }
@@ -139,9 +140,9 @@ impl ResourceLedger {
         self.last_gauges = Some(gauges);
     }
 
-    /// Notes the startup volume's free bytes, read at Unix time `now`.
-    pub fn disk_free(&mut self, free: u64, now: i64) {
-        self.minutes.entry(minute_start(now)).or_default().disk_free = Some(free);
+    /// Notes the local volumes, read at Unix time `now`.
+    pub fn volumes(&mut self, volumes: Vec<Volume>, now: i64) {
+        self.minutes.entry(minute_start(now)).or_default().volumes = volumes;
     }
 
     /// Adds a read made at Unix time `now`.
@@ -248,7 +249,7 @@ fn finish(start: i64, m: &Minute) -> ResourceMinute {
         memory_compressed: m.last.memory_compressed,
         swap_used: m.last.swap_used,
         pressure: m.pressure,
-        disk_free: m.disk_free,
+        volumes: m.volumes.clone(),
         top,
         fallback: m.fallback,
     }
@@ -395,10 +396,15 @@ mod tests {
     }
 
     #[test]
-    fn a_minute_keeps_the_startup_volume_and_marks_the_fallback() {
+    fn a_minute_keeps_the_volumes_and_marks_the_fallback() {
         let mut ledger = ResourceLedger::default();
         assert!(ledger.is_empty());
-        ledger.disk_free(123, 70);
+        let volume = Volume {
+            path: "/".into(),
+            free: 123,
+            size: 456,
+        };
+        ledger.volumes(vec![volume.clone()], 70);
         let mut fallback = reading(60.0, &[("Mail", 0, 100)]);
         fallback.source = Source::Processes {
             reason: "test".into(),
@@ -408,7 +414,8 @@ mod tests {
         assert!(!ledger.is_empty());
         let (hours, minutes) = ledger.take(4000, false);
         assert!(ledger.is_empty());
-        assert_eq!(minutes[0].disk_free, Some(123));
+        assert_eq!(minutes[0].volumes, [volume]);
+        assert_eq!(minutes[1].volumes, []);
         assert!(minutes[0].fallback && !minutes[1].fallback);
         assert!(hours.iter().find(|h| h.hour == 0).unwrap().fallback);
         assert!(!hours.iter().find(|h| h.hour == 3600).unwrap().fallback);

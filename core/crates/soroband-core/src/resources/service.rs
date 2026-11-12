@@ -1,5 +1,5 @@
 //! The resource meter in the engine's loop: the gauges at every poll, a resource read when one is
-//! due ([`super::read_due`]), the startup volume's free space once a minute, and a write to the
+//! due ([`super::read_due`]), each local volume's free space once a minute, and a write to the
 //! store once a minute and when the engine stops.
 
 use super::ledger::ResourceLedger;
@@ -10,9 +10,6 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 /// Seconds between reads of the volumes' free space.
 const VOLUME_INTERVAL: i64 = 60;
-
-/// The startup volume, whose free space the minute record keeps.
-const STARTUP_VOLUME: &str = "/";
 
 #[derive(Debug)]
 pub struct ResourceService<R: ResourceHost> {
@@ -89,9 +86,7 @@ impl<R: ResourceHost> ResourceService<R> {
         {
             self.last_volumes = Some(now);
             let volumes = self.meter.host_mut().volumes();
-            if let Some(startup) = volumes.iter().find(|v| v.path == STARTUP_VOLUME) {
-                self.ledger.disk_free(startup.free, now);
-            }
+            self.ledger.volumes(volumes, now);
         }
         if read_due(now, self.last_read, busy, &gauges) {
             self.last_read = Some(now);
@@ -166,7 +161,11 @@ mod tests {
         let store = store.lock().unwrap();
         let mut statement = store
             .connection()
-            .prepare("SELECT minute, disk_free FROM resource_minutes ORDER BY minute")
+            .prepare(
+                "SELECT minute, free FROM resource_minutes
+                 LEFT JOIN resource_minute_volumes USING (minute)
+                 WHERE volume IS NULL OR volume = '/' ORDER BY minute",
+            )
             .unwrap();
         statement
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))

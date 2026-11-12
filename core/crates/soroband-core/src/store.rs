@@ -15,9 +15,10 @@
 //!   CPU time in nanoseconds, disk bytes read and written, energy in nanojoules, the footprint's
 //!   time-weighted sum (byte-seconds) over `seconds`, its peak, and whether a read came from the
 //!   fallback. `resource_usage_day` holds the same per UTC day, written with it.
-//! - `resource_minutes` and `resource_minute_apps`: per minute, the system gauges and the five
-//!   busiest apps by CPU (0), footprint (1) and disk bytes written (2), kept for the days of the
-//!   `resource_minutes_days` setting.
+//! - `resource_minutes`, `resource_minute_apps` and `resource_minute_volumes`: per minute, the
+//!   system gauges, the five busiest apps by CPU (0), footprint (1) and disk bytes written (2), and
+//!   each local volume's free and total bytes, kept for the days of the `resource_minutes_days`
+//!   setting.
 //!
 //! Hours are Unix times of the start of a UTC hour ([`crate::day::hour_start`]). Network id 0
 //! means no network was identified (before the app named one, or while it waits for a network's
@@ -132,7 +133,6 @@ const RESOURCES: &str = "
         memory_compressed INTEGER,
         swap_used INTEGER,
         pressure INTEGER,
-        disk_free INTEGER,
         fallback INTEGER NOT NULL
     );
     CREATE TABLE resource_minute_apps (
@@ -142,6 +142,13 @@ const RESOURCES: &str = "
         app INTEGER NOT NULL,
         value INTEGER NOT NULL,
         PRIMARY KEY (minute, measure, rank)
+    ) WITHOUT ROWID;
+    CREATE TABLE resource_minute_volumes (
+        minute INTEGER NOT NULL,
+        volume TEXT NOT NULL,
+        free INTEGER NOT NULL,
+        size INTEGER NOT NULL,
+        PRIMARY KEY (minute, volume)
     ) WITHOUT ROWID;
 ";
 
@@ -660,43 +667,16 @@ impl Store {
                     ])?;
                 }
             }
-            let mut minute_row = tx.prepare(
-                "INSERT OR REPLACE INTO resource_minutes (minute, cpu_busy, memory_used,
-                     memory_compressed, swap_used, pressure, disk_free, fallback)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            )?;
-            let mut top_row = tx.prepare(
-                "INSERT OR REPLACE INTO resource_minute_apps (minute, measure, rank, app, value)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-            )?;
-            for m in minutes {
-                minute_row.execute(params![
-                    m.minute,
-                    m.cpu_busy,
-                    m.memory_used.map(sql_bytes),
-                    m.memory_compressed.map(sql_bytes),
-                    m.swap_used.map(sql_bytes),
-                    m.pressure,
-                    m.disk_free.map(sql_bytes),
-                    m.fallback,
-                ])?;
-                for (measure, apps) in &m.top {
-                    for (rank, (app, value)) in apps.iter().enumerate() {
-                        top_row.execute(params![
-                            m.minute,
-                            measure.code(),
-                            i64::try_from(rank).unwrap_or(i64::MAX),
-                            app_id(app, &mut new_ids)?,
-                            sql_bytes(*value),
-                        ])?;
-                    }
-                }
-            }
+            write_minutes(&tx, minutes, &mut |app| app_id(app, &mut new_ids))?;
         }
         let since = keep_since - keep_since.rem_euclid(MINUTE);
         tx.execute("DELETE FROM resource_minutes WHERE minute < ?1", [since])?;
         tx.execute(
             "DELETE FROM resource_minute_apps WHERE minute < ?1",
+            [since],
+        )?;
+        tx.execute(
+            "DELETE FROM resource_minute_volumes WHERE minute < ?1",
             [since],
         )?;
         tx.commit()?;
@@ -713,7 +693,11 @@ impl Store {
     ) -> Result<Vec<ResourceTotal>> {
         let key = match order {
             ResourceOrder::Cpu => "SUM(r.cpu)",
-            ResourceOrder::Memory => "SUM(r.footprint_seconds) / MAX(SUM(r.seconds), 1)",
+            // As `footprint` below: the average, or the peak where no interval was weighed.
+            ResourceOrder::Memory => {
+                "CASE WHEN SUM(r.seconds) > 0 THEN SUM(r.footprint_seconds) / SUM(r.seconds)
+                 ELSE MAX(r.footprint_peak) END"
+            }
             ResourceOrder::Disk => "SUM(r.disk_read) + SUM(r.disk_written)",
             ResourceOrder::Energy => "SUM(r.energy)",
         };
@@ -774,6 +758,67 @@ impl Store {
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
             .collect()
     }
+}
+
+/// Writes `minutes` to the minute record, each one replacing whatever an earlier write of the
+/// same minute left (the app stopped and started within it).
+fn write_minutes(
+    tx: &Connection,
+    minutes: &[ResourceMinute],
+    app_id: &mut dyn FnMut(&App) -> Result<i64>,
+) -> Result<()> {
+    let mut minute_row = tx.prepare(
+        "INSERT OR REPLACE INTO resource_minutes (minute, cpu_busy, memory_used,
+             memory_compressed, swap_used, pressure, fallback)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+    )?;
+    let mut top_row = tx.prepare(
+        "INSERT INTO resource_minute_apps (minute, measure, rank, app, value)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+    )?;
+    let mut volume_row = tx.prepare(
+        "INSERT INTO resource_minute_volumes (minute, volume, free, size)
+         VALUES (?1, ?2, ?3, ?4)",
+    )?;
+    for m in minutes {
+        minute_row.execute(params![
+            m.minute,
+            m.cpu_busy,
+            m.memory_used.map(sql_bytes),
+            m.memory_compressed.map(sql_bytes),
+            m.swap_used.map(sql_bytes),
+            m.pressure,
+            m.fallback,
+        ])?;
+        tx.execute(
+            "DELETE FROM resource_minute_apps WHERE minute = ?1",
+            [m.minute],
+        )?;
+        tx.execute(
+            "DELETE FROM resource_minute_volumes WHERE minute = ?1",
+            [m.minute],
+        )?;
+        for v in &m.volumes {
+            volume_row.execute(params![
+                m.minute,
+                v.path,
+                sql_bytes(v.free),
+                sql_bytes(v.size)
+            ])?;
+        }
+        for (measure, apps) in &m.top {
+            for (rank, (app, value)) in apps.iter().enumerate() {
+                top_row.execute(params![
+                    m.minute,
+                    measure.code(),
+                    i64::try_from(rank).unwrap_or(i64::MAX),
+                    app_id(app)?,
+                    sql_bytes(*value),
+                ])?;
+            }
+        }
+    }
+    Ok(())
 }
 
 fn newer_schema(version: i64) -> Error {
@@ -1265,6 +1310,25 @@ pub(crate) mod tests {
         assert_eq!(mail.footprint, 300);
         assert_eq!(mail.peak, 500);
         assert!(mail.fallback, "one of its hours came from the fallback");
+        // An app read only once, with no interval weighed, orders and reads by its peak.
+        store
+            .add_resources(
+                &[ResourceHour {
+                    footprint_seconds: 0,
+                    seconds: 0,
+                    ..resource_hour(DAY + 7200, "Preview", 1, 2_000, false)
+                }],
+                &[],
+                0,
+            )
+            .unwrap();
+        let by_memory = store
+            .resource_totals(DAY, 2 * DAY, ResourceOrder::Memory)
+            .unwrap();
+        assert_eq!(
+            (by_memory[0].app.name.as_str(), by_memory[0].footprint),
+            ("Preview", 2_000)
+        );
         // The hour range leaves out what is outside it.
         let first_hour = store
             .resource_totals(DAY + 3600, DAY + 7200, ResourceOrder::Memory)
@@ -1294,7 +1358,11 @@ pub(crate) mod tests {
             memory_compressed: Some(1 << 30),
             swap_used: Some(0),
             pressure: Some(1),
-            disk_free: Some(100 << 30),
+            volumes: vec![crate::resources::Volume {
+                path: "/".into(),
+                free: 100 << 30,
+                size: 1 << 40,
+            }],
             top: vec![(Measure::Cpu, vec![(app("Mail"), 9), (app("Xcode"), 4)])],
             fallback: false,
         };
@@ -1311,13 +1379,30 @@ pub(crate) mod tests {
             .collect::<rusqlite::Result<_>>()
             .unwrap();
         assert_eq!(kept, [60, 120, 180], "kept from the minute 90 falls in");
-        let apps: i64 = store
+        let count = |table: &str| -> i64 {
+            store
+                .conn
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get(0))
+                .unwrap()
+        };
+        assert_eq!(count("resource_minute_apps"), 6);
+        assert_eq!(count("resource_minute_volumes"), 3);
+        // Written again with fewer apps, a minute keeps none of the first write's beside them.
+        let mut again = minute(180);
+        again.top = vec![(Measure::Cpu, vec![(app("Xcode"), 1)])];
+        store.add_resources(&[], &[again], 90).unwrap();
+        let ranks: Vec<(i64, String)> = store
             .conn
-            .query_row("SELECT COUNT(*) FROM resource_minute_apps", [], |r| {
-                r.get(0)
-            })
+            .prepare(
+                "SELECT rank, apps.name FROM resource_minute_apps JOIN apps ON apps.id = app
+                 WHERE minute = 180",
+            )
+            .unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
             .unwrap();
-        assert_eq!(apps, 6);
+        assert_eq!(ranks, [(0, "Xcode".to_owned())]);
     }
 
     #[test]
