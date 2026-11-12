@@ -379,23 +379,36 @@ impl ResourceHost for SystemResources {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resources::{ResourceMeter, Source};
+    use crate::resources::{CHECK_INTERVAL, ResourceMeter, Source};
 
     /// A coalition list call that fails, as `libproc`'s wrapper does: it returns 0.
     unsafe extern "C" fn list_fails(_: c_int, _: c_int, _: *mut c_void, _: c_int) -> c_int {
         0
     }
 
-    /// A failed list call is an empty list: the meter credits nothing at that read and keeps
-    /// the coalitions as its source, rather than falling back for the rest of the session.
+    /// A failed list call is an empty list. At a check it leaves the layout unverified, so the
+    /// fallback reads; the next check that lists the coalitions again returns to them.
     #[test]
-    fn a_failed_coalition_list_is_an_empty_one() {
+    fn a_failed_coalition_list_falls_back_until_a_check_lists_them_again() {
         let mut host = SystemResources::new();
+        let list = host.list_coalitions;
         host.list_coalitions = Some(list_fails);
         assert_eq!(host.coalition_ids(), Some(Vec::new()));
         let mut meter = ResourceMeter::new(host);
-        let reading = meter.read(0);
-        assert_eq!(reading.apps, vec![]);
+        meter.read(0);
+        assert_eq!(
+            meter.source(),
+            &Source::Processes {
+                reason: "the coalition list call failed".into()
+            }
+        );
+        meter.host_mut().list_coalitions = list;
+        meter.read(60);
+        assert!(
+            matches!(meter.source(), Source::Processes { .. }),
+            "no check due yet"
+        );
+        meter.read(CHECK_INTERVAL);
         assert_eq!(meter.source(), &Source::Coalitions);
     }
 }

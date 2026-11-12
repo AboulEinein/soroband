@@ -493,14 +493,28 @@ impl<R: ResourceHost> ResourceMeter<R> {
             self.last = None;
             return;
         };
-        if ids.is_empty() {
-            // A failed list: no verdict, so check again at the next read.
-            self.next_check = Some(i64::MIN);
-            return;
+        // A failed list leaves the layout unverified, which counts as failed: the fallback reads
+        // until a later check lists the coalitions again.
+        let verdict = if ids.is_empty() {
+            Err("the coalition list call failed".to_owned())
+        } else {
+            self.verify(&ids)
+        };
+        let source = match verdict {
+            Ok(()) => Source::Coalitions,
+            Err(reason) => Source::Processes { reason },
+        };
+        if source != self.source {
+            self.source = source;
+            self.last = None;
         }
+    }
+
+    /// The guard's verdict on the coalitions `ids`, against their members' own reads.
+    fn verify(&mut self, ids: &[u64]) -> Result<(), String> {
         let members = self.members();
         let mut samples = Vec::new();
-        for id in ids {
+        for &id in ids {
             let Some(pids) = members.get(&id) else {
                 continue;
             };
@@ -511,16 +525,8 @@ impl<R: ResourceHost> ResourceMeter<R> {
             let after: Vec<_> = pids.iter().map(|&p| self.host.process_usage(p)).collect();
             samples.push(guard::Sample { raw, before, after });
         }
-        let source = match guard::check(&self.layout, &samples) {
-            Ok(()) => Source::Coalitions,
-            Err(reason) => Source::Processes {
-                reason: format!("the coalition layout failed its check ({reason})"),
-            },
-        };
-        if source != self.source {
-            self.source = source;
-            self.last = None;
-        }
+        guard::check(&self.layout, &samples)
+            .map_err(|reason| format!("the coalition layout failed its check ({reason})"))
     }
 
     /// Each coalition's processes, lowest pid first. Forgets the processes that are gone.

@@ -147,6 +147,11 @@ impl ResourceLedger {
 
     /// Adds a read made at Unix time `now`.
     pub fn book(&mut self, reading: &Reading, now: i64) {
+        // A read that listed nothing (a failed coalition list): the next read credits its interval,
+        // so the apps seen before stay the ones the next footprints are weighed against.
+        if reading.apps.is_empty() {
+            return;
+        }
         let hour = hour_start(now);
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // a read's interval
         let interval = reading.seconds.round().max(0.0) as u64;
@@ -328,6 +333,18 @@ mod tests {
         assert_eq!(hours[0].footprint_seconds, 500 * 60);
         assert_eq!(hours[0].seconds, 60);
         assert_eq!(hours[0].peak, 900);
+    }
+
+    #[test]
+    fn a_read_that_listed_nothing_leaves_the_next_footprint_its_whole_interval() {
+        let mut ledger = ResourceLedger::default();
+        ledger.book(&reading(60.0, &[("Mail", 0, 400)]), 60);
+        // The coalition list failed: nothing credited, and the next read covers both minutes.
+        ledger.book(&reading(0.0, &[]), 120);
+        ledger.book(&reading(120.0, &[("Mail", 3, 500)]), 180);
+        let (hours, _) = ledger.take(4000, true);
+        assert_eq!(hours[0].footprint_seconds, 500 * 120);
+        assert_eq!(hours[0].seconds, 120);
     }
 
     #[test]
