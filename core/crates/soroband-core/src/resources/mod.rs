@@ -361,6 +361,9 @@ pub struct ResourceMeter<R: ResourceHost> {
     /// app of its second read. A pid gone at one read is forgotten, so a pid reused between two
     /// reads keeps the earlier process's (pids are reused only after about 100,000 more).
     known: HashMap<u32, Known>,
+    /// Reads started, so a process's app is looked up again at a later read, not later in the
+    /// same one (a read that runs the guard lists the processes twice).
+    reads: u64,
 }
 
 /// What a running process was found to be, at the first read it was in.
@@ -368,6 +371,8 @@ pub struct ResourceMeter<R: ResourceHost> {
 struct Known {
     coalition: Option<u64>,
     app: Option<App>,
+    /// The read the process was first found in.
+    first_read: u64,
     /// Whether the app was looked up again at a later read.
     settled: bool,
 }
@@ -388,6 +393,7 @@ impl<R: ResourceHost> ResourceMeter<R> {
             next_check: Some(i64::MIN),
             last: None,
             known: HashMap::new(),
+            reads: 0,
         }
     }
 
@@ -414,6 +420,7 @@ impl<R: ResourceHost> ResourceMeter<R> {
     /// a check is due.
     pub fn read(&mut self, now: i64) -> Reading {
         self.host.begin();
+        self.reads += 1;
         if self.next_check.is_some_and(|at| now >= at) {
             self.next_check = Some(now + CHECK_INTERVAL);
             self.check();
@@ -514,9 +521,10 @@ impl<R: ResourceHost> ResourceMeter<R> {
     }
 
     /// What `pid` is: looked up at the first read it is in, its app again at the second. Called
-    /// once per process per read, before anything asks for its app.
+    /// before anything in a read asks for its app; a second call in the same read changes nothing.
     fn refresh(&mut self, pid: u32) -> &Known {
         let host = &mut self.host;
+        let read = self.reads;
         let app_of = |host: &mut R| {
             host.executable_path(pid)
                 .map(|path| App::from_executable(&path))
@@ -524,7 +532,7 @@ impl<R: ResourceHost> ResourceMeter<R> {
         match self.known.entry(pid) {
             std::collections::hash_map::Entry::Occupied(entry) => {
                 let known = entry.into_mut();
-                if !known.settled {
+                if !known.settled && known.first_read != read {
                     known.settled = true;
                     known.app = app_of(host);
                 }
@@ -533,6 +541,7 @@ impl<R: ResourceHost> ResourceMeter<R> {
             std::collections::hash_map::Entry::Vacant(entry) => entry.insert(Known {
                 coalition: host.coalition_of(pid),
                 app: app_of(host),
+                first_read: read,
                 settled: false,
             }),
         }

@@ -483,3 +483,33 @@ fn a_process_that_became_its_program_after_the_first_read_is_credited_to_it() {
     assert_eq!(cpu(&readings[2], TOOL), 4);
     assert_eq!(cpu(&readings[2], OTHER), 0);
 }
+
+/// A read that runs the guard lists the processes twice (the guard, then the read); a launcher's
+/// app is still looked up again at the next read, not settled within the first.
+#[test]
+fn a_read_that_runs_the_guard_still_looks_an_app_up_again_at_the_next_read() {
+    const LAUNCHER: &str = "/usr/libexec/xpcproxy";
+    let reads = vec![
+        read(
+            0,
+            vec![coalition(1, 0, 0, 0)],
+            vec![process(10, 1, LEADER, 0, 0), process(20, 1, LAUNCHER, 0, 0)],
+        ),
+        read(
+            10,
+            vec![coalition(1, 9, 0, 0)],
+            vec![process(10, 1, LEADER, 0, 0), process(20, 1, TOOL, 9, 0)],
+        ),
+    ];
+    // Not trusted: the guard runs at the first read (and fails on reads built by hand, so the
+    // fallback reads the processes).
+    let mut meter = ResourceMeter::new(Replay::new(Recording {
+        timebase: (1, 1),
+        reads,
+    }));
+    meter.read(0);
+    let second = meter.read(60);
+    assert!(matches!(meter.source(), Source::Processes { .. }));
+    assert_eq!(cpu(&second, TOOL), 9);
+    assert_eq!(cpu(&second, LAUNCHER), 0);
+}
