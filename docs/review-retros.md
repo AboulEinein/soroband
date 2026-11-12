@@ -993,3 +993,10 @@ Planned rounds: 1. The CodeRabbit CLI failed three times before the draft with `
 - **Cause:** the fix left the handover's open item for the failures it fixed, and its Reach list counted only the snapshot suite's `.serialized` ordering, not the other suites sharing the test process with the swap. The `Siblings checked` line in 7b3e255 called the getter the only `assumeIsolated` in the app, where 17 others run in main-queue callbacks; the thread reply corrects it.
 - **Would have prevented it:** a sibling search for the failing tests' names in the docs, and a Reach list naming every thread in the test process that can read a swizzled method.
 - **Rule:** none; checklist.md's sibling search and Reach list already ask for both.
+
+## [#72](https://github.com/AboulEinein/soroband/pull/72) feat: M8 resource meter engine and storage (2026-11-12)
+
+Planned rounds: 3. The CodeRabbit CLI could not run before the draft: its API key has expired (`Invalid or expired API key`); the hosted review runs after the blind loop.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
