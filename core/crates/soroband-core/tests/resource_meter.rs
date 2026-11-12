@@ -228,6 +228,34 @@ fn a_member_that_exited_gets_what_is_left_up_to_its_earlier_rate() {
 }
 
 #[test]
+fn a_member_that_exited_keeps_its_tail_when_every_process_read_before_is_gone() {
+    // A job's coalition: its process and a tool both exit, and the job starts again under a new
+    // pid. The tool's last moments are still its own, not the new process's.
+    let readings = run(
+        vec![
+            read(
+                0,
+                vec![coalition(1, 0, 0, 0)],
+                vec![process(10, 1, LEADER, 0, 0), process(20, 1, TOOL, 0, 0)],
+            ),
+            read(
+                10,
+                vec![coalition(1, 30, 0, 0)],
+                vec![process(10, 1, LEADER, 10, 0), process(20, 1, TOOL, 20, 0)],
+            ),
+            read(
+                20,
+                vec![coalition(1, 80, 2, 0)],
+                vec![process(30, 1, LEADER, 5, 15)],
+            ),
+        ],
+        (1, 1),
+    );
+    assert_eq!(cpu(&readings[2], TOOL), 20);
+    assert_eq!(cpu(&readings[2], LEADER), 30);
+}
+
+#[test]
 fn a_member_that_exited_gets_no_more_than_is_left() {
     let readings = run(
         vec![
