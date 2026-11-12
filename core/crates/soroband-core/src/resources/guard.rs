@@ -43,9 +43,26 @@ fn tolerance(field: Field) -> (f64, f64) {
 /// and `high` after it.
 fn accepts(field: Field, value: u64, low: u64, high: u64) -> bool {
     #[allow(clippy::cast_precision_loss)] // within a per-mille of any real value
-    let (value, low, high) = (value as f64, low as f64, high as f64);
+    let value = value as f64;
+    let (from, to) = accepted(field, low, high);
+    value >= from && value <= to
+}
+
+/// The values `field` may take for members that summed to `low` before the read and `high`
+/// after it.
+fn accepted(field: Field, low: u64, high: u64) -> (f64, f64) {
+    #[allow(clippy::cast_precision_loss)] // within a per-mille of any real value
+    let (low, high) = (low as f64, high as f64);
     let (below, above) = tolerance(field);
-    value >= low * below && value <= high * above
+    (low * below, high * above)
+}
+
+/// Whether some value would pass as both `field` and `other`, so a layout that swaps the two
+/// could pass on this coalition.
+fn overlap(field: Field, (low, high): (u64, u64), other: Field, bounds: (u64, u64)) -> bool {
+    let (from, to) = accepted(field, low, high);
+    let (other_from, other_to) = accepted(other, bounds.0, bounds.1);
+    other_from <= to && from <= other_to
 }
 
 /// Checks `layout` against `samples`. Returns why it fails, naming the first field that does.
@@ -64,15 +81,13 @@ pub fn check(layout: &Layout, samples: &[Sample]) -> Result<(), String> {
             let Some((low, high)) = bounds(sample, field) else {
                 continue;
             };
-            // Judged only where no other field's processes sum to a value this one would
-            // accept, so a layout that swaps the two cannot pass here.
+            // Judged only where no value would pass as both this field and another, so a layout
+            // that swaps the two cannot pass here.
             let ambiguous = Field::ALL
                 .iter()
                 .filter(|&&other| other != field)
-                .filter_map(|&other| bounds(sample, other))
-                .any(|(other_low, other_high)| {
-                    accepts(field, other_low, low, high) || accepts(field, other_high, low, high)
-                });
+                .filter_map(|&other| bounds(sample, other).map(|b| (other, b)))
+                .any(|(other, b)| overlap(field, (low, high), other, b));
             if ambiguous {
                 continue;
             }
@@ -154,6 +169,38 @@ mod tests {
         assert_eq!(
             check(&swapped, &samples),
             Err("disk read: 0 of 19 coalitions agree with their processes".into())
+        );
+    }
+
+    #[test]
+    fn a_field_whose_value_falls_inside_another_fields_range_is_not_judged_there() {
+        // In half the coalitions written grew from below read's value to above it during the
+        // read, and its word equals read's; in the other half read did the same around
+        // written's. Comparing only the other field's two ends judges read on the first half and
+        // written on the second, and a swap of the two passes on both.
+        let samples: Vec<Sample> = (1..21)
+            .map(|n| {
+                let mut s = sample(n * 1_000, n * 999_983);
+                let (field, value) = if n % 2 == 0 {
+                    (Field::Written, n * 3_000)
+                } else {
+                    (Field::Read, n * 5_000)
+                };
+                let set = |u: &mut ProcessUsage, v| match field {
+                    Field::Written => u.written = v,
+                    _ => u.read = v,
+                };
+                set(s.before[0].as_mut().unwrap(), n * 2_000);
+                set(s.after[0].as_mut().unwrap(), n * 9_000);
+                s.raw[LAYOUT.index(field)] = value;
+                s
+            })
+            .collect();
+        let mut swapped = LAYOUT;
+        std::mem::swap(&mut swapped.read, &mut swapped.written);
+        assert_eq!(
+            check(&swapped, &samples),
+            Err("disk read: no coalition to compare it on".into())
         );
     }
 

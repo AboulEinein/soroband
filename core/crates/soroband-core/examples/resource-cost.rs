@@ -11,7 +11,11 @@ fn main() {
     let mut meter = ResourceMeter::new(SystemResources::new());
     let t = Instant::now();
     meter.read(0);
-    println!("first read, with the guard: {:?}", t.elapsed());
+    println!(
+        "first read, with the guard: {:?} ({:?})",
+        t.elapsed(),
+        meter.source()
+    );
     for i in 1..=5 {
         std::thread::sleep(Duration::from_millis(500));
         let t = Instant::now();
