@@ -207,6 +207,18 @@ mod tests {
         let mut check = SelfCheck::default();
         check.observe(rx(10_200_000), rx(10 * MB), T);
         assert_eq!(check.verdict(), Verdict::Ok);
+        // Exactly 10 MB of apps with nothing on the wire is judged.
+        let mut check = SelfCheck::default();
+        check.observe(rx(10 * MB), Bytes::default(), T);
+        assert_eq!(check.verdict(), Verdict::Overcount);
+    }
+
+    #[test]
+    fn a_double_count_flags_however_little_crossed_the_interfaces() {
+        // The floor is on the apps: 12 MB credited of 1 MB on the wire is an overcount.
+        let mut check = SelfCheck::default();
+        check.observe(rx(12 * MB), rx(MB), T);
+        assert_eq!(check.verdict(), Verdict::Overcount);
     }
 
     #[test]
