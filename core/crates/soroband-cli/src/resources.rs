@@ -341,7 +341,11 @@ fn apps_by_text(
     let start = from.map_or(today.start, |d| local_midnight(d, day::local_offset));
     let end = to.map_or(i64::MAX, |d| local_midnight(d + 1, day::local_offset));
     if end <= start {
-        return Err("--to is before --from".into());
+        return Err(if from.is_some() {
+            "--to is before --from".into()
+        } else {
+            "--to is before today; give --from too".into()
+        });
     }
     let totals = today
         .store

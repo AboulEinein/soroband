@@ -605,7 +605,8 @@ impl Settings {
 mod tests {
     use super::{
         ACCENT, APP_ICON, APPEARANCE, Error, ISLAND, ISLAND_IGNORED_APPS, ISLAND_MOMENTS,
-        MENU_BAR_ICON, MENU_BAR_READINGS, MENU_BAR_SCOPE, MENU_BAR_STYLE, RESET_HOUR, Settings,
+        MENU_BAR_ICON, MENU_BAR_READINGS, MENU_BAR_SCOPE, MENU_BAR_STYLE, RESET_HOUR,
+        RESOURCE_MINUTES_DAYS, Settings,
     };
     use std::path::PathBuf;
 
@@ -705,6 +706,22 @@ mod tests {
         settings.set(RESET_HOUR, "0").unwrap();
         assert_eq!(settings.reset_hour(), 0);
         assert!(!settings.get(RESET_HOUR).unwrap().is_default);
+    }
+
+    #[test]
+    fn the_minute_record_is_kept_7_days_unless_set_within_1_to_90() {
+        let mut settings = Settings::default();
+        assert_eq!(settings.resource_minutes_days(), 7);
+        for bad in ["0", "91", "-1", "a week"] {
+            assert!(
+                settings.set(RESOURCE_MINUTES_DAYS, bad).is_err(),
+                "{bad:?} was accepted"
+            );
+        }
+        settings.set(RESOURCE_MINUTES_DAYS, "30").unwrap();
+        assert_eq!(settings.resource_minutes_days(), 30);
+        settings.set(RESOURCE_MINUTES_DAYS, "1").unwrap();
+        assert_eq!(settings.resource_minutes_days(), 1);
     }
 
     #[test]
