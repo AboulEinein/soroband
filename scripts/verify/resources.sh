@@ -23,7 +23,15 @@ soroband=$root/core/target/debug/soroband
 cargo build --quiet --manifest-path $root/core/Cargo.toml -p soroband-cli
 seconds=${SOROBAND_LOAD_SECONDS:-100}
 work=$(mktemp -d -t soroband-resources)
-trap 'rm -rf $work' EXIT
+# The load's `time` processes; on any exit their commands are stopped, so a failed check leaves
+# nothing spinning.
+loads=()
+cleanup() {
+  local p
+  for p in $loads; do pkill -P $p 2>/dev/null; kill $p 2>/dev/null; done
+  rm -rf $work
+}
+trap cleanup EXIT
 
 cat >$work/alloc.c <<'EOF'
 #include <stdlib.h>
@@ -54,13 +62,16 @@ footprint_of() { awk '/peak memory footprint/ { print $1 }' $1 }
 
 /usr/bin/time -l /usr/bin/yes >/dev/null 2>$work/yes.time &
 yes_time=$!
+loads+=($yes_time)
 /usr/bin/time -l $work/soroband-alloc $seconds 2>$work/alloc.time &
 alloc_time=$!
+loads+=($alloc_time)
 # A mebibyte every interval, so dd writes 1 GiB over the whole run.
 pace=$(( seconds / 1024.0 ))
 ( for _ in {1..1024}; do head -c 1048576 /dev/zero; sleep $pace; done ) |
   /usr/bin/time -l /bin/dd of=$work/scratch bs=1m 2>$work/dd.time &
 dd_time=$!
+loads+=($dd_time)
 
 # CPU seconds a process has used, from ps's [[hh:]mm:]ss.cc.
 cpu_seconds() {
@@ -87,8 +98,11 @@ print "top: source $(jq -r .source <<<$top), over $(jq .seconds <<<$top) s"
 sleep $(( seconds / 2 ))
 # `yes` runs until stopped; `time` stays to report it.
 kill $(pgrep -P $yes_time yes)
-wait $yes_time $alloc_time $dd_time || true
+wait $yes_time || true
+wait $alloc_time || { print -u2 "resources.sh: soroband-alloc failed"; exit 1; }
+wait $dd_time || { print -u2 "resources.sh: dd failed"; exit 1; }
 written=$(stat -f %z $work/scratch)
+(( written == 1 << 30 )) || { print -u2 "resources.sh: dd wrote $written bytes, not 1 GiB"; exit 1; }
 
 # The app reads once a minute and writes once a minute: two minutes covers both.
 sleep 125
