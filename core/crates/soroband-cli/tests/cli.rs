@@ -662,6 +662,13 @@ fn apps_by_takes_a_range_of_local_dates() {
         ],
     );
     assert!(!backwards.status.success());
+    assert!(String::from_utf8_lossy(&backwards.stderr).contains("--to is before --from"));
+    // Without --from the range starts today, so a past --to asks for --from rather than
+    // blaming a --from the user never gave.
+    let past = soroband(&dir, &["apps", "--by", "cpu", "--to", "2000-01-01"]);
+    assert!(!past.status.success());
+    let message = String::from_utf8_lossy(&past.stderr);
+    assert!(message.contains("give --from too"), "{message}");
 }
 
 #[test]
