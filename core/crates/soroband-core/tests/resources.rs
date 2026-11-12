@@ -73,6 +73,15 @@ fn a_command_that_starts_and_exits_between_reads_goes_to_the_coalitions_leader()
     // `dd` ran between the first and second reads, so no read saw it.
     let readings = replay(LAYOUT);
     assert_eq!(credited(&readings, "dd"), 0);
+    // Its CPU is in the coalition's growth to the second read, which goes to the leader (the
+    // recorder, made up as `tool-1`) less what `yes`, the other member, used: at least `dd`'s own
+    // account, less the 20% a coalition's CPU may run below its processes' (`guard::tolerance`).
+    let (_, expect) = fixture();
+    let dd = expect["dd_cpu_ns"].as_u64().unwrap();
+    let leader = credited(&readings[1..2], "tool-1");
+    #[allow(clippy::cast_precision_loss)]
+    let ratio = leader as f64 / dd as f64;
+    assert!(ratio >= 0.8, "leader {leader} ns against dd's {dd} ns");
 }
 
 #[test]
@@ -146,6 +155,15 @@ fn a_moved_or_swapped_field_fails_the_guard_and_the_fallback_takes_over() {
     }
 }
 
+/// Removes a test's directory however the test ends.
+struct Removed(std::path::PathBuf);
+
+impl Drop for Removed {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
 #[test]
 fn the_service_writes_what_it_read_to_the_store() {
     use soroband_core::resources::service::ResourceService;
@@ -155,6 +173,7 @@ fn the_service_writes_what_it_read_to_the_store() {
     let dir = std::env::temp_dir().join(format!("soroband-resources-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
+    let _removed = Removed(dir.clone());
     let store = Arc::new(Mutex::new(Store::open(&dir.join("usage.sqlite")).unwrap()));
     let hour = 1_800_000_000 / 3600 * 3600;
     let mut service = ResourceService::new(
