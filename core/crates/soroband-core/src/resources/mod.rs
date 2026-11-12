@@ -354,8 +354,11 @@ pub struct ResourceMeter<R: ResourceHost> {
     /// Unix time of the guard's next check; `None` once the coalition calls were found missing.
     next_check: Option<i64>,
     last: Option<LastRead>,
-    /// Each running process's coalition and app, by pid, looked up once per process: neither
-    /// changes while it runs. A pid gone at one read is forgotten, so a pid reused between two
+    /// Each running process's coalition and app, by pid. The coalition is looked up once: it
+    /// does not change while the process runs. The app is looked up at the first two reads the
+    /// process is in, because a launcher (`xpcproxy`, a shell's `exec`) becomes the program it
+    /// starts just after it starts; a process that runs another executable later keeps the
+    /// app of its second read. A pid gone at one read is forgotten, so a pid reused between two
     /// reads keeps the earlier process's (pids are reused only after about 100,000 more).
     known: HashMap<u32, Known>,
 }
@@ -365,6 +368,8 @@ pub struct ResourceMeter<R: ResourceHost> {
 struct Known {
     coalition: Option<u64>,
     app: Option<App>,
+    /// Whether the app was looked up again at a later read.
+    settled: bool,
 }
 
 impl<R: ResourceHost> ResourceMeter<R> {
@@ -501,27 +506,41 @@ impl<R: ResourceHost> ResourceMeter<R> {
         self.keep_known(&pids);
         let mut members: BTreeMap<u64, Vec<u32>> = BTreeMap::new();
         for pid in pids {
-            if let Some(id) = self.known(pid).coalition {
+            if let Some(id) = self.refresh(pid).coalition {
                 members.entry(id).or_default().push(pid);
             }
         }
         members
     }
 
-    /// What `pid` is, looked up at the first read it is in.
-    fn known(&mut self, pid: u32) -> &Known {
+    /// What `pid` is: looked up at the first read it is in, its app again at the second. Called
+    /// once per process per read, before anything asks for its app.
+    fn refresh(&mut self, pid: u32) -> &Known {
         let host = &mut self.host;
-        self.known.entry(pid).or_insert_with(|| Known {
-            coalition: host.coalition_of(pid),
-            app: host
-                .executable_path(pid)
-                .map(|path| App::from_executable(&path)),
-        })
+        let app_of = |host: &mut R| {
+            host.executable_path(pid)
+                .map(|path| App::from_executable(&path))
+        };
+        match self.known.entry(pid) {
+            std::collections::hash_map::Entry::Occupied(entry) => {
+                let known = entry.into_mut();
+                if !known.settled {
+                    known.settled = true;
+                    known.app = app_of(host);
+                }
+                known
+            }
+            std::collections::hash_map::Entry::Vacant(entry) => entry.insert(Known {
+                coalition: host.coalition_of(pid),
+                app: app_of(host),
+                settled: false,
+            }),
+        }
     }
 
-    /// The app of `pid`.
+    /// The app of `pid`, as [`ResourceMeter::refresh`] last found it.
     fn app_of(&mut self, pid: u32) -> Option<App> {
-        self.known(pid).app.clone()
+        self.known.get(&pid).and_then(|k| k.app.clone())
     }
 
     /// Forgets the processes that are gone.
@@ -689,7 +708,7 @@ impl<R: ResourceHost> ResourceMeter<R> {
             let Some(usage) = self.host.process_usage(pid) else {
                 continue;
             };
-            let Some(app) = self.app_of(pid) else {
+            let Some(app) = self.refresh(pid).app.clone() else {
                 continue;
             };
             let delta = process_growth(pid, &usage, None, previous);

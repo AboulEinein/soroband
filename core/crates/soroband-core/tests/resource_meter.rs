@@ -425,3 +425,33 @@ fn counters_add_and_subtract_field_by_field() {
     assert_eq!(sum.saturating_sub(a), a);
     assert_eq!(a.saturating_sub(sum), Counters::default());
 }
+
+#[test]
+fn a_process_that_became_its_program_after_the_first_read_is_credited_to_it() {
+    const LAUNCHER: &str = "/usr/libexec/xpcproxy";
+    let readings = run(
+        vec![
+            read(
+                0,
+                vec![coalition(1, 0, 0, 0)],
+                vec![process(10, 1, LEADER, 0, 0), process(20, 1, LAUNCHER, 0, 0)],
+            ),
+            // pid 20 ran the tool (`exec`): the second read finds its new executable.
+            read(
+                10,
+                vec![coalition(1, 9, 0, 0)],
+                vec![process(10, 1, LEADER, 0, 0), process(20, 1, TOOL, 9, 0)],
+            ),
+            // Its app is settled from then on.
+            read(
+                20,
+                vec![coalition(1, 13, 0, 0)],
+                vec![process(10, 1, LEADER, 0, 0), process(20, 1, OTHER, 13, 0)],
+            ),
+        ],
+        (1, 1),
+    );
+    assert_eq!(cpu(&readings[1], TOOL), 9);
+    assert_eq!(cpu(&readings[2], TOOL), 4);
+    assert_eq!(cpu(&readings[2], OTHER), 0);
+}
