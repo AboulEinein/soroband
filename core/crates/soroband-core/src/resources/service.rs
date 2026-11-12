@@ -190,6 +190,8 @@ mod tests {
             service.poll(now).unwrap();
         }
         assert_eq!(service.gauges().unwrap().pressure, Some(1));
+        // The debug state's read count: the polls at 0, 60 and 125 read.
+        assert_eq!(service.reads().0, 3);
         // Written at 60 (the minute from 0) and at 125 (the minute from 60). The volumes were read
         // at 0, 60 and 125, each before that poll's resource read moved the replay on: at 0 and 60
         // from its first read, at 125 from its second.
