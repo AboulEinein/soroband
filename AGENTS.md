@@ -5,7 +5,7 @@ macOS menu bar app that meters internet usage per app and per network, with a Ru
 Start every session by reading [`docs/handover.md`](docs/handover.md): current state, next action, decisions and gotchas. The milestone ledger and the stopping rules are in [`docs/plan.md`](docs/plan.md); how to test and prove work is in [`docs/verification.md`](docs/verification.md); how work is reviewed is in [`docs/review.md`](docs/review.md); the product and architecture are in [`docs/design.md`](docs/design.md).
 
 Rules that hold for every change:
-- **Budget:** idle CPU ≤ 0.1% (a menu bar showing a live speed is an accepted exception, see `docs/plan.md` M6), memory ≤ 25 MB with no window open. A change that touches the engine or a long-lived view states its measured cost in the PR.
+- **Budget:** idle CPU ≤ 0.1% (accepted exceptions: a menu bar showing a live speed, `docs/plan.md` M6; the resource meter on a Mac with about 600 live coalitions, M8), memory ≤ 25 MB with no window open. A change that touches the engine or a long-lived view states its measured cost in the PR.
 - **Privacy:** counters and metadata only. No packet contents, nothing leaves the Mac.
 - **Glossary:** [`GLOSSARY.md`](GLOSSARY.md) holds the domain language. A change that adds, renames or retires a domain term updates it in the same PR.
 - **Evidence:** a milestone is done when tests go red on broken behavior and the real app has been run, with the evidence in the PR.

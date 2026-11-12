@@ -170,7 +170,7 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 | 2026-11-06 | The agents' working records (handover, plan, review logs) stay where they are in the public repository, indexed by `docs/README.md`; no code of conduct for now. The user's choices. |
 | 2026-11-09 | Checks move before the PR: the developer works through `docs/checklist.md` (Reach list, sibling search, one home per fact), and the review spends fewer rounds (`docs/review.md`), with no finding dropped and the nit cap at none. The user's request. |
 | 2026-11-09 | A milestone in `plan.md` states outcomes and how they are tested, not mechanism (proposed in #66's retro; the user's approval). |
-| 2026-11-12 | M8's resource meter is accepted at +0.03–0.04% idle CPU over a build without it on a Mac with about 600 live coalitions, over its +0.02% criterion, keeping a read once a minute (`plan.md`, M8). The user's choice. |
+| 2026-11-12 | M8's resource meter is accepted at +0.03–0.04% idle CPU over a build without it on a Mac with about 600 live coalitions, over its +0.02% criterion and so over the 0.1% budget there (0.11%), keeping a read once a minute (`plan.md`, M8; `AGENTS.md` Budget). The user's choice. |
 | 2026-10-26 | Agent-friendly by design: a published install prompt any coding agent can follow, a `soroband config` command for every setting, and `--json` output on every query. |
 
 ## Open decisions
@@ -195,6 +195,7 @@ Small items for a later nits pass.
 - **Retired terms by meaning.** `docs/review.md`'s Retired terms line counts every hit of an old word, though `GLOSSARY.md` keeps some in other senses ("meter" for the module, "hotspot meter"); it should count only hits in the retired sense ([CodeRabbit on #70](https://github.com/AboulEinein/soroband/pull/70)).
 - **`prepush.sh` checks the working tree.** Every check in it (records lint, cargo, swift-format, the app's tests) reads the working tree, not the commit being pushed, so an uncommitted edit can pass or fail what is pushed. Failing on tracked changes, or checking a clean checkout of `HEAD`, would fix all of them at once ([CodeRabbit on #70](https://github.com/AboulEinein/soroband/pull/70)).
 - **Resource rows on a busy Mac.** With about 120 running apps the resource tables grow about 190 KB a day, kept forever, beside a minute record that settles at about 4 MB with one volume (`examples/resource-growth.rs`). Whether idle apps with no CPU or disk need an hour row each is for M9 to weigh against History's needs.
+- **M9's CPU criterion.** `plan.md` M9 asks each new menu bar reading to stay within the 0.1% budget beside `main`; from M8 on, `main` itself is at about 0.11% on a Mac with about 600 live coalitions (Decisions, 2026-11-12). M9 states its criterion against `main`'s measured number before measuring.
 - **The engine thread's priority.** A resource read costs about four times the CPU at background priority (13–21 ms) as at the default (4–8 ms); the engine thread's priority sets most of M8's cost.
 - **Evidence branches.** `evidence/pr-35` and `evidence/m6b` hold only screenshots, linked from [#35](https://github.com/AboulEinein/soroband/pull/35)'s comments and [#36](https://github.com/AboulEinein/soroband/pull/36)'s description. Keeping or deleting them is the user's call; deleting them breaks those images.
 
