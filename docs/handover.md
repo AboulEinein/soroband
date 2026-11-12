@@ -172,6 +172,7 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 | 2026-11-09 | A milestone in `plan.md` states outcomes and how they are tested, not mechanism (proposed in #66's retro; the user's approval). |
 | 2026-11-12 | M8's resource meter is accepted at +0.03–0.04% idle CPU over a build without it on a Mac with about 600 live coalitions, over its +0.02% criterion and so over the 0.1% budget there (0.11%), keeping a read once a minute (`plan.md`, M8; `AGENTS.md` Budget). The user's choice. |
 | 2026-10-26 | Agent-friendly by design: a published install prompt any coding agent can follow, a `soroband config` command for every setting, and `--json` output on every query. |
+| 2026-11-12 | An overcount is judged only once apps and local-network bytes reach 10 MB in the window (`MIN_WINDOW_BYTES`): a network switch alone put 19 KB of apps over 8 KB of interfaces, raising the notice with no double-count behind it. |
 
 ## Open decisions
 

@@ -13,14 +13,17 @@
 //!   with less traffic is not judged and breaks the run of failures, but keeps the verdict it
 //!   found.
 //! - Apps and local-network bytes summing to more than the interfaces by [`OVERCOUNT_PERCENT`] is
-//!   reported at once, at any volume, because flows never carry more than crossed the wire. It
-//!   stays reported until a whole window has passed without it.
+//!   reported at once, because flows never carry more than crossed the wire, once they reach
+//!   [`MIN_WINDOW_BYTES`] in the window. Under that, a network switch alone puts them over: sends
+//!   on flows opened before it are counted while the link is down. It stays reported until a
+//!   whole window has passed without it.
 
 use crate::meter::Bytes;
 
 /// Length of a judged window, in seconds.
 pub const WINDOW: i64 = 600;
-/// Bytes a window needs across the interfaces before its gap is judged.
+/// Bytes a window needs across the interfaces before its gap is judged, and credited to apps
+/// and the local network before an overcount is.
 pub const MIN_WINDOW_BYTES: u64 = 10_000_000;
 /// How far, in percent of what crossed the interfaces, the apps and local-network bytes may sum
 /// below it.
@@ -87,8 +90,9 @@ impl SelfCheck {
     }
 
     fn is_overcount(&self) -> bool {
-        u128::from(self.apps) * 100
-            > u128::from(self.interfaces) * u128::from(100 + OVERCOUNT_PERCENT)
+        self.apps >= MIN_WINDOW_BYTES
+            && u128::from(self.apps) * 100
+                > u128::from(self.interfaces) * u128::from(100 + OVERCOUNT_PERCENT)
     }
 
     #[must_use]
@@ -194,14 +198,41 @@ mod tests {
     }
 
     #[test]
-    fn apps_over_the_interfaces_flag_at_once_at_any_volume() {
+    fn apps_over_the_interfaces_flag_at_once_once_they_reach_ten_megabytes() {
         let mut check = SelfCheck::default();
-        // 103 KB credited to apps of 100 KB on the wire, in the first poll of a window.
-        check.observe(rx(103_000), rx(100_000), T);
+        // 10.3 MB credited to apps of 10 MB on the wire, in the first poll of a window.
+        check.observe(rx(10_300_000), rx(10 * MB), T);
         assert_eq!(check.verdict(), Verdict::Overcount);
         // 2% over is still allowed.
         let mut check = SelfCheck::default();
-        check.observe(rx(102_000), rx(100_000), T);
+        check.observe(rx(10_200_000), rx(10 * MB), T);
+        assert_eq!(check.verdict(), Verdict::Ok);
+        // Exactly 10 MB of apps with nothing on the wire is judged.
+        let mut check = SelfCheck::default();
+        check.observe(rx(10 * MB), Bytes::default(), T);
+        assert_eq!(check.verdict(), Verdict::Overcount);
+    }
+
+    #[test]
+    fn a_double_count_flags_however_little_crossed_the_interfaces() {
+        // The floor is on the apps: 12 MB credited of 1 MB on the wire is an overcount.
+        let mut check = SelfCheck::default();
+        check.observe(rx(12 * MB), rx(MB), T);
+        assert_eq!(check.verdict(), Verdict::Overcount);
+    }
+
+    #[test]
+    fn a_few_kilobytes_over_the_interfaces_are_not_an_overcount() {
+        // Recorded on a network switch: 19 KB credited to apps, mostly sends on flows opened
+        // before the switch, while 8 KB crossed the interfaces. Under 10 MB, it is not judged.
+        let mut check = SelfCheck::default();
+        window(&mut check, T, 18_973, 7_744);
+        assert_eq!(check.verdict(), Verdict::Ok, "the closed window");
+        check.observe(rx(18_973), rx(7_744), T + WINDOW + 1);
+        assert_eq!(check.verdict(), Verdict::Ok, "the open window");
+        // Just under 10 MB is still not judged, at any ratio.
+        let mut check = SelfCheck::default();
+        check.observe(rx(10 * MB - 1), Bytes::default(), T);
         assert_eq!(check.verdict(), Verdict::Ok);
     }
 
