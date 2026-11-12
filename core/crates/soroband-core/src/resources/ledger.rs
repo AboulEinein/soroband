@@ -3,7 +3,9 @@
 //! An hour row adds each read's counters, and keeps the footprint's time-weighted sum (each read's
 //! footprint times the seconds since the read before) and its peak. An app's first read after one
 //! without it weighs nothing: it may have started a moment before, so its footprint then (perhaps
-//! still growing) does not stand for the interval; it still counts for the peak. A minute row keeps the system
+//! still growing) does not stand for the interval; it still counts for the peak. Nor does a read
+//! in which the app holds no memory: its processes exited, and only what they used before is
+//! credited to it. A minute row keeps the system
 //! gauges at the minute's last poll (the CPU busy share over the whole minute, the highest memory
 //! pressure in it) and the five busiest apps by CPU, by footprint and by disk bytes written in the
 //! reads that fell in it. A minute is written once it is over, unless everything is taken.
@@ -158,7 +160,7 @@ impl ResourceLedger {
             },
         ) in &reading.apps
         {
-            let seconds = if self.last_apps.contains(app) {
+            let seconds = if *footprint > 0 && self.last_apps.contains(app) {
                 interval
             } else {
                 0
@@ -181,7 +183,12 @@ impl ResourceLedger {
             top[1] = top[1].max(*footprint);
             top[2] += counters.written;
         }
-        self.last_apps = reading.apps.iter().map(|(app, _)| app.clone()).collect();
+        self.last_apps = reading
+            .apps
+            .iter()
+            .filter(|(_, r)| r.footprint > 0)
+            .map(|(app, _)| app.clone())
+            .collect();
     }
 
     /// Takes every hour row, and the minutes that are over at Unix time `now` (all of them when
@@ -313,8 +320,8 @@ mod tests {
         // Read 0.1 s after it started, still filling its memory, then held at 500 for a minute.
         ledger.book(&reading(60.0, &[("Mail", 0, 5)]), 60);
         ledger.book(&reading(60.0, &[("Mail", 0, 500)]), 120);
-        // Gone at one read: back at the next counts as a first read again.
-        ledger.book(&reading(60.0, &[]), 180);
+        // Exited, with what it used before its exit credited: no memory to average.
+        ledger.book(&reading(60.0, &[("Mail", 7, 0)]), 180);
         ledger.book(&reading(60.0, &[("Mail", 0, 900)]), 240);
         let (hours, _) = ledger.take(4000, true);
         assert_eq!(hours[0].footprint_seconds, 500 * 60);
