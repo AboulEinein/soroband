@@ -720,3 +720,20 @@ fn top_finds_a_busy_command() {
     );
     assert!(["coalitions", "processes"].contains(&top["source"].as_str().unwrap()));
 }
+
+/// `top` measures for 1 to 60 seconds: none is no rate, and more holds the terminal too long.
+#[test]
+fn top_takes_one_to_sixty_seconds() {
+    let dir = data_dir("top-args");
+    for bad in [
+        &["top", "--for", "0"][..],
+        &["top", "--for", "61"],
+        &["top", "--for", "ten"],
+        &["top", "--for"],
+        &["top", "--by", "gpu"],
+    ] {
+        assert_eq!(soroband(&dir, bad).status.code(), Some(2), "{bad:?}");
+    }
+    let one = soroband(&dir, &["top", "--for", "1", "--json"]);
+    assert!(one.status.success(), "{one:?}");
+}
