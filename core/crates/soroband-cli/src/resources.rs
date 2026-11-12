@@ -192,7 +192,14 @@ pub fn top(args: &[&str]) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+/// An app's energy in nanojoules, or `null` when `counted` is false: a kernel that leaves every
+/// app's energy at zero (Intel Macs may) does not count it, and zero would read as none used.
+fn energy_json(energy: u64, counted: bool) -> Value {
+    if counted { json!(energy) } else { Value::Null }
+}
+
 fn top_json(reading: &Reading) -> Value {
+    let counted = reading.apps.iter().any(|(_, r)| r.counters.energy > 0);
     let apps: Vec<Value> = reading
         .apps
         .iter()
@@ -204,7 +211,7 @@ fn top_json(reading: &Reading) -> Value {
                 "billed_cpu_ns": r.counters.billed,
                 "disk_read": r.counters.read,
                 "disk_written": r.counters.written,
-                "energy_nj": r.counters.energy,
+                "energy_nj": energy_json(r.counters.energy, counted),
                 "footprint": r.footprint,
             })
         })
@@ -359,7 +366,8 @@ fn apps_by_text(
         .map_err(|e| e.to_string())?;
     let fallback = totals.iter().any(|t| t.fallback);
     if json {
-        let apps: Vec<Value> = totals.iter().map(total_json).collect();
+        let counted = totals.iter().any(|t| t.counters.energy > 0);
+        let apps: Vec<Value> = totals.iter().map(|t| total_json(t, counted)).collect();
         return Ok(json!({
             "start": start,
             "end": (end != i64::MAX).then_some(end),
@@ -412,7 +420,7 @@ fn apps_by_text(
     Ok(text.trim_end().to_owned())
 }
 
-fn total_json(t: &ResourceTotal) -> Value {
+fn total_json(t: &ResourceTotal, energy_counted: bool) -> Value {
     json!({
         "id": t.app.id,
         "name": t.app.name,
@@ -420,7 +428,7 @@ fn total_json(t: &ResourceTotal) -> Value {
         "billed_cpu_ns": t.counters.billed,
         "disk_read": t.counters.read,
         "disk_written": t.counters.written,
-        "energy_nj": t.counters.energy,
+        "energy_nj": energy_json(t.counters.energy, energy_counted),
         "footprint": t.footprint,
         "footprint_peak": t.peak,
         "fallback": t.fallback,
@@ -451,6 +459,37 @@ fn usage_error(usage: &str) -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn energy_no_app_used_is_not_counted_and_reads_as_null() {
+        let app = |energy| {
+            let mut r = soroband_core::resources::AppResources::default();
+            r.counters.energy = energy;
+            (
+                soroband_core::meter::App::from_executable("/usr/bin/yes"),
+                r,
+            )
+        };
+        let reading = |energies: &[u64]| Reading {
+            seconds: 1.0,
+            apps: energies.iter().map(|&e| app(e)).collect(),
+            source: Source::Coalitions,
+        };
+        let energies = |v: Value| -> Vec<Value> {
+            v["apps"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|a| a["energy_nj"].clone())
+                .collect()
+        };
+        assert_eq!(
+            energies(top_json(&reading(&[0, 0]))),
+            [Value::Null, Value::Null]
+        );
+        // Where any app's is counted, a zero is a real zero.
+        assert_eq!(energies(top_json(&reading(&[5, 0]))), [json!(5), json!(0)]);
+    }
 
     #[test]
     fn dates_are_days_since_1970() {
