@@ -77,7 +77,8 @@ pub fn capture(host: &mut impl ResourceHost) -> RecordedRead {
     }
 }
 
-/// Directories whose paths are macOS's own, kept as they are by [`anonymize`].
+/// Directories whose paths are macOS's own, kept as they are by [`anonymize`], except under
+/// [`NOT_KEPT`].
 const KEPT: [&str; 6] = [
     "/System/",
     "/usr/",
@@ -86,6 +87,9 @@ const KEPT: [&str; 6] = [
     "/Library/Apple/",
     "/private/var/db/",
 ];
+
+/// Inside [`KEPT`] but not macOS's own: where Homebrew and other vendors install tools.
+const NOT_KEPT: [&str; 1] = ["/usr/local/"];
 
 /// Replaces each path outside macOS's own directories: an app bundle's with
 /// `/Applications/App <n>.app/Contents/MacOS/App <n>`, any other with `/Users/user/bin/tool-<n>`,
@@ -108,7 +112,9 @@ pub fn anonymize(recording: &mut Recording) {
         }
         for process in &mut read.processes {
             let Some(path) = &process.path else { continue };
-            if KEPT.iter().any(|dir| path.starts_with(dir)) {
+            if KEPT.iter().any(|dir| path.starts_with(dir))
+                && !NOT_KEPT.iter().any(|dir| path.starts_with(dir))
+            {
                 continue;
             }
             let bundle = path.find(".app/").map(|end| path[..end + 4].to_owned());
@@ -211,6 +217,10 @@ impl Recording {
             .map(read_from_json)
             .collect::<Option<Vec<_>>>()
             .ok_or("a read is malformed")?;
+        // A replay answers from its current read, so it needs one.
+        if reads.is_empty() {
+            return Err("no reads".into());
+        }
         Ok(Self {
             timebase: (numer, denom),
             reads,
@@ -436,6 +446,7 @@ mod tests {
                     process(4, "/Users/sam/bin/sync", vec![]),
                     process(5, "/usr/libexec/logd", vec![]),
                     process(6, "/Applications/Mail.app/Contents/MacOS/Mail", vec![]),
+                    process(7, "/usr/local/bin/acme-agent", vec![]),
                 ],
             )],
         };
@@ -454,8 +465,19 @@ mod tests {
                 "/Users/user/bin/tool-2",
                 "/usr/libexec/logd",
                 "/Applications/App 2.app/Contents/MacOS/App 2",
+                "/Users/user/bin/tool-3",
             ]
         );
+    }
+
+    #[test]
+    fn a_recording_with_no_reads_is_refused() {
+        let text = Recording {
+            timebase: (1, 1),
+            reads: Vec::new(),
+        }
+        .to_json();
+        assert_eq!(Recording::parse(&text), Err("no reads".into()));
     }
 
     #[test]
