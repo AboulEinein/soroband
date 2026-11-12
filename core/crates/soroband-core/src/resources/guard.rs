@@ -1,4 +1,4 @@
-//! The layout guard: checks that the coalition words the meter reads hold what it thinks they do.
+//! The coalition layout guard: checks that the coalition words the meter reads hold what it thinks they do.
 //!
 //! The coalition struct is not in the public SDK, so its layout could move in a macOS release.
 //! The guard reads each coalition's members with `proc_pid_rusage` before and after the

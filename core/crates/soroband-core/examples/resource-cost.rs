@@ -1,5 +1,5 @@
-//! Times the resource meter on this Mac: the first read (with the layout guard), then reads
-//! half a second apart, beside the kernel calls a read makes.
+//! Times the resource meter on this Mac: the first read (with the coalition layout guard), then
+//! reads half a second apart, beside the kernel calls a read makes.
 //!
 //! Usage: cargo run --release --example resource-cost
 
