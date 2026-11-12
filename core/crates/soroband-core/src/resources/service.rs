@@ -189,6 +189,22 @@ mod tests {
     }
 
     #[test]
+    fn nothing_is_written_before_a_minute_has_passed() {
+        let path = crate::store::tests::temp_db("resource-first-minute");
+        let store = Arc::new(Mutex::new(Store::open(&path).unwrap()));
+        let meter = ResourceMeter::trusting(Replay::new(Recording {
+            timebase: (1, 1),
+            reads: vec![read(0, 1, 100)],
+        }));
+        let mut service = ResourceService::new(meter, Arc::clone(&store), 7, 1_000);
+        service.poll(1_000).unwrap();
+        service.poll(1_059).unwrap();
+        assert_eq!(minutes(&store), []);
+        service.poll(1_060).unwrap();
+        assert_eq!(minutes(&store), [(960, Some(100))]);
+    }
+
+    #[test]
     fn the_minute_record_keeps_the_days_set() {
         let path = crate::store::tests::temp_db("resource-days");
         let store = Arc::new(Mutex::new(Store::open(&path).unwrap()));

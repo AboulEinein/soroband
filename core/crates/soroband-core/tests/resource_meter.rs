@@ -79,10 +79,10 @@ fn cpu(reading: &Reading, path: &str) -> u64 {
 #[test]
 fn seconds_between_reads_follow_the_timebase() {
     let reads = vec![
-        read(0, vec![coalition(1, 0, 0, 0)], vec![]),
-        read(24_000_000_000, vec![coalition(1, 0, 0, 0)], vec![]),
+        read(6_000_000_000, vec![coalition(1, 0, 0, 0)], vec![]),
+        read(30_000_000_000, vec![coalition(1, 0, 0, 0)], vec![]),
     ];
-    // 24e9 Mach units at 125/3 ns each: 1000 s.
+    // 24e9 Mach units between them, at 125/3 ns each: 1000 s.
     let readings = run(reads, (125, 3));
     assert_eq!(readings[1].seconds, 1000.0);
 }
@@ -323,13 +323,13 @@ fn a_process_counts_whole_only_when_it_started_since_the_last_read() {
                 vec![coalition(1, 1_000, 0, 0)],
                 vec![
                     process(10, 1, LEADER, 0, 0),
-                    process(20, 1, TOOL, 0, 0),
+                    process(20, 1, TOOL, 50, 0),
                     process(30, 1, OTHER, 7, 150),
                     process(40, 1, "/opt/bin/late", 500, 90),
                 ],
             ),
             // pid 20 was replaced by a new process with the same pid (a later start): all of the
-            // new one's 3 count, not 3 less the old one's.
+            // new one's 3 count, not 3 less the old one's 50.
             read(
                 300,
                 vec![coalition(1, 1_010, 0, 0)],

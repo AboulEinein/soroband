@@ -380,7 +380,7 @@ mod tests {
         assert!(hours.iter().find(|h| h.hour == 0).unwrap().fallback);
         assert!(!hours.iter().find(|h| h.hour == 3600).unwrap().fallback);
         // An app at zero is not among the busiest by CPU.
-        assert!(minutes[0].top[0].1.is_empty());
+        assert_eq!(minutes[0].top[0].1, []);
         assert_eq!(minutes[0].top[1].1.len(), 1);
     }
 

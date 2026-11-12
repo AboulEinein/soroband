@@ -155,8 +155,9 @@ impl SystemResources {
             host: unsafe { libc::mach_host_self() },
             pressure_mib: mib,
             page_size: u64::try_from(page_size).unwrap_or(4096),
-            pids: vec![0; 4096],
-            entries: vec![CoalitionEntry::default(); 2048],
+            // Grown to fit at the first read, and kept.
+            pids: vec![0; 256],
+            entries: vec![CoalitionEntry::default(); 64],
         }
     }
 }
