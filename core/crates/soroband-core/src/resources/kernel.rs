@@ -191,6 +191,11 @@ impl ResourceHost for SystemResources {
             };
             let bytes = usize::try_from(bytes).ok()?;
             let count = bytes / size_of::<CoalitionEntry>();
+            // `libproc`'s wrapper returns 0 when the call fails; a running Mac always has
+            // coalitions (launchd's own), so no list is a failure, not an empty one.
+            if count == 0 {
+                return None;
+            }
             // A full buffer may have cut the list short: grow it and ask again.
             if count < self.entries.len() {
                 return Some(self.entries[..count].iter().map(|e| e.id).collect());
@@ -369,5 +374,28 @@ impl ResourceHost for SystemResources {
                 }
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::resources::{ResourceMeter, Source};
+
+    /// A coalition list call that fails, as `libproc`'s wrapper does: it returns 0.
+    unsafe extern "C" fn list_fails(_: c_int, _: c_int, _: *mut c_void, _: c_int) -> c_int {
+        0
+    }
+
+    /// No coalition list is a failed call, not a Mac with no coalitions: the meter falls back to
+    /// the processes instead of reading nothing.
+    #[test]
+    fn a_failed_coalition_list_is_no_list() {
+        let mut host = SystemResources::new();
+        host.list_coalitions = Some(list_fails);
+        assert!(host.coalition_ids().is_none());
+        let mut meter = ResourceMeter::new(host);
+        meter.read(0);
+        assert!(matches!(meter.source(), Source::Processes { .. }));
     }
 }

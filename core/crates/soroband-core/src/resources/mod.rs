@@ -287,7 +287,8 @@ pub trait ResourceHost {
     fn now(&mut self) -> u64;
     /// Nanoseconds per Mach time unit, as a fraction.
     fn timebase(&self) -> (u32, u32);
-    /// Every resource coalition's id, or `None` when the coalition calls are missing.
+    /// Every resource coalition's id, or `None` when the coalition calls are missing or the list
+    /// fails.
     fn coalition_ids(&mut self) -> Option<Vec<u64>>;
     /// A coalition's words, or `None` when it cannot be read (it ended).
     fn coalition_usage(&mut self, id: u64) -> Option<[u64; RAW_WORDS]>;
@@ -470,7 +471,7 @@ impl<R: ResourceHost> ResourceMeter<R> {
     fn missing_calls(&mut self) {
         self.next_check = None;
         self.source = Source::Processes {
-            reason: "the coalition calls are missing from this macOS".into(),
+            reason: "the coalition calls are missing from this macOS or failed".into(),
         };
     }
 
