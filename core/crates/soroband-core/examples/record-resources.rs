@@ -24,8 +24,8 @@ use std::thread::sleep;
 use std::time::Duration;
 
 /// Waits for `child` and returns its CPU time in nanoseconds, as the kernel accounted it at its
-/// exit.
-fn reap(child: &Child) -> u64 {
+/// exit, and its `wait4` status.
+fn reap(child: &Child) -> (u64, i32) {
     let pid = i32::try_from(child.id()).expect("pid");
     // SAFETY: an all-zero `rusage` is valid.
     let mut usage: libc::rusage = unsafe { std::mem::zeroed() };
@@ -36,7 +36,7 @@ fn reap(child: &Child) -> u64 {
     let ns = |t: libc::timeval| {
         u64::try_from(t.tv_sec).unwrap() * 1_000_000_000 + u64::try_from(t.tv_usec).unwrap() * 1_000
     };
-    ns(usage.ru_utime) + ns(usage.ru_stime)
+    (ns(usage.ru_utime) + ns(usage.ru_stime), status)
 }
 
 // Both children are reaped with `wait4`, which `Child::wait` would not report the rusage of.
@@ -62,8 +62,17 @@ fn main() {
     reads.push(capture(&mut host));
     sleep(Duration::from_secs(1));
     yes.kill().expect("kill yes");
-    let yes_cpu = reap(&yes);
-    let dd_cpu = reap(&dd);
+    let (yes_cpu, yes_status) = reap(&yes);
+    assert!(
+        libc::WIFSIGNALED(yes_status) && libc::WTERMSIG(yes_status) == libc::SIGKILL,
+        "yes ended other than by the kill"
+    );
+    let (dd_cpu, dd_status) = reap(&dd);
+    // A `dd` cut short (a full disk) would record less than the 64 MB the replay expects.
+    assert!(
+        libc::WIFEXITED(dd_status) && libc::WEXITSTATUS(dd_status) == 0,
+        "dd failed"
+    );
     let _ = std::fs::remove_file(&scratch);
     sleep(Duration::from_secs(1));
     reads.push(capture(&mut host));
