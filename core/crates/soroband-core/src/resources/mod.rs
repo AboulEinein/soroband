@@ -504,10 +504,12 @@ impl<R: ResourceHost> ResourceMeter<R> {
             Ok(()) => Source::Coalitions,
             Err(reason) => Source::Processes { reason },
         };
-        if source != self.source {
-            self.source = source;
+        // Only a switch between the coalitions and the processes starts a new baseline; a new
+        // reason for the same fallback keeps counting from the last read.
+        if std::mem::discriminant(&source) != std::mem::discriminant(&self.source) {
             self.last = None;
         }
+        self.source = source;
     }
 
     /// The guard's verdict on the coalitions `ids`, against their members' own reads.

@@ -538,3 +538,34 @@ fn a_failed_list_credits_its_growth_at_the_next_read() {
     assert_eq!(cpu(&readings[2], LEADER), 30);
     assert!(readings.iter().all(|r| r.source == Source::Coalitions));
 }
+
+/// While falling back, an hourly check that fails for another reason keeps the fallback's
+/// baseline: the growth since the read before it is still credited.
+#[test]
+fn a_new_reason_to_fall_back_keeps_counting_from_the_last_read() {
+    let reads = vec![
+        read(
+            0,
+            vec![coalition(1, 0, 0, 0)],
+            vec![process(10, 1, TOOL, 0, 0)],
+        ),
+        read(
+            10,
+            vec![coalition(1, 0, 0, 0)],
+            vec![process(10, 1, TOOL, 100, 0)],
+        ),
+        // An hour on, the list fails: the check fails again, with another reason.
+        read(20, vec![], vec![process(10, 1, TOOL, 300, 0)]),
+    ];
+    let mut meter = ResourceMeter::new(Replay::new(Recording {
+        timebase: (1, 1),
+        reads,
+    }));
+    meter.read(0);
+    let first = meter.source().clone();
+    assert!(matches!(first, Source::Processes { .. }));
+    meter.read(60);
+    let third = meter.read(soroband_core::resources::CHECK_INTERVAL);
+    assert_ne!(meter.source(), &first, "the reason changed");
+    assert_eq!(cpu(&third, TOOL), 200);
+}
