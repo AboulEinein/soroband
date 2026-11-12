@@ -57,7 +57,7 @@ soroband apps --by memory --json       # today's apps by CPU, memory, disk or en
 soroband apps --by cpu --from 2026-11-01 --to 2026-11-07 --json   # the same over local dates
 ```
 
-In the resource commands, `cpu_ns` and `billed_cpu_ns` are CPU time in nanoseconds, `disk_read` and `disk_written` bytes, `footprint` the memory footprint in bytes (an hour's average in `apps --by`, beside `footprint_peak`), and `energy_nj` nanojoules, `null` on a Mac whose kernel does not count energy. In `top`, `source` is `coalitions`, or `processes` with a `reason` when the numbers come from the user's own processes only; `apps --by` marks rows stored that way with `fallback`. The app stores resources once a minute, as it does bytes.
+In the resource commands, `cpu_ns` and `billed_cpu_ns` are CPU time in nanoseconds, `disk_read` and `disk_written` bytes, `footprint` the memory footprint in bytes (in `apps --by`, its average over the span asked for, beside `footprint_peak`), and `energy_nj` nanojoules, `null` on a Mac whose kernel does not count energy. In `top`, `source` is `coalitions`, or `processes` with a `reason` when the numbers come from the user's own processes only; `apps --by` marks rows stored that way with `fallback`. The app stores resources once a minute, as it does bytes.
 
 `--network` takes a network's id or its name. A value that is some network's id selects that network, even when another network is named the same, so pass the other network's id to pick it.
 
