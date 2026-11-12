@@ -99,11 +99,20 @@ fn the_gauges_and_volumes_are_plausible() {
     assert!(g.memory_compressed.expect("compressed") < total);
     assert!(g.swap_used.is_some());
     assert!([1, 2, 4].contains(&g.pressure.expect("pressure")));
-    let ticks = g.cpu_ticks.expect("ticks");
+    // The ticks advance, and the share between two reads is a share.
+    let mut x = 0u64;
+    for i in 0..30_000_000u64 {
+        x = x.wrapping_mul(31).wrapping_add(i);
+    }
+    assert_ne!(x, 1);
+    let later = host.gauges();
+    let (before, after) = (g.cpu_ticks.expect("ticks"), later.cpu_ticks.expect("ticks"));
     assert!(
-        ticks[2] > ticks[0],
-        "idle exceeds user since boot: {ticks:?}"
+        after.iter().sum::<u64>() > before.iter().sum::<u64>(),
+        "{before:?} {after:?}"
     );
+    let busy = later.busy_since(&g).expect("busy share");
+    assert!((0.0..=1.0).contains(&busy) && busy > 0.0, "{busy}");
     let startup = host
         .volumes()
         .into_iter()
