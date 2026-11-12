@@ -28,6 +28,11 @@ const CRYPTEX_ROOTS: [&str; 4] = [
     "/System/Cryptexes/App",
 ];
 
+/// Where an iOS Simulator runtime keeps the simulated OS's own files (`<runtime>.simruntime/
+/// Contents/Resources/RuntimeRoot/usr/libexec/...`). A path under it is read as the path that
+/// follows it, as under a cryptex root, so the simulated OS's daemons are services too.
+pub(crate) const SIMULATOR_RUNTIME_ROOT: &str = ".simruntime/Contents/Resources/RuntimeRoot";
+
 /// The app a flow is credited to.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct App {
@@ -50,10 +55,13 @@ impl App {
     /// The app that owns the executable at `path`.
     #[must_use]
     pub fn from_executable(path: &str) -> Self {
+        let system_path = path
+            .find(SIMULATOR_RUNTIME_ROOT)
+            .map_or(path, |at| &path[at + SIMULATOR_RUNTIME_ROOT.len()..]);
         let system_path = CRYPTEX_ROOTS
             .iter()
-            .find_map(|root| path.strip_prefix(root))
-            .unwrap_or(path);
+            .find_map(|root| system_path.strip_prefix(root))
+            .unwrap_or(system_path);
         if SYSTEM_DIRECTORIES
             .iter()
             .any(|dir| system_path.starts_with(dir))
@@ -209,6 +217,31 @@ mod tests {
         ] {
             assert_eq!(App::from_executable(path), App::services(), "{path}");
         }
+    }
+
+    #[test]
+    fn a_simulated_os_s_daemons_are_services_and_its_apps_are_apps() {
+        let runtime = "/Library/Developer/CoreSimulator/Volumes/iOS_23E254a/Library/Developer/\
+                       CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/\
+                       RuntimeRoot";
+        for daemon in [
+            "/usr/libexec/countryd",
+            "/System/Library/PrivateFrameworks/AppleMediaServices.framework/amsaccountsd",
+            "/System/Cryptexes/App/usr/libexec/passwordbreachd",
+        ] {
+            let path = format!("{runtime}{daemon}");
+            assert_eq!(App::from_executable(&path), App::services(), "{path}");
+        }
+        let safari = format!("{runtime}/Applications/MobileSafari.app/MobileSafari");
+        assert_eq!(App::from_executable(&safari).name, "MobileSafari");
+        // A tool of the simulator outside the runtime keeps its name.
+        assert_eq!(
+            App::from_executable(
+                "/Library/Developer/PrivateFrameworks/CoreSimulator.framework/Resources/bin/simctl"
+            )
+            .name,
+            "simctl"
+        );
     }
 
     #[test]

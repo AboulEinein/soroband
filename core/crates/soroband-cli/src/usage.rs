@@ -23,21 +23,27 @@ Apps is the part the meter credited to apps (the rest is headers, acknowledgemen
 
 pub const APPS_USAGE: &str = "\
 Usage: soroband apps [--network <name or id>] [--json]
+       soroband apps --by cpu|memory|disk|energy [--from <YYYY-MM-DD>] [--to <YYYY-MM-DD>] [--json]
 
-Today's usage per app, on one network or on all of them.";
+Today's usage per app, on one network or on all of them.
+
+With --by, each app's CPU time, memory footprint (average and peak), disk bytes read and written,
+and energy, largest first by the resource named, today or over the local dates from --from to
+--to (both included; --from alone runs to now). Memory orders by the average footprint, disk by
+bytes read and written together. Resources are not kept per network.";
 
 /// The name shown for bytes booked to no network: before the app named one, or while it waited
 /// for a network's router.
 const UNKNOWN_NETWORK: &str = "Unknown network";
 
-struct Today {
-    store: Store,
-    start: i64,
-    reset_hour: u8,
+pub(crate) struct Today {
+    pub(crate) store: Store,
+    pub(crate) start: i64,
+    pub(crate) reset_hour: u8,
 }
 
 impl Today {
-    fn open() -> Result<Self, String> {
+    pub(crate) fn open() -> Result<Self, String> {
         let dir = data::directory()?;
         let path = dir.join(soroband_core::ffi::DATABASE_FILE);
         if !path.exists() {

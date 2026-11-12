@@ -21,6 +21,7 @@ Exit status: 0 on success; 2 for an unknown key or a value outside the setting's
 | Key | Type | Default | Effect |
 | --- | --- | --- | --- |
 | `reset_hour` | integer 0–23 | 0 | Hour of the day, local time, when "today" starts again. History is not affected: changing it only moves the start of today. |
+| `resource_minutes_days` | integer 1–90 | 7 | Days the minute-by-minute record of the system gauges and the busiest apps is kept. Hourly resource usage is kept forever. |
 | `menu_bar_scope` | choice: `network`, `all` | `network` | Whose usage today the menu bar item counts: the current network's or every network's. |
 | `menu_bar_readings` | list: up to 4 of `total`, `download`, `upload`, `speed_down`, `speed_up`, separated by commas, or `none` | `total` | What the menu bar item shows beside its icon, in order: today's total, download or upload, or the live download or upload speed. `none` leaves the icon alone. Example: `soroband config set menu_bar_readings download,upload`. |
 | `menu_bar_style` | choice: `stacked`, `labeled`, `inline` | `stacked` | How the readings are drawn: in pairs, the first on top, in a smaller size; each under a small caption; or on one line. |
@@ -50,7 +51,13 @@ The same command reads the usage the app records:
 soroband today --json                  # today per network: apps' bytes and what crossed the network, less local-network traffic
 soroband apps --network Home --json    # today's apps on one network (by id, or by name in any case)
 soroband apps --json                   # today's apps on all networks
+soroband system --json                 # CPU busy share, memory, swap, pressure and each volume's free space now
+soroband top --by cpu --for 5 --json   # the busiest apps over the next 5 s (1–60), by cpu, memory, disk or energy
+soroband apps --by memory --json       # today's apps by CPU, memory, disk or energy, as the app stored them
+soroband apps --by cpu --from 2026-11-01 --to 2026-11-07 --json   # the same over local dates
 ```
+
+In the resource commands, `cpu_ns` and `billed_cpu_ns` are CPU time in nanoseconds, `disk_read` and `disk_written` bytes, `footprint` the memory footprint in bytes (in `apps --by`, its average over the span asked for, beside `footprint_peak`), and `energy_nj` nanojoules, `null` on a Mac whose kernel does not count energy. In `top`, `source` is `coalitions`, or `processes` with a `reason` when the numbers come from the user's own processes only; `apps --by` marks rows stored that way with `fallback`. The app stores resources once a minute, as it does bytes.
 
 `--network` takes a network's id or its name. A value that is some network's id selects that network, even when another network is named the same, so pass the other network's id to pick it.
 

@@ -1,0 +1,571 @@
+//! The resource meter's rules on reads built by hand, one rule per test, with the expected numbers
+//! worked out in each. The timebase is 1/1, so CPU times are in nanoseconds as given.
+
+use soroband_core::resources::record::{RecordedProcess, RecordedRead, Recording, Replay};
+use soroband_core::resources::{
+    Counters, Gauges, LAYOUT, ProcessUsage, RAW_WORDS, Reading, ResourceMeter, Source,
+};
+
+const LEADER: &str = "/Applications/Term.app/Contents/MacOS/Term";
+const TOOL: &str = "/opt/bin/tool";
+const OTHER: &str = "/opt/bin/other";
+
+/// A coalition's words with `cpu` CPU time (and disk written ten times it), `exited` processes
+/// that exited, and `footprint`.
+fn coalition(id: u64, cpu: u64, exited: u64, footprint: u64) -> (u64, [u64; RAW_WORDS]) {
+    let mut raw = [0; RAW_WORDS];
+    raw[LAYOUT.exited] = exited;
+    raw[LAYOUT.cpu] = cpu;
+    raw[LAYOUT.written] = cpu * 10;
+    raw[LAYOUT.footprint] = footprint;
+    (id, raw)
+}
+
+fn process(pid: u32, coalition: u64, path: &str, cpu: u64, start: u64) -> RecordedProcess {
+    RecordedProcess {
+        pid,
+        coalition: Some(coalition),
+        path: Some(path.into()),
+        usage: vec![ProcessUsage {
+            cpu,
+            written: cpu * 10,
+            footprint: 1_000 + u64::from(pid),
+            start,
+            ..ProcessUsage::default()
+        }],
+    }
+}
+
+fn unreadable(pid: u32, coalition: u64, path: &str) -> RecordedProcess {
+    RecordedProcess {
+        usage: Vec::new(),
+        ..process(pid, coalition, path, 0, 0)
+    }
+}
+
+fn read(
+    time: u64,
+    coalitions: Vec<(u64, [u64; RAW_WORDS])>,
+    processes: Vec<RecordedProcess>,
+) -> RecordedRead {
+    RecordedRead {
+        time,
+        coalitions: Some(coalitions),
+        processes,
+        gauges: Gauges::default(),
+        volumes: Vec::new(),
+    }
+}
+
+/// Every read through a meter that skips the guard (its coalitions have no readable members to
+/// compare, so it would fail): the layout is trusted, as on a Mac where the check passed.
+fn run(reads: Vec<RecordedRead>, timebase: (u32, u32)) -> Vec<Reading> {
+    let count = reads.len();
+    let mut meter = ResourceMeter::trusting(Replay::new(Recording { timebase, reads }));
+    (0..count)
+        .map(|i| meter.read(i64::try_from(i).unwrap() * 60))
+        .collect()
+}
+
+fn cpu(reading: &Reading, path: &str) -> u64 {
+    let name = path.rsplit('/').next().unwrap();
+    reading
+        .apps
+        .iter()
+        .find(|(a, _)| a.name == name)
+        .map_or(0, |(_, r)| r.counters.cpu)
+}
+
+#[test]
+fn seconds_between_reads_follow_the_timebase() {
+    let reads = vec![
+        read(6_000_000_000, vec![coalition(1, 0, 0, 0)], vec![]),
+        read(30_000_000_000, vec![coalition(1, 0, 0, 0)], vec![]),
+    ];
+    // 24e9 Mach units between them, at 125/3 ns each: 1000 s.
+    let readings = run(reads, (125, 3));
+    assert_eq!(readings[1].seconds, 1000.0);
+}
+
+#[test]
+fn cpu_time_is_converted_with_the_timebase() {
+    let reads = vec![
+        read(
+            0,
+            vec![coalition(1, 0, 0, 0)],
+            vec![process(10, 1, LEADER, 0, 0)],
+        ),
+        read(
+            3,
+            vec![coalition(1, 24, 0, 0)],
+            vec![process(10, 1, LEADER, 24, 0)],
+        ),
+    ];
+    assert_eq!(cpu(&run(reads, (125, 3))[1], LEADER), 1_000);
+}
+
+#[test]
+fn a_new_coalition_counts_whole_and_an_unseen_older_one_takes_a_baseline() {
+    let reads = vec![
+        read(
+            0,
+            vec![coalition(5, 0, 0, 0)],
+            vec![process(50, 5, LEADER, 0, 0)],
+        ),
+        read(
+            100,
+            vec![
+                coalition(5, 7, 0, 0),
+                coalition(9, 40, 0, 0),
+                coalition(3, 900, 0, 0),
+            ],
+            vec![
+                process(50, 5, LEADER, 7, 0),
+                process(90, 9, TOOL, 40, 50),
+                process(30, 3, OTHER, 900, 0),
+            ],
+        ),
+        read(
+            200,
+            vec![
+                coalition(5, 7, 0, 0),
+                coalition(9, 41, 0, 0),
+                coalition(3, 905, 0, 0),
+            ],
+            vec![
+                process(50, 5, LEADER, 7, 0),
+                process(90, 9, TOOL, 41, 50),
+                process(30, 3, OTHER, 905, 0),
+            ],
+        ),
+    ];
+    let readings = run(reads, (1, 1));
+    // Coalition 9 is above the first read's highest id: it started since, all of it is new.
+    assert_eq!(cpu(&readings[1], TOOL), 40);
+    // Coalition 3 is below it: it was there and not read (it could not be), so only its growth
+    // from now on counts.
+    assert_eq!(cpu(&readings[1], OTHER), 0);
+    assert_eq!(cpu(&readings[2], OTHER), 5);
+    assert_eq!(cpu(&readings[1], LEADER), 7);
+}
+
+#[test]
+fn a_coalition_of_one_app_is_credited_its_own_counters() {
+    // The member's own read says 3; the coalition, which also holds what exited, says 8.
+    let reads = vec![
+        read(
+            0,
+            vec![coalition(1, 0, 0, 0)],
+            vec![process(10, 1, LEADER, 0, 0)],
+        ),
+        read(
+            10,
+            vec![coalition(1, 8, 1, 500)],
+            vec![process(10, 1, LEADER, 3, 0)],
+        ),
+    ];
+    let readings = run(reads, (1, 1));
+    assert_eq!(cpu(&readings[1], LEADER), 8);
+    assert_eq!(readings[1].apps[0].1.footprint, 500);
+}
+
+/// A terminal (pid 10) running a tool (pid 20) in coalition 1, read four times, each 10 apart.
+fn terminal() -> Vec<Reading> {
+    // The tool had used 5 before the first read: only its growth from there counts.
+    run(
+        vec![
+            read(
+                0,
+                vec![coalition(1, 0, 0, 0)],
+                vec![process(10, 1, LEADER, 0, 0), process(20, 1, TOOL, 5, 0)],
+            ),
+            read(
+                10,
+                vec![coalition(1, 30, 0, 9_000)],
+                vec![process(10, 1, LEADER, 10, 0), process(20, 1, TOOL, 25, 0)],
+            ),
+            // The tool exits; the coalition grew 50: the terminal's own and the tool's last
+            // moments.
+            read(
+                20,
+                vec![coalition(1, 80, 1, 9_000)],
+                vec![process(10, 1, LEADER, 15, 0)],
+            ),
+            // Nothing is gone since: the coalition holds one app again.
+            read(
+                30,
+                vec![coalition(1, 90, 1, 9_000)],
+                vec![process(10, 1, LEADER, 16, 0)],
+            ),
+        ],
+        (1, 1),
+    )
+}
+
+#[test]
+fn a_shared_coalition_credits_each_member_its_own_growth() {
+    let readings = terminal();
+    assert_eq!(cpu(&readings[1], TOOL), 20);
+    // The leader is not read: it takes what the other members do not account for.
+    assert_eq!(cpu(&readings[1], LEADER), 10);
+    let leader = readings[1]
+        .apps
+        .iter()
+        .find(|(a, _)| a.name == "Term")
+        .unwrap();
+    assert_eq!(leader.1.footprint, 9_000 - 1_020);
+}
+
+#[test]
+fn a_member_that_exited_gets_what_is_left_up_to_its_earlier_rate() {
+    let readings = terminal();
+    // 20 in the 10 before, so at most 20 in these 10; the leader takes the other 30.
+    assert_eq!(cpu(&readings[2], TOOL), 20);
+    assert_eq!(cpu(&readings[2], LEADER), 30);
+    // Then the coalition is the terminal's alone: its whole growth.
+    assert_eq!(cpu(&readings[3], LEADER), 10);
+    assert_eq!(cpu(&readings[3], TOOL), 0);
+}
+
+#[test]
+fn a_member_that_exited_keeps_its_tail_when_every_process_read_before_is_gone() {
+    // A job's coalition: its process and a tool both exit, and the job starts again under a new
+    // pid. The tool's last moments are still its own, not the new process's.
+    let readings = run(
+        vec![
+            read(
+                0,
+                vec![coalition(1, 0, 0, 0)],
+                vec![process(10, 1, LEADER, 0, 0), process(20, 1, TOOL, 0, 0)],
+            ),
+            read(
+                10,
+                vec![coalition(1, 30, 0, 0)],
+                vec![process(10, 1, LEADER, 10, 0), process(20, 1, TOOL, 20, 0)],
+            ),
+            read(
+                20,
+                vec![coalition(1, 80, 2, 0)],
+                vec![process(30, 1, LEADER, 5, 15)],
+            ),
+        ],
+        (1, 1),
+    );
+    assert_eq!(cpu(&readings[2], TOOL), 20);
+    assert_eq!(cpu(&readings[2], LEADER), 30);
+}
+
+#[test]
+fn a_member_that_exited_gets_no_more_than_is_left() {
+    let readings = run(
+        vec![
+            read(
+                0,
+                vec![coalition(1, 0, 0, 0)],
+                vec![process(10, 1, LEADER, 0, 0), process(20, 1, TOOL, 0, 0)],
+            ),
+            read(
+                10,
+                vec![coalition(1, 30, 0, 0)],
+                vec![process(10, 1, LEADER, 10, 0), process(20, 1, TOOL, 20, 0)],
+            ),
+            read(
+                20,
+                vec![coalition(1, 35, 1, 0)],
+                vec![process(10, 1, LEADER, 10, 0)],
+            ),
+        ],
+        (1, 1),
+    );
+    assert_eq!(cpu(&readings[2], TOOL), 5);
+    assert_eq!(cpu(&readings[2], LEADER), 0);
+}
+
+#[test]
+fn an_unreadable_member_caps_what_the_exited_ones_get() {
+    let readings = run(
+        vec![
+            read(
+                0,
+                vec![coalition(1, 0, 0, 0)],
+                vec![
+                    process(10, 1, LEADER, 0, 0),
+                    process(20, 1, TOOL, 0, 0),
+                    unreadable(30, 1, OTHER),
+                ],
+            ),
+            read(
+                10,
+                vec![coalition(1, 30, 0, 0)],
+                vec![
+                    process(10, 1, LEADER, 10, 0),
+                    process(20, 1, TOOL, 20, 0),
+                    unreadable(30, 1, OTHER),
+                ],
+            ),
+            read(
+                20,
+                vec![coalition(1, 80, 1, 0)],
+                vec![process(10, 1, LEADER, 15, 0), unreadable(30, 1, OTHER)],
+            ),
+        ],
+        (1, 1),
+    );
+    // The unreadable member may have used some of the 45: the tool gets its rate, 20.
+    assert_eq!(cpu(&readings[2], TOOL), 20);
+    assert_eq!(cpu(&readings[2], LEADER), 30);
+    assert_eq!(cpu(&readings[2], OTHER), 0);
+}
+
+#[test]
+fn two_members_that_exited_share_the_rest_by_their_earlier_rates() {
+    let readings = run(
+        vec![
+            read(
+                0,
+                vec![coalition(1, 0, 0, 0)],
+                vec![
+                    process(10, 1, LEADER, 0, 0),
+                    process(20, 1, TOOL, 0, 0),
+                    process(30, 1, OTHER, 0, 0),
+                ],
+            ),
+            read(
+                10,
+                vec![coalition(1, 40, 0, 0)],
+                vec![
+                    process(10, 1, LEADER, 10, 0),
+                    process(20, 1, TOOL, 20, 0),
+                    process(30, 1, OTHER, 10, 0),
+                ],
+            ),
+            read(
+                20,
+                vec![coalition(1, 70, 2, 0)],
+                vec![process(10, 1, LEADER, 10, 0)],
+            ),
+        ],
+        (1, 1),
+    );
+    // 30 left, shared 2:1.
+    assert_eq!(cpu(&readings[2], TOOL), 20);
+    assert_eq!(cpu(&readings[2], OTHER), 10);
+    assert_eq!(cpu(&readings[2], LEADER), 0);
+}
+
+#[test]
+fn a_process_counts_whole_only_when_it_started_since_the_last_read() {
+    let readings = run(
+        vec![
+            read(
+                100,
+                vec![coalition(1, 0, 0, 0)],
+                vec![process(10, 1, LEADER, 0, 0), process(20, 1, TOOL, 0, 0)],
+            ),
+            // pid 30 started at 150, after the read at 100: all of its 7 count. pid 40 started at
+            // 90, before it, but was not read then (it was not in this coalition): a baseline.
+            read(
+                200,
+                vec![coalition(1, 1_000, 0, 0)],
+                vec![
+                    process(10, 1, LEADER, 0, 0),
+                    process(20, 1, TOOL, 50, 0),
+                    process(30, 1, OTHER, 7, 150),
+                    process(40, 1, "/opt/bin/late", 500, 90),
+                ],
+            ),
+            // pid 20 was replaced by a new process with the same pid (a later start): all of the
+            // new one's 3 count, not 3 less the old one's 50.
+            read(
+                300,
+                vec![coalition(1, 1_010, 0, 0)],
+                vec![
+                    process(10, 1, LEADER, 0, 0),
+                    process(20, 1, TOOL, 3, 250),
+                    process(30, 1, OTHER, 7, 150),
+                    process(40, 1, "/opt/bin/late", 500, 90),
+                ],
+            ),
+        ],
+        (1, 1),
+    );
+    assert_eq!(cpu(&readings[1], OTHER), 7);
+    assert_eq!(cpu(&readings[1], "/opt/bin/late"), 0);
+    assert_eq!(cpu(&readings[2], TOOL), 3);
+}
+
+#[test]
+fn a_reused_pid_takes_its_new_executable() {
+    let readings = run(
+        vec![
+            read(
+                0,
+                vec![coalition(1, 0, 0, 0)],
+                vec![process(10, 1, LEADER, 0, 0)],
+            ),
+            read(
+                10,
+                vec![coalition(1, 0, 0, 0), coalition(2, 0, 0, 0)],
+                vec![],
+            ),
+            read(
+                20,
+                vec![coalition(1, 0, 0, 0), coalition(2, 5, 0, 0)],
+                vec![process(10, 2, TOOL, 5, 15)],
+            ),
+        ],
+        (1, 1),
+    );
+    assert_eq!(cpu(&readings[2], TOOL), 5);
+    assert_eq!(cpu(&readings[2], LEADER), 0);
+}
+
+#[test]
+fn without_the_coalition_calls_the_meter_reads_processes() {
+    let mut reads = vec![
+        read(0, vec![], vec![process(10, 1, LEADER, 0, 0)]),
+        read(10, vec![], vec![process(10, 1, LEADER, 4, 0)]),
+    ];
+    for r in &mut reads {
+        r.coalitions = None;
+    }
+    let readings = run(reads, (1, 1));
+    assert!(matches!(
+        &readings[0].source,
+        Source::Processes { reason } if reason.contains("missing")
+    ));
+    assert!(readings[1].fallback());
+    assert_eq!(cpu(&readings[1], LEADER), 4);
+    assert_eq!(readings[1].apps[0].1.counters.written, 40);
+}
+
+#[test]
+fn counters_add_and_subtract_field_by_field() {
+    let a = Counters {
+        cpu: 5,
+        billed: 4,
+        read: 3,
+        written: 2,
+        energy: 1,
+    };
+    let mut sum = a;
+    sum += a;
+    assert_eq!(sum.saturating_sub(a), a);
+    assert_eq!(a.saturating_sub(sum), Counters::default());
+}
+
+#[test]
+fn a_process_that_became_its_program_after_the_first_read_is_credited_to_it() {
+    const LAUNCHER: &str = "/usr/libexec/xpcproxy";
+    let readings = run(
+        vec![
+            read(
+                0,
+                vec![coalition(1, 0, 0, 0)],
+                vec![process(10, 1, LEADER, 0, 0), process(20, 1, LAUNCHER, 0, 0)],
+            ),
+            // pid 20 ran the tool (`exec`): the second read finds its new executable.
+            read(
+                10,
+                vec![coalition(1, 9, 0, 0)],
+                vec![process(10, 1, LEADER, 0, 0), process(20, 1, TOOL, 9, 0)],
+            ),
+            // Its app is settled from then on.
+            read(
+                20,
+                vec![coalition(1, 13, 0, 0)],
+                vec![process(10, 1, LEADER, 0, 0), process(20, 1, OTHER, 13, 0)],
+            ),
+        ],
+        (1, 1),
+    );
+    assert_eq!(cpu(&readings[1], TOOL), 9);
+    assert_eq!(cpu(&readings[2], TOOL), 4);
+    assert_eq!(cpu(&readings[2], OTHER), 0);
+}
+
+/// A read that runs the guard lists the processes twice (the guard, then the read); a launcher's
+/// app is still looked up again at the next read, not settled within the first.
+#[test]
+fn a_read_that_runs_the_guard_still_looks_an_app_up_again_at_the_next_read() {
+    const LAUNCHER: &str = "/usr/libexec/xpcproxy";
+    let reads = vec![
+        read(
+            0,
+            vec![coalition(1, 0, 0, 0)],
+            vec![process(10, 1, LEADER, 0, 0), process(20, 1, LAUNCHER, 0, 0)],
+        ),
+        read(
+            10,
+            vec![coalition(1, 9, 0, 0)],
+            vec![process(10, 1, LEADER, 0, 0), process(20, 1, TOOL, 9, 0)],
+        ),
+    ];
+    // Not trusted: the guard runs at the first read (and fails on reads built by hand, so the
+    // fallback reads the processes).
+    let mut meter = ResourceMeter::new(Replay::new(Recording {
+        timebase: (1, 1),
+        reads,
+    }));
+    meter.read(0);
+    let second = meter.read(60);
+    assert!(matches!(meter.source(), Source::Processes { .. }));
+    assert_eq!(cpu(&second, TOOL), 9);
+    assert_eq!(cpu(&second, LAUNCHER), 0);
+}
+
+/// A read whose coalition list failed (an empty list) credits nothing, and the next read credits
+/// the growth since the read before it: not the coalition's whole counters as if it were new.
+#[test]
+fn a_failed_list_credits_its_growth_at_the_next_read() {
+    let readings = run(
+        vec![
+            read(
+                0,
+                vec![coalition(1, 100, 0, 0)],
+                vec![process(10, 1, LEADER, 100, 0)],
+            ),
+            read(10, vec![], vec![process(10, 1, LEADER, 110, 0)]),
+            read(
+                20,
+                vec![coalition(1, 130, 0, 0)],
+                vec![process(10, 1, LEADER, 130, 0)],
+            ),
+        ],
+        (1, 1),
+    );
+    assert_eq!(readings[1].apps, vec![]);
+    assert_eq!(cpu(&readings[2], LEADER), 30);
+    assert!(readings.iter().all(|r| r.source == Source::Coalitions));
+}
+
+/// While falling back, an hourly check that fails for another reason keeps the fallback's
+/// baseline: the growth since the read before it is still credited.
+#[test]
+fn a_new_reason_to_fall_back_keeps_counting_from_the_last_read() {
+    let reads = vec![
+        read(
+            0,
+            vec![coalition(1, 0, 0, 0)],
+            vec![process(10, 1, TOOL, 0, 0)],
+        ),
+        read(
+            10,
+            vec![coalition(1, 0, 0, 0)],
+            vec![process(10, 1, TOOL, 100, 0)],
+        ),
+        // An hour on, the list fails: the check fails again, with another reason.
+        read(20, vec![], vec![process(10, 1, TOOL, 300, 0)]),
+    ];
+    let mut meter = ResourceMeter::new(Replay::new(Recording {
+        timebase: (1, 1),
+        reads,
+    }));
+    meter.read(0);
+    let first = meter.source().clone();
+    assert!(matches!(first, Source::Processes { .. }));
+    meter.read(60);
+    let third = meter.read(soroband_core::resources::CHECK_INTERVAL);
+    assert_ne!(meter.source(), &first, "the reason changed");
+    assert_eq!(cpu(&third, TOOL), 200);
+}

@@ -5,6 +5,7 @@ mod data;
 #[cfg(debug_assertions)]
 mod debug;
 mod live;
+mod resources;
 mod text;
 mod update;
 mod usage;
@@ -16,7 +17,10 @@ Usage: soroband <command>
 
 Commands:
   today                Today's usage per network (see soroband today --help)
-  apps                 Today's usage per app, on one network or all (see soroband apps --help)
+  apps                 Today's usage per app, on one network or all, or each app's CPU, memory,
+                       disk and energy over a range (see soroband apps --help)
+  system               CPU, memory and disk space now (see soroband system --help)
+  top                  The busiest apps now, by CPU, memory, disk or energy (see soroband top --help)
   config               List, read and change settings (see soroband config --help)
   live                 Internet bytes per app, live (see soroband live --help)
   update               Install the newest release (see soroband update --help)
@@ -50,7 +54,18 @@ fn main() -> ExitCode {
             println!("{}", usage::APPS_USAGE);
             ExitCode::SUCCESS
         }
+        ["apps", rest @ ..] if rest.contains(&"--by") => resources::apps_by(rest),
         ["apps", rest @ ..] => usage::apps(rest),
+        ["system", "--help" | "-h"] => {
+            println!("{}", resources::SYSTEM_USAGE);
+            ExitCode::SUCCESS
+        }
+        ["system", rest @ ..] => resources::system(rest),
+        ["top", "--help" | "-h"] => {
+            println!("{}", resources::TOP_USAGE);
+            ExitCode::SUCCESS
+        }
+        ["top", rest @ ..] => resources::top(rest),
         ["config", "--help" | "-h"] | ["config"] => {
             println!("{}", config::USAGE);
             ExitCode::SUCCESS

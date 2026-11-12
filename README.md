@@ -22,7 +22,7 @@ macOS shows how much data crossed the network, but not which app used it or on w
 - **History kept forever.** Day, week, month, year and all-time views with a usage chart, the app breakdown, a weekday-by-hour heatmap and CSV export.
 - **Hotspot aware.** iPhone hotspots are recognized and metered on their own, so you know what you spent on your phone's data plan.
 - **Dynamic Island moments (optional).** Short updates that grow from the notch: network joined or left, a live hotspot meter, an app hogging data, data moving in the background, large transfers.
-- **Light.** Soroband reads the kernel's own per-connection byte counters every 5 seconds. With today's total in the menu bar it uses under 0.1% CPU and 14–16 MB of memory; the windows run in a second process that quits 10 minutes after the last one closes.
+- **Light.** Soroband reads the kernel's own per-connection byte counters every 5 seconds, and each app's CPU, memory, disk and energy once a minute. With today's total in the menu bar it uses about 0.1% CPU (0.11% measured on a Mac running many apps and agent shells) and 16–18 MB of memory; the windows run in a second process that quits 10 minutes after the last one closes.
 - **Scriptable.** The `soroband` command prints usage as tables or JSON and changes every setting, so you or a coding agent can query and configure it from the terminal.
 - **Private.** Counters and metadata only: no packet contents, no account, no analytics. Everything stays on your Mac.
 
@@ -93,6 +93,9 @@ Everything in Settings is also a `soroband` command, and the running app applies
 soroband today                           # today's usage per network
 soroband apps --network Home             # today's apps on one network
 soroband live                            # internet bytes per app, as they happen
+soroband top                             # the apps using the most CPU now; --by memory|disk|energy
+soroband apps --by memory                # today's apps by memory; also cpu, disk, energy, --from, --to
+soroband system                          # CPU, memory, swap and free space now
 soroband config list                     # every setting with its value and description
 soroband config set reset_hour 4         # the daily counter starts at 04:00
 soroband today --json                    # every query prints JSON for scripts and agents

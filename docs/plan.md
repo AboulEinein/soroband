@@ -15,7 +15,7 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | M5 | Dynamic Island moments | 2 | blocked (hand checklist: peek, look and feel, the hog's buttons, notifications, full screen, a real hotspot, the Island pane) | [#50](https://github.com/AboulEinein/soroband/pull/50) |
 | M6 | Memory and performance | 3 | blocked (M6a hand checklist) | [#35](https://github.com/AboulEinein/soroband/pull/35), [#36](https://github.com/AboulEinein/soroband/pull/36), [#37](https://github.com/AboulEinein/soroband/pull/37) |
 | M7 | Release v0.1.0 | 3 | blocked (hand checklist: second-account install, a fresh agent's install by each route, Location after an update; then the v0.1.0 tag, with the user's approval) | [#54](https://github.com/AboulEinein/soroband/pull/54) |
-| M8 | Resource meter engine and storage | 4 | planned | – |
+| M8 | Resource meter engine and storage | 4 | blocked (hand checklist: energy against `powermetrics`) | [#72](https://github.com/AboulEinein/soroband/pull/72) |
 | M9 | Resources in the popover, History and the menu bar | 4 | planned | – |
 | M10 | Resource moments | 4 | planned | – |
 
@@ -192,9 +192,9 @@ Deliverables:
 Exit criteria:
 - Replay of recorded coalition reads: exited processes' CPU counted, coalitions folded into apps, a shared coalition split among its apps; the guard passes on recorded correct reads (exited and unreadable processes, a footprint that changed between reads) and fails on the same reads with each stored field moved or swapped, and the fallback takes over; `cargo mutants` on the new modules.
 - A scripted load from one shell (`yes > /dev/null`, a `dd` writing 1 GB, an allocation that stays resident), with each command running over 90 s, shows in `soroband top` and in the stored hour against its known CPU time, bytes and footprint, within 5%, each under its own command's name.
-- Idle CPU of the menu bar process over 10 minutes with the resource meter on (its guard and split included), beside a build without it in the same session: no more than 0.02% higher, and within the 0.1% budget in the default layout. Memory with no window open ≤ 25 MB.
+- Idle CPU of the menu bar process over 10 minutes with the resource meter on (its guard and split included), beside a build without it in the same session: no more than 0.02% higher, and within the 0.1% budget in the default layout. Memory with no window open ≤ 25 MB. Decided (2026-11-12, the user's choice): on a Mac with about 600 coalitions holding a running process, +0.03–0.04% is accepted, and with it a total over the 0.1% budget on such a Mac (measured +0.031–0.040% in five paired rounds, 0.111–0.138% in all), because the cost is the kernel's read of each coalition once a minute, which reading less often would trade for the minute record.
 
-Hand checklist: the energy counters against `sudo powermetrics` over the same minutes (the probe could not check them without root); if they disagree by more than 20%, energy is stored but not shown. On a Mac whose kernel leaves the energy counters at zero (Intel Macs may), energy is shown as unavailable, not as zero.
+Hand checklist: the sum of every app's energy against `sudo powermetrics`' CPU power over the same minutes (its per-process figure is an energy impact score, not energy; the probe could not check either without root); if they disagree by more than 20%, energy is stored but not shown. On a Mac whose kernel leaves the energy counters at zero (Intel Macs may), energy is shown as unavailable, not as zero.
 
 ### M9: Resources in the popover, History and the menu bar
 
