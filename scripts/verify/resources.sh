@@ -53,7 +53,10 @@ int main(int argc, char **argv) {
 EOF
 cc -O0 -o $work/soroband-alloc $work/alloc.c
 
-apps() { $soroband apps --by cpu --json }
+# The same range for both samples, from yesterday's start, so a day reset between them changes
+# neither.
+since=$(date -v-1d +%F)
+apps() { $soroband apps --by cpu --from $since --json }
 before=$(apps)
 
 # Each command's own account: user and system seconds, and its peak footprint in bytes.
