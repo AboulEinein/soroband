@@ -7,11 +7,12 @@
 #   - `soroband-alloc`, a program compiled here that fills 512 MiB with bytes that do not
 #     compress, and holds it;
 # each under `/usr/bin/time -l`, which reports what it used by its own account. Halfway through,
-# `soroband top` must list all three under their own names, with `yes` near one core. Once they
-# have ended and the app has written them (up to two minutes), `soroband apps --by cpu` must
-# show, against what each used by its own account and within 5%: `yes`'s CPU time, the bytes
-# `dd` wrote, and `soroband-alloc`'s average footprint (its peak footprint, held all along). The
-# app's stored rows from before the load are subtracted.
+# `soroband top --for 10` must list all three under their own names and show, within 5%, the CPU
+# time `yes` used over those seconds (`ps`), the bytes `dd` wrote to its file over them, and
+# `soroband-alloc`'s footprint. Once they have ended and the app has written them (up to two
+# minutes), `soroband apps --by cpu` must show, against what each used by its own account and
+# within 5%: `yes`'s CPU time, the bytes `dd` wrote, and `soroband-alloc`'s average footprint (its
+# peak footprint, held all along). The app's stored rows from before the load are subtracted.
 #
 # It loads the CPU and the disk, so it runs under the measurement lock:
 #   scripts/verify/measure-lock.py resources scripts/verify/resources.sh
@@ -61,14 +62,27 @@ pace=$(( seconds / 1024.0 ))
   /usr/bin/time -l /bin/dd of=$work/scratch bs=1m 2>$work/dd.time &
 dd_time=$!
 
+# CPU seconds a process has used, from ps's [[hh:]mm:]ss.cc.
+cpu_seconds() {
+  local parts=(${(s.:.)$(ps -o cputime= -p $1 | tr -d ' ')}) total=0 part
+  for part in $parts; do total=$(( total * 60 + part )); done
+  print $total
+}
+
 sleep $(( seconds / 2 ))
-top=$($soroband top --for 5 --json)
+# Over the same 10 s as `top`: what `yes` used by its own account, and what `dd` wrote.
+yes_pid=$(pgrep -P $yes_time yes)
+yes_before=$(cpu_seconds $yes_pid)
+dd_before=$(stat -f %z $work/scratch)
+top=$($soroband top --for 10 --json)
+yes_during=$(( $(cpu_seconds $yes_pid) - yes_before ))
+dd_during=$(( $(stat -f %z $work/scratch) - dd_before ))
 for name in yes dd soroband-alloc; do
   jq -e --arg n $name '.apps | any(.name == $n)' <<<$top >/dev/null ||
     { print -u2 "resources.sh: soroband top does not list $name"; exit 1; }
 done
-share=$(jq '(.apps[] | select(.name == "yes") | .cpu_ns) / 1e9 / .seconds' <<<$top)
-print "top: yes at $share of a core; source $(jq -r .source <<<$top)"
+top_of() { jq --arg n $1 --arg f $2 '[.apps[] | select(.name == $n) | .[$f]] | add // 0' <<<$top }
+print "top: source $(jq -r .source <<<$top), over $(jq .seconds <<<$top) s"
 
 sleep $(( seconds / 2 ))
 # `yes` runs until stopped; `time` stays to report it.
@@ -98,5 +112,8 @@ check() {
 check "yes CPU time (ns)" $(grown yes cpu_ns) $(cpu_of $work/yes.time)
 check "dd bytes written" $(grown dd disk_written) $written
 check "soroband-alloc footprint (bytes)" $(latest soroband-alloc footprint) $(footprint_of $work/alloc.time)
+check "top: yes CPU time (ns)" $(top_of yes cpu_ns) $(( yes_during * 1e9 ))
+check "top: dd bytes written" $(top_of dd disk_written) $dd_during
+check "top: soroband-alloc footprint (bytes)" $(top_of soroband-alloc footprint) $(footprint_of $work/alloc.time)
 (( failed == 0 )) || { print -u2 "resources.sh: a resource is off by more than 5%"; exit 1; }
 print "resources.sh: passed"
