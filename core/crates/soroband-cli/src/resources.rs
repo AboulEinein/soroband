@@ -325,10 +325,16 @@ fn parse_date(text: &str) -> Option<i64> {
 }
 
 /// Unix time of local midnight starting the day `days` after 1970-01-01, rounded down to a UTC
-/// hour as the stored hours are.
+/// hour as the stored hours are. Where the clocks skip midnight, the day starts when they land.
 fn local_midnight(days: i64, offset_at: impl Fn(i64) -> i64) -> i64 {
     let local = days * 86_400;
-    hour_start(local - offset_at(local - offset_at(local)))
+    let mut start = local - offset_at(local - offset_at(local));
+    // A skipped midnight: that instant is still the day before on the clock, so the day starts at
+    // the same local time under the offset before the change.
+    if start + offset_at(start) < local {
+        start = local - offset_at(start);
+    }
+    hour_start(start)
 }
 
 fn apps_by_text(
@@ -468,6 +474,19 @@ mod tests {
         assert_eq!(local_midnight(1, |_| 7_200), 86_400 - 7_200);
         // UTC+5:30 rounds down to the UTC hour, as "today" does.
         assert_eq!(local_midnight(1, |_| 19_800), 86_400 - 21_600);
+    }
+
+    #[test]
+    fn a_day_whose_midnight_is_skipped_starts_when_the_clocks_land() {
+        // UTC-4 until 04:00 UTC on day 1, then UTC-3: local midnight never happens, the clocks
+        // go from 23:59:59 to 01:00. The day starts at 04:00 UTC (01:00 local), not at 03:00 UTC,
+        // which is 23:00 the day before.
+        let change = 86_400 + 4 * 3_600;
+        let offset = |t: i64| if t < change { -4 * 3_600 } else { -3 * 3_600 };
+        assert_eq!(local_midnight(1, offset), change);
+        // A day with a midnight is unchanged on either side of the change.
+        assert_eq!(local_midnight(0, offset), 4 * 3_600);
+        assert_eq!(local_midnight(2, offset), 2 * 86_400 + 3 * 3_600);
     }
 
     #[test]
