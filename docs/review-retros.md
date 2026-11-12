@@ -993,3 +993,18 @@ Planned rounds: 1. The CodeRabbit CLI failed three times before the draft with `
 - **Cause:** the fix left the handover's open item for the failures it fixed, and its Reach list counted only the snapshot suite's `.serialized` ordering, not the other suites sharing the test process with the swap. The `Siblings checked` line in 7b3e255 called the getter the only `assumeIsolated` in the app, where 17 others run in main-queue callbacks; the thread reply corrects it.
 - **Would have prevented it:** a sibling search for the failing tests' names in the docs, and a Reach list naming every thread in the test process that can read a swizzled method.
 - **Rule:** none; checklist.md's sibling search and Reach list already ask for both.
+
+## [#73](https://github.com/AboulEinein/soroband/pull/73) fix(core): judge an overcount only once apps reach 10 MB in a window (2026-11-12)
+
+Planned rounds: 1. Ran: 1 CodeRabbit CLI run, 1 blind round, 1 direct review.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | On 5f6c8ae, before the draft. | none |
+| 1 | Opus | 1 Medium, 2 Low | `first look`: no test pinned the floor to the apps side (a floor on the interfaces passed every test); exactly 10 MB of apps was untested though the Reach list claimed it; `plan.md`'s self-check line credited an overcount to "degraded" (pre-existing). All fixed in a6c99f8. | 2 Reach list |
+| direct | Opus | none | On a6c99f8. All three threads confirmed by mutating a copy of the crate and resolved; the thread reply naming the 10.3 MB case as red was inaccurate (the 10 MB case is). | none |
+
+**Retro.** Planned 1; took 1 blind round and a direct review. The hosted CodeRabbit review was skipped at the user's choice.
+- **Cause:** the Reach list claimed coverage of the floor's side and its edge that no test gave; both were stated in the Summary and the Reach list but not checked against a mutant.
+- **Would have prevented it:** mutating each new comparison (the floor's operand and operator) before writing the Reach list's coverage claims.
+- **Rule:** none; verification.md's `cargo mutants` rule already asks for it on the engine.

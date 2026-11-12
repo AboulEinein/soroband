@@ -166,6 +166,7 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 | 2026-11-09 | Checks move before the PR: the developer works through `docs/checklist.md` (Reach list, sibling search, one home per fact), and the review spends fewer rounds (`docs/review.md`), with no finding dropped and the nit cap at none. The user's request. |
 | 2026-11-09 | A milestone in `plan.md` states outcomes and how they are tested, not mechanism (proposed in #66's retro; the user's approval). |
 | 2026-10-26 | Agent-friendly by design: a published install prompt any coding agent can follow, a `soroband config` command for every setting, and `--json` output on every query. |
+| 2026-11-12 | An overcount is judged only once apps and local-network bytes reach 10 MB in the window (`MIN_WINDOW_BYTES`): a network switch alone put 19 KB of apps over 8 KB of interfaces, raising the notice with no double-count behind it. |
 
 ## Open decisions
 
