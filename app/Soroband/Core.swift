@@ -129,6 +129,9 @@ enum Core {
         let source: String?
         /// Why it falls back.
         let reason: String?
+        /// Resource reads since the engine started, and the milliseconds they took.
+        let reads: UInt64?
+        let readMs: UInt64?
         let memoryUsed: UInt64?
         let memoryCompressed: UInt64?
         let swapUsed: UInt64?
@@ -136,7 +139,8 @@ enum Core {
         let pressure: Int?
 
         enum CodingKeys: String, CodingKey {
-            case source, reason, pressure
+            case source, reason, pressure, reads
+            case readMs = "read_ms"
             case memoryUsed = "memory_used"
             case memoryCompressed = "memory_compressed"
             case swapUsed = "swap_used"

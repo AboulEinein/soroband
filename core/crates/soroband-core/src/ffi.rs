@@ -555,12 +555,13 @@ pub extern "C" fn soroband_top_apps_json() -> *mut c_char {
 /// Where the resource meter reads from, and the system gauges at the last poll, as JSON:
 ///
 /// ```json
-/// {"source": "coalitions", "reason": null, "memory_used": 0, "memory_compressed": 0,
-///  "swap_used": 0, "pressure": 1}
+/// {"source": "coalitions", "reason": null, "reads": 0, "read_ms": 0, "memory_used": 0,
+///  "memory_compressed": 0, "swap_used": 0, "pressure": 1}
 /// ```
 ///
 /// `source` is `processes` while the meter falls back to the user's own processes, with
-/// `reason` saying why. `{}` until the engine's first poll.
+/// `reason` saying why; `reads` and `read_ms` count the resource reads since the engine started
+/// and the milliseconds they took. `{}` until the engine's first poll.
 ///
 /// The caller owns the string and frees it with [`soroband_string_free`].
 #[unsafe(no_mangle)]
@@ -579,9 +580,12 @@ fn resources_json(resources: &ResourceService<SystemResources>) -> String {
         Source::Processes { reason } => ("processes", Some(reason.as_str())),
     };
     let gauges = resources.gauges().unwrap_or_default();
+    let (reads, read_time) = resources.reads();
     json!({
         "source": source,
         "reason": reason,
+        "reads": reads,
+        "read_ms": read_time.as_millis(),
         "memory_used": gauges.memory_used,
         "memory_compressed": gauges.memory_compressed,
         "swap_used": gauges.swap_used,

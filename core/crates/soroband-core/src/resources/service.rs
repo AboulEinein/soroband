@@ -24,6 +24,9 @@ pub struct ResourceService<R: ResourceHost> {
     last_volumes: Option<i64>,
     last_write: i64,
     minutes_days: u32,
+    /// Resource reads made, and the time they took.
+    reads: u64,
+    read_time: std::time::Duration,
 }
 
 impl<R: ResourceHost> ResourceService<R> {
@@ -44,6 +47,8 @@ impl<R: ResourceHost> ResourceService<R> {
             last_volumes: None,
             last_write: now,
             minutes_days,
+            reads: 0,
+            read_time: std::time::Duration::ZERO,
         }
     }
 
@@ -54,6 +59,12 @@ impl<R: ResourceHost> ResourceService<R> {
     #[must_use]
     pub fn source(&self) -> &Source {
         self.meter.source()
+    }
+
+    /// Resource reads made since the service started, and the time they took.
+    #[must_use]
+    pub fn reads(&self) -> (u64, std::time::Duration) {
+        (self.reads, self.read_time)
     }
 
     /// The gauges at the last poll.
@@ -84,7 +95,10 @@ impl<R: ResourceHost> ResourceService<R> {
         }
         if read_due(now, self.last_read, busy, &gauges) {
             self.last_read = Some(now);
+            let started = std::time::Instant::now();
             let reading = self.meter.read(now);
+            self.reads += 1;
+            self.read_time += started.elapsed();
             self.ledger.book(&reading, now);
         }
         if now - self.last_write >= WRITE_INTERVAL {

@@ -170,8 +170,7 @@ fn a_coalition_of_one_app_is_credited_its_own_counters() {
 }
 
 /// A terminal (pid 10) running a tool (pid 20) in coalition 1, read four times, each 10 apart.
-fn terminal(tool_exits_seen: bool) -> Vec<Reading> {
-    let exited_at_last = if tool_exits_seen { 1 } else { 2 };
+fn terminal() -> Vec<Reading> {
     run(
         vec![
             read(
@@ -184,17 +183,17 @@ fn terminal(tool_exits_seen: bool) -> Vec<Reading> {
                 vec![coalition(1, 30, 0, 9_000)],
                 vec![process(10, 1, LEADER, 10, 0), process(20, 1, TOOL, 20, 0)],
             ),
-            // The tool exits; the coalition grew 50: 5 the terminal's, the rest the tool's last
-            // moments, and, when an unseen process also exited, that one's.
+            // The tool exits; the coalition grew 50: the terminal's own and the tool's last
+            // moments.
             read(
                 20,
-                vec![coalition(1, 80, exited_at_last, 9_000)],
+                vec![coalition(1, 80, 1, 9_000)],
                 vec![process(10, 1, LEADER, 15, 0)],
             ),
             // Nothing is gone since: the coalition holds one app again.
             read(
                 30,
-                vec![coalition(1, 90, exited_at_last, 9_000)],
+                vec![coalition(1, 90, 1, 9_000)],
                 vec![process(10, 1, LEADER, 16, 0)],
             ),
         ],
@@ -204,10 +203,10 @@ fn terminal(tool_exits_seen: bool) -> Vec<Reading> {
 
 #[test]
 fn a_shared_coalition_credits_each_member_its_own_growth() {
-    let readings = terminal(true);
+    let readings = terminal();
     assert_eq!(cpu(&readings[1], TOOL), 20);
+    // The leader is not read: it takes what the other members do not account for.
     assert_eq!(cpu(&readings[1], LEADER), 10);
-    // The leader takes the footprint no member's own read accounts for.
     let leader = readings[1]
         .apps
         .iter()
@@ -217,22 +216,40 @@ fn a_shared_coalition_credits_each_member_its_own_growth() {
 }
 
 #[test]
-fn a_member_that_exited_keeps_the_rest_when_every_exit_was_seen() {
-    let readings = terminal(true);
-    // One process exited and it was read before: all 45 left are the tool's.
-    assert_eq!(cpu(&readings[2], TOOL), 45);
-    assert_eq!(cpu(&readings[2], LEADER), 5);
+fn a_member_that_exited_gets_what_is_left_up_to_its_earlier_rate() {
+    let readings = terminal();
+    // 20 in the 10 before, so at most 20 in these 10; the leader takes the other 30.
+    assert_eq!(cpu(&readings[2], TOOL), 20);
+    assert_eq!(cpu(&readings[2], LEADER), 30);
     // Then the coalition is the terminal's alone: its whole growth.
     assert_eq!(cpu(&readings[3], LEADER), 10);
     assert_eq!(cpu(&readings[3], TOOL), 0);
 }
 
 #[test]
-fn a_member_that_exited_gets_at_most_its_earlier_rate_when_an_unseen_process_also_exited() {
-    let readings = terminal(false);
-    // 20 in the 10 before, so at most 20 in these 10; the leader takes the other 25.
-    assert_eq!(cpu(&readings[2], TOOL), 20);
-    assert_eq!(cpu(&readings[2], LEADER), 30);
+fn a_member_that_exited_gets_no_more_than_is_left() {
+    let readings = run(
+        vec![
+            read(
+                0,
+                vec![coalition(1, 0, 0, 0)],
+                vec![process(10, 1, LEADER, 0, 0), process(20, 1, TOOL, 0, 0)],
+            ),
+            read(
+                10,
+                vec![coalition(1, 30, 0, 0)],
+                vec![process(10, 1, LEADER, 10, 0), process(20, 1, TOOL, 20, 0)],
+            ),
+            read(
+                20,
+                vec![coalition(1, 35, 1, 0)],
+                vec![process(10, 1, LEADER, 10, 0)],
+            ),
+        ],
+        (1, 1),
+    );
+    assert_eq!(cpu(&readings[2], TOOL), 5);
+    assert_eq!(cpu(&readings[2], LEADER), 0);
 }
 
 #[test]

@@ -30,7 +30,7 @@ What a flow's bytes are credited to: the outermost `.app` bundle of the process,
 _Avoid_: process (a process is credited to an app; several processes can share one)
 
 **macOS & Services**:
-The one app that groups every process from macOS's own system directories.
+The one app that groups every process from macOS's own system directories, and from the simulated OS inside an iOS Simulator runtime.
 _Avoid_: system, daemons
 
 **Command-line tool**:
@@ -80,7 +80,7 @@ _Avoid_: process group, job
 A coalition holding processes of more than one app, such as a terminal and the commands it runs; the resource meter splits it among them.
 
 **Coalition leader**:
-The app of a coalition's lowest process id, which takes what a shared coalition used that no member it read can account for.
+The app of a coalition's lowest process id. Its own processes in a shared coalition are not read; it takes what the coalition used that no other member's read accounts for, less what members that exited are credited.
 
 **Resource read**:
 One read of every coalition (or, in the fallback, every process of the user's) and the crediting of what each app used since the last one. It runs once a minute, and at every poll while the CPU is over 50% busy or memory is under pressure.

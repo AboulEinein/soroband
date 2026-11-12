@@ -6,15 +6,13 @@
 //! that already exited, and its read needs no privilege, so apps run as root are read too.
 //!
 //! A coalition holding processes of several apps (a terminal and the commands it runs) is shared.
-//! Its members are read with `proc_pid_rusage`, and each member's growth goes to its own app. What
-//! is left of the coalition's growth belongs to processes that exited since the last read, or
-//! that the user cannot read. It goes to the members that exited, in proportion to what each used
-//! in the interval before: all of it when the coalition's count of exited processes shows that
-//! every process that exited was read before and no member is unreadable, otherwise at most each
-//! one's earlier rate over this interval. The rest goes to the coalition's leader, the app of its
-//! lowest process id, so a process that starts and exits between two reads is credited to the
-//! leader. A coalition split at one read is split again at the next while a process it read is
-//! gone.
+//! Its members outside the leader's app (the app of its lowest process id) are read with
+//! `proc_pid_rusage`, and each one's growth goes to its own app. What is left of the coalition's
+//! growth is the leader's own, and what processes that exited since the last read, or that the
+//! user cannot read, used. It goes first to the members that exited, in proportion to what each
+//! used in the interval before and at most that rate over this interval, then the rest to the
+//! leader; a process that starts and exits between two reads is therefore credited to the leader.
+//! A coalition split at one read is split again at the next while a process it read is gone.
 //!
 //! The coalition calls are not in the public SDK. The [`guard`] checks their layout at the first
 //! read and every [`CHECK_INTERVAL`] seconds; when they are missing or the check fails, the meter
@@ -307,8 +305,6 @@ pub trait ResourceHost {
 #[derive(Debug)]
 struct CoalitionState {
     counters: Counters,
-    /// Its processes that had exited.
-    exited: u64,
     /// Whether it held processes of several apps.
     shared: bool,
     leader: Option<App>,
@@ -358,8 +354,17 @@ pub struct ResourceMeter<R: ResourceHost> {
     /// Unix time of the guard's next check; `None` once the coalition calls were found missing.
     next_check: Option<i64>,
     last: Option<LastRead>,
-    /// Each running process's app, by pid.
-    apps: HashMap<u32, Option<App>>,
+    /// Each running process's coalition and app, by pid, looked up once per process: neither
+    /// changes while it runs. A pid gone at one read is forgotten, so a pid reused between two
+    /// reads keeps the earlier process's (pids are reused only after about 100,000 more).
+    known: HashMap<u32, Known>,
+}
+
+/// What a running process was found to be, at the first read it was in.
+#[derive(Debug)]
+struct Known {
+    coalition: Option<u64>,
+    app: Option<App>,
 }
 
 impl<R: ResourceHost> ResourceMeter<R> {
@@ -377,7 +382,7 @@ impl<R: ResourceHost> ResourceMeter<R> {
             source: Source::Coalitions,
             next_check: Some(i64::MIN),
             last: None,
-            apps: HashMap::new(),
+            known: HashMap::new(),
         }
     }
 
@@ -489,36 +494,40 @@ impl<R: ResourceHost> ResourceMeter<R> {
         }
     }
 
-    /// Each coalition's processes, lowest pid first.
+    /// Each coalition's processes, lowest pid first. Forgets the processes that are gone.
     fn members(&mut self) -> BTreeMap<u64, Vec<u32>> {
         let mut pids = self.host.pids();
         pids.sort_unstable();
+        self.keep_known(&pids);
         let mut members: BTreeMap<u64, Vec<u32>> = BTreeMap::new();
         for pid in pids {
-            if let Some(id) = self.host.coalition_of(pid) {
+            if let Some(id) = self.known(pid).coalition {
                 members.entry(id).or_default().push(pid);
             }
         }
         members
     }
 
-    /// The app of `pid`, read once per process.
-    fn app_of(&mut self, pid: u32) -> Option<App> {
-        if let Some(app) = self.apps.get(&pid) {
-            return app.clone();
-        }
-        let app = self
-            .host
-            .executable_path(pid)
-            .map(|path| App::from_executable(&path));
-        self.apps.insert(pid, app.clone());
-        app
+    /// What `pid` is, looked up at the first read it is in.
+    fn known(&mut self, pid: u32) -> &Known {
+        let host = &mut self.host;
+        self.known.entry(pid).or_insert_with(|| Known {
+            coalition: host.coalition_of(pid),
+            app: host
+                .executable_path(pid)
+                .map(|path| App::from_executable(&path)),
+        })
     }
 
-    /// Forgets the apps of processes that are gone.
-    fn keep_apps_of(&mut self, running: &[u32]) {
+    /// The app of `pid`.
+    fn app_of(&mut self, pid: u32) -> Option<App> {
+        self.known(pid).app.clone()
+    }
+
+    /// Forgets the processes that are gone.
+    fn keep_known(&mut self, running: &[u32]) {
         let running: std::collections::HashSet<u32> = running.iter().copied().collect();
-        self.apps.retain(|pid, _| running.contains(pid));
+        self.known.retain(|pid, _| running.contains(pid));
     }
 
     fn read_coalitions(
@@ -528,8 +537,6 @@ impl<R: ResourceHost> ResourceMeter<R> {
         previous: Option<&LastRead>,
     ) -> (Credits, LastRead) {
         let members = self.members();
-        let running: Vec<u32> = members.values().flatten().copied().collect();
-        self.keep_apps_of(&running);
         let mut credits = Credits::default();
         let mut next = LastRead {
             time,
@@ -567,11 +574,9 @@ impl<R: ResourceHost> ResourceMeter<R> {
                 .any(|(_, app)| Some(app) != leader.as_ref())
                 || known.is_some_and(|s| s.shared && s.members.iter().any(|p| !pids.contains(p)));
             if shared {
-                let exits = known.map_or(0, |s| raw[self.layout.exited].saturating_sub(s.exited));
                 self.split(
                     id,
                     grown,
-                    exits,
                     footprint,
                     &member_apps,
                     leader.as_ref(),
@@ -586,7 +591,6 @@ impl<R: ResourceHost> ResourceMeter<R> {
                 id,
                 CoalitionState {
                     counters,
-                    exited: raw[self.layout.exited],
                     shared,
                     leader,
                     members: pids,
@@ -602,7 +606,6 @@ impl<R: ResourceHost> ResourceMeter<R> {
         &mut self,
         id: u64,
         grown: Counters,
-        exits: u64,
         footprint: u64,
         member_apps: &[(u32, App)],
         leader: Option<&App>,
@@ -612,10 +615,9 @@ impl<R: ResourceHost> ResourceMeter<R> {
     ) {
         let mut members_grown = Counters::default();
         let mut members_footprint = 0u64;
-        let mut unreadable = false;
-        for (pid, app) in member_apps {
+        // The leader's own processes are not read: what they used is part of what is left.
+        for (pid, app) in member_apps.iter().filter(|(_, app)| Some(app) != leader) {
             let Some(usage) = self.host.process_usage(*pid) else {
-                unreadable = true;
                 continue;
             };
             let delta = process_growth(*pid, &usage, Some(id), previous);
@@ -644,9 +646,6 @@ impl<R: ResourceHost> ResourceMeter<R> {
                 .filter_map(|pid| previous.processes.get(pid))
                 .filter(|p| p.coalition == Some(id))
                 .collect();
-            // When every process that exited was read before and every member is readable,
-            // what is left is theirs alone; otherwise each gets at most its earlier rate.
-            let all_known = !unreadable && exits <= exited.len() as u64;
             for field in 0..left.len() {
                 let rates: Vec<u64> = exited.iter().map(|p| p.delta.to_array()[field]).collect();
                 let total: u64 = rates.iter().sum();
@@ -655,10 +654,9 @@ impl<R: ResourceHost> ResourceMeter<R> {
                 }
                 let pool = left[field];
                 for (process, rate) in exited.iter().zip(&rates) {
-                    let mut share = scale(pool, *rate, total).min(left[field]);
-                    if !all_known {
-                        share = share.min(scale(*rate, next.elapsed, previous.elapsed));
-                    }
+                    let share = scale(pool, *rate, total)
+                        .min(scale(*rate, next.elapsed, previous.elapsed))
+                        .min(left[field]);
                     left[field] -= share;
                     let mut counters = [0; 5];
                     counters[field] = share;
@@ -678,7 +676,7 @@ impl<R: ResourceHost> ResourceMeter<R> {
     /// Reads the user's own processes, one by one.
     fn read_processes(&mut self, time: u64, previous: Option<&LastRead>) -> (Credits, LastRead) {
         let pids = self.host.pids();
-        self.keep_apps_of(&pids);
+        self.keep_known(&pids);
         let mut credits = Credits::default();
         let mut next = LastRead {
             time,
