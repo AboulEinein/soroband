@@ -1024,3 +1024,4 @@ Planned rounds: 3. The CodeRabbit CLI could not run before the draft: its API ke
 | 5 | Opus | 1 Low | `fix regression`: f4d7d81's new fallback reason made an hourly check reset the fallback's baseline (d98c4e2). | 1 sibling search (the reason-only switch) |
 | 6 | Opus | 1 Low, 1 Minor | `missed earlier`: `--json` printed 0 energy where the kernel counts none, against the plan's "unavailable, not zero" (90e27f4). `fix regression`: d98c4e2's path was not in the Reach list (PR body). | 1 Reach list |
 | 7 | Opus | 1 Low | `fix regression`: 90e27f4's `null` energy was tested only through `top_json` (0d0d5be, tests only). | 1 sibling search (`apps --by` beside `top`) |
+| direct | Opus | none | Reviewed 0d0d5be (tests only): handles round 7's finding; [comment](https://github.com/AboulEinein/soroband/pull/72#issuecomment-6820755776). The blind loop ends. | none |
