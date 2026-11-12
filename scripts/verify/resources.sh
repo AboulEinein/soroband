@@ -28,7 +28,8 @@ work=$(mktemp -d -t soroband-resources)
 loads=()
 cleanup() {
   local p
-  for p in $loads; do pkill -P $p 2>/dev/null; kill $p 2>/dev/null; done
+  # Best effort: after a passing run `wait` has reaped them, and the work directory still goes.
+  for p in $loads; do pkill -P $p 2>/dev/null || true; kill $p 2>/dev/null || true; done
   rm -rf $work
 }
 trap cleanup EXIT
@@ -96,6 +97,7 @@ for name in yes dd soroband-alloc; do
     { print -u2 "resources.sh: soroband top does not list $name"; exit 1; }
 done
 top_of() { jq --arg n $1 --arg f $2 '[.apps[] | select(.name == $n) | .[$f]] | add // 0' <<<$top }
+alloc_id=$(jq -r '.apps[] | select(.name == "soroband-alloc") | .id' <<<$top)
 print "top: source $(jq -r .source <<<$top), over $(jq .seconds <<<$top) s"
 
 sleep $(( seconds / 2 ))
@@ -115,8 +117,11 @@ grown() {
     ([$a.apps[] | select(.name == $n) | .[$f]] | add // 0) -
     ([$b.apps[] | select(.name == $n) | .[$f]] | add // 0)'
 }
-latest() {
-  jq --arg n $1 --arg f $2 '[.apps[] | select(.name == $n) | .[$f]] | max // 0' <<<$after
+# This run's app by its id, as `top` saw it: an earlier run's `soroband-alloc` ran from another
+# path, so it is another app with the same name.
+stored() {
+  jq -e --arg id $1 --arg f $2 '.apps[] | select(.id == $id) | .[$f]' <<<$after ||
+    { print -u2 "resources.sh: the stored rows have no app $1"; exit 1; }
 }
 
 failed=0
@@ -128,7 +133,8 @@ check() {
 }
 check "yes CPU time (ns)" $(grown yes cpu_ns) $(cpu_of $work/yes.time)
 check "dd bytes written" $(grown dd disk_written) $written
-check "soroband-alloc footprint (bytes)" $(latest soroband-alloc footprint) $(footprint_of $work/alloc.time)
+alloc_footprint=$(stored $alloc_id footprint)
+check "soroband-alloc footprint (bytes)" $alloc_footprint $(footprint_of $work/alloc.time)
 check "top: yes CPU time (ns)" $(top_of yes cpu_ns) $(( yes_during * 1e9 ))
 check "top: dd bytes written" $(top_of dd disk_written) $dd_during
 check "top: soroband-alloc footprint (bytes)" $(top_of soroband-alloc footprint) $(footprint_of $work/alloc.time)
