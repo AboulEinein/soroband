@@ -1000,3 +1000,4 @@ Planned rounds: 3. The CodeRabbit CLI could not run before the draft: its API ke
 
 | Review | Model | Findings | Origins | Caught earlier by |
 | --- | --- | --- | --- | --- |
+| 1 | Opus | 2 Medium, 5 Low, 1 Minor | `first look`: a process that `exec`s after its first read kept its launcher's app (dae1a63); a minute written twice kept stale ranks (aa21eea); `--by memory` ordered by a value it did not show (aa21eea); `resource_minutes_days` untested (f2ce2ee); the minute record kept only `/` of each local volume (aa21eea); the scripted load checked `top`'s names, not its numbers (386ad01); `--to` alone named `--from` (f2ce2ee); the PR promised a comment listing surviving mutants that was never posted (open: the last mutants run was stopped when the session paused). | 1 Reach list (the volumes), 1 sibling search (the minute replace) |
