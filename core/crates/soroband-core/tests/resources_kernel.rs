@@ -52,10 +52,16 @@ fn the_test_process_is_read_in_its_coalition() {
     unique.dedup();
     assert_eq!(unique.len(), ids.len(), "each coalition once");
     assert!(!ids.contains(&0));
-    // Every running process's coalition is in the list: none was cut short.
-    for p in host.pids() {
+    // Every running process's coalition is in the list: none was cut short. The processes are
+    // listed first, so one started in a new coalition in between is in the list too.
+    let pids = host.pids();
+    let listed = host.coalition_ids().expect("coalition calls");
+    for p in pids {
         if let Some(c) = host.coalition_of(p) {
-            assert!(ids.contains(&c), "coalition {c} of pid {p} is not listed");
+            assert!(
+                listed.contains(&c),
+                "coalition {c} of pid {p} is not listed"
+            );
         }
     }
     // The CPU time in Mach units, through the timebase, is what getrusage reports in time.

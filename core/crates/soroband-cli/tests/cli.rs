@@ -689,22 +689,31 @@ fn system_reports_the_gauges_now() {
 fn top_finds_a_busy_command() {
     use soroband_core::resources::ResourceHost;
     use soroband_core::resources::kernel::SystemResources;
+    /// Stops the busy child however the test ends, so a failed assertion leaves no core spinning.
+    struct Busy(std::process::Child);
+    impl Drop for Busy {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
     let dir = data_dir("top");
-    let mut yes = std::process::Command::new("/usr/bin/yes")
-        .stdout(std::process::Stdio::null())
-        .spawn()
-        .unwrap();
+    let yes = Busy(
+        std::process::Command::new("/usr/bin/yes")
+            .stdout(std::process::Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
     let mut host = SystemResources::new();
     let (numer, denom) = host.timebase();
     let cpu_ns = |host: &mut SystemResources| {
-        host.process_usage(yes.id()).unwrap().cpu * u64::from(numer) / u64::from(denom)
+        host.process_usage(yes.0.id()).unwrap().cpu * u64::from(numer) / u64::from(denom)
     };
     let before = cpu_ns(&mut host);
     let started = std::time::Instant::now();
     let top = soroband(&dir, &["top", "--for", "2", "--json"]);
     let own_rate = (cpu_ns(&mut host) - before) as f64 / started.elapsed().as_nanos() as f64;
-    yes.kill().unwrap();
-    yes.wait().unwrap();
+    drop(yes);
     let top = json_of(&top);
     let seconds = top["seconds"].as_f64().unwrap();
     let yes_row = top["apps"]
