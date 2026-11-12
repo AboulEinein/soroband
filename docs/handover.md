@@ -26,6 +26,7 @@ The state of the project for whoever picks it up next. Read this file, then the 
 - The installed copy in `/Applications` is #18's build, on schema version 2 with `menu_bar_top` and `menu_bar_bottom`. Installing `main` migrates the database to schema version 3, which older builds refuse; afterwards, `soroband config set menu_bar_readings download,upload` keeps the layout the user had.
 - The CodeRabbit CLI is installed (`~/.local/bin/coderabbit`, signed in with an agentic API key): `coderabbit review --agent --base <base branch>` reviews a branch locally in a few minutes.
 - [#69](https://github.com/AboulEinein/soroband/pull/69) (build stamp): every build names the commit it came from, from `scripts/build-stamp.sh`. Settings › About shows `Version 0.1.0 (412) · 16e85ce main`, with `-dirty` when the checkout had uncommitted changes. `soroband version` prints the same line without `-dirty`. Compare the SHA with `git rev-parse --short origin/main` to tell which build runs. The build number counts the commits up to HEAD, and is 0 in a shallow clone. The release job fails if its DMG is stamped `-dirty`.
+- M8 (resource meter engine and storage): the engine thread reads each app's CPU, billed CPU, disk and energy from its coalition once a minute and at every poll while the CPU is over 50% busy or memory is under pressure, with the system gauges at every poll (`core/crates/soroband-core/src/resources`); schema version 4 stores them per hour and day with a minute record kept `resource_minutes_days` days; `soroband system`, `top` and `apps --by` read them; `soroband debug state` reports the source (coalitions or the fallback) and the reads made. The layout guard passes on this Mac. Scripted load (`scripts/verify/resources.sh`) within 5% of each command's own account. Idle CPU +0.03–0.04% over `main`, accepted (Decisions, 2026-11-12). Its hand checklist (energy against `powermetrics`, below) needs the user.
 - The app is named Soroband, with the bundle identifier `io.github.abouleinein.soroband` (Debug: `.debug`), data in `~/Library/Application Support/Soroband`, and the `soroband` command.
 
 ## Next action
@@ -33,7 +34,11 @@ The state of the project for whoever picks it up next. Read this file, then the 
 1. **The user's checks.** When the user asks, install `main` (`scripts/install.sh`) and set `menu_bar_readings` as above. The user then runs the hand checklists on `main` (M0, M2, M3, M4, M5 and M6a's, below), checks by eye #17's Location grant, the popover and History on real data (#18) and Settings (#19, #20), and starts the daily-use week (M3, exit criterion 2). Each milestone is marked `done` in the ledger once its checklist has passed; issues go into Follow-ups.
 2. **History's cold open.** The user decides about History opening with no UI process running: 363–416 ms in a Release-optimized build and 373–423 ms in Debug, over M4's 300 ms.
 3. **M7's hand checklist** (below; #54 is merged), then, with the user's approval, date CHANGELOG's 0.1.0 section, write the Location result in place of its `TODO(release)`, and push the `v0.1.0` tag. M5's review experiment ended: its comparison is in `~/soroband-review-benchmark/m5/comparison.md`, and its three proposals for the `pr-review` skill are being weighed in the agent-skills project. `evidence/m5` holds #50's screenshots; deleting it breaks them. CPU and memory measurements on this Mac run one at a time, never beside another agent's, through `scripts/verify/measure-lock.py`.
-4. **M8, the resource meter,** once the user has approved M8–M10 in `plan.md`. Start from `prototypes/sysmon-probe`: its headline costs are in `prototypes/README.md`, and every measurement (each mode's cost, the denied processes, the coalition checks, energy) in the description of [#65](https://github.com/AboulEinein/soroband/pull/65).
+4. **M8's hand checklist** (below), then M9 and M10, whose designs are picked with the user at the start of each (`plan.md`).
+
+### M8 hand checklist
+
+1. **Energy against `powermetrics`.** With the installed app running, run `sudo powermetrics --samplers tasks --show-process-energy -i 60000 -n 5` and, over the same five minutes, `soroband top --by energy --for 60` once a minute. Compare each busy app's energy: if they disagree by more than 20%, energy stays stored but is not shown (`plan.md`, M8).
 
 ### M7 hand checklist
 
@@ -165,6 +170,7 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 | 2026-11-06 | The agents' working records (handover, plan, review logs) stay where they are in the public repository, indexed by `docs/README.md`; no code of conduct for now. The user's choices. |
 | 2026-11-09 | Checks move before the PR: the developer works through `docs/checklist.md` (Reach list, sibling search, one home per fact), and the review spends fewer rounds (`docs/review.md`), with no finding dropped and the nit cap at none. The user's request. |
 | 2026-11-09 | A milestone in `plan.md` states outcomes and how they are tested, not mechanism (proposed in #66's retro; the user's approval). |
+| 2026-11-12 | M8's resource meter is accepted at +0.03–0.04% idle CPU over a build without it on a Mac with about 600 live coalitions, over its +0.02% criterion, keeping a read once a minute (`plan.md`, M8). The user's choice. |
 | 2026-10-26 | Agent-friendly by design: a published install prompt any coding agent can follow, a `soroband config` command for every setting, and `--json` output on every query. |
 
 ## Open decisions
@@ -188,6 +194,8 @@ Small items for a later nits pass.
 - **`prototypes/sysmon-probe/run.sh` from another directory.** It resolves `measure-lock.py` from `${0:A:h}` after its `cd`, so `prototypes/sysmon-probe/run.sh` run from the repository root cannot find the lock; `./run.sh` from its own folder works. Compute the script's directory once, before the `cd` ([CodeRabbit on #66](https://github.com/AboulEinein/soroband/pull/66#discussion_r4504944754)).
 - **Retired terms by meaning.** `docs/review.md`'s Retired terms line counts every hit of an old word, though `GLOSSARY.md` keeps some in other senses ("meter" for the module, "hotspot meter"); it should count only hits in the retired sense ([CodeRabbit on #70](https://github.com/AboulEinein/soroband/pull/70)).
 - **`prepush.sh` checks the working tree.** Every check in it (records lint, cargo, swift-format, the app's tests) reads the working tree, not the commit being pushed, so an uncommitted edit can pass or fail what is pushed. Failing on tracked changes, or checking a clean checkout of `HEAD`, would fix all of them at once ([CodeRabbit on #70](https://github.com/AboulEinein/soroband/pull/70)).
+- **Resource rows on a busy Mac.** With about 120 running apps the resource tables grow about 190 KB a day, kept forever, beside a minute record that settles at about 3.8 MB (`examples/resource-growth.rs`). Whether idle apps with no CPU or disk need an hour row each is for M9 to weigh against History's needs.
+- **The engine thread's priority.** A resource read costs about four times the CPU at background priority (13–21 ms) as at the default (4–8 ms); the engine thread's priority sets most of M8's cost.
 - **Evidence branches.** `evidence/pr-35` and `evidence/m6b` hold only screenshots, linked from [#35](https://github.com/AboulEinein/soroband/pull/35)'s comments and [#36](https://github.com/AboulEinein/soroband/pull/36)'s description. Keeping or deleting them is the user's call; deleting them breaks those images.
 
 ## Gotchas
