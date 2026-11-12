@@ -489,6 +489,14 @@ mod tests {
         );
         // Where any app's is counted, a zero is a real zero.
         assert_eq!(energies(top_json(&reading(&[5, 0]))), [json!(5), json!(0)]);
+        // The text shows "–" for each app, and says why.
+        let text = top_text(&reading(&[0, 0]));
+        assert!(
+            text.contains("Energy is not counted on this Mac."),
+            "{text}"
+        );
+        assert!(text.lines().any(|l| l.trim_end().ends_with('–')), "{text}");
+        assert!(!top_text(&reading(&[5, 0])).contains("not counted"));
     }
 
     #[test]

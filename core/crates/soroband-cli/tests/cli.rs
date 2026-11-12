@@ -746,3 +746,45 @@ fn top_takes_one_to_sixty_seconds() {
     let one = soroband(&dir, &["top", "--for", "1", "--json"]);
     assert!(one.status.success(), "{one:?}");
 }
+
+/// Where no stored app's energy is above zero (a Mac whose kernel does not count it), `apps --by`
+/// shows energy as unavailable: `null` in JSON and "–" in text, not a zero.
+#[test]
+fn apps_by_shows_uncounted_energy_as_unavailable() {
+    use soroband_core::resources::Counters;
+    use soroband_core::resources::ledger::ResourceHour;
+    let dir = data_dir("apps-no-energy");
+    let mut store = Store::open(&dir.join("usage.sqlite")).unwrap();
+    let hour = hour_start(now());
+    let row = |name: &str, cpu: u64| ResourceHour {
+        hour,
+        app: app(name),
+        counters: Counters {
+            cpu,
+            ..Counters::default()
+        },
+        footprint_seconds: 0,
+        seconds: 0,
+        peak: 1,
+        fallback: false,
+    };
+    store
+        .add_resources(
+            &[row("Mail", 2_000_000_000), row("Xcode", 1_000_000_000)],
+            &[],
+            0,
+        )
+        .unwrap();
+    drop(store);
+    let json = json_of(&soroband(&dir, &["apps", "--by", "cpu", "--json"]));
+    let energies: Vec<&serde_json::Value> = json["apps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| &a["energy_nj"])
+        .collect();
+    assert_eq!(energies, [&json!(null), &json!(null)], "{json}");
+    let text = String::from_utf8(soroband(&dir, &["apps", "--by", "cpu"]).stdout).unwrap();
+    let mail = text.lines().find(|l| l.starts_with("Mail")).unwrap();
+    assert!(mail.trim_end().ends_with('–'), "{text}");
+}
