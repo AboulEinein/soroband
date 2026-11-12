@@ -93,6 +93,9 @@ Everything in Settings is also a `soroband` command, and the running app applies
 soroband today                           # today's usage per network
 soroband apps --network Home             # today's apps on one network
 soroband live                            # internet bytes per app, as they happen
+soroband top                             # the apps using the most CPU now; --by memory|disk|energy
+soroband apps --by memory                # today's apps by memory; also cpu, disk, energy, --from, --to
+soroband system                          # CPU, memory, swap and free space now
 soroband config list                     # every setting with its value and description
 soroband config set reset_hour 4         # the daily counter starts at 04:00
 soroband today --json                    # every query prints JSON for scripts and agents
