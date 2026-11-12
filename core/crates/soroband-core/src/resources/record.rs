@@ -89,11 +89,23 @@ const KEPT: [&str; 6] = [
 
 /// Replaces each path outside macOS's own directories: an app bundle's with
 /// `/Applications/App <n>.app/Contents/MacOS/App <n>`, any other with `/Users/user/bin/tool-<n>`,
-/// numbered in order of first appearance.
+/// numbered in order of first appearance. Each volume but the startup one becomes
+/// `/Volumes/Volume <n>`, since a disk's name is the user's.
 pub fn anonymize(recording: &mut Recording) {
     let mut names: HashMap<String, String> = HashMap::new();
     let (mut apps, mut tools) = (0, 0);
+    let mut volumes: HashMap<String, String> = HashMap::new();
     for read in &mut recording.reads {
+        for volume in &mut read.volumes {
+            if volume.path == "/" {
+                continue;
+            }
+            let n = volumes.len() + 1;
+            let made_up = volumes
+                .entry(volume.path.clone())
+                .or_insert_with(|| format!("/Volumes/Volume {n}"));
+            volume.path.clone_from(made_up);
+        }
         for process in &mut read.processes {
             let Some(path) = &process.path else { continue };
             if KEPT.iter().any(|dir| path.starts_with(dir)) {
@@ -444,6 +456,33 @@ mod tests {
                 "/Applications/App 2.app/Contents/MacOS/App 2",
             ]
         );
+    }
+
+    #[test]
+    fn a_volume_s_name_is_made_up_and_the_startup_volume_kept() {
+        let volume = |path: &str| Volume {
+            path: path.into(),
+            free: 1,
+            size: 2,
+        };
+        let mut first = read(10, vec![]);
+        first.volumes = vec![volume("/"), volume("/Volumes/Adham's Photos")];
+        let mut second = read(20, vec![]);
+        second.volumes = vec![volume("/Volumes/Backup"), volume("/Volumes/Adham's Photos")];
+        let mut recording = Recording {
+            timebase: (1, 1),
+            reads: vec![first, second],
+        };
+        anonymize(&mut recording);
+        let paths = |i: usize| -> Vec<String> {
+            recording.reads[i]
+                .volumes
+                .iter()
+                .map(|v| v.path.clone())
+                .collect()
+        };
+        assert_eq!(paths(0), ["/", "/Volumes/Volume 1"]);
+        assert_eq!(paths(1), ["/Volumes/Volume 2", "/Volumes/Volume 1"]);
     }
 
     #[test]
