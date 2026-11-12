@@ -675,15 +675,27 @@ fn system_reports_the_gauges_now() {
     assert!(volumes.iter().any(|v| v["path"] == "/"), "{system}");
 }
 
-/// `top` measures a command this test runs: `yes` uses about one core while it is measured.
+/// `top` measures a command this test runs: its rate for `yes` matches the rate `yes` ran at over
+/// the same call, by the kernel's own count, whatever share of a core the Mac gives it.
 #[test]
+#[allow(clippy::cast_precision_loss)] // rates of a few seconds of CPU
 fn top_finds_a_busy_command() {
+    use soroband_core::resources::ResourceHost;
+    use soroband_core::resources::kernel::SystemResources;
     let dir = data_dir("top");
     let mut yes = std::process::Command::new("/usr/bin/yes")
         .stdout(std::process::Stdio::null())
         .spawn()
         .unwrap();
+    let mut host = SystemResources::new();
+    let (numer, denom) = host.timebase();
+    let cpu_ns = |host: &mut SystemResources| {
+        host.process_usage(yes.id()).unwrap().cpu * u64::from(numer) / u64::from(denom)
+    };
+    let before = cpu_ns(&mut host);
+    let started = std::time::Instant::now();
     let top = soroband(&dir, &["top", "--for", "2", "--json"]);
+    let own_rate = (cpu_ns(&mut host) - before) as f64 / started.elapsed().as_nanos() as f64;
     yes.kill().unwrap();
     yes.wait().unwrap();
     let top = json_of(&top);
@@ -694,8 +706,10 @@ fn top_finds_a_busy_command() {
         .iter()
         .find(|a| a["name"] == "yes")
         .unwrap_or_else(|| panic!("yes is missing: {top}"));
-    #[allow(clippy::cast_precision_loss)]
-    let share = yes_row["cpu_ns"].as_u64().unwrap() as f64 / 1e9 / seconds;
-    assert!((0.8..=1.05).contains(&share), "yes used {share} of a core");
+    let top_rate = yes_row["cpu_ns"].as_u64().unwrap() as f64 / 1e9 / seconds;
+    assert!(
+        (top_rate / own_rate - 1.0).abs() < 0.15,
+        "top {top_rate} of a core, yes's own {own_rate}"
+    );
     assert!(["coalitions", "processes"].contains(&top["source"].as_str().unwrap()));
 }
