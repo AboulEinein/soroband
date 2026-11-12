@@ -1,7 +1,8 @@
 //! Records the resource meter's reads of this Mac for the replay tests.
 //!
-//! It takes three whole reads, one second apart and then two: before a `yes` it starts, while
-//! `yes` and a `dd` writing 64 MB run, and after `yes` exited. The recording ends with the CPU time
+//! It takes three whole reads, one second apart and then two: before a `yes` and a `dd` writing
+//! 64 MB it starts, while `yes` runs (`dd` has usually finished by then: a command that starts and
+//! exits between two reads), and after `yes` exited. The recording ends with the CPU time
 //! `yes` and `dd` used by their own account (their rusage from `wait4`), under `"expect"`, and its
 //! paths made up outside macOS's own directories.
 //!
@@ -47,10 +48,6 @@ fn main() {
         .expect("usage: record-resources <file>");
     let mut host = SystemResources::new();
     let mut reads = vec![capture(&mut host)];
-    let mut yes = Command::new("/usr/bin/yes")
-        .stdout(Stdio::null())
-        .spawn()
-        .expect("yes");
     let scratch = std::env::temp_dir().join(format!("record-resources-{}", std::process::id()));
     let dd = Command::new("/bin/dd")
         .args(["if=/dev/zero", "bs=1m", "count=64"])
@@ -58,6 +55,11 @@ fn main() {
         .stderr(Stdio::null())
         .spawn()
         .expect("dd");
+    // Started after `dd`, so a `dd` that fails to start leaves no `yes` running.
+    let mut yes = Command::new("/usr/bin/yes")
+        .stdout(Stdio::null())
+        .spawn()
+        .expect("yes");
     sleep(Duration::from_secs(1));
     reads.push(capture(&mut host));
     sleep(Duration::from_secs(1));
