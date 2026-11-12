@@ -189,13 +189,12 @@ impl ResourceHost for SystemResources {
                     size,
                 )
             };
-            let bytes = usize::try_from(bytes).ok()?;
+            // `libproc`'s wrapper returns 0 when the call fails: an empty list, which the meter
+            // takes as a failed read.
+            let Ok(bytes) = usize::try_from(bytes) else {
+                return Some(Vec::new());
+            };
             let count = bytes / size_of::<CoalitionEntry>();
-            // `libproc`'s wrapper returns 0 when the call fails; a running Mac always has
-            // coalitions (launchd's own), so no list is a failure, not an empty one.
-            if count == 0 {
-                return None;
-            }
             // A full buffer may have cut the list short: grow it and ask again.
             if count < self.entries.len() {
                 return Some(self.entries[..count].iter().map(|e| e.id).collect());
@@ -387,15 +386,16 @@ mod tests {
         0
     }
 
-    /// No coalition list is a failed call, not a Mac with no coalitions: the meter falls back to
-    /// the processes instead of reading nothing.
+    /// A failed list call is an empty list: the meter credits nothing at that read and keeps
+    /// the coalitions as its source, rather than falling back for the rest of the session.
     #[test]
-    fn a_failed_coalition_list_is_no_list() {
+    fn a_failed_coalition_list_is_an_empty_one() {
         let mut host = SystemResources::new();
         host.list_coalitions = Some(list_fails);
-        assert!(host.coalition_ids().is_none());
+        assert_eq!(host.coalition_ids(), Some(Vec::new()));
         let mut meter = ResourceMeter::new(host);
-        meter.read(0);
-        assert!(matches!(meter.source(), Source::Processes { .. }));
+        let reading = meter.read(0);
+        assert_eq!(reading.apps, vec![]);
+        assert_eq!(meter.source(), &Source::Coalitions);
     }
 }

@@ -513,3 +513,28 @@ fn a_read_that_runs_the_guard_still_looks_an_app_up_again_at_the_next_read() {
     assert_eq!(cpu(&second, TOOL), 9);
     assert_eq!(cpu(&second, LAUNCHER), 0);
 }
+
+/// A read whose coalition list failed (an empty list) credits nothing, and the next read credits
+/// the growth since the read before it: not the coalition's whole counters as if it were new.
+#[test]
+fn a_failed_list_credits_its_growth_at_the_next_read() {
+    let readings = run(
+        vec![
+            read(
+                0,
+                vec![coalition(1, 100, 0, 0)],
+                vec![process(10, 1, LEADER, 100, 0)],
+            ),
+            read(10, vec![], vec![process(10, 1, LEADER, 110, 0)]),
+            read(
+                20,
+                vec![coalition(1, 130, 0, 0)],
+                vec![process(10, 1, LEADER, 130, 0)],
+            ),
+        ],
+        (1, 1),
+    );
+    assert_eq!(readings[1].apps, vec![]);
+    assert_eq!(cpu(&readings[2], LEADER), 30);
+    assert!(readings.iter().all(|r| r.source == Source::Coalitions));
+}

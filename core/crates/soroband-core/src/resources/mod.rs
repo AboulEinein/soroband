@@ -287,8 +287,8 @@ pub trait ResourceHost {
     fn now(&mut self) -> u64;
     /// Nanoseconds per Mach time unit, as a fraction.
     fn timebase(&self) -> (u32, u32);
-    /// Every resource coalition's id, or `None` when the coalition calls are missing or the list
-    /// fails.
+    /// Every resource coalition's id, or `None` when the coalition calls are missing. An empty
+    /// list is a failed call: a running Mac always has coalitions (launchd's own).
     fn coalition_ids(&mut self) -> Option<Vec<u64>>;
     /// A coalition's words, or `None` when it cannot be read (it ended).
     fn coalition_usage(&mut self, id: u64) -> Option<[u64; RAW_WORDS]>;
@@ -430,11 +430,22 @@ impl<R: ResourceHost> ResourceMeter<R> {
         let previous = self.last.take();
         let (credits, next) = match self.source {
             Source::Coalitions => {
-                if let Some(ids) = self.host.coalition_ids() {
-                    self.read_coalitions(&ids, time, previous.as_ref())
-                } else {
-                    self.missing_calls();
-                    self.read_processes(time, None)
+                match self.host.coalition_ids() {
+                    // A failed list: nothing is credited now, and the next read credits the
+                    // growth since the last one that listed them.
+                    Some(ids) if ids.is_empty() => {
+                        self.last = previous;
+                        return Reading {
+                            seconds: 0.0,
+                            apps: Vec::new(),
+                            source: self.source.clone(),
+                        };
+                    }
+                    Some(ids) => self.read_coalitions(&ids, time, previous.as_ref()),
+                    None => {
+                        self.missing_calls();
+                        self.read_processes(time, None)
+                    }
                 }
             }
             Source::Processes { .. } => self.read_processes(time, previous.as_ref()),
@@ -471,7 +482,7 @@ impl<R: ResourceHost> ResourceMeter<R> {
     fn missing_calls(&mut self) {
         self.next_check = None;
         self.source = Source::Processes {
-            reason: "the coalition calls are missing from this macOS or failed".into(),
+            reason: "the coalition calls are missing from this macOS".into(),
         };
     }
 
@@ -482,6 +493,11 @@ impl<R: ResourceHost> ResourceMeter<R> {
             self.last = None;
             return;
         };
+        if ids.is_empty() {
+            // A failed list: no verdict, so check again at the next read.
+            self.next_check = Some(i64::MIN);
+            return;
+        }
         let members = self.members();
         let mut samples = Vec::new();
         for id in ids {
