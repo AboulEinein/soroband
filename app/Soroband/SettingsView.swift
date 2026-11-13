@@ -70,6 +70,7 @@ struct SettingsView: View {
         case appearance
         case menuBar = "menu-bar"
         case island
+        case resources
         case networks
         case about
 
@@ -81,6 +82,7 @@ struct SettingsView: View {
             case .appearance: "Appearance"
             case .menuBar: "Menu Bar"
             case .island: "Island"
+            case .resources: "Resources"
             case .networks: "Networks"
             case .about: "About"
             }
@@ -92,6 +94,7 @@ struct SettingsView: View {
             case .appearance: "circle.lefthalf.filled"
             case .menuBar: "menubar.rectangle"
             case .island: "rectangle.topthird.inset.filled"
+            case .resources: "cpu"
             case .networks: "wifi"
             case .about: "info"
             }
@@ -104,6 +107,7 @@ struct SettingsView: View {
             case .appearance: .indigo
             case .menuBar: .blue
             case .island: Color(white: 0.12)
+            case .resources: .orange
             case .networks: .green
             case .about: Color(white: 0.4)
             }
@@ -145,6 +149,9 @@ struct SettingsView: View {
                 MenuBarSettings(usage: usage)
             case .island:
                 IslandSettingsView(settings: usage.island, set: { usage.setSetting($0, to: $1) })
+            case .resources:
+                ResourceSettingsView(
+                    settings: usage.resources, gauges: usage.gauges, set: { usage.setSetting($0, to: $1) })
             case .networks:
                 NetworkSettings(
                     networks: usage.registry, current: NetworkMonitor.shared.current?.id,
