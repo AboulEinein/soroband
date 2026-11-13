@@ -168,6 +168,7 @@ fn gauges_json(g: &Gauges) -> Value {
         "memory_compressed": g.memory_compressed,
         "swap_used": g.swap_used,
         "pressure": g.pressure,
+        "memory_level": g.memory_level,
     })
 }
 
@@ -309,6 +310,9 @@ fn read_from_json(value: &Value) -> Option<RecordedRead> {
             memory_compressed: g["memory_compressed"].as_u64(),
             swap_used: g["swap_used"].as_u64(),
             pressure: g["pressure"].as_u64().and_then(|p| u8::try_from(p).ok()),
+            memory_level: g["memory_level"]
+                .as_u64()
+                .and_then(|l| u8::try_from(l).ok()),
         },
         volumes: value["volumes"]
             .as_array()?

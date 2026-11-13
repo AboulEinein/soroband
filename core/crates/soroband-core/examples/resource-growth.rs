@@ -71,6 +71,7 @@ fn main() {
             memory_compressed: Some(11_000_000_000),
             swap_used: Some(1_000_000_000),
             pressure: Some(1),
+            memory_level: Some(50),
             volumes: vec![soroband_core::resources::Volume {
                 path: "/".into(),
                 free: 120_000_000_000,

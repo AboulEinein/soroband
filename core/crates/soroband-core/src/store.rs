@@ -16,8 +16,9 @@
 //!   time-weighted sum (byte-seconds) over `seconds`, its peak, and whether a read came from the
 //!   fallback. `resource_usage_day` holds the same per UTC day, written with it.
 //! - `resource_minutes`, `resource_minute_apps` and `resource_minute_volumes`: per minute, the
-//!   system gauges, the five busiest apps by CPU (0), footprint (1) and disk bytes written (2), and
-//!   each local volume's free and total bytes, kept for the days of the `resource_minutes_days`
+//!   system gauges (CPU busy share, memory used, compressed and swapped, the pressure level and the
+//!   percent of memory available), the five busiest apps by CPU (0), footprint (1) and disk bytes
+//!   written (2), and each local volume's free and total bytes, kept for the days of the `resource_minutes_days`
 //!   setting.
 //!
 //! Hours are Unix times of the start of a UTC hour ([`crate::day::hour_start`]). Network id 0
@@ -37,9 +38,9 @@ use std::path::Path;
 pub use rusqlite::Error;
 pub type Result<T> = rusqlite::Result<T>;
 
-const SCHEMA_VERSION: i64 = 4;
-/// The tables as of version 2; [`NETWORK_COLOR`] and [`RESOURCES`] bring them to the current
-/// version.
+const SCHEMA_VERSION: i64 = 5;
+/// The tables as of version 2; [`NETWORK_COLOR`], [`RESOURCES`] and [`MEMORY_LEVEL`] bring them
+/// to the current version.
 const SCHEMA: &str = "
     CREATE TABLE networks (
         id INTEGER PRIMARY KEY,
@@ -151,6 +152,10 @@ const RESOURCES: &str = "
         PRIMARY KEY (minute, volume)
     ) WITHOUT ROWID;
 ";
+
+/// From version 4: the percent of memory available each minute, whose complement the app shows as
+/// the memory pressure.
+const MEMORY_LEVEL: &str = "ALTER TABLE resource_minutes ADD COLUMN memory_level INTEGER;";
 
 /// Seconds in a minute, the unit of `resource_minutes`.
 const MINUTE: i64 = 60;
@@ -267,22 +272,27 @@ impl Store {
         match version {
             0 => {
                 conn.execute_batch(&format!(
-                    "BEGIN; {SCHEMA} {NETWORK_COLOR} {RESOURCES} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
+                    "BEGIN; {SCHEMA} {NETWORK_COLOR} {RESOURCES} {MEMORY_LEVEL} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
                 ))?;
             }
             1 => {
                 conn.execute_batch(&format!(
-                    "BEGIN; {DAY_ROLLUP} {NETWORK_COLOR} {RESOURCES} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
+                    "BEGIN; {DAY_ROLLUP} {NETWORK_COLOR} {RESOURCES} {MEMORY_LEVEL} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
                 ))?;
             }
             2 => {
                 conn.execute_batch(&format!(
-                    "BEGIN; {NETWORK_COLOR} {RESOURCES} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
+                    "BEGIN; {NETWORK_COLOR} {RESOURCES} {MEMORY_LEVEL} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
                 ))?;
             }
             3 => {
                 conn.execute_batch(&format!(
-                    "BEGIN; {RESOURCES} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
+                    "BEGIN; {RESOURCES} {MEMORY_LEVEL} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
+                ))?;
+            }
+            4 => {
+                conn.execute_batch(&format!(
+                    "BEGIN; {MEMORY_LEVEL} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
                 ))?;
             }
             SCHEMA_VERSION => {}
@@ -769,8 +779,8 @@ fn write_minutes(
 ) -> Result<()> {
     let mut minute_row = tx.prepare(
         "INSERT OR REPLACE INTO resource_minutes (minute, cpu_busy, memory_used,
-             memory_compressed, swap_used, pressure, fallback)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+             memory_compressed, swap_used, pressure, fallback, memory_level)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
     )?;
     let mut top_row = tx.prepare(
         "INSERT INTO resource_minute_apps (minute, measure, rank, app, value)
@@ -789,6 +799,7 @@ fn write_minutes(
             m.swap_used.map(sql_bytes),
             m.pressure,
             m.fallback,
+            m.memory_level,
         ])?;
         tx.execute(
             "DELETE FROM resource_minute_apps WHERE minute = ?1",
@@ -1216,10 +1227,10 @@ pub(crate) mod tests {
         let path = temp_db("newer");
         drop(Store::open(&path).unwrap());
         let conn = rusqlite::Connection::open(&path).unwrap();
-        conn.pragma_update(None, "user_version", 5).unwrap();
+        conn.pragma_update(None, "user_version", 6).unwrap();
         drop(conn);
         let error = Store::open(&path).unwrap_err().to_string();
-        assert!(error.contains("schema version 5"), "{error}");
+        assert!(error.contains("schema version 6"), "{error}");
         assert!(Store::open_read_only(&path).is_err());
     }
 
@@ -1278,6 +1289,38 @@ pub(crate) mod tests {
                 .cpu,
             5
         );
+        drop(store);
+        assert!(Store::open_read_only(&path).is_ok());
+    }
+
+    #[test]
+    fn a_version_4_database_gains_the_memory_level_and_keeps_its_minutes() {
+        let path = temp_db("v4");
+        {
+            let conn = rusqlite::Connection::open(&path).unwrap();
+            conn.execute_batch(&format!(
+                "{} {} {} PRAGMA user_version = 4;",
+                super::SCHEMA,
+                super::NETWORK_COLOR,
+                super::RESOURCES
+            ))
+            .unwrap();
+            conn.execute_batch(
+                "INSERT INTO resource_minutes (minute, cpu_busy, pressure, fallback)
+                 VALUES (60, 0.5, 1, 0);",
+            )
+            .unwrap();
+        }
+        let store = Store::open(&path).unwrap();
+        let (busy, level): (f64, Option<i64>) = store
+            .conn
+            .query_row(
+                "SELECT cpu_busy, memory_level FROM resource_minutes WHERE minute = 60",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!((busy, level), (0.5, None), "an old minute has no level");
         drop(store);
         assert!(Store::open_read_only(&path).is_ok());
     }
@@ -1358,6 +1401,7 @@ pub(crate) mod tests {
             memory_compressed: Some(1 << 30),
             swap_used: Some(0),
             pressure: Some(1),
+            memory_level: Some(40),
             volumes: vec![crate::resources::Volume {
                 path: "/".into(),
                 free: 100 << 30,
