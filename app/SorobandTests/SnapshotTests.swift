@@ -356,7 +356,7 @@ struct SnapshotTests {
     /// The popover mockup's resources (`docs/mockups/resources.html`, 1A).
     static let gauges = Gauges(
         on: true, cpuBusy: 0.23, memoryUsed: 23_000_000_000, memoryLevel: 60, pressure: 1,
-        volumeFree: 212_000_000_000, volumeSize: 994_000_000_000)
+        volumeFree: 212_000_000_000, volumeSize: 994_000_000_000, memoryTotal: 34_359_738_368)
 
     /// Today's apps as the mockup lists them, by CPU time; 46 apps in all.
     static let resourceApps: [ResourceHistoryData.App] = {

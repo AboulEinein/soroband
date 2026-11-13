@@ -37,16 +37,16 @@ struct PopoverView: View {
             if content.asksForLocation {
                 LocationPrompt(allow: allowLocation)
             }
-            TabSwitcher(tab: $tab, tabs: resources == nil ? [.apps, .networks] : Tab.allCases)
+            TabSwitcher(
+                tab: Binding(get: { shownTab }, set: { tab = $0 }),
+                tabs: resources == nil ? [.apps, .networks] : Tab.allCases)
 
-            switch tab {
+            switch shownTab {
             case .apps: appsList
             case .networks: networksList
             case .resources:
                 if let resources {
                     ResourcesTab(resources: resources, measure: measure, grown: bars, open: openResource)
-                } else {
-                    appsList
                 }
             }
 
@@ -68,6 +68,9 @@ struct PopoverView: View {
     }
 
     private var bars: Bool { grown || !animatesOpen }
+
+    /// The tab shown: Apps in place of Resources while no resource is shown.
+    private var shownTab: Tab { tab == .resources && resources == nil ? .apps : tab }
 
     private var appsList: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -190,7 +193,8 @@ private struct ResourcesTab: View {
                     .help("Today's resources, every app on every network")
                 Spacer()
                 if resources.measures.count > 1 {
-                    Picker("Measure", selection: $measure) {
+                    // The picker shows the measure listed, which stands in for one not shown.
+                    Picker("Measure", selection: Binding(get: { resources.measure }, set: { measure = $0 })) {
                         ForEach(resources.measures) { Text($0.label).tag($0) }
                     }
                     .pickerStyle(.segmented).labelsHidden().controlSize(.small).fixedSize()

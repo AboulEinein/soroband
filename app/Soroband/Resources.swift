@@ -123,11 +123,13 @@ struct Gauges: Codable, Equatable {
     var volumeSize: UInt64?
     /// The resource read falls back to the user's own processes.
     var fallback = false
+    /// The installed memory the memory percents are of: this Mac's, or a fixture's in tests.
+    var memoryTotal = Gauges.installedMemory
 
     static let none = Gauges()
 
-    /// Installed memory and logical cores, which the percents and cores are of.
-    static let memoryTotal = ProcessInfo.processInfo.physicalMemory
+    /// This Mac's installed memory and logical cores.
+    static let installedMemory = ProcessInfo.processInfo.physicalMemory
     static let cores = ProcessInfo.processInfo.activeProcessorCount
 }
 
@@ -155,10 +157,10 @@ extension ResourceSettings {
     /// What the gauge for `measure` (CPU, memory or disk; nil for energy, which has no gauge)
     /// reads with `gauges`.
     func reading(
-        _ measure: ResourceMeasure, gauges: Gauges, memoryTotal: UInt64 = Gauges.memoryTotal,
-        cores: Int = Gauges.cores
+        _ measure: ResourceMeasure, gauges: Gauges, cores: Int = Gauges.cores
     ) -> GaugeReading? {
         let known = gauges.on
+        let memoryTotal = gauges.memoryTotal
         switch measure {
         case .cpu:
             let busy = known ? gauges.cpuBusy : nil

@@ -121,7 +121,8 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
 
     /// Asks where to save, then writes what the window shows as CSV.
     private func exportCSV() {
-        guard let model, let window else { return }
+        // The CSV holds internet bytes; a resource page has none to export.
+        guard let model, model.measure == nil, let window else { return }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.commaSeparatedText]
         panel.nameFieldStringValue = "Soroband \(model.content.title) \(model.content.subtitle).csv"
@@ -468,6 +469,12 @@ final class HistoryModel {
             minuteApps = answer.minuteApps
             updateMinutes()
         }
+        // An app kept expanded across a reload (settings changed) reads its measures over the
+        // span now shown; one read while this answer was pending read the span before it.
+        if expandedApp != nil, !settings.shown.isEmpty {
+            expandedMeasures = nil
+            loadExpandedMeasures()
+        }
         onChange?()
     }
 
@@ -520,6 +527,7 @@ final class HistoryToolbar: NSObject, NSToolbarDelegate {
     /// Data, then each resource shown: the page's measure.
     private let measures = NSSegmentedControl(labels: ["Data"], trackingMode: .selectOne, target: nil, action: nil)
     private var shownMeasures: [ResourceMeasure] = []
+    private weak var exportItem: NSToolbarItem?
 
     private static let navigation = NSToolbarItem.Identifier("navigation")
     private static let range = NSToolbarItem.Identifier("range")
@@ -564,6 +572,9 @@ final class HistoryToolbar: NSObject, NSToolbarDelegate {
             measures.isHidden = shown.isEmpty
             measures.sizeToFit()
         }
+        // The CSV holds internet bytes, which a resource page does not show.
+        exportItem?.isEnabled = model.measure == nil
+        exportItem?.autovalidates = false
         measures.selectedSegment = model.measure.flatMap { shown.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
         ranges.selectedSegment = HistoryRange.allCases.firstIndex(of: model.range) ?? 0
         let moves = model.range != .all
@@ -612,6 +623,7 @@ final class HistoryToolbar: NSObject, NSToolbarDelegate {
             item.view = measures
             item.label = "Measure"
         case Self.export:
+            exportItem = item
             item.image = NSImage(systemSymbolName: "square.and.arrow.up", accessibilityDescription: "Export CSV")
             item.label = "Export CSV"
             item.toolTip = "Export CSV…"

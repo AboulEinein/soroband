@@ -105,7 +105,9 @@ struct ResourceHistoryContent: Equatable {
                 // A day's busiest day is the day itself: its busiest hour says more.
                 busiest: range == .day
                     ? bars.max { $0.value < $1.value }.map { (start: $0.start, value: $0.value) } : busiest,
-                range: range, calendar: calendar),
+                range: range, calendar: calendar,
+                // The time the range has run: a day under way, or a day of 23 or 25 hours.
+                elapsed: min(interval.end, now).timeIntervalSince(interval.start)),
             change: change,
             chartTitle: chartTitle(measure: measure, step: query.step),
             bars: bars, barAverage: barAverage,
@@ -116,7 +118,7 @@ struct ResourceHistoryContent: Equatable {
 
     static func tiles(
         measure: ResourceMeasure, data: ResourceHistoryData, elapsedDays: Int, busiest: (start: Date, value: UInt64)?,
-        range: HistoryRange, calendar: Calendar
+        range: HistoryRange, calendar: Calendar, elapsed: TimeInterval = 86_400
     ) -> [Tile] {
         let total = data.total
         let days = "over \(elapsedDays) day\(elapsedDays == 1 ? "" : "s")"
@@ -134,7 +136,7 @@ struct ResourceHistoryContent: Equatable {
             return [
                 Tile(title: "CPU time", value: Format.cpuTime(nanoseconds: total.cpu)),
                 Tile(title: "Billed by daemons", value: Format.cpuTime(nanoseconds: total.billed)),
-                range == .day ? Tile(title: "Average load", value: averageLoad(total.cpu, days: 1)) : daily,
+                range == .day ? Tile(title: "Average load", value: averageLoad(total.cpu, seconds: elapsed)) : daily,
                 busiestTile,
             ]
         case .memory:
@@ -178,9 +180,9 @@ struct ResourceHistoryContent: Equatable {
         return style
     }
 
-    /// CPU time over `days` as cores' worth busy on average: "0.4 cores".
-    static func averageLoad(_ nanoseconds: UInt64, days: Int) -> String {
-        let cores = Double(nanoseconds) / 1e9 / (Double(days) * 86_400)
+    /// CPU time over `seconds` as cores' worth busy on average: "0.4 cores".
+    static func averageLoad(_ nanoseconds: UInt64, seconds: TimeInterval) -> String {
+        let cores = Double(nanoseconds) / 1e9 / max(1, seconds)
         return "\(Format.cores(cores)) cores"
     }
 

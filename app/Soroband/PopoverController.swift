@@ -279,7 +279,12 @@ private struct LivePopover: View {
             guard let key = resourcesKey else { return }
             // Spans are whole hours: the day from today's start takes in the hour under way.
             let query = ResourceQuery(
-                interval: DateInterval(start: key.todayStart, duration: 24 * 3600), previous: nil, step: .hour,
+                interval: DateInterval(
+                    start: key.todayStart,
+                    // A local day: 23 or 25 hours when the clocks change.
+                    end: Calendar.current.date(byAdding: .day, value: 1, to: key.todayStart)
+                        ?? key.todayStart.addingTimeInterval(86_400)),
+                previous: nil, step: .hour,
                 measure: key.measure)
             resourcesToday = await Task.detached(priority: .userInitiated) { Core.resourceHistory(query) }.value
         }

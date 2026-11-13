@@ -464,7 +464,7 @@ struct MenuBarPreview: View {
     /// 212 GB free on a 994 GB disk.
     static let sampleGauges = Gauges(
         on: true, cpuBusy: 0.23, memoryUsed: 23_000_000_000, memoryLevel: 60, pressure: 1,
-        volumeFree: 212_000_000_000, volumeSize: 994_000_000_000)
+        volumeFree: 212_000_000_000, volumeSize: 994_000_000_000, memoryTotal: 34_359_738_368)
 
     /// The menu bar's color over a wallpaper, in each appearance.
     static let strip = Color(light: 0xE9E7EE, dark: 0x0B0B0E)

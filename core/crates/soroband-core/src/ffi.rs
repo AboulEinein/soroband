@@ -1288,11 +1288,14 @@ fn new_resources(
     )
 }
 
-/// Writes what `resources` holds and stops it, as when the engine stops.
-fn stop_resources(resources: &mut Option<ResourceService<SystemResources>>) {
-    if let Some(mut stopped) = resources.take() {
-        if let Err(error) = stopped.write(day::now(), true) {
-            eprintln!("soroband: the last resource usage was not written: {error}");
+/// Writes what `resources` holds and stops it, as when the engine stops. A service whose write
+/// fails is kept, reading nothing, so the next call writes its rows again; turned on before then,
+/// it goes on reading where it stopped.
+fn stop_resources<R: crate::resources::ResourceHost>(resources: &mut Option<ResourceService<R>>) {
+    if let Some(stopping) = resources.as_mut() {
+        match stopping.write(day::now(), true) {
+            Ok(()) => *resources = None,
+            Err(error) => eprintln!("soroband: resource usage not written yet: {error}"),
         }
     }
     *lock(&GAUGES) = NO_GAUGES;
@@ -1554,7 +1557,9 @@ fn today_json(service: &Service<SystemHost>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{ResourceSettings, gauges, limits, shown_volume, soroband_core_version};
+    use super::{
+        ResourceSettings, gauges, limits, shown_volume, soroband_core_version, stop_resources,
+    };
     use crate::resources::record::{RecordedRead, Recording, Replay};
     use crate::resources::service::ResourceService;
     use crate::resources::{Gauges, ResourceMeter, Volume};
@@ -1602,6 +1607,52 @@ mod tests {
                 volume: "/Volumes/Backup".into()
             }
         );
+    }
+
+    /// Turning the meter off writes what it holds; a write that fails keeps the service, and its
+    /// rows, for the next try, rather than dropping them with it.
+    #[test]
+    fn turning_the_meter_off_keeps_rows_a_failed_write_could_not_store() {
+        let path = crate::store::tests::temp_db("ffi-stop-resources");
+        let store = Arc::new(Mutex::new(Store::open(&path).unwrap()));
+        let read = RecordedRead {
+            time: 0,
+            coalitions: Some(Vec::new()),
+            processes: Vec::new(),
+            gauges: Gauges::default(),
+            volumes: vec![volume("/", 10)],
+        };
+        let meter = ResourceMeter::trusting(Replay::new(Recording {
+            timebase: (1, 1),
+            reads: vec![read],
+        }));
+        // Now, not 1970: the write drops minutes older than the 7 days kept.
+        let now = crate::day::now();
+        let mut service = Some(ResourceService::new(meter, Arc::clone(&store), 7, now));
+        service.as_mut().unwrap().poll(now).unwrap();
+        let rename = |from: &str, to: &str| {
+            store
+                .lock()
+                .unwrap()
+                .connection()
+                .execute_batch(&format!("ALTER TABLE {from} RENAME TO {to}"))
+                .unwrap();
+        };
+        let minutes = || -> i64 {
+            store
+                .lock()
+                .unwrap()
+                .connection()
+                .query_row("SELECT COUNT(*) FROM resource_minutes", [], |r| r.get(0))
+                .unwrap()
+        };
+        rename("resource_minutes", "away");
+        stop_resources(&mut service);
+        assert!(service.is_some(), "kept while its rows are not stored");
+        rename("away", "resource_minutes");
+        stop_resources(&mut service);
+        assert!(service.is_none());
+        assert_eq!(minutes(), 1, "the minute polled, written at the second try");
     }
 
     /// What the menu bar reads: the busy share between the last two polls, the memory, its level

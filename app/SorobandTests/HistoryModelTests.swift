@@ -216,6 +216,23 @@ struct HistoryModelTests {
         #expect(model.minutes?.points.count == 1)
     }
 
+    /// An app kept expanded while the settings change reads its measures again, rather than
+    /// waiting on a read the new answer dropped.
+    @Test func anExpandedAppReadsItsMeasuresAgainAfterASettingsChange() async throws {
+        let reader = ResourceReader()
+        let model = HistoryModel(
+            range: .week, anchor: .now, network: nil, currentNetwork: nil, registry: [], measure: .cpu,
+            reads: reader.reads)
+        model.loadNow()
+        model.expandedApp = "/Applications/Xcode.app"
+        var settings = ResourceSettings()
+        settings.cpu = .cores
+        model.settings = settings
+        for _ in 0..<200 where model.expandedMeasures == nil { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(model.expandedMeasures != nil)
+        #expect(model.expandedApp == "/Applications/Xcode.app")
+    }
+
     /// Turning the page's resource off in Settings goes back to the data page.
     @Test func aResourceTurnedOffLeavesItsPage() {
         let reader = ResourceReader()

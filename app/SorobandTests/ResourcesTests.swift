@@ -11,12 +11,12 @@ struct ResourcesTests {
     /// 23% busy; 24 GiB used; 40% available, so 60% pressure; 300 GB free of 1 TB.
     let gauges = Gauges(
         on: true, cpuBusy: 0.2399, memoryUsed: 25_769_803_776, memoryLevel: 40, pressure: 2,
-        volumeFree: 300_000_000_000, volumeSize: 1_000_000_000_000)
+        volumeFree: 300_000_000_000, volumeSize: 1_000_000_000_000, memoryTotal: 34_359_738_368)
 
     func reading(_ measure: ResourceMeasure, _ change: (inout ResourceSettings) -> Void = { _ in }) -> GaugeReading? {
         var settings = ResourceSettings()
         change(&settings)
-        return settings.reading(measure, gauges: gauges, memoryTotal: memoryTotal, cores: cores)
+        return settings.reading(measure, gauges: gauges, cores: cores)
     }
 
     @Test func cpuReadsAsAPercentOrAsCoresBusy() {

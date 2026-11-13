@@ -7,7 +7,7 @@ import Testing
 struct PopoverResourcesTests {
     let gauges = Gauges(
         on: true, cpuBusy: 0.23, memoryUsed: 23_000_000_000, memoryLevel: 60, pressure: 1,
-        volumeFree: 212_000_000_000, volumeSize: 994_000_000_000)
+        volumeFree: 212_000_000_000, volumeSize: 994_000_000_000, memoryTotal: 34_359_738_368)
 
     /// Seven apps: CPU from 70 minutes (Xcode) down, Mail with no CPU but the most memory.
     func today() -> ResourceHistoryData {

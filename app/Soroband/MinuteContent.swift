@@ -42,10 +42,11 @@ struct MinuteContent: Equatable {
     /// - `selected`: the minute picked; the latest of the day when nil.
     static func make(
         record: MinuteRecord, selected: Int64?, apps: MinuteApps?, settings: ResourceSettings, keptDays: Int,
-        memoryTotal: UInt64 = Gauges.memoryTotal, cores: Int = Gauges.cores
+        memoryTotal: UInt64 = Gauges.installedMemory, cores: Int = Gauges.cores
     ) -> MinuteContent {
         let points = record.minutes.map { minute in
-            let gauges = minute.gauges
+            var gauges = minute.gauges
+            gauges.memoryTotal = memoryTotal
             return Point(
                 start: Date(timeIntervalSince1970: TimeInterval(minute.start)),
                 cpu: minute.cpuBusy.map { min(1, max(0, $0)) },
@@ -54,9 +55,10 @@ struct MinuteContent: Equatable {
         let minute = record.minutes.last { $0.start == selected } ?? (selected == nil ? record.minutes.last : nil)
         var summary: String?
         if let minute {
-            let gauges = minute.gauges
+            var gauges = minute.gauges
+            gauges.memoryTotal = memoryTotal
             var parts = [ResourceMeasure.cpu, .memory].compactMap {
-                settings.reading($0, gauges: gauges, memoryTotal: memoryTotal, cores: cores)?.text
+                settings.reading($0, gauges: gauges, cores: cores)?.text
             }
             if let pressure = minute.pressure { parts.append("pressure \(pressureWord(pressure))") }
             summary = parts.joined(separator: " · ")

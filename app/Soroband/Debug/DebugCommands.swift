@@ -207,10 +207,11 @@ enum DebugCommands {
     /// Exports what History shows to `historyCSVFile`, as its Export button does to the file the
     /// user picks. The output path is fixed for the same reason as `statusItemFile`'s.
     private static func exportHistory() {
-        guard let query = HistoryWindow.shared.model?.query else {
-            NSLog("soroband-debug: export-history needs the History window open")
+        guard let model = HistoryWindow.shared.model, model.measure == nil else {
+            NSLog("soroband-debug: export-history needs the History window open on its data page")
             return
         }
+        let query = model.query
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try? FileManager.default.removeItem(at: historyCSVFile)
         HistoryWindow.shared.export(

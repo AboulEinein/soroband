@@ -116,6 +116,14 @@ struct ResourceHistoryContentTests {
         // Formatters put a narrow no-break space before PM.
         #expect(day.tiles.last?.detail?.replacingOccurrences(of: "\u{202F}", with: " ") == "3 PM")
         #expect(day.heatmap == nil)
+        let busy = ResourceHistoryData(
+            firstHour: november1, total: ResourceSum(cpu: 6 * 3600 * 1_000_000_000), previous: nil, bars: [],
+            apps: [], busiestDay: nil, days: 1, heatmap: [])
+        let halfDay = ResourceHistoryContent.make(
+            range: .day, query: query, data: busy, now: start.addingTimeInterval(12 * 3600), calendar: calendar)
+        // At noon the day has run 12 hours: 6 hours of CPU is half a core, not the quarter a whole
+        // day would give.
+        #expect(halfDay.tiles[2].value == "0.5 cores")
     }
 }
 

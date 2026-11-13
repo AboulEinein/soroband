@@ -252,15 +252,17 @@ fn hours(store: &Store, start: i64, end: i64, step: Step) -> Result<Vec<Hour>> {
         .collect()
 }
 
-/// The Mac's resources from `start` up to `end`.
+/// The Mac's resources from `start` up to `end`. The byte-seconds are summed as a float
+/// (`TOTAL`): over a long span they pass what SQLite's integer `SUM` holds (2^63, about a year of
+/// 290 GB), which it reports as an error rather than a number.
 fn span_sum(store: &Store, start: i64, end: i64) -> Result<Sum> {
     let mut statement = store.connection().prepare(
         "SELECT SUM(cpu), SUM(billed_cpu), SUM(disk_read), SUM(disk_written), SUM(energy),
-             SUM(footprint_seconds), SUM(seconds), MAX(fallback)
+             TOTAL(footprint_seconds), SUM(seconds), MAX(fallback)
          FROM resource_usage_total WHERE hour >= ?1 AND hour < ?2",
     )?;
     statement.query_row(params![start, end], |row| {
-        let footprint_seconds = u64_from_sql(row.get::<_, Option<i64>>(5)?.unwrap_or(0));
+        let footprint_seconds: f64 = row.get(5)?;
         let int = |i| -> rusqlite::Result<u64> {
             Ok(u64_from_sql(row.get::<_, Option<i64>>(i)?.unwrap_or(0)))
         };
@@ -272,7 +274,9 @@ fn span_sum(store: &Store, start: i64, end: i64) -> Result<Sum> {
                 written: int(3)?,
                 energy: int(4)?,
             },
-            footprint_seconds: u128::from(footprint_seconds),
+            // Truncates toward zero; byte-seconds are never negative.
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            footprint_seconds: footprint_seconds as u128,
             seconds: int(6)?,
             peak: 0,
             fallback: row.get::<_, Option<bool>>(7)?.unwrap_or(false),
@@ -588,6 +592,45 @@ mod tests {
             .collect();
         assert_eq!(apps, [("Xcode".into(), 100), ("Mail".into(), 5)]);
         assert_eq!(h.total.counters.cpu, 105);
+    }
+
+    /// Two hours whose byte-seconds together pass 2^63, as a year at 290 GB summed would: the
+    /// comparison is still read, where SQLite's integer `SUM` fails on the overflow.
+    #[test]
+    fn a_comparison_past_sixty_four_bits_of_byte_seconds_is_still_read() {
+        let store = Store::open(&temp_db("resource-history-overflow")).unwrap();
+        let half = i64::MAX / 2 + 1;
+        for hour in [0, HOUR] {
+            store
+                .connection()
+                .execute(
+                    "INSERT INTO resource_usage_total VALUES (?1, 0, 0, 0, 0, 0, ?2, 3600, 0)",
+                    rusqlite::params![hour, half],
+                )
+                .unwrap();
+        }
+        let h = resource_history(
+            &store,
+            &Query {
+                span: Span {
+                    start: DAY,
+                    end: 2 * DAY,
+                },
+                previous: Some(Span { start: 0, end: DAY }),
+                step: Step::Day,
+                measure: Measure::Memory,
+            },
+            utc,
+        )
+        .unwrap();
+        // 2^63 byte-seconds over 7,200 s: about 1.28 PB on average, as a float rounds it.
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let expected = (2.0_f64.powi(63) / 7200.0) as u64;
+        let previous = h.previous.unwrap();
+        assert!(
+            previous.abs_diff(expected) < expected / 1_000_000,
+            "{previous}"
+        );
     }
 
     fn minute(start: i64, volumes: Vec<Volume>) -> ResourceMinute {

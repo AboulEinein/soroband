@@ -327,7 +327,7 @@ struct MenuBarDisplayTests {
     /// (21.4 GiB), 212 GB free on a 994 GB disk.
     let gauges = Gauges(
         on: true, cpuBusy: 0.23, memoryUsed: 23_000_000_000, memoryLevel: 40, pressure: 1,
-        volumeFree: 212_000_000_000, volumeSize: 994_000_000_000)
+        volumeFree: 212_000_000_000, volumeSize: 994_000_000_000, memoryTotal: 34_359_738_368)
 
     @Test func gaugesReadAsTheResourceSettingsSayBesideTheBytes() {
         let layout = MenuBarLayout(readings: [.total, .cpu, .memory, .disk], style: .labeled)
