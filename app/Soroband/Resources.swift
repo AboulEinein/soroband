@@ -14,16 +14,6 @@ enum ResourceMeasure: String, Codable, CaseIterable, Identifiable {
         case .energy: "Energy"
         }
     }
-
-    /// One color per resource in every view (`docs/mockups/resources.html`).
-    var colorHex: UInt32 {
-        switch self {
-        case .cpu: 0xFF8A3D
-        case .memory: 0xB58CFF
-        case .disk: 0x3FD0C9
-        case .energy: 0xF5C542
-        }
-    }
 }
 
 /// How each resource reads now, and which are metered: Settings › Resources, one setting per

@@ -7,7 +7,7 @@ import Testing
 struct HistoryOptionsTests {
     @Test func everyOptionSurvivesTheTrip() throws {
         let options = HistoryOptions(
-            range: .year, date: Date(timeIntervalSince1970: 1_793_088_000.5), network: 3, current: 2,
+            range: .year, measure: .memory, date: Date(timeIntervalSince1970: 1_793_088_000.5), network: 3, current: 2,
             requested: Date(timeIntervalSince1970: 1_793_164_454.25), expandedApp: "/Applications/Safari.app",
             hover: Date(timeIntervalSince1970: 1_793_000_000))
         #expect(HistoryOptions(arguments: options.arguments) == options)
@@ -25,6 +25,7 @@ struct HistoryOptionsTests {
         #expect(plain == HistoryOptions())
         #expect(plain?.range == .month)
         #expect(plain?.network == nil)
+        #expect(plain?.measure == nil, "the data page")
     }
 
     @Test func unreadableValuesFallBackToTheDefaults() {

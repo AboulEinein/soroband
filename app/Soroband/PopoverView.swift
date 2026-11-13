@@ -7,11 +7,17 @@ struct PopoverView: View {
     enum Tab: String, CaseIterable {
         case apps = "Apps"
         case networks = "Networks"
+        case resources = "Resources"
     }
 
     let content: PopoverContent
     @Binding var tab: Tab
     @Binding var allNetworks: Bool
+    /// The Resources tab; nil while no resource is shown, which hides the tab.
+    var resources: PopoverResources?
+    var measure: Binding<ResourceMeasure> = .constant(.cpu)
+    /// Opens History on today's page of a resource, at its latest minute.
+    var openResource: (ResourceMeasure) -> Void = { _ in }
     var openHistory: () -> Void = {}
     var allowLocation: () -> Void = {}
     var openSettings: () -> Void = {}
@@ -31,11 +37,17 @@ struct PopoverView: View {
             if content.asksForLocation {
                 LocationPrompt(allow: allowLocation)
             }
-            TabSwitcher(tab: $tab)
+            TabSwitcher(tab: $tab, tabs: resources == nil ? [.apps, .networks] : Tab.allCases)
 
             switch tab {
             case .apps: appsList
             case .networks: networksList
+            case .resources:
+                if let resources {
+                    ResourcesTab(resources: resources, measure: measure, grown: bars, open: openResource)
+                } else {
+                    appsList
+                }
             }
 
             footer
@@ -148,14 +160,164 @@ struct PopoverView: View {
     }
 }
 
+/// The Resources tab: the gauges now, then today's apps by one measure.
+private struct ResourcesTab: View {
+    let resources: PopoverResources
+    @Binding var measure: ResourceMeasure
+    let grown: Bool
+    let open: (ResourceMeasure) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            if resources.fallback {
+                FallbackNotice()
+            }
+            if !resources.gauges.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(resources.gauges) { gauge in
+                        Button {
+                            open(gauge.measure)
+                        } label: {
+                            GaugeCard(gauge: gauge)
+                        }
+                        .buttonStyle(.plain)
+                        .help("\(gauge.reading.title) minute by minute in History")
+                    }
+                }
+            }
+            HStack {
+                Text("Today").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    .help("Today's resources, every app on every network")
+                Spacer()
+                if resources.measures.count > 1 {
+                    Picker("Measure", selection: $measure) {
+                        ForEach(resources.measures) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented).labelsHidden().controlSize(.small).fixedSize()
+                }
+            }
+            if resources.rows.isEmpty {
+                Text(resources.loaded ? "Nothing read yet today." : " ")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
+            ForEach(resources.rows) { row in
+                ResourceRow(row: row, scale: resources.scale, color: resources.measure.color, grown: grown)
+            }
+            if resources.hiddenApps > 0 {
+                Text("+ \(resources.hiddenApps) more in History")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+/// One gauge now: what it reads, its value in the resource's color, and the used share.
+private struct GaugeCard: View {
+    let gauge: PopoverResources.Gauge
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(gauge.reading.title.uppercased())
+                .font(.system(size: 9.5, weight: .semibold)).tracking(0.4).foregroundStyle(.secondary)
+                .lineLimit(1).minimumScaleFactor(0.8)
+            Text(gauge.reading.value)
+                .font(.system(size: 16, weight: .semibold, design: .rounded)).monospacedDigit()
+                .foregroundStyle(gauge.measure.color)
+                .lineLimit(1).minimumScaleFactor(0.7)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(.quaternary.opacity(0.6))
+                    Capsule().fill(gauge.measure.color)
+                        .frame(width: geo.size.width * CGFloat(gauge.reading.usedShare ?? 0))
+                }
+            }
+            .frame(height: 4)
+            .padding(.top, 3)
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quinary, in: .rect(cornerRadius: 8))
+        .contentShape(.rect(cornerRadius: 8))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(gauge.reading.title)
+        .accessibilityValue(gauge.reading.value)
+    }
+}
+
+/// One app's measure today, with a bar in the resource's color.
+private struct ResourceRow: View {
+    let row: PopoverResources.Row
+    let scale: UInt64
+    let color: Color
+    var grown = true
+
+    var body: some View {
+        HStack(spacing: 10) {
+            RowIcon(icon: row.icon, tiled: true).frame(width: 24, height: 24)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(row.title).lineLimit(1)
+                    Spacer()
+                    Text(row.text).monospacedDigit().foregroundStyle(.secondary)
+                }
+                .font(.callout)
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(.quaternary.opacity(0.6))
+                        RoundedRectangle(cornerRadius: 2).fill(color)
+                            .frame(width: max(2, geo.size.width * CGFloat(row.value) / CGFloat(max(scale, 1))))
+                    }
+                }
+                .frame(height: 4)
+                .scaleEffect(x: grown ? 1 : 0, anchor: .leading)
+            }
+        }
+    }
+}
+
+/// The resource read falls back to the user's own processes (M8's fallback).
+struct FallbackNotice: View {
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "person.crop.circle.badge.exclamationmark").foregroundStyle(.yellow)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Your processes only").font(.caption.weight(.semibold))
+                Text(
+                    "macOS did not allow Soroband to read every app’s resources, so apps run as root or by other users are left out. Details in Settings › Resources."
+                )
+                .font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .background(.yellow.opacity(0.1), in: .rect(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.yellow.opacity(0.35)))
+    }
+}
+
+extension ResourceMeasure {
+    /// One color per resource in every view (`docs/mockups/resources.html`), a shade deeper in
+    /// light mode so it reads on white.
+    var color: Color {
+        switch self {
+        case .cpu: Color(light: 0xE8691F, dark: 0xFF8A3D)
+        case .memory: Color(light: 0x8A5CE6, dark: 0xB58CFF)
+        case .disk: Color(light: 0x13A39B, dark: 0x3FD0C9)
+        case .energy: Color(light: 0xC2920A, dark: 0xF5C542)
+        }
+    }
+}
+
 /// Apps and Networks as two halves of one full-width control. The system segmented control keeps
 /// its natural width on macOS 27, however wide its frame.
 private struct TabSwitcher: View {
     @Binding var tab: PopoverView.Tab
+    let tabs: [PopoverView.Tab]
 
     var body: some View {
         HStack(spacing: 2) {
-            ForEach(PopoverView.Tab.allCases, id: \.self) { item in
+            ForEach(tabs, id: \.self) { item in
                 Button {
                     tab = item
                 } label: {
