@@ -46,7 +46,8 @@ final class MenuBarController: NSObject {
     func update() {
         let usage = Usage.shared
         let display = MenuBarDisplay.make(
-            layout: usage.menuBarLayout, status: usage.status, kind: NetworkMonitor.shared.current?.kind)
+            layout: usage.menuBarLayout, status: usage.status, kind: NetworkMonitor.shared.current?.kind,
+            gauges: usage.gauges, resources: usage.resources)
         guard display != self.display, let button = item?.button else { return }
         let new = MenuBarDisplay.Drawn(
             display: display, layout: usage.menuBarLayout, network: usage.status.networkID,

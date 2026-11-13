@@ -43,12 +43,25 @@ enum MenuBarReading: String, Codable, CaseIterable, Identifiable {
     case upload
     case speedDown = "speed_down"
     case speedUp = "speed_up"
+    case cpu, memory, disk
 
     var id: String { rawValue }
 
     /// Today's bytes, as opposed to the live speed.
     static let usage: [MenuBarReading] = [.total, .download, .upload]
     static let speeds: [MenuBarReading] = [.speedDown, .speedUp]
+    /// The system gauges, as the resource settings read them.
+    static let gauges: [MenuBarReading] = [.cpu, .memory, .disk]
+
+    /// The resource a gauge reads; nil for bytes and speeds.
+    var measure: ResourceMeasure? {
+        switch self {
+        case .cpu: .cpu
+        case .memory: .memory
+        case .disk: .disk
+        case .total, .download, .upload, .speedDown, .speedUp: nil
+        }
+    }
 
     var label: String {
         switch self {
@@ -57,6 +70,9 @@ enum MenuBarReading: String, Codable, CaseIterable, Identifiable {
         case .upload: "Today’s upload"
         case .speedDown: "Download speed"
         case .speedUp: "Upload speed"
+        case .cpu: "CPU"
+        case .memory: "Memory"
+        case .disk: "Disk"
         }
     }
 
@@ -68,17 +84,21 @@ enum MenuBarReading: String, Codable, CaseIterable, Identifiable {
         case .upload: "Up"
         case .speedDown: "↓ Speed"
         case .speedUp: "↑ Speed"
+        case .cpu: "CPU"
+        case .memory: "Memory"
+        case .disk: "Disk"
         }
     }
 
-    /// The caption the labeled style draws over the value.
-    var caption: String {
+    /// The caption the labeled style draws over the value; a gauge's follows what it reads.
+    func caption(resources: ResourceSettings = .default) -> String {
         switch self {
         case .total: "TODAY"
         case .download: "DOWN"
         case .upload: "UP"
         case .speedDown: "↓ LIVE"
         case .speedUp: "↑ LIVE"
+        case .cpu, .memory, .disk: gauge(resources: resources, gauges: .none)?.caption ?? ""
         }
     }
 
@@ -89,39 +109,65 @@ enum MenuBarReading: String, Codable, CaseIterable, Identifiable {
         case .upload: "arrow.up"
         case .speedDown: "arrow.down.circle"
         case .speedUp: "arrow.up.circle"
+        case .cpu: "cpu"
+        case .memory: "memorychip"
+        case .disk: "internaldrive"
         }
     }
 
     var isSpeed: Bool { Self.speeds.contains(self) }
+    /// Today's bytes, which `MenuBarLayout.scope` counts.
+    var isUsage: Bool { Self.usage.contains(self) }
 
-    /// The value alone: today's bytes as the menu bar rounds them, or the live speed.
-    func value(today: ByteCounts, speed: ByteCounts) -> String {
+    /// What a gauge reads with `gauges`; nil for bytes and speeds.
+    func gauge(resources: ResourceSettings, gauges: Gauges) -> GaugeReading? {
+        measure.flatMap { resources.reading($0, gauges: gauges) }
+    }
+
+    /// The value alone: today's bytes as the menu bar rounds them, the live speed, or a gauge.
+    func value(
+        today: ByteCounts, speed: ByteCounts, gauges: Gauges = .none, resources: ResourceSettings = .default
+    ) -> String {
         switch self {
         case .total: Format.menuBarBytes(today.total)
         case .download: Format.menuBarBytes(today.rx)
         case .upload: Format.menuBarBytes(today.tx)
         case .speedDown: Format.menuBarSpeed(speed.rx)
         case .speedUp: Format.menuBarSpeed(speed.tx)
+        case .cpu, .memory, .disk: gauge(resources: resources, gauges: gauges)?.value ?? GaugeReading.unknown
         }
     }
 
-    /// The value with an arrow for its direction, as it reads without a caption.
-    func text(today: ByteCounts, speed: ByteCounts) -> String {
-        let value = value(today: today, speed: speed)
+    /// The value with an arrow for its direction, or a gauge's name, as it reads without a caption.
+    func text(
+        today: ByteCounts, speed: ByteCounts, gauges: Gauges = .none, resources: ResourceSettings = .default
+    ) -> String {
+        let value = value(today: today, speed: speed, gauges: gauges, resources: resources)
         return switch self {
         case .total: value
         case .download, .speedDown: "↓ \(value)"
         case .upload, .speedUp: "↑ \(value)"
+        case .cpu, .memory, .disk: gauge(resources: resources, gauges: gauges)?.text ?? value
         }
     }
 
-    /// Today's bytes the reading counts; nil for a speed.
+    /// The widest value the reading takes, whose width it keeps: a speed's, and the CPU's, which
+    /// can change at every poll; nil for a reading that changes rarely.
+    func widestValue(resources: ResourceSettings) -> String? {
+        switch self {
+        case .speedDown, .speedUp: MenuBarDisplay.widestSpeed
+        case .cpu: resources.cpu == .percent ? "100%" : Format.cores(Double(Gauges.cores))
+        case .total, .download, .upload, .memory, .disk: nil
+        }
+    }
+
+    /// Today's bytes the reading counts; nil for a speed or a gauge.
     func counted(_ today: ByteCounts) -> UInt64? {
         switch self {
         case .total: today.total
         case .download: today.rx
         case .upload: today.tx
-        case .speedDown, .speedUp: nil
+        case .speedDown, .speedUp, .cpu, .memory, .disk: nil
         }
     }
 }
@@ -177,7 +223,7 @@ struct MenuBarLayout: Codable, Equatable {
     func today(in status: EngineStatus) -> ByteCounts {
         scope == .network ? status.todayNetworkInterfaces : status.todayInterfaces
     }
-    var showsUsage: Bool { readings.contains { !$0.isSpeed } }
+    var showsUsage: Bool { readings.contains(where: \.isUsage) }
 
     /// `readings` as the core stores them: names separated by commas, or `none`.
     var readingsValue: String {
@@ -214,6 +260,8 @@ struct MenuBarDisplay: Equatable {
         /// narrower: a speed changes at every poll, and an item that changed width would move the
         /// menu bar's other items and lay the menu bar out again.
         var widestValue: String?
+        /// A system gauge, which shows each change at once.
+        var isGauge = false
 
         var widestText: String { widestValue.map { text.replacingOccurrences(of: value, with: $0) } ?? text }
     }
@@ -250,7 +298,12 @@ struct MenuBarDisplay: Equatable {
     /// - An engine that stopped says so, with a warning sign for either icon, instead of showing a
     ///   count that no longer grows.
     /// - Before the first poll there is no count to show yet.
-    static func make(layout: MenuBarLayout, status: EngineStatus, kind: NetworkKind?) -> MenuBarDisplay {
+    /// - A gauge reads as the resource settings say, and is left out while its resource is not
+    ///   shown (the meter is off, or the resource is turned off in Settings › Resources).
+    static func make(
+        layout: MenuBarLayout, status: EngineStatus, kind: NetworkKind?, gauges: Gauges = .none,
+        resources: ResourceSettings = .default
+    ) -> MenuBarDisplay {
         let icon = Self.icon(layout.icon, kind: kind)
         if status.state == .failed {
             return MenuBarDisplay(
@@ -261,10 +314,18 @@ struct MenuBarDisplay: Equatable {
         let today = layout.today(in: status)
         return MenuBarDisplay(
             icon: icon, style: layout.style,
-            readings: layout.readings.map {
-                Reading(
-                    caption: $0.caption, value: $0.value(today: today, speed: status.speed),
-                    text: $0.text(today: today, speed: status.speed), widestValue: $0.isSpeed ? widestSpeed : nil)
+            readings: layout.readings.compactMap { reading in
+                if let measure = reading.measure {
+                    guard resources.shows(measure), let gauge = reading.gauge(resources: resources, gauges: gauges)
+                    else { return nil }
+                    return Reading(
+                        caption: gauge.caption, value: gauge.value, text: gauge.text,
+                        widestValue: reading.widestValue(resources: resources), isGauge: true)
+                }
+                return Reading(
+                    caption: reading.caption(), value: reading.value(today: today, speed: status.speed),
+                    text: reading.text(today: today, speed: status.speed),
+                    widestValue: reading.widestValue(resources: resources))
             })
     }
 
@@ -279,8 +340,8 @@ struct MenuBarDisplay: Equatable {
     /// Every change of the readings redraws the status item on each display (about 18 ms of the
     /// main thread with four), so a total that only grew waits until `totalRedrawInterval` has
     /// passed since the last redraw. Anything else (another network, even of the same kind, the
-    /// layout, a stopped engine, the live speed, a total that went down at the reset hour) shows at
-    /// once.
+    /// layout, a stopped engine, the live speed, a gauge, a total that went down at the reset hour)
+    /// shows at once.
     static let totalRedrawInterval: TimeInterval = 60
 
     /// The bytes the readings count, summed; nil when one shows the live speed or none counts.
@@ -304,6 +365,7 @@ struct MenuBarDisplay: Equatable {
     static func redrawDelay(from old: Drawn?, to new: Drawn, lastRedraw: Date, now: Date) -> TimeInterval {
         guard let old, old.display != new.display, old.layout == new.layout, old.network == new.network,
             old.display.icon == new.display.icon, !old.display.readings.isEmpty, !new.display.readings.isEmpty,
+            old.display.readings.filter(\.isGauge) == new.display.readings.filter(\.isGauge),
             let oldTotal = old.total, let newTotal = new.total, newTotal >= oldTotal
         else { return 0 }
         return max(0, totalRedrawInterval - now.timeIntervalSince(lastRedraw))
