@@ -7,7 +7,7 @@ use crate::meter::{Bytes, Engine, Mode, SystemHost, Waker};
 use crate::moments::{self, Limits, Pending, Session, Watch};
 use crate::resources::kernel::SystemResources;
 use crate::resources::service::ResourceService;
-use crate::resources::{ResourceMeter, Source};
+use crate::resources::{ResourceMeter, Source, Volume};
 use crate::service::{self, Command, Service};
 use crate::settings::{self, Settings};
 use crate::store::{NetworkKind, Store};
@@ -85,6 +85,45 @@ pub struct SorobandEngineStatus {
     pub check: u32,
 }
 
+/// The system gauges at the last poll, for the menu bar's CPU, memory and disk readings.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SorobandGauges {
+    /// Whether the resource meter runs (the `resources` setting) and has polled; every other field
+    /// is unknown while false.
+    pub on: bool,
+    /// The share of CPU time busy between the last two polls, 0 to 1; negative while unknown.
+    pub cpu_busy: f64,
+    /// Bytes of memory in use (app memory, wired and compressed); 0 while unknown.
+    pub memory_used: u64,
+    /// The percent of memory the kernel counts as available, 0 to 100; -1 while unknown. Its
+    /// complement is the memory pressure.
+    pub memory_level: i32,
+    /// The pressure level: 1 normal, 2 warning, 4 critical; 0 while unknown.
+    pub pressure: u32,
+    /// The volume the disk reading shows ([`crate::settings::RESOURCE_DISK_VOLUME`], or the
+    /// start-up disk while that one is not mounted): its free and total bytes, both 0 while no
+    /// volume is known.
+    pub volume_free: u64,
+    pub volume_size: u64,
+    /// Whether the resource read falls back to the user's own processes.
+    pub fallback: bool,
+}
+
+/// The gauges while nothing is known.
+const NO_GAUGES: SorobandGauges = SorobandGauges {
+    on: false,
+    cpu_busy: -1.0,
+    memory_used: 0,
+    memory_level: -1,
+    pressure: 0,
+    volume_free: 0,
+    volume_size: 0,
+    fallback: false,
+};
+
+static GAUGES: Mutex<SorobandGauges> = Mutex::new(NO_GAUGES);
+
 static STATUS: Mutex<SorobandEngineStatus> = Mutex::new(SorobandEngineStatus {
     state: SOROBAND_ENGINE_STARTING,
     flows: 0,
@@ -147,8 +186,8 @@ struct Running {
     reset_hour: Mutex<u8>,
     /// When the moments fire, from the settings, read by the engine at each poll.
     limits: Mutex<Limits>,
-    /// Days the resource meter keeps its minute record, from the settings.
-    minutes_days: Mutex<u32>,
+    /// The resource meter's settings.
+    resource_settings: Mutex<ResourceSettings>,
     commands: Mutex<Vec<Command>>,
     /// Set once the engine has started; a command sent before then waits for the first poll.
     waker: Mutex<Option<Waker>>,
@@ -161,13 +200,16 @@ impl Running {
         let reset_hour = load_reset_hour(&settings_path, 0);
         let settings = Settings::load(&settings_path).ok();
         let limits = settings.as_ref().map(limits).unwrap_or_default();
-        let minutes_days = settings.map_or(7, |s| s.resource_minutes_days());
+        let resource_settings = settings
+            .as_ref()
+            .map(ResourceSettings::new)
+            .unwrap_or_default();
         Self {
             store: Arc::new(Mutex::new(store)),
             settings_path,
             reset_hour: Mutex::new(reset_hour),
             limits: Mutex::new(limits),
-            minutes_days: Mutex::new(minutes_days),
+            resource_settings: Mutex::new(resource_settings),
             commands: Mutex::new(Vec::new()),
             waker: Mutex::new(None),
             stopped: Mutex::new(false),
@@ -182,7 +224,7 @@ impl Running {
     fn reload_settings(&self) {
         if let Ok(settings) = Settings::load(&self.settings_path) {
             *lock(&self.limits) = limits(&settings);
-            *lock(&self.minutes_days) = settings.resource_minutes_days();
+            *lock(&self.resource_settings) = ResourceSettings::new(&settings);
         }
         let mut reset_hour = lock(&self.reset_hour);
         let reloaded = load_reset_hour(&self.settings_path, *reset_hour);
@@ -200,6 +242,37 @@ impl Running {
     fn wake(&self) {
         if let Some(waker) = &*lock(&self.waker) {
             waker.wake();
+        }
+    }
+}
+
+/// What the engine reads of the resource settings.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ResourceSettings {
+    /// Whether the resource meter runs.
+    on: bool,
+    /// Days it keeps its minute record.
+    minutes_days: u32,
+    /// The volume the disk gauge shows, by its mount point.
+    volume: String,
+}
+
+impl Default for ResourceSettings {
+    fn default() -> Self {
+        Self::new(&Settings::default())
+    }
+}
+
+impl ResourceSettings {
+    fn new(settings: &Settings) -> Self {
+        Self {
+            on: settings.is_on(settings::RESOURCES),
+            minutes_days: settings.resource_minutes_days(),
+            volume: settings
+                .get(settings::RESOURCE_DISK_VOLUME)
+                .ok()
+                .and_then(|current| current.value.as_str().map(str::to_owned))
+                .unwrap_or_else(|| settings::STARTUP_VOLUME.to_owned()),
         }
     }
 }
@@ -946,6 +1019,62 @@ pub extern "C" fn soroband_engine_status() -> SorobandEngineStatus {
     *lock(&STATUS)
 }
 
+/// The system gauges at the last poll, as the menu bar's CPU, memory and disk readings show
+/// them.
+#[unsafe(no_mangle)]
+pub extern "C" fn soroband_gauges() -> SorobandGauges {
+    *lock(&GAUGES)
+}
+
+/// The volume mounted at `wanted`, or the start-up disk while none is.
+fn shown_volume<'a>(volumes: &'a [Volume], wanted: &str) -> Option<&'a Volume> {
+    volumes
+        .iter()
+        .find(|v| v.path == wanted)
+        .or_else(|| volumes.iter().find(|v| v.path == settings::STARTUP_VOLUME))
+}
+
+fn gauges(
+    resources: &ResourceService<impl crate::resources::ResourceHost>,
+    volume: &str,
+) -> SorobandGauges {
+    let g = resources.gauges().unwrap_or_default();
+    let volume = shown_volume(resources.volumes(), volume);
+    SorobandGauges {
+        on: true,
+        cpu_busy: resources.busy().unwrap_or(-1.0),
+        memory_used: g.memory_used.unwrap_or(0),
+        memory_level: g.memory_level.map_or(-1, i32::from),
+        pressure: g.pressure.map_or(0, u32::from),
+        volume_free: volume.map_or(0, |v| v.free),
+        volume_size: volume.map_or(0, |v| v.size),
+        fallback: matches!(resources.source(), Source::Processes { .. }),
+    }
+}
+
+fn new_resources(
+    running: &Running,
+    settings: &ResourceSettings,
+) -> ResourceService<SystemResources> {
+    ResourceService::new(
+        ResourceMeter::new(SystemResources::new()),
+        Arc::clone(&running.store),
+        settings.minutes_days,
+        day::now(),
+    )
+}
+
+/// Writes what `resources` holds and stops it, as when the engine stops.
+fn stop_resources(resources: &mut Option<ResourceService<SystemResources>>) {
+    if let Some(mut stopped) = resources.take() {
+        if let Err(error) = stopped.write(day::now(), true) {
+            eprintln!("soroband: the last resource usage was not written: {error}");
+        }
+    }
+    *lock(&GAUGES) = NO_GAUGES;
+    lock(&RESOURCES).clear();
+}
+
 fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
     let mut host = SystemHost::connect()?;
     let waker = host.waker()?;
@@ -958,12 +1087,10 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
         day::local_offset,
         day::now(),
     )?;
-    let mut resources = ResourceService::new(
-        ResourceMeter::new(SystemResources::new()),
-        Arc::clone(&running.store),
-        *lock(&running.minutes_days),
-        day::now(),
-    );
+    let first = lock(&running.resource_settings).clone();
+    // Started afresh each time it is turned on, so the time it was off is not read as one
+    // interval of the first read after.
+    let mut resources = first.on.then(|| new_resources(running, &first));
     let mut speed = Bytes::default();
     let mut last_poll = Instant::now();
     let mut moments = Moments {
@@ -981,9 +1108,7 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
                 if let Err(error) = applied {
                     eprintln!("soroband: the last usage was not written: {error}");
                 }
-                if let Err(error) = resources.write(day::now(), true) {
-                    eprintln!("soroband: the last resource usage was not written: {error}");
-                }
+                stop_resources(&mut resources);
                 return Ok(());
             }
             outlive_database_errors(applied.map(drop))?;
@@ -1005,9 +1130,16 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
         speed = per_second(service.last_booked().interfaces, polled - last_poll);
         last_poll = polled;
         moments.polled(&mut service, &running.limits, day::now());
-        resources.set_minutes_days(*lock(&running.minutes_days));
+        let settings = lock(&running.resource_settings).clone();
+        if !settings.on {
+            stop_resources(&mut resources);
+            continue;
+        }
+        let resources = resources.get_or_insert_with(|| new_resources(running, &settings));
+        resources.set_minutes_days(settings.minutes_days);
         outlive_database_errors(resources.poll(day::now()).map_err(service::Error::Store))?;
-        *lock(&RESOURCES) = resources_json(&resources);
+        *lock(&GAUGES) = gauges(resources, &settings.volume);
+        *lock(&RESOURCES) = resources_json(resources);
     }
 }
 
@@ -1198,8 +1330,93 @@ fn today_json(service: &Service<SystemHost>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{limits, soroband_core_version};
-    use crate::settings::{ISLAND_MOMENTS, Settings};
+    use super::{ResourceSettings, gauges, limits, shown_volume, soroband_core_version};
+    use crate::resources::record::{RecordedRead, Recording, Replay};
+    use crate::resources::service::ResourceService;
+    use crate::resources::{Gauges, ResourceMeter, Volume};
+    use crate::settings::{self, ISLAND_MOMENTS, Settings};
+    use crate::store::Store;
+    use std::sync::{Arc, Mutex};
+
+    fn volume(path: &str, free: u64) -> Volume {
+        Volume {
+            path: path.into(),
+            free,
+            size: free * 4,
+        }
+    }
+
+    #[test]
+    fn the_disk_gauge_shows_the_volume_set_or_the_startup_disk_while_it_is_unmounted() {
+        let volumes = [volume("/", 1), volume("/Volumes/Backup", 2)];
+        assert_eq!(shown_volume(&volumes, "/Volumes/Backup").unwrap().free, 2);
+        assert_eq!(shown_volume(&volumes, "/Volumes/Gone").unwrap().free, 1);
+        assert_eq!(shown_volume(&volumes[1..], "/Volumes/Gone"), None);
+    }
+
+    #[test]
+    fn the_engine_reads_the_resource_switch_days_and_volume_from_the_settings() {
+        let mut settings = Settings::default();
+        assert_eq!(
+            ResourceSettings::new(&settings),
+            ResourceSettings {
+                on: true,
+                minutes_days: 7,
+                volume: "/".into()
+            }
+        );
+        settings.set(settings::RESOURCES, "off").unwrap();
+        settings.set(settings::RESOURCE_MINUTES_DAYS, "3").unwrap();
+        settings
+            .set(settings::RESOURCE_DISK_VOLUME, "/Volumes/Backup")
+            .unwrap();
+        assert_eq!(
+            ResourceSettings::new(&settings),
+            ResourceSettings {
+                on: false,
+                minutes_days: 3,
+                volume: "/Volumes/Backup".into()
+            }
+        );
+    }
+
+    /// What the menu bar reads: the busy share between the last two polls, the memory, its level
+    /// and pressure, and the volume set; unknown gauges as the struct's own markers.
+    #[test]
+    fn the_published_gauges_carry_the_last_poll_and_mark_what_is_unknown() {
+        let path = crate::store::tests::temp_db("ffi-gauges");
+        let store = Arc::new(Mutex::new(Store::open(&path).unwrap()));
+        let read = |busy, idle| RecordedRead {
+            time: 0,
+            coalitions: Some(Vec::new()),
+            processes: Vec::new(),
+            gauges: Gauges {
+                cpu_ticks: Some([busy, 0, idle, 0]),
+                memory_used: Some(8 << 30),
+                pressure: Some(2),
+                memory_level: Some(30),
+                ..Gauges::default()
+            },
+            volumes: vec![volume("/", 10), volume("/Volumes/Backup", 20)],
+        };
+        let meter = ResourceMeter::trusting(Replay::new(Recording {
+            timebase: (1, 1),
+            reads: vec![read(0, 100), read(25, 175)],
+        }));
+        let mut service = ResourceService::new(meter, store, 7, 0);
+        service.poll(0).unwrap();
+        let first = gauges(&service, "/Volumes/Backup");
+        assert!(first.on);
+        assert!(first.cpu_busy < 0.0, "one poll has no busy share");
+        assert_eq!(first.memory_used, 8 << 30);
+        assert_eq!((first.memory_level, first.pressure), (30, 2));
+        assert_eq!((first.volume_free, first.volume_size), (20, 80));
+        assert!(!first.fallback);
+        service.poll(60).unwrap();
+        service.poll(120).unwrap();
+        assert_eq!(gauges(&service, "/").cpu_busy, 0.25);
+        assert_eq!(gauges(&service, "/").volume_free, 10);
+    }
 
     #[test]
     fn a_moment_turned_off_never_fires_so_it_cannot_take_an_alert_that_is_on() {

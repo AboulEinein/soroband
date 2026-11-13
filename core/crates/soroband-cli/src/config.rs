@@ -82,6 +82,7 @@ fn describe(setting: &Setting, current: &Current) -> Value {
             value["type"] = json!("names");
             value["max"] = json!(max);
         }
+        Kind::Path { .. } => value["type"] = json!("path"),
     }
     if let Some(problem) = &current.problem {
         value["problem"] = json!(problem);
@@ -100,6 +101,7 @@ fn line(setting: &Setting, current: &Current) -> String {
         Kind::Names { max } => {
             format!("up to {max} names, separated by commas, or none")
         }
+        Kind::Path { .. } => "an absolute path".to_owned(),
     };
     let mut text = format!(
         "{} = {}{}\n    {kind}, default {}. {}",
