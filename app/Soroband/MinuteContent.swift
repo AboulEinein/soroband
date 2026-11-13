@@ -25,9 +25,10 @@ struct MinuteContent: Equatable {
     }
 
     var points: [Point]
-    /// What each line reads: "CPU busy", "Memory used", "Memory pressure".
-    var cpuLabel: String
-    var memoryLabel: String
+    /// What each line reads: "CPU busy", "Memory used", "Memory pressure"; nil for a resource
+    /// not shown, whose line is not drawn.
+    var cpuLabel: String?
+    var memoryLabel: String?
     /// The minute picked, as the lists show it.
     var selected: Date?
     /// "CPU 94% · Mem used 29.1 GB · pressure warning".
@@ -49,18 +50,21 @@ struct MinuteContent: Equatable {
             gauges.memoryTotal = memoryTotal
             return Point(
                 start: Date(timeIntervalSince1970: TimeInterval(minute.start)),
-                cpu: minute.cpuBusy.map { min(1, max(0, $0)) },
-                memory: memoryShare(gauges, settings: settings, memoryTotal: memoryTotal))
+                cpu: settings.shows(.cpu) ? minute.cpuBusy.map { min(1, max(0, $0)) } : nil,
+                memory: settings.shows(.memory)
+                    ? memoryShare(gauges, settings: settings, memoryTotal: memoryTotal) : nil)
         }
         let minute = record.minutes.last { $0.start == selected } ?? (selected == nil ? record.minutes.last : nil)
         var summary: String?
         if let minute {
             var gauges = minute.gauges
             gauges.memoryTotal = memoryTotal
-            var parts = [ResourceMeasure.cpu, .memory].compactMap {
+            var parts = [ResourceMeasure.cpu, .memory].filter(settings.shows).compactMap {
                 settings.reading($0, gauges: gauges, cores: cores)?.text
             }
-            if let pressure = minute.pressure { parts.append("pressure \(pressureWord(pressure))") }
+            if settings.shows(.memory), let pressure = minute.pressure {
+                parts.append("pressure \(pressureWord(pressure))")
+            }
             summary = parts.joined(separator: " · ")
         }
         let core = 60_000_000_000.0
@@ -79,8 +83,11 @@ struct MinuteContent: Equatable {
             } ?? []
         return MinuteContent(
             points: points,
-            cpuLabel: settings.cpu == .percent ? "CPU busy" : "CPU busy, in cores",
-            memoryLabel: settings.reading(.memory, gauges: .none)?.title ?? "Memory",
+            // The chart's scale is a share of the whole for both lines; in cores, the legend says
+            // what the top of the scale is.
+            cpuLabel: settings.shows(.cpu)
+                ? (settings.cpu == .percent ? "CPU busy" : "CPU busy, 100% = \(cores) cores") : nil,
+            memoryLabel: settings.shows(.memory) ? settings.reading(.memory, gauges: .none)?.title : nil,
             selected: minute.map { Date(timeIntervalSince1970: TimeInterval($0.start)) }, summary: summary,
             lists: lists, keptDays: keptDays)
     }

@@ -300,8 +300,8 @@ private struct MinuteCard: View {
         Card {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text("Minute by minute").font(.headline)
-                legend(content.cpuLabel, color: ResourceMeasure.cpu.color)
-                legend(content.memoryLabel, color: ResourceMeasure.memory.color)
+                if let label = content.cpuLabel { legend(label, color: ResourceMeasure.cpu.color) }
+                if let label = content.memoryLabel { legend(label, color: ResourceMeasure.memory.color) }
                 Spacer()
                 Text("← → move a minute").font(.caption).foregroundStyle(.tertiary)
             }

@@ -83,7 +83,9 @@ struct ResourceHistoryContentTests {
     @Test func appsAreSharedByTheMeasure() {
         let cpu = content(.cpu)
         #expect(cpu.apps.map(\.title) == ["Xcode", "Mail"])
-        #expect(cpu.apps.map(\.share) == [150.0 / 210, 60.0 / 210])
+        // Typed, so Xcode 26's type checker settles it in time.
+        let shares: [Double] = [150.0 / 210, 60.0 / 210]
+        #expect(cpu.apps.map(\.share) == shares)
         #expect(cpu.appsScale == 150 * minute)
         let memory = content(.memory)
         #expect(memory.apps.map(\.value) == [2_000_000_000, 6_000_000_000], "in the core's order")
@@ -167,6 +169,17 @@ struct MinuteContentTests {
         #expect(content.memoryLabel == "Memory pressure")
         #expect(content.summary == "CPU 25% · Pressure 30% · pressure normal")
         settings.measures = [.cpu]
+        // Memory turned off leaves the chart's memory line, its summary and its list.
+        let cpuOnly = MinuteContent.make(
+            record: record, selected: 60, apps: apps, settings: settings, keptDays: 7, memoryTotal: 34_359_738_368,
+            cores: 12)
+        #expect(cpuOnly.points.map(\.memory) == [nil, nil])
+        #expect(cpuOnly.memoryLabel == nil)
+        #expect(cpuOnly.summary == "CPU 25%")
+        settings.cpu = .cores
+        #expect(
+            MinuteContent.make(record: record, selected: 60, apps: nil, settings: settings, keptDays: 7, cores: 12)
+                .cpuLabel == "CPU busy, 100% = 12 cores")
         #expect(
             MinuteContent.make(record: record, selected: 60, apps: apps, settings: settings, keptDays: 7).lists.map(
                 \.title) == ["CPU"])
