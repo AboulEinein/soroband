@@ -202,13 +202,16 @@ Deliverables:
 - Resources wherever internet bytes are shown: the popover, History on every range and per app, and the menu bar's readings.
 - A view of what was busy at a past minute, within the minute record M8 keeps ("what slowed my Mac at 3 pm").
 - Settings for which resources are metered and how long the minute record is kept.
+- Settings for how each resource reads: CPU as a percent or in cores; memory as used, free or pressure; disk as used or free on a picked volume; amounts or percents. One setting per resource covers the popover's gauges, the menu bar reading and the past-minute chart.
 
 Each view's design is picked by the user from mockups before it is built, as the popover's and History's were. The design settles how the resource fallback (M8) is shown.
+
+Picked (2026-11-13, the user's choice, from `docs/mockups/resources.html`): option A for every view, so a Resources tab in the popover, a measure picker that turns History's whole page, the minute chart on History's Day page, numbers in the existing menu bar styles, and a Resources pane in Settings with the fallback shown as a notice.
 
 Exit criteria:
 - Captures of each new view next to the mockup the user picked.
 - History's open times and memory within M4's criteria with the resources on a synthetic year.
-- Idle CPU in each new menu bar reading over 10 minutes, beside `main` in the same session: within the 0.1% budget. Each redraw costs about 18 ms of the main thread, so a reading that changes on every poll is measured before it is offered.
+- Idle CPU in each new menu bar reading over 10 minutes, beside `main` in the same session. `main` already idles at 0.111–0.113% on a Mac with about 600 live coalitions (M8), so the criterion is relative (decided 2026-11-13, the user's choice): a memory or disk reading, redrawn only when its drawn text changes, adds no more than 0.02% over `main`; a CPU reading can change on every poll, so it is measured first and the user accepts or drops it with the number, as for the live speed (M6). Each redraw costs about 18 ms of the main thread.
 
 ### M10: Resource moments
 
