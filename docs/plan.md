@@ -16,7 +16,7 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | M6 | Memory and performance | 3 | blocked (M6a hand checklist) | [#35](https://github.com/AboulEinein/soroband/pull/35), [#36](https://github.com/AboulEinein/soroband/pull/36), [#37](https://github.com/AboulEinein/soroband/pull/37) |
 | M7 | Release v0.1.0 | 3 | blocked (hand checklist: second-account install, a fresh agent's install by each route, Location after an update; then the v0.1.0 tag, with the user's approval) | [#54](https://github.com/AboulEinein/soroband/pull/54) |
 | M8 | Resource meter engine and storage | 4 | blocked (hand checklist: energy against `powermetrics`) | [#72](https://github.com/AboulEinein/soroband/pull/72) |
-| M9 | Resources in the popover, History and the menu bar | 4 | planned | – |
+| M9 | Resources in the popover, History and the menu bar | 4 | in progress (review) | [#74](https://github.com/AboulEinein/soroband/pull/74) |
 | M10 | Resource moments | 4 | planned | – |
 
 M0–M6 are merged to `main`. A milestone with a hand checklist stays `blocked` until the user has run it; the checklists are in [`handover.md`](handover.md#next-action).

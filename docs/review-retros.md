@@ -1035,3 +1035,7 @@ Planned rounds: 3. Ran: 8 blind rounds, 3 direct reviews, 2 CodeRabbit CLI runs,
 - **Cause:** fixes after round 3 kept opening edges in the same place: the failed coalition list took a CLI run and rounds 4 and 5 (credit nothing, then fall back for good, then never fall back, then reset the baseline), and the CLI, which could not run before the draft, raised 23 findings only after round 3.
 - **Would have prevented it:** the CLI run before the draft, and, for a new failure path, tracing every piece of state it leaves (the source, the baseline, the ledger's last apps, the guard's schedule) before the first fix rather than one per round.
 - **Rule:** none; checklist step 3's sibling search covers the state a path leaves, and the CLI's key is the user's to renew (handover).
+
+## [#74](https://github.com/AboulEinein/soroband/pull/74) feat: M9 resources in the popover, History and the menu bar (2026-11-13)
+
+Planned rounds: 3.
