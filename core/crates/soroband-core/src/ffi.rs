@@ -1290,7 +1290,7 @@ fn new_resources(
 
 /// Writes what `resources` holds and stops it, as when the engine stops. A service whose write
 /// fails is kept, reading nothing, so the next call writes its rows again; turned on before then,
-/// it goes on reading where it stopped.
+/// it restarts with a fresh meter (`ResourceService::restart`).
 fn stop_resources<R: crate::resources::ResourceHost>(resources: &mut Option<ResourceService<R>>) {
     if let Some(stopping) = resources.as_mut() {
         match stopping.write(day::now(), true) {
@@ -1318,6 +1318,9 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
     // Started afresh each time it is turned on, so the time it was off is not read as one
     // interval of the first read after.
     let mut resources = first.on.then(|| new_resources(running, &first));
+    // Whether the meter was off at the last poll, and when the minutes were last dropped then.
+    let mut stopped = false;
+    let mut last_drop: Option<i64> = None;
     let mut speed = Bytes::default();
     let mut last_poll = Instant::now();
     let mut moments = Moments {
@@ -1359,8 +1362,24 @@ fn meter(interval: Duration, running: &Running) -> Result<(), service::Error> {
         moments.polled(&mut service, &running.limits, day::now());
         let settings = lock(&running.resource_settings).clone();
         if !settings.on {
+            stopped = true;
             stop_resources(&mut resources);
+            // No write drops the minutes past the days kept while the meter is off.
+            let now = day::now();
+            if resources.is_none() && last_drop.is_none_or(|last| now - last >= 60) {
+                last_drop = Some(now);
+                let keep_since = now - i64::from(settings.minutes_days) * crate::store::DAY;
+                if let Err(error) = lock(&running.store).drop_minutes_before(keep_since) {
+                    eprintln!("soroband: old minutes not dropped: {error}");
+                }
+            }
             continue;
+        }
+        if std::mem::take(&mut stopped) {
+            // Kept through the stop because its write failed: a fresh meter, its rows kept.
+            if let Some(kept) = resources.as_mut() {
+                kept.restart(ResourceMeter::new(SystemResources::new()));
+            }
         }
         let resources = resources.get_or_insert_with(|| new_resources(running, &settings));
         resources.set_minutes_days(settings.minutes_days);

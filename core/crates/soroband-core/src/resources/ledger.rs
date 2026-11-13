@@ -127,6 +127,13 @@ impl ResourceLedger {
         self.hours.is_empty() && self.minutes.is_empty() && self.failed.is_empty()
     }
 
+    /// Forgets the last poll's gauges and the last read's apps, keeping the rows not yet taken: the
+    /// next poll and read start afresh, as after the meter was off.
+    pub fn rebase(&mut self) {
+        self.last_gauges = None;
+        self.last_apps.clear();
+    }
+
     /// Notes the gauges of a poll at Unix time `now`.
     pub fn poll(&mut self, gauges: Gauges, now: i64) {
         let before = self.last_gauges;

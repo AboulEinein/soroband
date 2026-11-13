@@ -714,19 +714,18 @@ impl Store {
             write_totals(&tx, hours)?;
             write_minutes(&tx, minutes, &mut |app| app_id(app, &mut new_ids))?;
         }
-        let since = keep_since - keep_since.rem_euclid(MINUTE);
-        tx.execute("DELETE FROM resource_minutes WHERE minute < ?1", [since])?;
-        tx.execute(
-            "DELETE FROM resource_minute_apps WHERE minute < ?1",
-            [since],
-        )?;
-        tx.execute(
-            "DELETE FROM resource_minute_volumes WHERE minute < ?1",
-            [since],
-        )?;
+        drop_minutes(&tx, keep_since)?;
         tx.commit()?;
         self.app_ids.extend(new_ids);
         Ok(())
+    }
+
+    /// Drops the minutes before `keep_since` (Unix time), as each write of resources does, for
+    /// while the resource meter is off and writes none.
+    pub fn drop_minutes_before(&mut self, keep_since: i64) -> Result<()> {
+        let tx = self.conn.transaction()?;
+        drop_minutes(&tx, keep_since)?;
+        tx.commit()
     }
 
     /// Each app's resources over the hours from `from` up to `to`, by `order`, largest first. Whole
@@ -818,6 +817,19 @@ impl Store {
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
             .collect()
     }
+}
+
+/// Drops the minute record's rows before the minute `keep_since` falls in.
+fn drop_minutes(tx: &Connection, keep_since: i64) -> Result<()> {
+    let since = keep_since - keep_since.rem_euclid(MINUTE);
+    for table in [
+        "resource_minutes",
+        "resource_minute_apps",
+        "resource_minute_volumes",
+    ] {
+        tx.execute(&format!("DELETE FROM {table} WHERE minute < ?1"), [since])?;
+    }
+    Ok(())
 }
 
 /// Adds `hours`' apps, summed per hour, to `resource_usage_total`. The footprint was read for the
@@ -1589,6 +1601,24 @@ pub(crate) mod tests {
             .collect::<rusqlite::Result<_>>()
             .unwrap();
         assert_eq!(ranks, [(0, "Xcode".to_owned())]);
+    }
+
+    /// With the resource meter off nothing is written, so the minutes past the days kept are
+    /// dropped on their own.
+    #[test]
+    fn minutes_are_dropped_without_a_write() {
+        let mut store = Store::open(&temp_db("drop-minutes")).unwrap();
+        for minute in [0, 60, 120] {
+            store
+                .conn
+                .execute(
+                    "INSERT INTO resource_minutes (minute, fallback) VALUES (?1, 0)",
+                    [minute],
+                )
+                .unwrap();
+        }
+        store.drop_minutes_before(90).unwrap();
+        assert_eq!(store.resource_minute_count().unwrap(), 2, "60 and 120 kept");
     }
 
     #[test]

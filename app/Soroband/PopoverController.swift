@@ -286,7 +286,10 @@ private struct LivePopover: View {
                         ?? key.todayStart.addingTimeInterval(86_400)),
                 previous: nil, step: .hour,
                 measure: key.measure)
-            resourcesToday = await Task.detached(priority: .userInitiated) { Core.resourceHistory(query) }.value
+            let answer = await Task.detached(priority: .userInitiated) { Core.resourceHistory(query) }.value
+            // A newer read took this one's place while it ran: its answer is stale.
+            guard !Task.isCancelled else { return }
+            resourcesToday = answer
         }
         .onAppear {
             // macOS may reveal the Wi‑Fi name later than `refreshUntilNamed` looked for it.

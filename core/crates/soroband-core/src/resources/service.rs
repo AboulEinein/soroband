@@ -55,6 +55,18 @@ impl<R: ResourceHost> ResourceService<R> {
         }
     }
 
+    /// Starts reading again with `meter`, after the service was kept through a stop because its
+    /// last write failed: the rows that write could not store are kept for the next, and nothing
+    /// of the time it did not read is booked.
+    pub fn restart(&mut self, meter: ResourceMeter<R>) {
+        self.meter = meter;
+        self.ledger.rebase();
+        self.gauges = None;
+        self.busy = None;
+        self.last_read = None;
+        self.last_volumes = None;
+    }
+
     pub fn set_minutes_days(&mut self, days: u32) {
         self.minutes_days = days;
     }
@@ -257,6 +269,45 @@ mod tests {
         service.poll(180).unwrap();
         // 75 busy and 25 idle since the poll before, not 100 and 100 since the first.
         assert_eq!(service.busy(), Some(0.75));
+    }
+
+    /// A service kept through a stop restarts with a fresh meter: its unwritten minute is still
+    /// written, and its busy share starts again rather than spanning the time it did not read.
+    #[test]
+    fn a_restart_keeps_the_rows_not_yet_written_and_reads_afresh() {
+        let path = crate::store::tests::temp_db("resource-restart");
+        let store = Arc::new(Mutex::new(Store::open(&path).unwrap()));
+        let ticks = |busy, idle| RecordedRead {
+            gauges: Gauges {
+                cpu_ticks: Some([busy, 0, idle, 0]),
+                ..Gauges::default()
+            },
+            ..read(0, 1, 100)
+        };
+        let replay = |reads| {
+            ResourceMeter::trusting(Replay::new(Recording {
+                timebase: (1, 1),
+                reads,
+            }))
+        };
+        let mut service =
+            ResourceService::new(replay(vec![ticks(0, 100)]), Arc::clone(&store), 7, 0);
+        service.poll(0).unwrap();
+        service.restart(replay(vec![ticks(900, 1000)]));
+        assert_eq!(service.gauges(), None);
+        service.poll(3000).unwrap();
+        assert_eq!(
+            service.busy(),
+            None,
+            "no busy share across the time not read"
+        );
+        service.write(3100, true).unwrap();
+        let written: Vec<i64> = minutes(&store).into_iter().map(|(m, _)| m).collect();
+        assert_eq!(
+            written,
+            [0, 3000],
+            "the minute from before the restart kept"
+        );
     }
 
     #[test]
