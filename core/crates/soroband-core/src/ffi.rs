@@ -5,12 +5,13 @@ use crate::day;
 use crate::history;
 use crate::meter::{Bytes, Engine, Mode, SystemHost, Waker};
 use crate::moments::{self, Limits, Pending, Session, Watch};
+use crate::resource_history::{self, MinuteGauges, Sum};
 use crate::resources::kernel::SystemResources;
 use crate::resources::service::ResourceService;
 use crate::resources::{ResourceMeter, Source, Volume};
 use crate::service::{self, Command, Service};
 use crate::settings::{self, Settings};
-use crate::store::{NetworkKind, Store};
+use crate::store::{NetworkKind, ResourceOrder, ResourceTotal, Store};
 use serde_json::{Value, json};
 use std::ffi::{CStr, CString, c_char};
 use std::path::{Path, PathBuf};
@@ -749,6 +750,229 @@ pub unsafe extern "C" fn soroband_history_json(query: *const c_char) -> *mut c_c
             std::ptr::null_mut()
         }
     }
+}
+
+/// What History shows for one resource over a range, as JSON, read as [`soroband_history_json`]
+/// reads bytes. `query` is JSON as for [`soroband_history_json`] without `network` (resources are
+/// the Mac's, not a network's), with `measure`: "cpu", "memory", "disk" or "energy". The answer:
+///
+/// ```json
+/// {"first_hour": 0, "total": {...}, "previous": 0,
+///  "bars": [{"first_hour": 0, "cpu": 0, "billed": 0, "read": 0, "written": 0, "energy": 0,
+///            "footprint": 0, "peak": 0, "fallback": false}],
+///  "apps": [{"id": "/Applications/Xcode.app", "name": "Xcode", "cpu": 0, ...}],
+///  "busiest_day": {"first_hour": 0, "value": 0}, "days": 0,
+///  "heatmap": [{"weekday": 0, "hour": 0, "value": 0}]}
+/// ```
+///
+/// `total`, each bar and each app carry CPU and billed CPU time in nanoseconds, disk bytes read
+/// and written, energy in nanojoules, the average and peak footprint in bytes, and whether any of
+/// it came from the fallback; `previous`, `busiest_day` and the heatmap carry the measure (for
+/// memory, the average footprint), as [`crate::resource_history::ResourceHistory`] describes.
+/// Null when no database is open, the query is not valid or the read fails.
+///
+/// The caller owns the string and frees it with [`soroband_string_free`].
+///
+/// # Safety
+/// `query` must be a valid NUL-terminated string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn soroband_resource_history_json(query: *const c_char) -> *mut c_char {
+    let Some(database) = DATABASE.get() else {
+        return std::ptr::null_mut();
+    };
+    // SAFETY: the caller passes a valid NUL-terminated string.
+    let query = unsafe { text(query) };
+    match resource_history_json(database, &query, day::local_offset) {
+        Ok(json) => owned_c_string(&json),
+        Err(error) => {
+            eprintln!("soroband: cannot read resource history: {error}");
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// The minute record from `start` up to `end` (Unix times), as JSON, with the free space of the
+/// volume mounted at `volume` (the start-up disk in a minute that did not read it). `query`:
+///
+/// ```json
+/// {"start": 0, "end": 0, "volume": "/"}
+/// ```
+///
+/// The answer, each minute an array of its start, CPU busy share (0 to 1), memory used, percent
+/// of memory available, pressure level (1, 2, 4), the volume's free and total bytes, and whether
+/// the fallback read it, any of the gauges null where unknown:
+///
+/// ```json
+/// {"first_minute": 0, "minutes": [[0, 0.25, 0, 40, 1, 0, 0, false]]}
+/// ```
+///
+/// `first_minute` is the earliest minute the record keeps, or null. Null when no database is
+/// open, the query is not valid or the read fails.
+///
+/// The caller owns the string and frees it with [`soroband_string_free`].
+///
+/// # Safety
+/// `query` must be a valid NUL-terminated string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn soroband_resource_minutes_json(query: *const c_char) -> *mut c_char {
+    let Some(database) = DATABASE.get() else {
+        return std::ptr::null_mut();
+    };
+    // SAFETY: the caller passes a valid NUL-terminated string.
+    let query = unsafe { text(query) };
+    match resource_minutes_json(database, &query) {
+        Ok(json) => owned_c_string(&json),
+        Err(error) => {
+            eprintln!("soroband: cannot read the minute record: {error}");
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// The busiest apps of the minute starting at `minute` (Unix time), as JSON: up to five per
+/// measure, largest first, CPU time in nanoseconds, footprint in bytes, disk bytes written:
+///
+/// ```json
+/// {"cpu": [{"id": "/Applications/Xcode.app", "name": "Xcode", "value": 0}], "memory": [],
+///  "written": []}
+/// ```
+///
+/// Null when no database is open, the record has no such minute or the read fails.
+///
+/// The caller owns the string and frees it with [`soroband_string_free`].
+#[unsafe(no_mangle)]
+pub extern "C" fn soroband_resource_minute_apps_json(minute: i64) -> *mut c_char {
+    let Some(database) = DATABASE.get() else {
+        return std::ptr::null_mut();
+    };
+    match minute_apps_json(database, minute) {
+        Ok(Some(json)) => owned_c_string(&json),
+        Ok(None) => std::ptr::null_mut(),
+        Err(error) => {
+            eprintln!("soroband: cannot read the minute record: {error}");
+            std::ptr::null_mut()
+        }
+    }
+}
+
+fn parse_resource_query(query: &str) -> Result<resource_history::Query, String> {
+    let parsed = parse_query(query)?;
+    let value: Value = serde_json::from_str(query).map_err(|e| format!("query: {e}"))?;
+    let measure = value
+        .get("measure")
+        .and_then(Value::as_str)
+        .and_then(ResourceOrder::parse)
+        .ok_or("query: measure must be cpu, memory, disk or energy")?;
+    Ok(resource_history::Query {
+        span: parsed.span,
+        previous: parsed.previous,
+        step: parsed.step,
+        measure,
+    })
+}
+
+fn sum_json(sum: &Sum) -> Value {
+    let c = sum.counters;
+    json!({
+        "cpu": c.cpu, "billed": c.billed, "read": c.read, "written": c.written,
+        "energy": c.energy, "footprint": sum.footprint(), "peak": sum.peak,
+        "fallback": sum.fallback,
+    })
+}
+
+fn app_resources_json(app: &ResourceTotal) -> Value {
+    let c = app.counters;
+    json!({
+        "id": app.app.id, "name": app.app.name, "cpu": c.cpu, "billed": c.billed,
+        "read": c.read, "written": c.written, "energy": c.energy, "footprint": app.footprint,
+        "peak": app.peak, "fallback": app.fallback,
+    })
+}
+
+fn resource_history_json(
+    database: &Path,
+    query: &str,
+    zone: fn(i64) -> i64,
+) -> Result<String, String> {
+    let query = parse_resource_query(query)?;
+    let store = open_for_history(database)?;
+    let h = resource_history::resource_history(&store, &query, zone).map_err(|e| e.to_string())?;
+    Ok(json!({
+        "first_hour": h.first_hour,
+        "total": sum_json(&h.total),
+        "previous": h.previous,
+        "bars": h.bars.iter().map(|b| {
+            let mut bar = sum_json(&b.sum);
+            bar["first_hour"] = json!(b.first_hour);
+            bar
+        }).collect::<Vec<_>>(),
+        "apps": h.apps.iter().map(app_resources_json).collect::<Vec<_>>(),
+        "busiest_day": h.busiest_day.map(|d| json!({"first_hour": d.first_hour, "value": d.value})),
+        "days": h.days,
+        "heatmap": h.heatmap.iter().map(|c| json!({
+            "weekday": c.weekday, "hour": c.hour, "value": c.value,
+        })).collect::<Vec<_>>(),
+    })
+    .to_string())
+}
+
+fn minute_json(m: &MinuteGauges) -> Value {
+    json!([
+        m.minute,
+        m.cpu_busy,
+        m.memory_used,
+        m.memory_level,
+        m.pressure,
+        m.volume.map(|(free, _)| free),
+        m.volume.map(|(_, size)| size),
+        m.fallback,
+    ])
+}
+
+fn resource_minutes_json(database: &Path, query: &str) -> Result<String, String> {
+    let value: Value = serde_json::from_str(query).map_err(|e| format!("query: {e}"))?;
+    let time = |key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_i64)
+            .ok_or_else(|| format!("query: {key} is required"))
+    };
+    let (start, end) = (time("start")?, time("end")?);
+    let volume = value
+        .get("volume")
+        .and_then(Value::as_str)
+        .unwrap_or(settings::STARTUP_VOLUME);
+    let store = open_for_history(database)?;
+    let first = resource_history::first_minute(&store).map_err(|e| e.to_string())?;
+    let minutes =
+        resource_history::minutes(&store, start, end, volume).map_err(|e| e.to_string())?;
+    Ok(json!({
+        "first_minute": first,
+        "minutes": minutes.iter().map(minute_json).collect::<Vec<_>>(),
+    })
+    .to_string())
+}
+
+fn minute_apps_json(database: &Path, minute: i64) -> Result<Option<String>, String> {
+    use crate::resources::ledger::Measure;
+    let store = open_for_history(database)?;
+    let Some(apps) = resource_history::minute_apps(&store, minute).map_err(|e| e.to_string())?
+    else {
+        return Ok(None);
+    };
+    let mut answer = json!({});
+    for (measure, list) in apps {
+        let key = match measure {
+            Measure::Cpu => "cpu",
+            Measure::Memory => "memory",
+            Measure::Written => "written",
+        };
+        answer[key] = list
+            .iter()
+            .map(|(app, value)| json!({"id": app.id, "name": app.name, "value": value}))
+            .collect();
+    }
+    Ok(Some(answer.to_string()))
 }
 
 /// Writes the usage stored over the query's span and network to `path` as CSV
@@ -1783,6 +2007,109 @@ mod tests {
         );
         // SAFETY: a valid NUL-terminated string.
         assert!(unsafe { super::soroband_history_json(c"{}".as_ptr()) }.is_null());
+    }
+
+    /// The History window's and the popover's resource reads: the measure is required, the
+    /// numbers come back as the store holds them, and the minute record answers per minute.
+    #[test]
+    fn resource_queries_are_read_from_json_and_answered_as_json() {
+        use super::{
+            minute_apps_json, parse_resource_query, resource_history_json, resource_minutes_json,
+        };
+        use crate::meter::App;
+        use crate::resources::ledger::{Measure, ResourceHour, ResourceMinute};
+        use crate::resources::{Counters, Volume};
+        use serde_json::{Value, json};
+
+        assert!(parse_resource_query(r#"{"start": 0, "end": 10}"#).is_err());
+        assert!(parse_resource_query(r#"{"start": 0, "end": 10, "measure": "gpu"}"#).is_err());
+        assert_eq!(
+            parse_resource_query(r#"{"start": 0, "end": 10, "measure": "disk", "step": "hour"}"#)
+                .unwrap()
+                .measure,
+            crate::store::ResourceOrder::Disk
+        );
+
+        let dir =
+            std::env::temp_dir().join(format!("soroband-resource-json-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("usage.sqlite");
+        let xcode = App {
+            id: "/Applications/Xcode.app".into(),
+            name: "Xcode".into(),
+        };
+        let mut store = Store::open(&path).unwrap();
+        store
+            .add_resources(
+                &[ResourceHour {
+                    hour: 3600,
+                    app: xcode.clone(),
+                    counters: Counters {
+                        cpu: 60_000_000_000,
+                        billed: 1,
+                        read: 2,
+                        written: 3,
+                        energy: 4,
+                    },
+                    footprint_seconds: 500 * 3600,
+                    seconds: 3600,
+                    peak: 700,
+                    fallback: false,
+                }],
+                &[ResourceMinute {
+                    minute: 3600,
+                    cpu_busy: Some(0.25),
+                    memory_used: Some(9),
+                    memory_compressed: None,
+                    swap_used: None,
+                    pressure: Some(1),
+                    memory_level: Some(40),
+                    volumes: vec![Volume {
+                        path: "/".into(),
+                        free: 5,
+                        size: 10,
+                    }],
+                    top: vec![(Measure::Cpu, vec![(xcode, 8)])],
+                    fallback: false,
+                }],
+                0,
+            )
+            .unwrap();
+        drop(store);
+
+        let answer: Value = serde_json::from_str(
+            &resource_history_json(
+                &path,
+                r#"{"start": 0, "end": 7200, "measure": "cpu", "step": "hour"}"#,
+                |_| 0,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(answer["total"]["cpu"], 60_000_000_000_u64);
+        assert_eq!(answer["total"]["footprint"], 500);
+        assert_eq!(answer["bars"][0]["first_hour"], 3600);
+        assert_eq!(answer["apps"][0]["name"], "Xcode");
+        assert_eq!(answer["apps"][0]["peak"], 700);
+        assert_eq!(answer["busiest_day"]["value"], 60_000_000_000_u64);
+        assert_eq!(answer["days"], 1);
+
+        let minutes: Value = serde_json::from_str(
+            &resource_minutes_json(&path, r#"{"start": 0, "end": 7200}"#).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            minutes,
+            json!({"first_minute": 3600, "minutes": [[3600, 0.25, 9, 40, 1, 5, 10, false]]})
+        );
+        assert!(resource_minutes_json(&path, r#"{"start": 0}"#).is_err());
+
+        let apps: Value =
+            serde_json::from_str(&minute_apps_json(&path, 3600).unwrap().unwrap()).unwrap();
+        assert_eq!(apps["cpu"][0]["value"], 8);
+        assert_eq!(apps["written"], json!([]));
+        assert_eq!(minute_apps_json(&path, 60).unwrap(), None);
     }
 
     #[test]
