@@ -366,12 +366,13 @@ final class HistoryModel {
 
     private enum Request: Sendable {
         case data(HistoryQuery)
-        case resource(ResourceQuery, day: DateInterval?, volume: String)
+        /// `minute`: the minute picked on a Day page, whose apps are read; the latest when nil.
+        case resource(ResourceQuery, day: DateInterval?, volume: String, minute: Int64?)
 
         var step: HistoryStep {
             switch self {
             case .data(let query): query.step
-            case .resource(let query, _, _): query.step
+            case .resource(let query, _, _, _): query.step
             }
         }
     }
@@ -382,11 +383,13 @@ final class HistoryModel {
         case .data(let query):
             answer.data = reads.history(query)
             answer.registry = reads.registry()
-        case .resource(let query, let day, let volume):
+        case .resource(let query, let day, let volume, let minute):
             answer.resources = reads.resources(query)
             if let day, let record = reads.minutes(day.start, day.end, volume) {
                 answer.minutes = record
-                if let last = record.minutes.last?.start { answer.minuteApps = reads.minuteApps(last) }
+                // The minute picked keeps its apps across a reload (the settings changed).
+                let shown = minute.flatMap { m in record.minutes.contains { $0.start == m } ? m : nil }
+                if let start = shown ?? record.minutes.last?.start { answer.minuteApps = reads.minuteApps(start) }
             }
         }
         return answer
@@ -398,6 +401,8 @@ final class HistoryModel {
     /// megabytes of the heap fragmented.
     func loadNow(while work: () -> Void = {}) {
         final class Box: @unchecked Sendable { var answer = Answer() }
+        // A read started before this one (an expanded app's) is for the span this one replaces.
+        generation += 1
         let request = makeRequest()
         let box = Box()
         let reading = DispatchGroup()
@@ -440,7 +445,8 @@ final class HistoryModel {
         let query = ResourceQuery.make(
             range: range, anchor: anchor, measure: measure, firstHour: firstResourceHour, now: .now,
             calendar: calendar)
-        return .resource(query, day: range == .day ? query.interval : nil, volume: settings.diskVolume)
+        return .resource(
+            query, day: range == .day ? query.interval : nil, volume: settings.diskVolume, minute: selectedMinute)
     }
 
     private func apply(_ answer: Answer, for request: Request) {
@@ -457,7 +463,7 @@ final class HistoryModel {
             resourceContent = nil
             minuteRecord = nil
             minutes = nil
-        case .resource(let query, let day, _):
+        case .resource(let query, let day, _, _):
             if let first = answer.resources?.firstHour {
                 firstResourceHour = Date(timeIntervalSince1970: TimeInterval(first))
             }

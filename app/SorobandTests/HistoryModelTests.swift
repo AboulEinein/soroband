@@ -169,6 +169,8 @@ struct HistoryModelTests {
         private let lock = NSLock()
         private var asked: [ResourceQuery] = []
         private var minuteSpans: [DateInterval] = []
+        private var minutesAsked: [Int64] = []
+        var minuteApps: [Int64] { lock.withLock { minutesAsked } }
         var queries: [ResourceQuery] { lock.withLock { asked } }
         var minutes: [DateInterval] { lock.withLock { minuteSpans } }
 
@@ -181,15 +183,19 @@ struct HistoryModelTests {
                 },
                 minutes: { start, end, _ in
                     self.lock.withLock { self.minuteSpans.append(DateInterval(start: start, end: end)) }
+                    // The day's first two minutes.
                     return MinuteRecord(
                         firstMinute: 60,
-                        minutes: [
+                        minutes: [0, 60].map {
                             .init(
-                                start: Int64(start.timeIntervalSince1970), cpuBusy: 0.5, memoryUsed: 1, memoryLevel: 50,
-                                pressure: 1, volumeFree: nil, volumeSize: nil)
-                        ])
+                                start: Int64(start.timeIntervalSince1970) + $0, cpuBusy: 0.5, memoryUsed: 1,
+                                memoryLevel: 50, pressure: 1, volumeFree: nil, volumeSize: nil)
+                        })
                 },
-                minuteApps: { _ in MinuteApps() })
+                minuteApps: { minute in
+                    self.lock.withLock { self.minutesAsked.append(minute) }
+                    return MinuteApps()
+                })
         }
     }
 
@@ -213,7 +219,19 @@ struct HistoryModelTests {
         for _ in 0..<200 where model.minutes == nil { try await Task.sleep(for: .milliseconds(10)) }
         let day = Calendar.current.dateInterval(of: .day, for: .now)!
         #expect(reader.minutes.last == day)
-        #expect(model.minutes?.points.count == 1)
+        #expect(model.minutes?.points.count == 2)
+        #expect(reader.minuteApps.last == Int64(day.start.timeIntervalSince1970) + 60, "the latest minute's apps")
+
+        // A minute picked keeps its apps across a reload of the page.
+        let first = Int64(day.start.timeIntervalSince1970)
+        model.selectMinute(first)
+        var settings = ResourceSettings()
+        settings.cpu = .cores
+        model.settings = settings
+        for _ in 0..<200 where reader.minutes.count < 2 { try await Task.sleep(for: .milliseconds(10)) }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(reader.minuteApps.last == first)
+        #expect(model.minutes?.selected == day.start)
     }
 
     /// An app kept expanded while the settings change reads its measures again, rather than
