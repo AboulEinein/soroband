@@ -121,7 +121,7 @@ enum MenuBarReading: String, Codable, CaseIterable, Identifiable {
 
     /// What a gauge reads with `gauges`; nil for bytes and speeds.
     func gauge(resources: ResourceSettings, gauges: Gauges) -> GaugeReading? {
-        measure.flatMap { resources.reading($0, gauges: gauges) }
+        measure.flatMap { resources.reading($0, gauges: gauges, inMenuBar: true) }
     }
 
     /// The value alone: today's bytes as the menu bar rounds them, the live speed, or a gauge.

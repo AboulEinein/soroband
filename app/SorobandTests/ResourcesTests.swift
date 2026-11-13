@@ -30,6 +30,12 @@ struct ResourcesTests {
 
     @Test func memoryReadsUsedFreeOrPressureAndItsBarAlwaysShowsTheUsedShare() {
         #expect(reading(.memory)?.value == "24.0 GB", "binary gigabytes, as macOS counts installed memory")
+        // The menu bar draws whole gigabytes: tenths changed at most polls, each a redraw.
+        var settings = ResourceSettings()
+        settings.memory = .free
+        #expect(settings.reading(.memory, gauges: gauges, inMenuBar: true)?.value == "8 GB")
+        settings.memoryUnit = .percent
+        #expect(settings.reading(.memory, gauges: gauges, inMenuBar: true)?.value == "25%", "percents as they were")
         #expect(reading(.memory) { $0.memory = .free }?.value == "8.0 GB")
         #expect(reading(.memory) { $0.memoryUnit = .percent }?.value == "75%")
         #expect(
@@ -71,8 +77,10 @@ struct ResourcesTests {
     }
 
     @Test func amountsRoundDownSoTheyRedrawOnlyWhenTheShownDigitChanges() {
-        #expect(Format.menuBarMemory(22_977_772_339) == "21.3 GB", "21.399 GiB")
-        #expect(Format.menuBarMemory(22_978_846_000) == "21.4 GB")
+        #expect(Format.memory(22_977_772_339) == "21.3 GB", "21.399 GiB")
+        #expect(Format.memory(22_978_846_000) == "21.4 GB")
+        #expect(Format.wholeMemory(23_622_320_127) == "21 GB", "21.999 GiB")
+        #expect(Format.wholeMemory(23_622_320_128) == "22 GB")
         #expect(Format.menuBarDisk(999_999_999_999) == "999 GB")
         #expect(Format.menuBarDisk(1_250_000_000_000) == "1.2 TB")
         #expect(Format.percent(0.999) == "99%")

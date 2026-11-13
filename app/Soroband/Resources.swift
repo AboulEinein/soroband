@@ -155,9 +155,10 @@ struct GaugeReading: Equatable {
 
 extension ResourceSettings {
     /// What the gauge for `measure` (CPU, memory or disk; nil for energy, which has no gauge)
-    /// reads with `gauges`.
+    /// reads with `gauges`. `inMenuBar` draws a memory amount in whole gigabytes: in tenths it
+    /// changed at most polls on a busy Mac, and each change redraws the menu bar item.
     func reading(
-        _ measure: ResourceMeasure, gauges: Gauges, cores: Int = Gauges.cores
+        _ measure: ResourceMeasure, gauges: Gauges, cores: Int = Gauges.cores, inMenuBar: Bool = false
     ) -> GaugeReading? {
         let known = gauges.on
         let memoryTotal = gauges.memoryTotal
@@ -189,7 +190,9 @@ extension ResourceSettings {
                 let amount = used.map { isUsed ? $0 : memoryTotal - min($0, memoryTotal) }
                 let share = usedShare.map { isUsed ? $0 : 1 - $0 }
                 let value =
-                    memoryUnit == .percent ? share.map(Format.percent) : amount.map(Format.menuBarMemory)
+                    memoryUnit == .percent
+                    ? share.map(Format.percent)
+                    : amount.map { inMenuBar ? Format.wholeMemory($0) : Format.memory($0) }
                 return GaugeReading(
                     title: isUsed ? "Memory used" : "Memory free", caption: isUsed ? "MEM USED" : "MEM FREE",
                     label: isUsed ? "Mem used" : "Mem free",
@@ -225,11 +228,17 @@ extension Format {
         return tenths.formatted(.number.precision(.fractionLength(1)))
     }
 
-    /// Memory for the menu bar and the gauges, in binary gigabytes as macOS reports installed
-    /// memory (a 32 GB Mac has 32 GB): tenths, rounded down, so it redraws once a tenth.
-    static func menuBarMemory(_ bytes: UInt64) -> String {
+    /// Memory for the gauges, in binary gigabytes as macOS reports installed memory (a 32 GB Mac
+    /// has 32 GB): tenths, rounded down.
+    static func memory(_ bytes: UInt64) -> String {
         let tenths = (Double(bytes) / 1_073_741_824 * 10).rounded(.down) / 10
         return "\(tenths.formatted(.number.precision(.fractionLength(1)))) GB"
+    }
+
+    /// Memory for the menu bar: whole binary gigabytes, rounded down, so it redraws once a
+    /// gigabyte.
+    static func wholeMemory(_ bytes: UInt64) -> String {
+        "\(bytes / 1_073_741_824) GB"
     }
 
     /// Disk space for the menu bar and the gauges, in decimal units as Finder shows it: whole

@@ -333,7 +333,8 @@ struct MenuBarDisplayTests {
         let layout = MenuBarLayout(readings: [.total, .cpu, .memory, .disk], style: .labeled)
         let display = MenuBarDisplay.make(layout: layout, status: status, kind: .wifi, gauges: gauges)
         #expect(display.readings.map(\.caption) == ["TODAY", "CPU", "MEM USED", "DISK FREE"])
-        #expect(display.readings.map(\.value) == ["1.1 GB", "23%", "21.4 GB", "212 GB"])
+        // Memory in whole gigabytes, which change seldom enough to redraw for (21.4 GiB).
+        #expect(display.readings.map(\.value) == ["1.1 GB", "23%", "21 GB", "212 GB"])
         #expect(display.readings.map(\.isGauge) == [false, true, true, true])
         // The CPU keeps the width of 100%, as a speed keeps its widest value's.
         #expect(display.readings[1].widestValue == "100%")
