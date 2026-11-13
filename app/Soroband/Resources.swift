@@ -34,6 +34,8 @@ struct ResourceSettings: Codable, Equatable {
     var diskUnit = Unit.amount
     /// The disk reading's volume, by its mount point.
     var diskVolume = startupVolume
+    /// Days the minute record is kept.
+    var minutesDays = 7
 
     static let startupVolume = "/"
 
@@ -64,6 +66,7 @@ struct ResourceSettings: Codable, Equatable {
         disk = setting(Self.diskKey).flatMap(Disk.init(rawValue:)) ?? disk
         diskUnit = setting(Self.diskUnitKey).flatMap(Unit.init(rawValue:)) ?? diskUnit
         diskVolume = setting(Self.diskVolumeKey) ?? diskVolume
+        minutesDays = setting(Self.minutesDaysKey).flatMap(Int.init) ?? minutesDays
     }
 
     /// The measures the views show: none while the meter is off.
@@ -93,12 +96,14 @@ struct ResourceSettings: Codable, Equatable {
         case Self.diskKey: disk.rawValue
         case Self.diskUnitKey: diskUnit.rawValue
         case Self.diskVolumeKey: diskVolume
+        case Self.minutesDaysKey: String(minutesDays)
         default: nil
         }
     }
 
     static let keys = [
         meteredKey, measuresKey, cpuKey, memoryKey, memoryUnitKey, diskKey, diskUnitKey, diskVolumeKey,
+        minutesDaysKey,
     ]
 }
 

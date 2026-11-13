@@ -26,7 +26,8 @@ struct HistoryModelTests {
     @Test func allTimeOnAnotherNetworkStartsWhereThatNetworkStarts() async throws {
         let reader = Reader()
         let model = HistoryModel(
-            range: .all, anchor: .now, network: 2, currentNetwork: nil, registry: [], read: reader.read)
+            range: .all, anchor: .now, network: 2, currentNetwork: nil, registry: [],
+            reads: HistoryReads(history: reader.read))
         model.loadNow()
         #expect(
             model.content.interval.start
@@ -58,7 +59,7 @@ struct HistoryModelTests {
         answer.registry = [picked]
         let model = HistoryModel(
             range: .week, anchor: .now, network: nil, currentNetwork: nil, registry: [home],
-            read: Reader().read, readRegistry: { answer.registry })
+            reads: HistoryReads(history: Reader().read, registry: { answer.registry }))
         model.loadNow()
         #expect(model.registry == [picked])
         var repicked = picked
@@ -151,7 +152,7 @@ struct HistoryModelTests {
         answer.registry = [home]
         let model = HistoryModel(
             range: .week, anchor: .now, network: nil, currentNetwork: nil, registry: [],
-            read: Reader().read, readRegistry: { answer.registry })
+            reads: HistoryReads(history: Reader().read, registry: { answer.registry }))
         model.loadNow()
         var picked = home
         picked.color = 2
@@ -161,5 +162,78 @@ struct HistoryModelTests {
             try await Task.sleep(for: .milliseconds(10))
         }
         #expect(model.registry == [picked])
+    }
+
+    /// Records what a resource page asks the core.
+    final class ResourceReader: @unchecked Sendable {
+        private let lock = NSLock()
+        private var asked: [ResourceQuery] = []
+        private var minuteSpans: [DateInterval] = []
+        var queries: [ResourceQuery] { lock.withLock { asked } }
+        var minutes: [DateInterval] { lock.withLock { minuteSpans } }
+
+        var reads: HistoryReads {
+            HistoryReads(
+                history: { _ in .empty }, registry: { [] },
+                resources: { query in
+                    self.lock.withLock { self.asked.append(query) }
+                    return .empty
+                },
+                minutes: { start, end, _ in
+                    self.lock.withLock { self.minuteSpans.append(DateInterval(start: start, end: end)) }
+                    return MinuteRecord(
+                        firstMinute: 60,
+                        minutes: [
+                            .init(
+                                start: Int64(start.timeIntervalSince1970), cpuBusy: 0.5, memoryUsed: 1, memoryLevel: 50,
+                                pressure: 1, volumeFree: nil, volumeSize: nil)
+                        ])
+                },
+                minuteApps: { _ in MinuteApps() })
+        }
+    }
+
+    /// A resource page reads the same span as the data page, on every network, by its measure; a
+    /// Day page also reads that day's minutes.
+    @Test func aResourcePageReadsItsMeasureOnEveryNetworkAndADayItsMinutes() async throws {
+        let reader = ResourceReader()
+        let model = HistoryModel(
+            range: .month, anchor: .now, network: 2, currentNetwork: nil, registry: [], measure: .disk,
+            reads: reader.reads)
+        model.loadNow()
+        let month = Calendar.current.dateInterval(of: .month, for: .now)!
+        #expect(reader.queries.last?.measure == .disk)
+        #expect(reader.queries.last?.interval == month)
+        #expect(reader.queries.last?.step == .day)
+        #expect(reader.minutes.isEmpty, "only a Day page reads minutes")
+        #expect(model.resourceContent?.title == "Disk")
+        #expect(model.minutes == nil)
+
+        model.select(range: .day)
+        for _ in 0..<200 where model.minutes == nil { try await Task.sleep(for: .milliseconds(10)) }
+        let day = Calendar.current.dateInterval(of: .day, for: .now)!
+        #expect(reader.minutes.last == day)
+        #expect(model.minutes?.points.count == 1)
+    }
+
+    /// Turning the page's resource off in Settings goes back to the data page.
+    @Test func aResourceTurnedOffLeavesItsPage() {
+        let reader = ResourceReader()
+        let model = HistoryModel(
+            range: .week, anchor: .now, network: nil, currentNetwork: nil, registry: [], measure: .energy,
+            reads: reader.reads)
+        model.loadNow()
+        #expect(model.measure == .energy)
+        var settings = ResourceSettings()
+        settings.measures = [.cpu]
+        model.settings = settings
+        #expect(model.measure == nil)
+        // A measure not shown is not taken.
+        model.select(measure: .some(.memory))
+        #expect(model.measure == nil)
+        let off = HistoryModel(
+            range: .week, anchor: .now, network: nil, currentNetwork: nil, registry: [], measure: .cpu,
+            settings: ResourceSettings { $0 == "resources" ? "off" : nil }, reads: reader.reads)
+        #expect(off.measure == nil, "the meter is off")
     }
 }

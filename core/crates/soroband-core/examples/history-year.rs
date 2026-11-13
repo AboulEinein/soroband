@@ -106,7 +106,7 @@ fn main() {
         store.add(&apps, &interfaces).unwrap();
         rows += apps.len();
         // CPU from about 2 to 60 minutes an hour, the busiest app a tenth of it; footprints from
-        // 50 MB to 2 GB.
+        // 20 MB to 140 MB, about 10 GB summed.
         let busy = 2 + scale % 59;
         let resources: Vec<ResourceHour> = (0..RESOURCE_APPS_PER_HOUR)
             .map(|a| {
@@ -122,9 +122,9 @@ fn main() {
                         written: weight * scale * 10_000,
                         energy: cpu / 4,
                     },
-                    footprint_seconds: (50_000_000 + weight * 16_000_000) * 3600,
+                    footprint_seconds: (20_000_000 + weight * 1_000_000) * 3600,
                     seconds: 3600,
-                    peak: 50_000_000 + weight * 20_000_000,
+                    peak: 20_000_000 + weight * 1_200_000,
                     fallback: false,
                 }
             })

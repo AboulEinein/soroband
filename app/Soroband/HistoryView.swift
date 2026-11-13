@@ -11,44 +11,67 @@ struct HistoryView: View {
     }
 
     @Bindable var model: HistoryModel
+    var usage = Usage.shared
 
     var body: some View {
         NavigationSplitView {
-            List(
-                selection: Binding(
-                    get: { model.network.map(SidebarItem.network) ?? .all },
-                    set: { item in
-                        switch item {
-                        case .network(let id): model.select(network: .some(id))
-                        case .all, nil: model.select(network: .some(nil))
-                        }
-                    })
-            ) {
-                Label(HistoryContent.allNetworksTitle, systemImage: "globe").tag(SidebarItem.all)
-                ForEach(NetworkKind.allCases, id: \.self) { kind in
-                    let networks = model.registry.enumerated().filter { $0.element.kind == kind }
-                    if !networks.isEmpty {
-                        Section(kind.label) {
-                            ForEach(networks, id: \.element.id) { index, network in
-                                Label {
-                                    Text(network.name)
-                                } icon: {
-                                    let slot = NetworkColor.slot(for: network, index: index)
-                                    Image(systemName: kind.symbol).foregroundStyle(NetworkColor.color(slot: slot))
-                                }
-                                .badge(network.id == model.currentNetwork ? Text("Connected").font(.caption2) : nil)
-                                .tag(SidebarItem.network(network.id))
+            if model.measure != nil {
+                // Resources are the Mac's, not a network's.
+                List(selection: .constant(SidebarItem.all)) {
+                    Label("This Mac", systemImage: "laptopcomputer").tag(SidebarItem.all)
+                }
+                .navigationSplitViewColumnWidth(min: 190, ideal: 220)
+            } else {
+                networkList
+            }
+        } detail: {
+            if let resources = model.resourceContent {
+                ResourceHistoryDetail(
+                    content: resources, minutes: model.minutes, minutesKept: model.minutesKept,
+                    settings: model.settings, expandedApp: $model.expandedApp, showsAllApps: $model.showsAllApps,
+                    expandedMeasures: model.expandedMeasures, selectMinute: { model.selectMinute($0) },
+                    moveMinute: { model.moveMinute($0) })
+            } else {
+                HistoryDetail(
+                    content: model.content, expandedApp: $model.expandedApp, hoverDate: $model.hoverDate,
+                    showsAllApps: $model.showsAllApps, settings: model.settings,
+                    expandedMeasures: model.expandedMeasures)
+            }
+        }
+        .onChange(of: usage.resources) { model.settings = usage.resources }
+    }
+
+    private var networkList: some View {
+        List(
+            selection: Binding(
+                get: { model.network.map(SidebarItem.network) ?? .all },
+                set: { item in
+                    switch item {
+                    case .network(let id): model.select(network: .some(id))
+                    case .all, nil: model.select(network: .some(nil))
+                    }
+                })
+        ) {
+            Label(HistoryContent.allNetworksTitle, systemImage: "globe").tag(SidebarItem.all)
+            ForEach(NetworkKind.allCases, id: \.self) { kind in
+                let networks = model.registry.enumerated().filter { $0.element.kind == kind }
+                if !networks.isEmpty {
+                    Section(kind.label) {
+                        ForEach(networks, id: \.element.id) { index, network in
+                            Label {
+                                Text(network.name)
+                            } icon: {
+                                let slot = NetworkColor.slot(for: network, index: index)
+                                Image(systemName: kind.symbol).foregroundStyle(NetworkColor.color(slot: slot))
                             }
+                            .badge(network.id == model.currentNetwork ? Text("Connected").font(.caption2) : nil)
+                            .tag(SidebarItem.network(network.id))
                         }
                     }
                 }
             }
-            .navigationSplitViewColumnWidth(min: 190, ideal: 220)
-        } detail: {
-            HistoryDetail(
-                content: model.content, expandedApp: $model.expandedApp, hoverDate: $model.hoverDate,
-                showsAllApps: $model.showsAllApps)
         }
+        .navigationSplitViewColumnWidth(min: 190, ideal: 220)
     }
 }
 
@@ -58,6 +81,9 @@ struct HistoryDetail: View {
     @Binding var expandedApp: String?
     @Binding var hoverDate: Date?
     @Binding var showsAllApps: Bool
+    var settings = ResourceSettings.default
+    /// The expanded app's resources over the range, read when it expands.
+    var expandedMeasures: (bytes: ByteCounts?, resources: ResourceSum?)?
 
     var body: some View {
         ScrollView {
@@ -75,7 +101,9 @@ struct HistoryDetail: View {
                 .fixedSize(horizontal: false, vertical: true)
                 UsageChart(content: content, hoverDate: $hoverDate)
                 HStack(alignment: .top, spacing: 14) {
-                    AppsCard(content: content, expandedApp: $expandedApp, showsAll: $showsAllApps)
+                    AppsCard(
+                        content: content, expandedApp: $expandedApp, showsAll: $showsAllApps, settings: settings,
+                        expandedMeasures: expandedMeasures)
                     // A Day has no heatmap: the apps then take the width.
                     if let heatmap = content.heatmap {
                         HeatmapCard(heatmap: heatmap).frame(width: 340)
@@ -135,7 +163,7 @@ private struct HeadlineCard: View {
     }
 }
 
-private struct Fact: View {
+struct Fact: View {
     let title: String
     let value: String
     var detail: String?
@@ -152,7 +180,7 @@ private struct Fact: View {
 }
 
 /// "Wed 21 Oct", with the year when it is not this year's.
-private func busiestDayLabel(_ date: Date) -> String {
+func busiestDayLabel(_ date: Date) -> String {
     let sameYear = Calendar.current.isDate(date, equalTo: .now, toGranularity: .year)
     return date.formatted(sameYear ? .dateTime.weekday().day().month() : .dateTime.weekday().day().month().year())
 }
@@ -346,6 +374,8 @@ private struct AppsCard: View {
     let content: HistoryContent
     @Binding var expandedApp: String?
     @Binding var showsAll: Bool
+    let settings: ResourceSettings
+    let expandedMeasures: (bytes: ByteCounts?, resources: ResourceSum?)?
 
     var body: some View {
         let apps = showsAll ? content.apps : Array(content.apps.prefix(HistoryModel.visibleApps))
@@ -362,7 +392,14 @@ private struct AppsCard: View {
                         AppRowView(row: row, scale: content.appsScale)
                             .contentShape(.rect)
                             .onTapGesture { expandedApp = expandedApp == row.id ? nil : row.id }
-                        if expandedApp == row.id { NetworkSplitView(splits: row.networks) }
+                        if expandedApp == row.id {
+                            NetworkSplitView(splits: row.networks)
+                            if !settings.shown.isEmpty {
+                                AppMeasuresView(
+                                    bytes: nil, resources: expandedMeasures?.resources, settings: settings,
+                                    loading: expandedMeasures == nil)
+                            }
+                        }
                     }
                 }
                 AppRowView(row: content.overhead, scale: content.appsScale)
@@ -458,8 +495,12 @@ private struct SharesCard: View {
     }
 }
 
-private struct HeatmapCard: View {
+struct HeatmapCard: View {
     let heatmap: HistoryContent.Heatmap
+    var title = "When you use data"
+    var format: (UInt64) -> String = Format.bytes
+    /// A resource's color for the ramp; the blue ramp when nil.
+    var tint: Color?
     @State private var hovered: (row: Int, hour: Int)?
 
     /// The blue magnitude ramp (docs/design.md, Visual language); the low end recedes into the card.
@@ -471,7 +512,7 @@ private struct HeatmapCard: View {
     static let gridHeight = 7 * rowHeight + 6 * spacing
 
     var body: some View {
-        Card(title: "When you use data", trailing: trailing) {
+        Card(title: title, trailing: trailing) {
             HStack(alignment: .top, spacing: Self.spacing) {
                 VStack(alignment: .leading, spacing: Self.spacing) {
                     ForEach(heatmap.rows, id: \.weekday) { row in
@@ -509,7 +550,7 @@ private struct HeatmapCard: View {
             }
             HStack(spacing: 6) {
                 Text("Less")
-                LinearGradient(colors: [Self.low, Self.high], startPoint: .leading, endPoint: .trailing)
+                LinearGradient(colors: [low, high], startPoint: .leading, endPoint: .trailing)
                     .frame(width: 80, height: 6).clipShape(.capsule)
                 Text("More")
             }
@@ -532,10 +573,13 @@ private struct HeatmapCard: View {
     private var trailing: String? {
         if let hovered {
             let row = heatmap.rows[hovered.row]
-            return "\(row.weekday) \(hovered.hour):00 · \(Format.bytes(row.hours[hovered.hour]))"
+            return "\(row.weekday) \(hovered.hour):00 · \(format(row.hours[hovered.hour]))"
         }
         return heatmap.peak.map { "Peak: \($0.weekday) \($0.hour):00" }
     }
+
+    private var low: Color { tint.map { $0.opacity(0.1) } ?? Self.low }
+    private var high: Color { tint ?? Self.high }
 
     private func cell(at point: CGPoint, width: CGFloat) -> (row: Int, hour: Int)? {
         let row = Int(point.y / (Self.rowHeight + Self.spacing))
@@ -559,14 +603,14 @@ private struct HeatmapCard: View {
                     x: CGFloat(hour) * (width + Self.spacing), y: CGFloat(r) * (Self.rowHeight + Self.spacing),
                     width: width, height: Self.rowHeight)
                 let path = Path(roundedRect: rect, cornerRadius: 2)
-                context.fill(path, with: .color(Self.low))
-                context.fill(path, with: .color(Self.high.opacity(Double(row.hours[hour]) / peak)))
+                context.fill(path, with: .color(low))
+                context.fill(path, with: .color(high.opacity(Double(row.hours[hour]) / peak)))
             }
         }
     }
 }
 
-private struct Card<Content: View>: View {
+struct Card<Content: View>: View {
     var title: String?
     var trailing: String?
     @ViewBuilder let content: () -> Content

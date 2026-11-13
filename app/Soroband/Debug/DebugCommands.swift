@@ -168,7 +168,7 @@ enum DebugCommands {
         MenuBarController.shared.showPopover(tab: tab.rawValue, allNetworks: query["all"] == "1")
     }
 
-    /// `open-history?range=year&network=2&date=2026-10-15&app=<app id>&hover=2026-10-18T09:00`
+    /// `open-history?range=year&measure=cpu&network=2&date=2026-10-15&app=<app id>&hover=2026-10-18T09:00`
     /// opens History in the UI process (Month, every network, today unless given) and, for
     /// captures, expands an app and holds the chart's hover on a time. A History already open is
     /// replaced.
@@ -179,7 +179,8 @@ enum DebugCommands {
             return
         }
         let options = HistoryOptions(
-            range: range, date: query["date"].flatMap(localDate), network: query["network"].flatMap(Int64.init),
+            range: range, measure: query["measure"].flatMap(ResourceMeasure.init(rawValue:)),
+            date: query["date"].flatMap(localDate), network: query["network"].flatMap(Int64.init),
             current: NetworkMonitor.shared.current?.id, requested: .now, expandedApp: query["app"],
             hover: query["hover"].flatMap(localDate))
         UIProcess.shared.send(.showHistory(arguments: options.arguments, replacing: true))
