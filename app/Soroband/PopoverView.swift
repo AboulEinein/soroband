@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 /// The popover under the menu bar item: a hero card tinted with the current network's color,
-/// Apps and Networks tabs, and a footer with the History card (`docs/design.md`, UI).
+/// Apps, Networks and Resources tabs, and a footer with the History card (`docs/design.md`, UI).
 struct PopoverView: View {
     enum Tab: String, CaseIterable {
         case apps = "Apps"
@@ -309,7 +309,7 @@ extension ResourceMeasure {
     }
 }
 
-/// Apps and Networks as two halves of one full-width control. The system segmented control keeps
+/// The tabs as equal parts of one full-width control. The system segmented control keeps
 /// its natural width on macOS 27, however wide its frame.
 private struct TabSwitcher: View {
     @Binding var tab: PopoverView.Tab

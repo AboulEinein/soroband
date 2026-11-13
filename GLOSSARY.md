@@ -94,7 +94,7 @@ The memory a process holds as macOS counts it for Activity Monitor's Memory colu
 _Avoid_: RSS, resident memory
 
 **Memory pressure**:
-The kernel's level of memory shortage: normal, warning or critical (`kern.memorystatus_vm_pressure_level`). Under pressure means warning or critical.
+The kernel's level of memory shortage: normal, warning or critical (`kern.memorystatus_vm_pressure_level`). Under pressure means warning or critical. As a percent, the share of memory the kernel does not count as available (100 less `kern.memorystatus_level`), which a gauge shows when memory reads as pressure.
 
 **Coalition layout guard**:
 The check, at the first resource read and hourly, that the coalition fields the resource meter reads agree with its processes' own counts. A layout that fails it puts the resource meter in the fallback.
@@ -103,7 +103,21 @@ The check, at the first resource read and hourly, that the coalition fields the 
 The resource meter reading the user's own processes one by one, when the coalition calls are missing or fail the coalition layout guard. It leaves out other users' and root processes; rows it stored are marked.
 
 **Minute record**:
-The system gauges (each local volume's free space included) and the five busiest apps by CPU, footprint and disk bytes written, per minute, kept for `resource_minutes_days` days.
+The system gauges (each local volume's free space included) and the five busiest apps by CPU, footprint and disk bytes written, per minute, kept for `resource_minutes_days` days. History's Day page draws it as the minute chart.
+
+**Mac total**:
+The Mac's resources in one hour, its apps summed (`resource_usage_total`): CPU time, disk bytes and energy add up, and the footprint is averaged over the time it was read, the longest any app of the hour was read for. History's resource pages are drawn from it.
+
+**Measure**:
+One resource as History and the popover list apps by it: CPU time, average footprint (memory), disk bytes read and written, or energy in watt-hours. The `resource_measures` setting picks which are shown; resources are the Mac's, not a network's.
+_Avoid_: metric, resource type
+
+**Gauge**:
+A system gauge as a view shows it now, read as the Show setting says: in the popover's Resources tab, a menu bar reading, and the minute chart's lines.
+
+**Show setting**:
+How each resource reads, one setting per resource for every view: CPU as a percent or in cores; memory as used, free or pressure, as an amount or a percent; disk as used or free on a picked volume, as an amount or a percent (`resource_cpu`, `resource_memory`, `resource_memory_unit`, `resource_disk`, `resource_disk_unit`, `resource_disk_volume`).
+_Avoid_: display mode, format
 
 ## Networks
 
@@ -213,7 +227,7 @@ What the menu bar item shows: its icon, the network kind's or the Soroband glyph
 _Avoid_: display mode, menu bar mode, menu bar count, menu bar line
 
 **Reading**:
-One value the menu bar item can show: today's total, download or upload as crossed the interfaces less the local-network bytes, or the live download or upload speed.
+One value the menu bar item can show: today's total, download or upload as crossed the interfaces less the local-network bytes, the live download or upload speed, or a gauge (CPU, memory or disk).
 
 **Menu bar style**:
 How the readings are drawn: **stacked** (in pairs, the first on top, in a smaller size; a reading without a partner at full size), **labeled** (each value under a small caption) or **inline** (one line at the menu bar's size).
@@ -226,7 +240,7 @@ _Avoid_: logo, app icon (the icon in Finder and the Dock)
 Interface bytes per second, down and up, over the last poll.
 
 **Popover**:
-The panel the menu bar item opens: hero card, Apps and Networks tabs, footer with the History card.
+The panel the menu bar item opens: hero card, Apps, Networks and Resources tabs, footer with the History card. The Resources tab shows the gauges now and today's apps by one measure.
 
 **Hero card**:
 The popover's top card, tinted with the current network's color: name, kind, when the Mac joined it, live speed, today's total, down/up split, today on all networks, and today's hours as bars.
@@ -240,7 +254,7 @@ _Avoid_: History button
 The line above the popover's tabs when the engine has failed ("Not counting"), the engine is in interface-only mode, or the self-check is degraded or overcount.
 
 **History window**:
-The window for usage over a range, by network and app: headline card, Where it went (share by network), usage chart, apps and heatmap. It is a window of the UI process.
+The window for usage over a range, by network and app: headline card, Where it went (share by network), usage chart, apps and heatmap. A measure picker turns the whole page to one resource, on the Mac rather than a network. It is a window of the UI process.
 
 **Menu bar process**:
 The Soroband process that runs all day: the menu bar item, the engine and the network monitor, and no window. It runs AppKit alone; the UI process runs the SwiftUI app.
