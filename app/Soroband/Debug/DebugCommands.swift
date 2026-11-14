@@ -567,7 +567,7 @@ struct HistoryState: Encodable {
             end: interval.map { iso.format($0.end) } ?? "",
             step: model?.query.step.rawValue ?? "",
             measure: model?.measure?.rawValue,
-            total: DebugState.Bytes(model?.content.total ?? .zero),
+            total: DebugState.Bytes(model?.resourceContent == nil ? model?.content.total ?? .zero : .zero),
             bars: model?.resourceContent.map { Set($0.bars.filter { $0.value > 0 }.map(\.start)).count }
                 ?? Set(model?.content.bars.map(\.start) ?? []).count,
             apps: model?.resourceContent?.apps.count ?? model?.content.apps.count ?? 0,
