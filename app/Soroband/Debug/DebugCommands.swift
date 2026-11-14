@@ -168,7 +168,7 @@ enum DebugCommands {
         MenuBarController.shared.showPopover(tab: tab.rawValue, allNetworks: query["all"] == "1")
     }
 
-    /// `open-history?range=year&network=2&date=2026-10-15&app=<app id>&hover=2026-10-18T09:00`
+    /// `open-history?range=year&measure=cpu&network=2&date=2026-10-15&app=<app id>&hover=2026-10-18T09:00`
     /// opens History in the UI process (Month, every network, today unless given) and, for
     /// captures, expands an app and holds the chart's hover on a time. A History already open is
     /// replaced.
@@ -179,7 +179,8 @@ enum DebugCommands {
             return
         }
         let options = HistoryOptions(
-            range: range, date: query["date"].flatMap(localDate), network: query["network"].flatMap(Int64.init),
+            range: range, measure: query["measure"].flatMap(ResourceMeasure.init(rawValue:)),
+            date: query["date"].flatMap(localDate), network: query["network"].flatMap(Int64.init),
             current: NetworkMonitor.shared.current?.id, requested: .now, expandedApp: query["app"],
             hover: query["hover"].flatMap(localDate))
         UIProcess.shared.send(.showHistory(arguments: options.arguments, replacing: true))
@@ -206,10 +207,11 @@ enum DebugCommands {
     /// Exports what History shows to `historyCSVFile`, as its Export button does to the file the
     /// user picks. The output path is fixed for the same reason as `statusItemFile`'s.
     private static func exportHistory() {
-        guard let query = HistoryWindow.shared.model?.query else {
-            NSLog("soroband-debug: export-history needs the History window open")
+        guard let model = HistoryWindow.shared.model, model.measure == nil else {
+            NSLog("soroband-debug: export-history needs the History window open on its data page")
             return
         }
+        let query = model.query
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try? FileManager.default.removeItem(at: historyCSVFile)
         HistoryWindow.shared.export(
@@ -539,8 +541,11 @@ struct HistoryState: Encodable {
     let start: String
     let end: String
     let step: String
+    /// The resource page shown; nil on the data page.
+    let measure: String?
+    /// The data page's bytes; zero on a resource page.
     let total: DebugState.Bytes
-    /// Bars with bytes, and apps listed.
+    /// Bars with a value, and apps listed, on the page shown.
     let bars: Int
     let apps: Int
     let expandedApp: String?
@@ -552,16 +557,20 @@ struct HistoryState: Encodable {
     static func current() -> HistoryState {
         let model = HistoryWindow.shared.model
         let iso = Date.ISO8601FormatStyle(timeZone: .current)
+        // A resource page's span is its query's; the data page's, All Time's start included, its content's.
+        let interval = model.map { $0.resourceContent == nil ? $0.content.interval : $0.query.interval }
         return HistoryState(
             pid: ProcessInfo.processInfo.processIdentifier,
             range: model?.range.rawValue ?? "",
             network: model?.network,
-            start: model.map { iso.format($0.content.interval.start) } ?? "",
-            end: model.map { iso.format($0.content.interval.end) } ?? "",
+            start: interval.map { iso.format($0.start) } ?? "",
+            end: interval.map { iso.format($0.end) } ?? "",
             step: model?.query.step.rawValue ?? "",
-            total: DebugState.Bytes(model?.content.total ?? .zero),
-            bars: Set(model?.content.bars.map(\.start) ?? []).count,
-            apps: model?.content.apps.count ?? 0,
+            measure: model?.measure?.rawValue,
+            total: DebugState.Bytes(model?.resourceContent == nil ? model?.content.total ?? .zero : .zero),
+            bars: model?.resourceContent.map { Set($0.bars.filter { $0.value > 0 }.map(\.start)).count }
+                ?? Set(model?.content.bars.map(\.start) ?? []).count,
+            apps: model?.resourceContent?.apps.count ?? model?.content.apps.count ?? 0,
             expandedApp: model?.expandedApp,
             openMilliseconds: HistoryWindow.shared.openDuration.map { $0 * 1000 },
             windows: DebugState.windows())

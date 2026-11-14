@@ -1035,3 +1035,26 @@ Planned rounds: 3. Ran: 8 blind rounds, 3 direct reviews, 2 CodeRabbit CLI runs,
 - **Cause:** fixes after round 3 kept opening edges in the same place: the failed coalition list took a CLI run and rounds 4 and 5 (credit nothing, then fall back for good, then never fall back, then reset the baseline), and the CLI, which could not run before the draft, raised 23 findings only after round 3.
 - **Would have prevented it:** the CLI run before the draft, and, for a new failure path, tracing every piece of state it leaves (the source, the baseline, the ledger's last apps, the guard's schedule) before the first fix rather than one per round.
 - **Rule:** none; checklist step 3's sibling search covers the state a path leaves, and the CLI's key is the user's to renew (handover).
+
+## [#74](https://github.com/AboulEinein/soroband/pull/74) feat: M9 resources in the popover, History and the menu bar (2026-11-13)
+
+Planned rounds: 3. Ran: 4 blind rounds, 6 CodeRabbit CLI runs, 1 CodeRabbit review.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 6 Major, 5 Minor | `first look` (before the draft): Export on a resource page, an expanded app's reads across a reload and a range change, the popover's calendar day and picker, today's average load, the comparison's overflow, a test on the host's memory, the switch dropping a failed write (b3f7009); keyboard access to app rows (follow-up); 1 not valid. | none |
+| CodeRabbit | CodeRabbit CLI | 3 Major | `fix regression`: b3f7009's kept service booked the time off on restart, and minutes were not dropped while off (3c9c7ca). `first look`: the popover's stale read (3c9c7ca). | none |
+| CodeRabbit | CodeRabbit CLI | 1 Major, 2 Minor | `first look`: a picked minute's apps across a reload, an expanded app's read on open (09a2d84); 1 not valid. | 1 sibling search (`generation += 1`) |
+| 1 | Opus | 1 High, 1 Medium, 2 Low | `new evidence`: CI's Xcode 26 timed out type-checking a test's array (9dff0b9). `first look`: the whole-GB memory reading measured +0.038% in one round, over M9's 0.02% (remeasured, below); the minute chart drew resources not shown, and the cores legend did not say what 100% is (9dff0b9). | none |
+| 2 | Opus | 1 Low | `missed earlier`: the cores legend's fix (9dff0b9) had no `Siblings checked` line (added on its thread: no other view pairs cores with a percent axis). Round 1's four threads resolved. | none |
+| CodeRabbit | CodeRabbit | 9 Minor | `first look`: a minute picked during a reload, an expanded read across a page change, the popover's gauge with History open, memory's night share, pressure's rounding (3621f8d); outside the diff: gauges left after an engine error, debug History on a resource page (3621f8d); 2 accepted (handover follow-ups). | 1 sibling search (`generation == self.generation`) |
+| CodeRabbit | CodeRabbit CLI | 1 Minor | `fix regression`: 3621f8d's debug output kept the data page's bytes on a resource page (2aaaf99). | none |
+| 3 | Opus | 1 Medium, 1 Low | `new evidence`: CI's App job failed `UIProcessTests`' timing test on 2aaaf99, a test the PR does not touch; it passed on 42f16b2 (runner timing). `missed earlier`: the replies on CodeRabbit's fixes had no `Siblings checked` lines (added). | none |
+| CodeRabbit | CodeRabbit | 1 Minor | `fix regression`: 3621f8d guarded the expanded read by its span but not `selectMinute`, a read also started from the page shown (8870da0). | none |
+| CodeRabbit | CodeRabbit CLI | 1 Minor | `fix regression`: the first version of that fix left a late read of the replaced day's latest minute (8870da0). | none |
+| 4 | Opus | none | Reviewed 8870da0 and 42f16b2: nothing to act on; resolved round 3's threads. The blind loop ends. | none |
+
+**Retro.** Planned 3; took 4.
+- **Cause:** the CLI's three runs before the draft caught most of the History model's races; CodeRabbit's hosted review still found two more in the same model (a minute picked, an app expanded, each during a read), and its follow-up a third, because each fix guarded one path by the shared generation and left the others relying on it. Round 4 only reviewed the last of those fixes. Two rounds' findings were missing `Siblings checked` lines in thread replies, the lines being in the commits only.
+- **Would have prevented it:** for a model with several reads in flight, listing every read and what it is keyed by before the first fix, rather than one guard per finding; and copying the commit's Siblings line into each reply as it is written.
+- **Rule:** none; checklist step 3's sibling search covers the reads, and REVIEW.md already asks for the line in replies.

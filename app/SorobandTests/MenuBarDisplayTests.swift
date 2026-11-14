@@ -113,7 +113,9 @@ struct MenuBarDisplayTests {
     @Test func readingsStylesAndScopesAreTheCoreSettingsValues() {
         // `soroband config set menu_bar_readings <value>` must name readings the app knows.
         #expect(
-            MenuBarReading.allCases.map(\.rawValue) == ["total", "download", "upload", "speed_down", "speed_up"])
+            MenuBarReading.allCases.map(\.rawValue) == [
+                "total", "download", "upload", "speed_down", "speed_up", "cpu", "memory", "disk",
+            ])
         #expect(MenuBarStyle.allCases.map(\.rawValue) == ["stacked", "labeled", "inline"])
         #expect(MenuBarScope.allCases.map(\.rawValue) == ["network", "all"])
         #expect(MenuBarLayout.default == MenuBarLayout(scope: .network, readings: [.total], style: .stacked))
@@ -167,6 +169,21 @@ struct MenuBarDisplayTests {
             display: display(["↓ 2 KB/s", "↑ 1 KB/s"]), layout: MenuBarLayout(readings: [.speedDown, .speedUp]),
             network: 1, total: nil)
         #expect(delay(other, 5) == 0, "live speed")
+        // A gauge beside the total shows its change at once, though the total only grew.
+        let gauge = { (value: String, total: UInt64) in
+            Drawn(
+                display: MenuBarDisplay(
+                    icon: .symbol("wifi"),
+                    readings: [
+                        .init(value: "183 MB", text: "183 MB"),
+                        .init(value: value, text: "Mem used \(value)", isGauge: true),
+                    ]),
+                layout: MenuBarLayout(readings: [.total, .memory]), network: 1, total: total)
+        }
+        #expect(
+            MenuBarDisplay.redrawDelay(
+                from: gauge("21.4 GB", 183_000_000), to: gauge("21.5 GB", 183_000_000), lastRedraw: t, now: t + 5)
+                == 0, "the memory changed")
         // The first count after launch, which had no text, shows at once.
         let launching = Drawn(display: display([]), layout: .default, network: 1, total: 0)
         #expect(MenuBarDisplay.redrawDelay(from: launching, to: grown, lastRedraw: t, now: t + 5) == 0)
@@ -304,5 +321,54 @@ struct MenuBarDisplayTests {
         #expect(abs(inside.blueComponent - orange.blueComponent) < 0.02)
         // A corner of the square lies outside the diamond.
         #expect(try #require(pixels.colorAt(x: 1, y: 1)).alphaComponent == 0)
+    }
+
+    /// The mockup's gauges (`docs/mockups/resources.html`, 4A): 23% busy, 23 GB used of 32 GiB
+    /// (21.4 GiB), 212 GB free on a 994 GB disk.
+    let gauges = Gauges(
+        on: true, cpuBusy: 0.23, memoryUsed: 23_000_000_000, memoryLevel: 40, pressure: 1,
+        volumeFree: 212_000_000_000, volumeSize: 994_000_000_000, memoryTotal: 34_359_738_368)
+
+    @Test func gaugesReadAsTheResourceSettingsSayBesideTheBytes() {
+        let layout = MenuBarLayout(readings: [.total, .cpu, .memory, .disk], style: .labeled)
+        let display = MenuBarDisplay.make(layout: layout, status: status, kind: .wifi, gauges: gauges)
+        #expect(display.readings.map(\.caption) == ["TODAY", "CPU", "MEM USED", "DISK FREE"])
+        // Memory in whole gigabytes, which change seldom enough to redraw for (21.4 GiB).
+        #expect(display.readings.map(\.value) == ["1.1 GB", "23%", "21 GB", "212 GB"])
+        #expect(display.readings.map(\.isGauge) == [false, true, true, true])
+        // The CPU keeps the width of 100%, as a speed keeps its widest value's.
+        #expect(display.readings[1].widestValue == "100%")
+        #expect(display.readings[2].widestValue == nil, "memory changes rarely")
+        #expect(
+            MenuBarDisplay.make(layout: MenuBarLayout(readings: [.memory]), status: status, kind: .wifi, gauges: gauges)
+                .drawsTitle, "memory alone is the item's title")
+        #expect(
+            !MenuBarDisplay.make(layout: MenuBarLayout(readings: [.cpu]), status: status, kind: .wifi, gauges: gauges)
+                .drawsTitle, "the CPU is drawn, to keep its width")
+        var settings = ResourceSettings()
+        settings.memory = .free
+        settings.memoryUnit = .percent
+        settings.disk = .used
+        let other = MenuBarDisplay.make(
+            layout: layout, status: status, kind: .wifi, gauges: gauges, resources: settings)
+        // 32 GiB less 23 GB is 33% free; 782 of 994 GB is 78% used, rounded down.
+        #expect(other.readings.map(\.text) == ["1.1 GB", "CPU 23%", "Mem free 33%", "Disk used 782 GB"])
+    }
+
+    /// A gauge whose resource is not shown drops out; the layout keeps it for when it is again.
+    @Test func gaugesOfResourcesNotShownDropOut() {
+        let layout = MenuBarLayout(readings: [.cpu, .memory, .total])
+        var settings = ResourceSettings()
+        settings.measures = [.cpu, .disk]
+        #expect(
+            MenuBarDisplay.make(layout: layout, status: status, kind: .wifi, gauges: gauges, resources: settings)
+                .readings.map(\.text) == ["CPU 23%", "1.1 GB"])
+        settings.metered = false
+        #expect(
+            MenuBarDisplay.make(layout: layout, status: status, kind: .wifi, gauges: gauges, resources: settings)
+                .readings.map(\.text) == ["1.1 GB"], "the meter is off")
+        // Before the meter's first poll, a gauge reads as unknown rather than zero.
+        #expect(texts([.cpu]) == ["CPU –"])
+        #expect(!MenuBarLayout(readings: [.cpu]).showsUsage, "the scope picker is for today's bytes")
     }
 }

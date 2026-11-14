@@ -22,6 +22,10 @@ final class Usage {
     /// The network registry, read when the popover or the Networks settings open.
     private(set) var registry: [RegisteredNetwork] = []
     private(set) var menuBarLayout = MenuBarLayout.default
+    /// Which resources are metered and how each reads.
+    private(set) var resources = ResourceSettings.default
+    /// The system gauges at the engine's last poll.
+    private(set) var gauges = Gauges.none
     private(set) var resetHour = 0
     /// The island's settings, read in the UI process for Settings; the menu bar process's
     /// `IslandController` holds its own.
@@ -67,6 +71,8 @@ final class Usage {
     func polled() {
         let status = Core.engine
         if status != self.status { self.status = status }
+        let gauges = Core.gauges
+        if gauges != self.gauges { self.gauges = gauges }
         if isLive {
             let json = Core.todayJSON()
             if json != todayJSON { todayJSON = json }
@@ -100,6 +106,8 @@ final class Usage {
         }
         if snapshot.registry != registry { registry = snapshot.registry }
         if snapshot.menuBarLayout != menuBarLayout { menuBarLayout = snapshot.menuBarLayout }
+        if snapshot.resources != resources { resources = snapshot.resources }
+        if snapshot.gauges != gauges { gauges = snapshot.gauges }
         if snapshot.resetHour != resetHour { resetHour = snapshot.resetHour }
         if snapshot.island != island { island = snapshot.island }
         if snapshot.theme != theme { theme = snapshot.theme }
@@ -111,8 +119,8 @@ final class Usage {
     }
 
     /// Rereads the settings the app shows, after `soroband config set` or a change in Settings.
-    /// Only a changed layout, theme or app icon reaches the UI process at once, and only a changed layout
-    /// redraws the menu bar; a changed reset hour reaches both with the poll the engine makes for
+    /// Only a changed layout, theme, app icon or resource setting reaches the UI process at once, and
+    /// only a changed layout or resource setting redraws the menu bar; a changed reset hour reaches both with the poll the engine makes for
     /// it.
     func reloadSettings() {
         let theme = Theme(value: Core.setting)
@@ -128,8 +136,12 @@ final class Usage {
                 ?? MenuBarLayout.default.icon)
         let resetHour = Core.setting("reset_hour").flatMap(Int.init) ?? 0
         if resetHour != self.resetHour { self.resetHour = resetHour }
-        guard layout != menuBarLayout || theme != self.theme || appIcon != self.appIcon else { return }
+        let resources = ResourceSettings(setting: Core.setting)
+        guard
+            layout != menuBarLayout || theme != self.theme || appIcon != self.appIcon || resources != self.resources
+        else { return }
         if layout != menuBarLayout { menuBarLayout = layout }
+        if resources != self.resources { self.resources = resources }
         if theme != self.theme { self.theme = theme }
         if appIcon != self.appIcon { self.appIcon = appIcon }
         onChange?()
@@ -151,12 +163,13 @@ final class Usage {
         reloadSettings()
     }
 
-    /// Sets `key` as `soroband config set` would, for the island's, the theme's and the app icon's
-    /// settings. A value that does not fit the setting is not saved.
+    /// Sets `key` as `soroband config set` would, for the island's, the theme's, the app icon's and
+    /// the resources' settings. A value that does not fit the setting is not saved.
     func setSetting(_ key: String, to value: String) {
         if UIHost.forward(.setSetting(key: key, value: value)) {
             // Shown at once; the menu bar process's snapshot confirms it.
             island = island.setting(key, to: value)
+            resources = resources.setting(key, to: value)
             theme = theme.setting(key, to: value)
             theme.apply()
             if key == AppIcon.settingKey {

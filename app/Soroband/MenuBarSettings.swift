@@ -23,10 +23,17 @@ struct MenuBarSettings: View {
         layout.today(in: status)
     }
 
+    /// The gauges now, or sample ones while the meter has not read any.
+    private var gauges: Gauges {
+        usage.gauges.on ? usage.gauges : MenuBarPreview.sampleGauges
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             MenuBarPreview(
-                display: MenuBarDisplay.make(layout: layout, status: status, kind: kind), now: now,
+                display: MenuBarDisplay.make(
+                    layout: layout, status: status, kind: kind, gauges: gauges, resources: usage.resources),
+                now: now,
                 revert: opened.flatMap { opened in opened == layout ? nil : { usage.setMenuBarLayout(opened) } })
             Divider()
             SettingsPage(
@@ -46,7 +53,9 @@ struct MenuBarSettings: View {
                         ForEach(MenuBarStyle.allCases) { style in
                             StyleCard(
                                 style: style,
-                                display: MenuBarDisplay.make(layout: styled(style), status: status, kind: kind),
+                                display: MenuBarDisplay.make(
+                                    layout: styled(style), status: status, kind: kind, gauges: gauges,
+                                    resources: usage.resources),
                                 isSelected: layout.style == style
                             ) {
                                 apply { $0.style = style }
@@ -93,26 +102,46 @@ struct MenuBarSettings: View {
     }
 
     private var readings: some View {
-        HStack(alignment: .top, spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(layout.scope == .all ? "Today on all networks" : "Today on \(networkName ?? "this network")")
-                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary).padding(.leading, 4)
-                ForEach(MenuBarReading.usage) { tile($0) }
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(layout.scope == .all ? "Today on all networks" : "Today on \(networkName ?? "this network")")
+                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary).padding(.leading, 4)
+                    ForEach(MenuBarReading.usage) { tile($0) }
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Live speed").font(.caption.weight(.semibold)).foregroundStyle(.secondary).padding(.leading, 4)
+                    ForEach(MenuBarReading.speeds) { tile($0) }
+                    EnergyNote(isLive: layout.showsSpeed)
+                }
             }
             VStack(alignment: .leading, spacing: 6) {
-                Text("Live speed").font(.caption.weight(.semibold)).foregroundStyle(.secondary).padding(.leading, 4)
-                ForEach(MenuBarReading.speeds) { tile($0) }
-                EnergyNote(isLive: layout.showsSpeed)
+                Text("This Mac").font(.caption.weight(.semibold)).foregroundStyle(.secondary).padding(.leading, 4)
+                HStack(spacing: 14) {
+                    ForEach(MenuBarReading.gauges) { tile($0) }
+                }
+                Text(gaugesNote)
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 4).padding(.top, 2)
             }
         }
     }
 
+    /// How the gauges read, set in Settings › Resources, and why one is missing.
+    private var gaugesNote: String {
+        if !usage.resources.metered { return "Resources are not metered. Turn them on in Settings › Resources." }
+        return "Read as set in Settings › Resources. CPU changes with every poll, so it redraws most often."
+    }
+
     private func tile(_ reading: MenuBarReading) -> some View {
         let isOn = layout.readings.contains(reading)
-        let value = reading.value(today: today, speed: status.speed)
+        let value = reading.value(today: today, speed: status.speed, gauges: gauges, resources: usage.resources)
+        let hidden = reading.measure.map { !usage.resources.shows($0) } ?? false
         return ReadingTile(
-            reading: reading, value: reading.isSpeed ? "\(value) · every 5 s" : value, isOn: isOn,
-            isFull: layout.readings.count >= MenuBarLayout.maxReadings
+            reading: reading,
+            value: hidden ? "Not shown" : reading.isSpeed ? "\(value) · every 5 s" : value,
+            isOn: isOn, isFull: layout.readings.count >= MenuBarLayout.maxReadings
         ) {
             apply { layout in
                 if let index = layout.readings.firstIndex(of: reading) {
@@ -430,6 +459,12 @@ struct MenuBarPreview: View {
         todayNetworkInterfaces: ByteCounts(rx: 893_600_000, tx: 203_800_000),
         todayInterfaces: ByteCounts(rx: 2_370_000_000, tx: 500_000_000),
         speed: ByteCounts(rx: 137_000, tx: 42_000))
+
+    /// The popover mockup's gauges (`docs/mockups/resources.html`, 1A): 23% busy, 21.4 GB used,
+    /// 212 GB free on a 994 GB disk.
+    static let sampleGauges = Gauges(
+        on: true, cpuBusy: 0.23, memoryUsed: 23_000_000_000, memoryLevel: 60, pressure: 1,
+        volumeFree: 212_000_000_000, volumeSize: 994_000_000_000, memoryTotal: 34_359_738_368)
 
     /// The menu bar's color over a wallpaper, in each appearance.
     static let strip = Color(light: 0xE9E7EE, dark: 0x0B0B0E)

@@ -41,7 +41,7 @@ impl Step {
         }
     }
 
-    fn code(self) -> i64 {
+    pub(crate) fn code(self) -> i64 {
         match self {
             Self::Hour => 0,
             Self::Day => 1,
@@ -58,7 +58,7 @@ pub struct Span {
 }
 
 impl Span {
-    fn hours(self) -> (i64, i64) {
+    pub(crate) fn hours(self) -> (i64, i64) {
         (hour_start(self.start), hour_start(self.end))
     }
 }
@@ -338,7 +338,7 @@ fn heatmap(conn: &Connection, start: i64, end: i64, network: Option<i64>) -> Res
 /// - `soroband_bar(hour, step)`: the local hour, day or month the hour falls in, as a number that
 ///   grows with time;
 /// - `soroband_slot(hour)`: weekday × 24 + local hour, 0 being Sunday 00:00.
-fn register_local_time(conn: &Connection, zone: fn(i64) -> i64) -> Result<()> {
+pub(crate) fn register_local_time(conn: &Connection, zone: fn(i64) -> i64) -> Result<()> {
     let flags = FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC;
     conn.create_scalar_function("soroband_bar", 2, flags, move |ctx| {
         let local = local_time(ctx.get(0)?, zone);

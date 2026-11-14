@@ -75,6 +75,15 @@ final class PopoverController: NSObject, NSPopoverDelegate {
                             requested: .now), activates: true)
                     self?.popover.performClose(nil)
                 },
+                openResource: { [weak self] measure in
+                    // A History already open turns to the gauge's page, as a new one opens on it.
+                    HistoryWindow.shared.model?.select(range: .day, anchor: .now, measure: measure)
+                    HistoryWindow.shared.show(
+                        HistoryOptions(
+                            range: .day, measure: measure, current: NetworkMonitor.shared.current?.id,
+                            requested: .now), activates: true)
+                    self?.popover.performClose(nil)
+                },
                 openSettings: { [weak self] in
                     // Settings first, so it is key as the popover's close begins and keeps the keyboard.
                     SettingsWindow.shared.show(activates: true)
@@ -226,8 +235,15 @@ private struct LivePopover: View {
     @State private var summary: PopoverSummary?
     @State var tab: PopoverView.Tab
     @State var allNetworks: Bool
+    /// The measure the Resources tab lists today's apps by.
+    @State private var measure = ResourceMeasure.cpu
+    /// Today's resources per app, read when the Resources tab shows and again each minute, as
+    /// the engine writes them.
+    @State private var resourcesToday: ResourceHistoryData?
     /// Opens History on this month, on `network` or on every network when nil.
     let openHistory: (_ network: Int64?) -> Void
+    /// Opens History on today's page of a resource.
+    let openResource: (ResourceMeasure) -> Void
     let openSettings: () -> Void
     let quit: () -> Void
 
@@ -244,6 +260,7 @@ private struct LivePopover: View {
                 current: monitor.current, connectedSince: monitor.connectedSince, allNetworks: allNetworks,
                 locationAllowed: location.isAllowed, summary: summary),
             tab: $tab, allNetworks: $allNetworks,
+            resources: resources, measure: $measure, openResource: openResource,
             openHistory: { openHistory(historyNetwork) },
             allowLocation: { location.allow() },
             openSettings: openSettings, quit: quit
@@ -260,11 +277,51 @@ private struct LivePopover: View {
                 PopoverSummary.load(network: network, historyNetwork: history, todayStart: todayStart)
             }.value
         }
+        .task(id: resourcesKey) {
+            guard let key = resourcesKey else { return }
+            // Spans are whole hours: the day from today's start takes in the hour under way.
+            let query = ResourceQuery(
+                interval: DateInterval(
+                    start: key.todayStart,
+                    // A local day: 23 or 25 hours when the clocks change.
+                    end: Calendar.current.date(byAdding: .day, value: 1, to: key.todayStart)
+                        ?? key.todayStart.addingTimeInterval(86_400)),
+                previous: nil, step: .hour,
+                measure: key.measure)
+            let answer = await Task.detached(priority: .userInitiated) { Core.resourceHistory(query) }.value
+            // A newer read took this one's place while it ran: its answer is stale.
+            guard !Task.isCancelled else { return }
+            resourcesToday = answer
+        }
         .onAppear {
             // macOS may reveal the Wi‑Fi name later than `refreshUntilNamed` looked for it.
             if location.isAllowed, monitor.current?.key.hasPrefix("wifi-router:") == true { monitor.refresh() }
         }
     }
+}
+
+extension LivePopover {
+    /// The Resources tab, while a resource is shown.
+    fileprivate var resources: PopoverResources? {
+        guard !usage.resources.shown.isEmpty else { return nil }
+        return PopoverResources.make(
+            settings: usage.resources, gauges: usage.gauges, measure: measure, today: resourcesToday)
+    }
+
+    /// What today's resources depend on; nil while the tab is not shown.
+    fileprivate var resourcesKey: ResourcesKey? {
+        guard tab == .resources, let shown = resources?.measure, usage.status.state != .starting else { return nil }
+        return ResourcesKey(
+            measure: shown, todayStart: usage.status.todayStart, minute: Int(Date.now.timeIntervalSince1970 / 60))
+    }
+}
+
+/// What today's resources in the popover depend on.
+private struct ResourcesKey: Equatable {
+    var measure: ResourceMeasure
+    var todayStart: Date
+    /// The engine writes its resources once a minute.
+    var minute: Int
 }
 
 /// What the popover's summary depends on.

@@ -4,6 +4,8 @@ import AppKit
 /// process in `UIRequest.showHistory`.
 struct HistoryOptions: Equatable {
     var range: HistoryRange = .month
+    /// The resource History shows; the data page when nil.
+    var measure: ResourceMeasure?
     /// A day in the period to show; today when nil.
     var date: Date?
     /// One network, or every network when nil.
@@ -20,6 +22,7 @@ struct HistoryOptions: Equatable {
 
     var arguments: [String] {
         var arguments = [Self.flag, "--range", range.rawValue]
+        if let measure { arguments += ["--measure", measure.rawValue] }
         if let date { arguments += ["--date", Self.format(date)] }
         if let network { arguments += ["--network", String(network)] }
         if let current { arguments += ["--current", String(current)] }
@@ -37,6 +40,7 @@ struct HistoryOptions: Equatable {
             values[argument] = arguments[index + 1]
         }
         range = values["--range"].flatMap(HistoryRange.init(rawValue:)) ?? .month
+        measure = values["--measure"].flatMap(ResourceMeasure.init(rawValue:))
         date = values["--date"].flatMap(Self.parse)
         network = values["--network"].flatMap(Int64.init)
         current = values["--current"].flatMap(Int64.init)
@@ -46,10 +50,11 @@ struct HistoryOptions: Equatable {
     }
 
     init(
-        range: HistoryRange = .month, date: Date? = nil, network: Int64? = nil, current: Int64? = nil,
-        requested: Date? = nil, expandedApp: String? = nil, hover: Date? = nil
+        range: HistoryRange = .month, measure: ResourceMeasure? = nil, date: Date? = nil, network: Int64? = nil,
+        current: Int64? = nil, requested: Date? = nil, expandedApp: String? = nil, hover: Date? = nil
     ) {
         self.range = range
+        self.measure = measure
         self.date = date
         self.network = network
         self.current = current

@@ -251,6 +251,9 @@ pub struct Gauges {
     pub swap_used: Option<u64>,
     /// `kern.memorystatus_vm_pressure_level`: 1 normal, 2 warning, 4 critical.
     pub pressure: Option<u8>,
+    /// `kern.memorystatus_level`: the percent of memory the kernel counts as available, 0-100.
+    /// Its complement is the memory pressure the app shows as a percent.
+    pub memory_level: Option<u8>,
 }
 
 impl Gauges {

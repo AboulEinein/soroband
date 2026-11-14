@@ -7,18 +7,26 @@ import Testing
 /// `MenuBarDisplay.rasterized(itemImage)`, the image the menu bar item drew before.
 @MainActor
 struct MenuBarRendererTests {
-    /// Every order of up to four readings, and none.
+    /// Every order of up to four of today's bytes and speeds, and none; then the gauges, which
+    /// draw their text the same way, alone, beside the bytes and beside a speed. Every order of all
+    /// eight readings would be 2,081 layouts.
     static let readings: [[MenuBarReading]] = {
+        let bytes = MenuBarReading.allCases.filter { $0.measure == nil }
         var all: [[MenuBarReading]] = [[]]
         var last: [[MenuBarReading]] = [[]]
         for _ in 1...MenuBarLayout.maxReadings {
             last = last.flatMap { chosen in
-                MenuBarReading.allCases.filter { !chosen.contains($0) }.map { chosen + [$0] }
+                bytes.filter { !chosen.contains($0) }.map { chosen + [$0] }
             }
             all += last
         }
-        return all
+        return all + [[.cpu], [.memory], [.disk], [.total, .cpu, .memory, .disk], [.cpu, .speedDown]]
     }()
+
+    /// The popover mockup's gauges (`docs/mockups/resources.html`, 1A).
+    static let gauges = Gauges(
+        on: true, cpuBusy: 0.23, memoryUsed: 23_000_000_000, memoryLevel: 60, pressure: 1,
+        volumeFree: 212_000_000_000, volumeSize: 994_000_000_000, memoryTotal: 34_359_738_368)
 
     /// Small and large values, so narrow and wide texts and every unit are drawn.
     static let statuses = [
@@ -85,7 +93,7 @@ struct MenuBarRendererTests {
                             for readings in Self.readings {
                                 let display = MenuBarDisplay.make(
                                     layout: MenuBarLayout(scope: scope, readings: readings, style: style),
-                                    status: status, kind: .wifi)
+                                    status: status, kind: .wifi, gauges: Self.gauges)
                                 guard !display.drawsTitle else { continue }
                                 compared += 1
                                 // Other tests wait on the main actor too.
@@ -100,9 +108,10 @@ struct MenuBarRendererTests {
                 }
             }
         }
-        // Of 206 orders of readings, 3 styles and 2 scopes, all but the 19 a title shows (one
-        // usage reading stacked, only usage readings inline, or none inline), in 8 combinations.
-        #expect(compared == (206 * 3 * 2 - 19 * 2) * 2 * 2 * 2)
+        // Of 206 orders of bytes and speeds and 5 gauge layouts, 3 styles and 2 scopes, all but
+        // the 23 a title shows (one usage reading stacked, only usage readings inline, or none
+        // inline; memory or disk alone, stacked or inline), in 8 combinations.
+        #expect(compared == (211 * 3 * 2 - 23 * 2) * 2 * 2 * 2)
     }
 
     /// Each network's icon and the Soroband glyph, the icon alone (before the first poll too), and

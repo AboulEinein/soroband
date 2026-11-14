@@ -83,6 +83,8 @@ pub struct ResourceMinute {
     pub swap_used: Option<u64>,
     /// The highest pressure level read in the minute.
     pub pressure: Option<u8>,
+    /// The percent of memory available at the minute's last poll ([`Gauges::memory_level`]).
+    pub memory_level: Option<u8>,
     /// Each local volume's free and total bytes, as last read in the minute; empty when none was
     /// read in it.
     pub volumes: Vec<Volume>,
@@ -123,6 +125,13 @@ impl ResourceLedger {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.hours.is_empty() && self.minutes.is_empty() && self.failed.is_empty()
+    }
+
+    /// Forgets the last poll's gauges and the last read's apps, keeping the rows not yet taken: the
+    /// next poll and read start afresh, as after the meter was off.
+    pub fn rebase(&mut self) {
+        self.last_gauges = None;
+        self.last_apps.clear();
     }
 
     /// Notes the gauges of a poll at Unix time `now`.
@@ -254,6 +263,7 @@ fn finish(start: i64, m: &Minute) -> ResourceMinute {
         memory_compressed: m.last.memory_compressed,
         swap_used: m.last.swap_used,
         pressure: m.pressure,
+        memory_level: m.last.memory_level,
         volumes: m.volumes.clone(),
         top,
         fallback: m.fallback,
@@ -390,6 +400,24 @@ mod tests {
         assert_eq!(cpu, ["G", "F", "E", "D", "C"]);
         let memory: Vec<&str> = m.top[1].1.iter().map(|(a, _)| a.name.as_str()).collect();
         assert_eq!(memory, ["A", "B", "C", "D", "E"]);
+    }
+
+    #[test]
+    fn a_minute_keeps_the_memory_level_of_its_last_poll() {
+        let mut ledger = ResourceLedger::default();
+        let level = |l: u8| Gauges {
+            memory_level: Some(l),
+            ..Gauges::default()
+        };
+        ledger.poll(level(70), 5);
+        ledger.poll(level(35), 50);
+        ledger.poll(level(90), 65);
+        let (_, minutes) = ledger.take(60, false);
+        assert_eq!(
+            minutes[0].memory_level,
+            Some(35),
+            "the last poll at 50, not 70 or 90"
+        );
     }
 
     #[test]
