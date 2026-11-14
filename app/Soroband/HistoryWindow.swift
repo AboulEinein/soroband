@@ -341,7 +341,10 @@ final class HistoryModel {
         Task.detached(priority: .userInitiated) {
             let apps = read(shown)
             await MainActor.run {
-                guard generation == self.generation, (self.selectedMinute ?? record.minutes.last?.start) == shown
+                // The minute shown now, on the record shown now: a read for a replaced day's is dropped.
+                guard generation == self.generation,
+                    (self.selectedMinute ?? self.minuteRecord?.minutes.last?.start) == shown,
+                    self.minuteRecord?.minutes.contains(where: { $0.start == shown }) == true
                 else { return }
                 self.minuteApps = apps
                 self.updateMinutes()
@@ -477,6 +480,10 @@ final class HistoryModel {
             resourceContent = ResourceHistoryContent.make(
                 range: range, query: query, data: answer.resources ?? .empty, now: .now, calendar: calendar)
             minuteRecord = day == nil ? nil : answer.minutes
+            // A minute picked on the page this answer replaces (another day) is not this page's.
+            if let picked = selectedMinute, minuteRecord?.minutes.contains(where: { $0.start == picked }) != true {
+                selectedMinute = nil
+            }
             // A minute picked while this answer was read keeps its own apps, or reads them.
             let picked = selectedMinute ?? minuteRecord?.minutes.last?.start
             let current = answer.minuteAppsStart == picked

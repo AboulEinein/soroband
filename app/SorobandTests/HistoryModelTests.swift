@@ -275,6 +275,73 @@ struct HistoryModelTests {
         #expect(model.minutes?.selected == Date(timeIntervalSince1970: TimeInterval(first + 60)))
     }
 
+    /// A minute picked on a Day page while the day before loads is not the new day's: the new
+    /// page shows its latest minute and that minute's apps.
+    @Test func aMinutePickedOnTheDayBeingReplacedIsDropped() async throws {
+        let reader = ResourceReader()
+        let gate = Gate()
+        var reads = reader.reads
+        let minutes = reads.minutes
+        reads.minutes = { start, end, volume in
+            gate.pass()
+            return minutes(start, end, volume)
+        }
+        let model = HistoryModel(
+            range: .day, anchor: .now, network: nil, currentNetwork: nil, registry: [], measure: .cpu, reads: reads)
+        model.loadNow()
+        let today = Int64(Calendar.current.startOfDay(for: .now).timeIntervalSince1970)
+        gate.close()
+        model.step(-1)  // yesterday, held at the gate
+        model.selectMinute(today)  // on today's page, still shown
+        for _ in 0..<200 where reader.minuteApps.last != today { try await Task.sleep(for: .milliseconds(10)) }
+        gate.open()
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: .now))!
+        let latest = Int64(yesterday.timeIntervalSince1970) + 60
+        for _ in 0..<200 where model.minutes?.selected != Date(timeIntervalSince1970: TimeInterval(latest)) {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(model.minutes?.selected == Date(timeIntervalSince1970: TimeInterval(latest)))
+        #expect(reader.minuteApps.last == latest, "yesterday's latest minute's apps, not today's")
+    }
+
+    /// The apps of the replaced day's latest minute, picked while the next day loads and read
+    /// after it arrives, are dropped: that day's latest minute is not the new day's.
+    @Test func aReplacedDaysMinuteReadLandingLateIsDropped() async throws {
+        let reader = ResourceReader()
+        let page = Gate()
+        let apps = Gate()
+        let today = Int64(Calendar.current.startOfDay(for: .now).timeIntervalSince1970)
+        var reads = reader.reads
+        let minutes = reads.minutes
+        let minuteApps = reads.minuteApps
+        reads.minutes = { start, end, volume in
+            page.pass()
+            return minutes(start, end, volume)
+        }
+        reads.minuteApps = { minute in
+            if minute == today + 60 { apps.pass() }
+            guard minute == today + 60 else { return minuteApps(minute) }
+            return MinuteApps(cpu: [.init(id: "old", name: "Old", value: 1)])
+        }
+        let model = HistoryModel(
+            range: .day, anchor: .now, network: nil, currentNetwork: nil, registry: [], measure: .cpu, reads: reads)
+        model.loadNow()
+        page.close()
+        apps.close()
+        model.step(-1)  // yesterday, held at the gate
+        model.selectMinute(today + 60)  // today's latest, on today's page: its apps held too
+        page.open()
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: .now))!
+        let latest = Date(timeIntervalSince1970: yesterday.timeIntervalSince1970 + 60)
+        for _ in 0..<200 where model.minutes?.selected != latest { try await Task.sleep(for: .milliseconds(10)) }
+        apps.open()
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(model.minutes?.selected == latest)
+        let names = model.minutes?.lists.flatMap { $0.rows.map(\.name) } ?? []
+        #expect(!names.contains("Old"), "today's minute's apps are not shown on yesterday's")
+    }
+
     /// An app expanded on a page a newer one is replacing reads that page's span; its answer,
     /// landing after the new page's, is dropped.
     @Test func anExpandedReadForThePageReplacedIsDropped() async throws {
