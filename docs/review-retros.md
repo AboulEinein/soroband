@@ -1039,3 +1039,10 @@ Planned rounds: 3. Ran: 8 blind rounds, 3 direct reviews, 2 CodeRabbit CLI runs,
 ## [#74](https://github.com/AboulEinein/soroband/pull/74) feat: M9 resources in the popover, History and the menu bar (2026-11-13)
 
 Planned rounds: 3.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 6 Major, 5 Minor | `first look` (before the draft): Export on a resource page, an expanded app's reads across a reload and a range change, the popover's calendar day and picker, today's average load, the comparison's overflow, a test on the host's memory, the switch dropping a failed write (b3f7009); keyboard access to app rows (follow-up); 1 not valid. | none |
+| CodeRabbit | CodeRabbit CLI | 3 Major | `fix regression`: b3f7009's kept service booked the time off on restart, and minutes were not dropped while off (3c9c7ca). `first look`: the popover's stale read (3c9c7ca). | none |
+| CodeRabbit | CodeRabbit CLI | 1 Major, 2 Minor | `first look`: a picked minute's apps across a reload, an expanded app's read on open (09a2d84); 1 not valid. | 1 sibling search (`generation += 1`) |
+| 1 | Opus | 1 High, 1 Medium, 2 Low | `new evidence`: CI's Xcode 26 timed out type-checking a test's array (9dff0b9). `first look`: the whole-GB memory reading measured +0.038% in one round, over M9's 0.02% (remeasured, below); the minute chart drew resources not shown, and the cores legend did not say what 100% is (9dff0b9). | none |
