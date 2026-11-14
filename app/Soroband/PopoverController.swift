@@ -76,6 +76,8 @@ final class PopoverController: NSObject, NSPopoverDelegate {
                     self?.popover.performClose(nil)
                 },
                 openResource: { [weak self] measure in
+                    // A History already open turns to the gauge's page, as a new one opens on it.
+                    HistoryWindow.shared.model?.select(range: .day, anchor: .now, measure: measure)
                     HistoryWindow.shared.show(
                         HistoryOptions(
                             range: .day, measure: measure, current: NetworkMonitor.shared.current?.id,

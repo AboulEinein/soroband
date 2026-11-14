@@ -112,7 +112,7 @@ struct ResourceHistoryContent: Equatable {
             chartTitle: chartTitle(measure: measure, step: query.step),
             bars: bars, barAverage: barAverage,
             apps: rows, appsScale: max(rows.first?.value ?? 0, 1),
-            heatmap: range == .day ? nil : heatmap(data.heatmap, calendar: calendar),
+            heatmap: range == .day ? nil : heatmap(data.heatmap, measure: measure, calendar: calendar),
             fallback: data.total.fallback)
     }
 
@@ -201,8 +201,13 @@ struct ResourceHistoryContent: Equatable {
         }
     }
 
-    static func heatmap(_ cells: [ResourceHistoryData.Cell], calendar: Calendar) -> HistoryContent.Heatmap {
-        HistoryContent.heatmap(
+    /// Memory's cells are average footprints, which do not add up: it has no share of the night.
+    static func heatmap(
+        _ cells: [ResourceHistoryData.Cell], measure: ResourceMeasure, calendar: Calendar
+    ) -> HistoryContent.Heatmap {
+        var heatmap = HistoryContent.heatmap(
             cells.map { HistoryData.Cell(weekday: $0.weekday, hour: $0.hour, bytes: $0.value) }, calendar: calendar)
+        if measure == .memory { heatmap.nightShare = nil }
+        return heatmap
     }
 }

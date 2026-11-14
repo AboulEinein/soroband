@@ -234,6 +234,86 @@ struct HistoryModelTests {
         #expect(model.minutes?.selected == day.start)
     }
 
+    /// Holds a read until the test lets it go.
+    final class Gate: @unchecked Sendable {
+        private let lock = NSLock()
+        private var closed = false
+        private let opened = DispatchSemaphore(value: 0)
+        func close() { lock.withLock { closed = true } }
+        func open() { opened.signal() }
+        func pass() { if lock.withLock({ closed }) { opened.wait() } }
+    }
+
+    /// A minute picked while a reload is read keeps its own apps: the reload, read for the minute
+    /// picked before, reads the new one's again rather than showing the old one's.
+    @Test func aMinutePickedDuringAReloadKeepsItsOwnApps() async throws {
+        let reader = ResourceReader()
+        let gate = Gate()
+        var reads = reader.reads
+        let minutes = reads.minutes
+        reads.minutes = { start, end, volume in
+            gate.pass()
+            return minutes(start, end, volume)
+        }
+        let model = HistoryModel(
+            range: .day, anchor: .now, network: nil, currentNetwork: nil, registry: [], measure: .cpu, reads: reads)
+        model.loadNow()
+        let first = Int64(Calendar.current.startOfDay(for: .now).timeIntervalSince1970)
+        model.selectMinute(first)
+        for _ in 0..<200 where reader.minuteApps.last != first { try await Task.sleep(for: .milliseconds(10)) }
+
+        gate.close()
+        var settings = ResourceSettings()
+        settings.cpu = .cores
+        model.settings = settings  // the reload reads for the first minute, held at the gate
+        model.selectMinute(first + 60)
+        for _ in 0..<200 where reader.minuteApps.last != first + 60 { try await Task.sleep(for: .milliseconds(10)) }
+        let asked = reader.minuteApps.count
+        gate.open()
+        for _ in 0..<200 where reader.minuteApps.count < asked + 2 { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(reader.minuteApps.suffix(2) == [first, first + 60], "the reload's read, then the picked minute's")
+        #expect(model.minutes?.selected == Date(timeIntervalSince1970: TimeInterval(first + 60)))
+    }
+
+    /// An app expanded on a page a newer one is replacing reads that page's span; its answer,
+    /// landing after the new page's, is dropped.
+    @Test func anExpandedReadForThePageReplacedIsDropped() async throws {
+        let calendar = Calendar.current
+        let thisWeek = calendar.dateInterval(of: .weekOfYear, for: .now)!
+        let lastWeek = calendar.dateInterval(of: .weekOfYear, for: thisWeek.start.addingTimeInterval(-1))!
+        let page = Gate()
+        let oldExpansion = Gate()
+        let app = "/Applications/Xcode.app"
+        let reads = HistoryReads(
+            history: { _ in .empty }, registry: { [] },
+            resources: { query in
+                let expansion = query.previous == nil
+                if !expansion, query.interval == lastWeek { page.pass() }
+                if expansion, query.interval == thisWeek { oldExpansion.pass() }
+                // The app's CPU tells the spans apart: 1 this week, 2 last week.
+                let cpu: UInt64 = query.interval == thisWeek ? 1 : 2
+                return ResourceHistoryData(
+                    firstHour: nil, total: .zero, previous: nil, bars: [],
+                    apps: [.init(id: app, name: "Xcode", sum: ResourceSum(cpu: cpu))], busiestDay: nil, days: 0,
+                    heatmap: [])
+            })
+        let model = HistoryModel(
+            range: .week, anchor: .now, network: nil, currentNetwork: nil, registry: [], measure: .cpu, reads: reads)
+        model.loadNow()
+        page.close()
+        oldExpansion.close()
+        model.step(-1)  // last week's page, held at the gate
+        model.expandedApp = app  // on this week's page, still shown: its read is held too
+        page.open()
+        for _ in 0..<200 where model.expandedMeasures?.resources?.cpu != 2 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(model.expandedMeasures?.resources?.cpu == 2, "last week's")
+        oldExpansion.open()
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(model.expandedMeasures?.resources?.cpu == 2, "this week's answer, landing last, is dropped")
+    }
+
     /// An app kept expanded while the settings change reads its measures again, rather than
     /// waiting on a read the new answer dropped.
     @Test func anExpandedAppReadsItsMeasuresAgainAfterASettingsChange() async throws {

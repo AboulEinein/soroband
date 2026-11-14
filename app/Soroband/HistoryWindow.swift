@@ -362,6 +362,8 @@ final class HistoryModel {
         var resources: ResourceHistoryData?
         var minutes: MinuteRecord?
         var minuteApps: MinuteApps?
+        /// The minute `minuteApps` belongs to.
+        var minuteAppsStart: Int64?
     }
 
     private enum Request: Sendable {
@@ -389,7 +391,10 @@ final class HistoryModel {
                 answer.minutes = record
                 // The minute picked keeps its apps across a reload (the settings changed).
                 let shown = minute.flatMap { m in record.minutes.contains { $0.start == m } ? m : nil }
-                if let start = shown ?? record.minutes.last?.start { answer.minuteApps = reads.minuteApps(start) }
+                if let start = shown ?? record.minutes.last?.start {
+                    answer.minuteApps = reads.minuteApps(start)
+                    answer.minuteAppsStart = start
+                }
             }
         }
         return answer
@@ -472,8 +477,12 @@ final class HistoryModel {
             resourceContent = ResourceHistoryContent.make(
                 range: range, query: query, data: answer.resources ?? .empty, now: .now, calendar: calendar)
             minuteRecord = day == nil ? nil : answer.minutes
-            minuteApps = answer.minuteApps
+            // A minute picked while this answer was read keeps its own apps, or reads them.
+            let picked = selectedMinute ?? minuteRecord?.minutes.last?.start
+            let current = answer.minuteAppsStart == picked
+            minuteApps = current ? answer.minuteApps : nil
             updateMinutes()
+            if !current, minuteRecord != nil { selectMinute(selectedMinute) }
         }
         // An app kept expanded across a reload (settings changed) reads its measures over the
         // span now shown; one read while this answer was pending read the span before it.
@@ -508,7 +517,10 @@ final class HistoryModel {
             let resources = reads.resources(
                 ResourceQuery(interval: interval, previous: nil, step: step, measure: .cpu))
             await MainActor.run {
-                guard generation == self.generation, self.expandedApp == app else { return }
+                // An app expanded on the page a newer answer replaced read that page's span.
+                guard generation == self.generation, self.expandedApp == app, self.query.interval == interval,
+                    self.query.step == step
+                else { return }
                 let shares = bytes?.apps.filter { $0.id == app }
                 let total = shares.map {
                     $0.reduce(ByteCounts.zero) { ByteCounts(rx: $0.rx + $1.rx, tx: $0.tx + $1.tx) }

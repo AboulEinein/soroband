@@ -92,6 +92,18 @@ struct ResourceHistoryContentTests {
         #expect(memory.apps.map(\.share) == [0.25, 0.75])
     }
 
+    /// CPU time adds up, so the heatmap tells how much of it nights carry; memory's cells are
+    /// average footprints, which do not add up, so it tells only the fullest hour.
+    @Test func onlyAMeasureThatAddsUpHasAShareOfTheNight() {
+        let cells: [ResourceHistoryData.Cell] = [
+            .init(weekday: 1, hour: 2, value: 1), .init(weekday: 1, hour: 14, value: 3),
+        ]
+        #expect(ResourceHistoryContent.heatmap(cells, measure: .cpu, calendar: calendar).nightShare == 0.25)
+        let memory = ResourceHistoryContent.heatmap(cells, measure: .memory, calendar: calendar)
+        #expect(memory.nightShare == nil)
+        #expect(memory.peak?.hour == 14)
+    }
+
     @Test func diskAndEnergyReadTheirOwnTotals() {
         #expect(content(.disk).tiles.map(\.value).prefix(3) == ["8 GB", "3 GB", "5 GB"])
         #expect(content(.energy).tiles.first?.title == "Energy")

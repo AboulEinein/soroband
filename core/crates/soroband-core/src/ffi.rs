@@ -1534,7 +1534,9 @@ fn publish(service: &Service<SystemHost>, speed: Bytes) {
 }
 
 /// Marks the engine stopped and tells the app, which otherwise waits for a poll that never comes.
+/// The gauges of its last poll go with it, so no reading stays drawn as if it were current.
 fn fail() {
+    *lock(&GAUGES) = NO_GAUGES;
     lock(&STATUS).state = SOROBAND_ENGINE_FAILED;
     notify();
 }

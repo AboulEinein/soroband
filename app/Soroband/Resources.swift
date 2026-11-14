@@ -181,10 +181,13 @@ extension ResourceSettings {
             let usedShare = used.flatMap { memoryTotal > 0 ? min(1, Double($0) / Double(memoryTotal)) : nil }
             switch memory {
             case .pressure:
-                let pressure = (known ? gauges.memoryLevel : nil).map { Double(100 - min(100, max(0, $0))) / 100 }
+                // The kernel's whole percent, shown as it is: a share in floating point can land
+                // just under it and round down.
+                let percent = (known ? gauges.memoryLevel : nil).map { 100 - min(100, max(0, $0)) }
                 return GaugeReading(
                     title: "Memory pressure", caption: "PRESSURE", label: "Pressure",
-                    value: pressure.map(Format.percent) ?? GaugeReading.unknown, usedShare: pressure)
+                    value: percent.map { "\($0)%" } ?? GaugeReading.unknown,
+                    usedShare: percent.map { Double($0) / 100 })
             case .used, .free:
                 let isUsed = memory == .used
                 let amount = used.map { isUsed ? $0 : memoryTotal - min($0, memoryTotal) }

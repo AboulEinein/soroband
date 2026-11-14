@@ -52,6 +52,12 @@ struct ResourcesTests {
         #expect(pressure?.value == "60%")
         #expect(pressure?.caption == "PRESSURE")
         #expect(pressure?.usedShare == 0.6)
+        // 42% available is 58% pressure: (100 - 42) / 100 × 100 is 57.99… in floating point.
+        var pressureShown = ResourceSettings()
+        pressureShown.memory = .pressure
+        var level42 = gauges
+        level42.memoryLevel = 42
+        #expect(pressureShown.reading(.memory, gauges: level42)?.value == "58%")
     }
 
     @Test func diskReadsFreeOrUsedOnItsVolume() {
