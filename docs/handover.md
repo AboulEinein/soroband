@@ -35,7 +35,8 @@ The state of the project for whoever picks it up next. Read this file, then the 
 1. **The user's checks.** When the user asks, install `main` (`scripts/install.sh`) and set `menu_bar_readings` as above. The user then runs the hand checklists on `main` (M0, M2, M3, M4, M5 and M6a's, below), checks by eye #17's Location grant, the popover and History on real data (#18) and Settings (#19, #20), and starts the daily-use week (M3, exit criterion 2). Each milestone is marked `done` in the ledger once its checklist has passed; issues go into Follow-ups.
 2. **History's cold open.** The user decides about History opening with no UI process running: 363–416 ms in a Release-optimized build and 373–423 ms in Debug, over M4's 300 ms.
 3. **M7's hand checklist** (below; #54 is merged), then, with the user's approval, date CHANGELOG's 0.1.0 section, write the Location result in place of its `TODO(release)`, and push the `v0.1.0` tag. M5's review experiment ended: its comparison is in `~/soroband-review-benchmark/m5/comparison.md`, and its three proposals for the `pr-review` skill are being weighed in the agent-skills project. `evidence/m5` holds #50's screenshots; deleting it breaks them. CPU and memory measurements on this Mac run one at a time, never beside another agent's, through `scripts/verify/measure-lock.py`.
-4. **M8's hand checklist** (below), then M9 and M10, whose designs are picked with the user at the start of each (`plan.md`).
+4. **M9's merge.** [#74](https://github.com/AboulEinein/soroband/pull/74) has ended its review loop (4 blind rounds, CodeRabbit's review answered, CI green); the user merges it, then M9 is marked `done` in `plan.md`.
+5. **M8's hand checklist** (below), then M10, whose design is picked with the user at its start (`plan.md`).
 
 ### M8 hand checklist
 
