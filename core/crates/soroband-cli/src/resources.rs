@@ -33,16 +33,6 @@ memory footprint, disk bytes read and written, or energy. CPU is a share of one 
 /// Apps the text of `top` lists.
 const TOP_ROWS: usize = 15;
 
-fn order(word: &str) -> Option<ResourceOrder> {
-    match word {
-        "cpu" => Some(ResourceOrder::Cpu),
-        "memory" => Some(ResourceOrder::Memory),
-        "disk" => Some(ResourceOrder::Disk),
-        "energy" => Some(ResourceOrder::Energy),
-        _ => None,
-    }
-}
-
 const PRESSURE_NAMES: [(u8, &str); 3] = [(1, "normal"), (2, "warning"), (4, "critical")];
 
 fn pressure_name(level: Option<u8>) -> &'static str {
@@ -166,7 +156,7 @@ pub fn top(args: &[&str]) -> ExitCode {
     while let Some(arg) = rest.next() {
         match *arg {
             "--json" => json = true,
-            "--by" => match rest.next().and_then(|w| order(w)) {
+            "--by" => match rest.next().and_then(|w| ResourceOrder::parse(w)) {
                 Some(o) => by = o,
                 None => return usage_error(TOP_USAGE),
             },
@@ -276,7 +266,7 @@ pub fn apps_by(args: &[&str]) -> ExitCode {
     while let Some(arg) = rest.next() {
         match *arg {
             "--json" => json = true,
-            "--by" => match rest.next().and_then(|w| order(w)) {
+            "--by" => match rest.next().and_then(|w| ResourceOrder::parse(w)) {
                 Some(o) => by = Some(o),
                 None => return usage_error(crate::usage::APPS_USAGE),
             },

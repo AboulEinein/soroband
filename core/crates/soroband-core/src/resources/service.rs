@@ -3,7 +3,7 @@
 //! store once a minute and when the engine stops.
 
 use super::ledger::ResourceLedger;
-use super::{Gauges, ResourceHost, ResourceMeter, Source, read_due};
+use super::{Gauges, ResourceHost, ResourceMeter, Source, Volume, read_due};
 use crate::service::WRITE_INTERVAL;
 use crate::store::{self, DAY, Store};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -17,6 +17,10 @@ pub struct ResourceService<R: ResourceHost> {
     ledger: ResourceLedger,
     store: Arc<Mutex<Store>>,
     gauges: Option<Gauges>,
+    /// The CPU busy share between the last two polls.
+    busy: Option<f64>,
+    /// The local volumes as last read.
+    volumes: Vec<Volume>,
     last_read: Option<i64>,
     last_volumes: Option<i64>,
     last_write: i64,
@@ -40,6 +44,8 @@ impl<R: ResourceHost> ResourceService<R> {
             ledger: ResourceLedger::default(),
             store,
             gauges: None,
+            busy: None,
+            volumes: Vec::new(),
             last_read: None,
             last_volumes: None,
             last_write: now,
@@ -47,6 +53,18 @@ impl<R: ResourceHost> ResourceService<R> {
             reads: 0,
             read_time: std::time::Duration::ZERO,
         }
+    }
+
+    /// Starts reading again with `meter`, after the service was kept through a stop because its
+    /// last write failed: the rows that write could not store are kept for the next, and nothing
+    /// of the time it did not read is booked.
+    pub fn restart(&mut self, meter: ResourceMeter<R>) {
+        self.meter = meter;
+        self.ledger.rebase();
+        self.gauges = None;
+        self.busy = None;
+        self.last_read = None;
+        self.last_volumes = None;
     }
 
     pub fn set_minutes_days(&mut self, days: u32) {
@@ -70,6 +88,18 @@ impl<R: ResourceHost> ResourceService<R> {
         self.gauges
     }
 
+    /// The CPU busy share between the last two polls; `None` before the second.
+    #[must_use]
+    pub fn busy(&self) -> Option<f64> {
+        self.busy
+    }
+
+    /// The local volumes as last read, once a minute.
+    #[must_use]
+    pub fn volumes(&self) -> &[Volume] {
+        &self.volumes
+    }
+
     /// Reads the gauges at Unix time `now`, the resources when a read is due, and writes once a
     /// minute has passed since the last write.
     ///
@@ -78,6 +108,7 @@ impl<R: ResourceHost> ResourceService<R> {
     pub fn poll(&mut self, now: i64) -> Result<(), store::Error> {
         let gauges = self.meter.host_mut().gauges();
         let busy = self.gauges.and_then(|before| gauges.busy_since(&before));
+        self.busy = busy;
         self.gauges = Some(gauges);
         self.ledger.poll(gauges, now);
         if self
@@ -85,8 +116,8 @@ impl<R: ResourceHost> ResourceService<R> {
             .is_none_or(|last| now - last >= VOLUME_INTERVAL)
         {
             self.last_volumes = Some(now);
-            let volumes = self.meter.host_mut().volumes();
-            self.ledger.volumes(volumes, now);
+            self.volumes = self.meter.host_mut().volumes();
+            self.ledger.volumes(self.volumes.clone(), now);
         }
         if read_due(now, self.last_read, busy, &gauges) {
             self.last_read = Some(now);
@@ -130,7 +161,6 @@ impl<R: ResourceHost> ResourceService<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resources::Volume;
     use crate::resources::record::{RecordedRead, Recording, Replay};
 
     fn read(time: u64, pressure: u8, free: u64) -> RecordedRead {
@@ -190,6 +220,11 @@ mod tests {
             service.poll(now).unwrap();
         }
         assert_eq!(service.gauges().unwrap().pressure, Some(1));
+        assert_eq!(
+            service.volumes().iter().map(|v| v.free).collect::<Vec<_>>(),
+            [1, 101],
+            "the volumes read at 125"
+        );
         // The debug state's read count: the polls at 0, 60 and 125 read.
         assert_eq!(service.reads().0, 3);
         // Written at 60 (the minute from 0) and at 125 (the minute from 60). The volumes were read
@@ -200,6 +235,78 @@ mod tests {
         assert_eq!(
             minutes(&store),
             [(0, Some(100)), (60, Some(100)), (120, Some(101))]
+        );
+    }
+
+    /// The menu bar's CPU reading: the busy share between the last two polls, not since the
+    /// first.
+    #[test]
+    fn busy_is_the_share_between_the_last_two_polls() {
+        let path = crate::store::tests::temp_db("resource-busy");
+        let store = Arc::new(Mutex::new(Store::open(&path).unwrap()));
+        let ticks = |time, busy, idle| RecordedRead {
+            gauges: Gauges {
+                cpu_ticks: Some([busy, 0, idle, 0]),
+                ..Gauges::default()
+            },
+            ..read(time, 1, 100)
+        };
+        // The replay answers the gauges from its current read, which a resource read moves on after
+        // the poll's gauges: the polls at 0, 60, 120 and 180 see reads 0, 0, 1 and 2.
+        let reads = vec![ticks(0, 0, 100), ticks(1, 25, 175), ticks(2, 100, 200)];
+        let meter = ResourceMeter::trusting(Replay::new(Recording {
+            timebase: (1, 1),
+            reads,
+        }));
+        let mut service = ResourceService::new(meter, Arc::clone(&store), 7, 0);
+        service.poll(0).unwrap();
+        assert_eq!(service.busy(), None, "one poll has no interval");
+        service.poll(60).unwrap();
+        assert_eq!(service.busy(), None, "no tick between the polls");
+        service.poll(120).unwrap();
+        // 25 busy ticks and 75 idle since the poll before.
+        assert_eq!(service.busy(), Some(0.25));
+        service.poll(180).unwrap();
+        // 75 busy and 25 idle since the poll before, not 100 and 100 since the first.
+        assert_eq!(service.busy(), Some(0.75));
+    }
+
+    /// A service kept through a stop restarts with a fresh meter: its unwritten minute is still
+    /// written, and its busy share starts again rather than spanning the time it did not read.
+    #[test]
+    fn a_restart_keeps_the_rows_not_yet_written_and_reads_afresh() {
+        let path = crate::store::tests::temp_db("resource-restart");
+        let store = Arc::new(Mutex::new(Store::open(&path).unwrap()));
+        let ticks = |busy, idle| RecordedRead {
+            gauges: Gauges {
+                cpu_ticks: Some([busy, 0, idle, 0]),
+                ..Gauges::default()
+            },
+            ..read(0, 1, 100)
+        };
+        let replay = |reads| {
+            ResourceMeter::trusting(Replay::new(Recording {
+                timebase: (1, 1),
+                reads,
+            }))
+        };
+        let mut service =
+            ResourceService::new(replay(vec![ticks(0, 100)]), Arc::clone(&store), 7, 0);
+        service.poll(0).unwrap();
+        service.restart(replay(vec![ticks(900, 1000)]));
+        assert_eq!(service.gauges(), None);
+        service.poll(3000).unwrap();
+        assert_eq!(
+            service.busy(),
+            None,
+            "no busy share across the time not read"
+        );
+        service.write(3100, true).unwrap();
+        let written: Vec<i64> = minutes(&store).into_iter().map(|(m, _)| m).collect();
+        assert_eq!(
+            written,
+            [0, 3000],
+            "the minute from before the restart kept"
         );
     }
 

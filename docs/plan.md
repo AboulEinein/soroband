@@ -16,7 +16,7 @@ Roadmap from prototypes to the first public release. Each milestone is one branc
 | M6 | Memory and performance | 3 | blocked (M6a hand checklist) | [#35](https://github.com/AboulEinein/soroband/pull/35), [#36](https://github.com/AboulEinein/soroband/pull/36), [#37](https://github.com/AboulEinein/soroband/pull/37) |
 | M7 | Release v0.1.0 | 3 | blocked (hand checklist: second-account install, a fresh agent's install by each route, Location after an update; then the v0.1.0 tag, with the user's approval) | [#54](https://github.com/AboulEinein/soroband/pull/54) |
 | M8 | Resource meter engine and storage | 4 | blocked (hand checklist: energy against `powermetrics`) | [#72](https://github.com/AboulEinein/soroband/pull/72) |
-| M9 | Resources in the popover, History and the menu bar | 4 | planned | – |
+| M9 | Resources in the popover, History and the menu bar | 4 | in progress (review) | [#74](https://github.com/AboulEinein/soroband/pull/74) |
 | M10 | Resource moments | 4 | planned | – |
 
 M0–M6 are merged to `main`. A milestone with a hand checklist stays `blocked` until the user has run it; the checklists are in [`handover.md`](handover.md#next-action).
@@ -202,13 +202,16 @@ Deliverables:
 - Resources wherever internet bytes are shown: the popover, History on every range and per app, and the menu bar's readings.
 - A view of what was busy at a past minute, within the minute record M8 keeps ("what slowed my Mac at 3 pm").
 - Settings for which resources are metered and how long the minute record is kept.
+- Settings for how each resource reads: CPU as a percent or in cores; memory as used, free or pressure; disk as used or free on a picked volume; amounts or percents. One setting per resource covers the popover's gauges, the menu bar reading and the past-minute chart.
 
 Each view's design is picked by the user from mockups before it is built, as the popover's and History's were. The design settles how the resource fallback (M8) is shown.
+
+Picked (2026-11-13, the user's choice, from `docs/mockups/resources.html`): option A for every view, so a Resources tab in the popover, a measure picker that turns History's whole page, the minute chart on History's Day page, numbers in the existing menu bar styles, and a Resources pane in Settings with the fallback shown as a notice.
 
 Exit criteria:
 - Captures of each new view next to the mockup the user picked.
 - History's open times and memory within M4's criteria with the resources on a synthetic year.
-- Idle CPU in each new menu bar reading over 10 minutes, beside `main` in the same session: within the 0.1% budget. Each redraw costs about 18 ms of the main thread, so a reading that changes on every poll is measured before it is offered.
+- Idle CPU in each new menu bar reading over 10 minutes, beside `main` in the same session. `main` already idles at 0.111–0.113% on a Mac with about 600 live coalitions (M8), so the criterion is relative (decided 2026-11-13, the user's choice): a memory or disk reading, redrawn only when its drawn text changes, adds no more than 0.02% over `main`; a CPU reading can change on every poll, so it is measured first and the user accepts or drops it with the number, as for the live speed (M6). Each redraw costs about 18 ms of the main thread. Decided (2026-11-13, the user's choice): the CPU reading is kept, accepted at +0.14–0.15% over `main` (measured in two paired 10-minute rounds, Debug, both apps at once: 0.570% against 0.416% and 0.525% against 0.384%, the Mac under memory pressure, which makes both read at every poll). The memory reading in tenths of a gigabyte measured +0.07–0.16% over `main`, because memory used changes by a tenth at most polls; the menu bar draws it in whole gigabytes instead, and the popover keeps tenths. In whole gigabytes it measured −0.005%, +0.038%, −0.003% and −0.005% over `main` in four paired rounds (a fifth, +0.070%, ran beside a test build and is not counted): +0.006% on average, within the 0.02% criterion, with one round over it.
 
 ### M10: Resource moments
 

@@ -151,6 +151,28 @@ enum Core {
         decode(Resources.self, soroband_resources_json())
     }
 
+    /// The system gauges at the engine's last poll, for the menu bar's CPU, memory and disk
+    /// readings and the popover's gauges.
+    static var gauges: Gauges { Gauges(soroband_gauges()) }
+
+    /// What History shows for one resource over `query`'s span; nil when the read fails.
+    static func resourceHistory(_ query: ResourceQuery) -> ResourceHistoryData? {
+        decode(ResourceHistoryData.self, soroband_resource_history_json(query.json))
+    }
+
+    /// The minute record from `start` up to `end`, with the free space of the volume at `volume`;
+    /// nil when the read fails.
+    static func resourceMinutes(from start: Date, to end: Date, volume: String) -> MinuteRecord? {
+        let query = MinuteRecord.query(from: start, to: end, volume: volume)
+        return decode(MinuteRecord.self, soroband_resource_minutes_json(query))
+    }
+
+    /// The busiest apps of the minute starting at `minute`; nil when the record has no such minute
+    /// or the read fails.
+    static func minuteApps(_ minute: Int64) -> MinuteApps? {
+        decode(MinuteApps.self, soroband_resource_minute_apps_json(minute))
+    }
+
     /// Today's usage per network and app as the core's JSON, as of the last poll; empty lists
     /// unless live.
     static func todayJSON() -> String {
@@ -394,5 +416,18 @@ struct EngineStatus: Codable, Equatable {
             case UInt32(SOROBAND_CHECK_OVERCOUNT): .overcount
             default: .ok
             }
+    }
+}
+
+extension Gauges {
+    fileprivate init(_ gauges: SorobandGauges) {
+        on = gauges.on
+        cpuBusy = gauges.cpu_busy >= 0 ? gauges.cpu_busy : nil
+        memoryUsed = gauges.memory_used > 0 ? gauges.memory_used : nil
+        memoryLevel = gauges.memory_level >= 0 ? Int(gauges.memory_level) : nil
+        pressure = gauges.pressure > 0 ? Int(gauges.pressure) : nil
+        volumeFree = gauges.volume_size > 0 ? gauges.volume_free : nil
+        volumeSize = gauges.volume_size > 0 ? gauges.volume_size : nil
+        fallback = gauges.fallback
     }
 }

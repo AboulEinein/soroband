@@ -102,6 +102,8 @@ struct UISnapshot: Codable, Equatable {
     var todayJSON: String
     var registry: [RegisteredNetwork]
     var menuBarLayout: MenuBarLayout
+    var resources = ResourceSettings.default
+    var gauges = Gauges.none
     var resetHour: Int
     var current: Network?
     var connectedSince: Date?
@@ -114,7 +116,7 @@ struct UISnapshot: Codable, Equatable {
         let usage = Usage.shared
         return UISnapshot(
             status: usage.status, todayJSON: usage.todayJSON, registry: usage.registry,
-            menuBarLayout: usage.menuBarLayout,
+            menuBarLayout: usage.menuBarLayout, resources: usage.resources, gauges: usage.gauges,
             resetHour: usage.resetHour, current: NetworkMonitor.shared.current,
             connectedSince: NetworkMonitor.shared.connectedSince, island: IslandController.shared.settings,
             theme: usage.theme, appIcon: usage.appIcon)

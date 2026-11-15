@@ -353,6 +353,161 @@ struct SnapshotTests {
     }
 
     /// Every app icon in the snapshots comes through `AppIcons.load`, so none is the Mac's own.
+    /// The popover mockup's resources (`docs/mockups/resources.html`, 1A).
+    static let gauges = Gauges(
+        on: true, cpuBusy: 0.23, memoryUsed: 23_000_000_000, memoryLevel: 60, pressure: 1,
+        volumeFree: 212_000_000_000, volumeSize: 994_000_000_000, memoryTotal: 34_359_738_368)
+
+    /// Today's apps as the mockup lists them, by CPU time; 46 apps in all.
+    static let resourceApps: [ResourceHistoryData.App] = {
+        let minute: UInt64 = 60_000_000_000
+        let named: [(String, String, UInt64)] = [
+            ("/Applications/Xcode.app", "Xcode", 72), ("/Applications/Safari.app", "Safari", 38),
+            ("macos", "macOS & Services", 31), ("/Applications/zoom.us.app", "Zoom", 24),
+            ("/Applications/Claude.app", "Claude", 9),
+        ]
+        let others = (1...41).map { ("process:/usr/bin/tool\($0)", "tool\($0)", UInt64(1)) }
+        return (named + others).map { id, name, minutes in
+            ResourceHistoryData.App(
+                id: id, name: name,
+                sum: ResourceSum(
+                    cpu: minutes * minute, billed: minutes * minute / 20, read: minutes * 50_000_000,
+                    written: minutes * 30_000_000, energy: minutes * 900_000_000_000, footprint: minutes * 40_000_000,
+                    peak: minutes * 50_000_000))
+        }
+    }()
+
+    @Test func popoverResources() throws {
+        let content = PopoverContent.make(
+            status: Self.status, today: Self.today, registry: Self.registry, current: Self.home,
+            connectedSince: Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 18)),
+            allNetworks: false, locationAllowed: true, summary: Self.summary, now: Self.now)
+        let today = ResourceHistoryData(
+            firstHour: 0, total: .zero, previous: nil, bars: [], apps: Self.resourceApps, busiestDay: nil, days: 1,
+            heatmap: [])
+        let resources = PopoverResources.make(settings: .default, gauges: Self.gauges, measure: .cpu, today: today)
+        let view = PopoverView(
+            content: content, tab: .constant(.resources), allNetworks: .constant(false), resources: resources,
+            animatesOpen: false
+        )
+        .background(Color(nsColor: .windowBackgroundColor))
+        try Snapshot.verify(view, named: "popover-resources")
+    }
+
+    @Test func settingsResources() throws {
+        let view = ResourceSettingsView(
+            settings: .default, gauges: Self.gauges, set: { _, _ in }, volumes: [("/", "Macintosh HD")]
+        )
+        .background(Color(nsColor: .windowBackgroundColor))
+        try Snapshot.verify(view, named: "settings-resources", size: CGSize(width: 560, height: 1100))
+    }
+
+    /// October's CPU, a day per bar, from the data page's October shape.
+    func resourceHistory(_ measure: ResourceMeasure) -> some View {
+        let calendar = Calendar.current
+        let now = calendar.date(from: DateComponents(year: 2026, month: 10, day: 28))!
+        let anchor = calendar.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 9))!
+        let query = ResourceQuery.make(
+            range: .month, anchor: anchor, measure: measure, firstHour: nil, now: now, calendar: calendar)
+        let minute: UInt64 = 60_000_000_000
+        let days = (0..<27).map { day -> ResourceHistoryData.Bar in
+            let start = calendar.date(byAdding: .day, value: day, to: query.interval.start)!
+            let cpu = UInt64(60 + (day * 37) % 130) * minute
+            return .init(
+                firstHour: Int64(start.timeIntervalSince1970),
+                sum: ResourceSum(
+                    cpu: cpu, footprint: 14_000_000_000 + UInt64(day % 5) * 1_000_000_000,
+                    peak: 19_000_000_000 + UInt64(day % 3) * 1_500_000_000))
+        }
+        let data = ResourceHistoryData(
+            firstHour: days.first?.firstHour,
+            total: ResourceSum(
+                cpu: days.reduce(0) { $0 + $1.sum.cpu }, billed: 185 * minute, read: 80_000_000_000,
+                written: 212_000_000_000, energy: 11_000_000_000_000_000, footprint: 16_000_000_000,
+                peak: 22_000_000_000),
+            // The core answers the comparison and the busiest day by the page's measure.
+            previous: measure == .memory ? 15_000_000_000 : 2_700 * minute, bars: days, apps: Self.resourceApps,
+            busiestDay: .init(
+                firstHour: days[12].firstHour,
+                value: measure == .memory ? days[12].sum.footprint : days[12].sum.cpu),
+            days: 27,
+            heatmap: (0..<7).flatMap { weekday in
+                (0..<24).map { hour in
+                    ResourceHistoryData.Cell(
+                        weekday: weekday, hour: hour, value: UInt64((9...18).contains(hour) ? 20 + weekday : 3) * minute
+                    )
+                }
+            })
+        let content = ResourceHistoryContent.make(range: .month, query: query, data: data, now: now, calendar: calendar)
+        return ResourceHistoryDetail(
+            content: content, minutes: nil, minutesKept: 7, settings: .default, expandedApp: .constant(nil),
+            showsAllApps: .constant(false), expandedMeasures: nil
+        )
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    @Test func historyCPUMonth() throws {
+        try Snapshot.verify(resourceHistory(.cpu), named: "history-cpu-month", size: CGSize(width: 780, height: 1180))
+    }
+
+    @Test func historyMemoryMonth() throws {
+        try Snapshot.verify(
+            resourceHistory(.memory), named: "history-memory-month", size: CGSize(width: 780, height: 1180))
+    }
+
+    /// A Day page minute by minute, at 15:04 (`docs/mockups/resources.html`, 3A): a CPU spike from
+    /// 15:00 to 15:15 under memory pressure.
+    @Test func historyCPUDayByTheMinute() throws {
+        let calendar = Calendar.current
+        let day = calendar.date(from: DateComponents(year: 2026, month: 11, day: 12))!
+        let start = Int64(day.timeIntervalSince1970)
+        let minutes = (0..<1440).map { m -> MinuteRecord.Minute in
+            let spike = (900..<915).contains(m)
+            return .init(
+                start: start + Int64(m) * 60, cpuBusy: spike ? 0.94 : 0.08 + Double(m % 37) / 200,
+                memoryUsed: UInt64(20 + (m / 180)) * 1_073_741_824, memoryLevel: spike ? 30 : 55,
+                pressure: spike ? 2 : 1, volumeFree: 212_000_000_000, volumeSize: 994_000_000_000)
+        }
+        let named = { (rows: [(String, UInt64)], unit: UInt64) in
+            rows.map { MinuteApps.App(id: $0.0, name: $0.0, value: $0.1 * unit) }
+        }
+        let apps = MinuteApps(
+            cpu: named(
+                [("Xcode", 612), ("swift-frontend", 180), ("Safari", 31), ("WindowServer", 18), ("Zoom", 12)],
+                600_000_000),
+            memory: named(
+                [("Xcode", 9_200), ("Safari", 3_400), ("macOS & Services", 2_900), ("Docker", 2_100), ("Zoom", 820)],
+                1_000_000),
+            written: named(
+                [("Xcode", 1_400), ("macOS & Services", 220), ("Spotlight", 90), ("Safari", 12), ("Claude", 3)],
+                1_000_000))
+        let content = MinuteContent.make(
+            record: MinuteRecord(firstMinute: start, minutes: minutes), selected: start + 904 * 60, apps: apps,
+            settings: .default, keptDays: 7, memoryTotal: 34_359_738_368, cores: 12)
+        // Each hour's CPU time from its minutes' busy shares on 12 cores.
+        let hours = (0..<24).map { hour -> ResourceHistoryData.Bar in
+            let busy = minutes[(hour * 60)..<(hour * 60 + 60)].reduce(0.0) { $0 + ($1.cpuBusy ?? 0) }
+            return .init(
+                firstHour: start + Int64(hour) * 3600, sum: ResourceSum(cpu: UInt64(busy * 60 * 12 * 1e9)))
+        }
+        let total = hours.reduce(0) { $0 + $1.sum.cpu }
+        let query = ResourceQuery(
+            interval: DateInterval(start: day, duration: 86_400), previous: nil, step: .hour, measure: .cpu)
+        let page = ResourceHistoryContent.make(
+            range: .day, query: query,
+            data: ResourceHistoryData(
+                firstHour: start, total: ResourceSum(cpu: total, billed: total / 20), previous: total * 9 / 10,
+                bars: hours, apps: Self.resourceApps, busiestDay: .init(firstHour: start, value: total), days: 1,
+                heatmap: []),
+            now: day.addingTimeInterval(86_400), calendar: calendar)
+        let view = ResourceHistoryDetail(
+            content: page, minutes: content, minutesKept: 7, settings: .default, expandedApp: .constant(nil),
+            showsAllApps: .constant(false), expandedMeasures: nil
+        )
+        .background(Color(nsColor: .windowBackgroundColor))
+        try Snapshot.verify(view, named: "history-cpu-day-minutes", size: CGSize(width: 780, height: 1180))
+    }
+
     @Test func appIconsComeFromTheFixedLoader() throws {
         var asked: Set<String> = []
         AppIcons.load = {

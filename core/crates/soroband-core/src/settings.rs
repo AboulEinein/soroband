@@ -20,6 +20,33 @@ pub const FILE_NAME: &str = "settings.json";
 pub const RESET_HOUR: &str = "reset_hour";
 /// Key of the days the minute-by-minute resource record is kept.
 pub const RESOURCE_MINUTES_DAYS: &str = "resource_minutes_days";
+/// Key of the resource meter's master switch: off stops the resource read and hides every
+/// resource view.
+pub const RESOURCES: &str = "resources";
+/// Key of the measures the views show, in [`RESOURCE_MEASURE_OPTIONS`]'s order.
+pub const RESOURCE_MEASURES: &str = "resource_measures";
+/// The values of [`RESOURCE_MEASURES`].
+pub const RESOURCE_MEASURE_OPTIONS: &[&str] = &["cpu", "memory", "disk", "energy"];
+/// Key of how the CPU reads: a percent of all cores, or the cores' worth busy.
+pub const RESOURCE_CPU: &str = "resource_cpu";
+pub const RESOURCE_CPU_OPTIONS: &[&str] = &["percent", "cores"];
+/// Key of what the memory reading shows: used, free, or the pressure.
+pub const RESOURCE_MEMORY: &str = "resource_memory";
+pub const RESOURCE_MEMORY_OPTIONS: &[&str] = &["used", "free", "pressure"];
+/// Key of whether the memory reads as an amount or a percent of the installed memory.
+pub const RESOURCE_MEMORY_UNIT: &str = "resource_memory_unit";
+/// Key of what the disk reading shows: used or free, on [`RESOURCE_DISK_VOLUME`].
+pub const RESOURCE_DISK: &str = "resource_disk";
+pub const RESOURCE_DISK_OPTIONS: &[&str] = &["used", "free"];
+/// Key of whether the disk reads as an amount or a percent of the volume's size.
+pub const RESOURCE_DISK_UNIT: &str = "resource_disk_unit";
+/// The values of [`RESOURCE_MEMORY_UNIT`] and [`RESOURCE_DISK_UNIT`].
+pub const RESOURCE_UNIT_OPTIONS: &[&str] = &["amount", "percent"];
+/// Key of the volume the disk reading shows, by its mount point.
+pub const RESOURCE_DISK_VOLUME: &str = "resource_disk_volume";
+/// The start-up disk's mount point, the disk reading's volume by default and whenever the one set
+/// is not mounted.
+pub const STARTUP_VOLUME: &str = "/";
 /// Key of whose usage the menu bar item counts: the current network's or every network's.
 pub const MENU_BAR_SCOPE: &str = "menu_bar_scope";
 /// The values of [`MENU_BAR_SCOPE`].
@@ -27,10 +54,18 @@ pub const MENU_BAR_SCOPE_OPTIONS: &[&str] = &["network", "all"];
 /// Key of the readings the menu bar item shows beside its icon, in order: up to
 /// [`MENU_BAR_MAX_READINGS`] of [`MENU_BAR_READING_OPTIONS`], or `none` for the icon alone.
 pub const MENU_BAR_READINGS: &str = "menu_bar_readings";
-/// What the menu bar item can show: today's bytes (total, download, upload) or the live speed
-/// (download, upload).
-pub const MENU_BAR_READING_OPTIONS: &[&str] =
-    &["total", "download", "upload", "speed_down", "speed_up"];
+/// What the menu bar item can show: today's bytes (total, download, upload), the live speed
+/// (download, upload), or a system gauge (CPU, memory, disk) as the resource settings read it.
+pub const MENU_BAR_READING_OPTIONS: &[&str] = &[
+    "total",
+    "download",
+    "upload",
+    "speed_down",
+    "speed_up",
+    "cpu",
+    "memory",
+    "disk",
+];
 pub const MENU_BAR_MAX_READINGS: usize = 4;
 /// Key of how the menu bar item draws its readings: stacked in pairs, each under a caption, or on
 /// one line.
@@ -126,6 +161,8 @@ pub enum Kind {
     /// Up to `max` different names of any text without a comma, separated by commas; `none` for
     /// no name.
     Names { max: usize },
+    /// An absolute path.
+    Path { default: &'static str },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -140,7 +177,9 @@ impl Setting {
     pub fn default_value(&self) -> Value {
         match self.kind {
             Kind::Integer { default, .. } => Value::from(default),
-            Kind::Choice { default, .. } | Kind::List { default, .. } => Value::from(default),
+            Kind::Choice { default, .. } | Kind::List { default, .. } | Kind::Path { default } => {
+                Value::from(default)
+            }
             Kind::Names { .. } => Value::from("none"),
         }
     }
@@ -169,6 +208,77 @@ pub const SCHEMA: &[Setting] = &[
                       is kept. Hourly resource usage is kept forever.",
     },
     Setting {
+        key: RESOURCES,
+        kind: Kind::Choice {
+            options: ON_OFF,
+            default: "on",
+        },
+        description: "Whether Soroband meters each app's CPU, memory, disk and energy and the \
+                      system gauges. Off stops the resource read and hides every resource view.",
+    },
+    Setting {
+        key: RESOURCE_MEASURES,
+        kind: Kind::List {
+            options: RESOURCE_MEASURE_OPTIONS,
+            max: 4,
+            default: "cpu,memory,disk,energy",
+        },
+        description: "The resources the popover, History and the menu bar show, separated by \
+                      commas: cpu, memory, disk, energy; none for none.",
+    },
+    Setting {
+        key: RESOURCE_CPU,
+        kind: Kind::Choice {
+            options: RESOURCE_CPU_OPTIONS,
+            default: "percent",
+        },
+        description: "How the CPU reads now: percent (the share of all cores busy) or cores (how \
+                      many cores' worth is busy).",
+    },
+    Setting {
+        key: RESOURCE_MEMORY,
+        kind: Kind::Choice {
+            options: RESOURCE_MEMORY_OPTIONS,
+            default: "used",
+        },
+        description: "What the memory reading shows: used, free, or pressure (the share of memory \
+                      the system does not count as available, always a percent).",
+    },
+    Setting {
+        key: RESOURCE_MEMORY_UNIT,
+        kind: Kind::Choice {
+            options: RESOURCE_UNIT_OPTIONS,
+            default: "amount",
+        },
+        description: "Whether used or free memory reads as an amount or a percent of the \
+                      installed memory.",
+    },
+    Setting {
+        key: RESOURCE_DISK,
+        kind: Kind::Choice {
+            options: RESOURCE_DISK_OPTIONS,
+            default: "free",
+        },
+        description: "What the disk reading shows on its volume: used or free space.",
+    },
+    Setting {
+        key: RESOURCE_DISK_UNIT,
+        kind: Kind::Choice {
+            options: RESOURCE_UNIT_OPTIONS,
+            default: "amount",
+        },
+        description: "Whether the disk reads as an amount or a percent of the volume's size.",
+    },
+    Setting {
+        key: RESOURCE_DISK_VOLUME,
+        kind: Kind::Path {
+            default: STARTUP_VOLUME,
+        },
+        description: "The volume the disk reading shows, by its mount point (/ for the start-up \
+                      disk, /Volumes/<name> for another). While it is not mounted, the start-up \
+                      disk is shown.",
+    },
+    Setting {
         key: MENU_BAR_SCOPE,
         kind: Kind::Choice {
             options: MENU_BAR_SCOPE_OPTIONS,
@@ -186,7 +296,8 @@ pub const SCHEMA: &[Setting] = &[
         },
         description: "What the menu bar item shows beside its icon, in order, separated by \
                       commas: up to 4 of total, download, upload (today's bytes), speed_down and \
-                      speed_up (the live speed); none for the icon alone.",
+                      speed_up (the live speed), cpu, memory and disk (the system gauges, as the \
+                      resource settings read them); none for the icon alone.",
     },
     Setting {
         key: MENU_BAR_STYLE,
@@ -478,7 +589,7 @@ impl Settings {
                         reason: format!("{text:?} is not a whole number"),
                     })?
             }
-            Kind::Choice { .. } | Kind::List { .. } | Kind::Names { .. } => {
+            Kind::Choice { .. } | Kind::List { .. } | Kind::Names { .. } | Kind::Path { .. } => {
                 Value::from(text.trim())
             }
         };
@@ -549,6 +660,10 @@ fn check(setting: &Setting, value: &Value) -> Result<Value, String> {
             }
             Ok(Value::from(words.join(",")))
         }
+        Kind::Path { .. } => match value.as_str() {
+            Some(path) if path.starts_with('/') => Ok(Value::from(path)),
+            _ => Err(format!("{value} is not an absolute path")),
+        },
         Kind::Names { max } => {
             let text = value
                 .as_str()
@@ -605,8 +720,9 @@ impl Settings {
 mod tests {
     use super::{
         ACCENT, APP_ICON, APPEARANCE, Error, ISLAND, ISLAND_IGNORED_APPS, ISLAND_MOMENTS,
-        MENU_BAR_ICON, MENU_BAR_READINGS, MENU_BAR_SCOPE, MENU_BAR_STYLE, RESET_HOUR,
-        RESOURCE_MINUTES_DAYS, Settings,
+        MENU_BAR_ICON, MENU_BAR_READINGS, MENU_BAR_SCOPE, MENU_BAR_STYLE, RESET_HOUR, RESOURCE_CPU,
+        RESOURCE_DISK, RESOURCE_DISK_UNIT, RESOURCE_DISK_VOLUME, RESOURCE_MEASURES,
+        RESOURCE_MEMORY, RESOURCE_MEMORY_UNIT, RESOURCE_MINUTES_DAYS, RESOURCES, Settings, plain,
     };
     use std::path::PathBuf;
 
@@ -840,6 +956,14 @@ mod tests {
             settings.get(MENU_BAR_READINGS).unwrap().value,
             "speed_up,download,total"
         );
+        settings
+            .set(MENU_BAR_READINGS, "total,cpu,memory,disk")
+            .unwrap();
+        assert_eq!(
+            settings.get(MENU_BAR_READINGS).unwrap().value,
+            "total,cpu,memory,disk",
+            "the system gauges sit beside the bytes"
+        );
         settings.set(MENU_BAR_READINGS, "none").unwrap();
         assert_eq!(settings.get(MENU_BAR_READINGS).unwrap().value, "none");
         for (bad, reason) in [
@@ -870,6 +994,49 @@ mod tests {
         assert!(settings.set(MENU_BAR_STYLE, "stacked").is_ok());
         assert!(settings.set(MENU_BAR_STYLE, "vertical").is_err());
         assert!(settings.set(MENU_BAR_SCOPE, "today_all").is_err());
+    }
+
+    /// A fresh install meters every resource and reads them as the picked popover and menu bar
+    /// mockups do (`docs/mockups/resources.html`, 1A and 4A): CPU busy as a percent, memory used
+    /// and free space on the start-up disk as amounts.
+    #[test]
+    fn a_fresh_install_meters_every_resource_and_reads_amounts_on_the_startup_disk() {
+        let settings = Settings::default();
+        let value = |key| plain(&settings.get(key).unwrap().value);
+        assert!(settings.is_on(RESOURCES));
+        assert_eq!(
+            settings.words(RESOURCE_MEASURES),
+            ["cpu", "memory", "disk", "energy"]
+        );
+        assert_eq!(value(RESOURCE_CPU), "percent");
+        assert_eq!(value(RESOURCE_MEMORY), "used");
+        assert_eq!(value(RESOURCE_MEMORY_UNIT), "amount");
+        assert_eq!(value(RESOURCE_DISK), "free");
+        assert_eq!(value(RESOURCE_DISK_UNIT), "amount");
+        assert_eq!(value(RESOURCE_DISK_VOLUME), "/");
+    }
+
+    #[test]
+    fn the_disk_volume_is_an_absolute_path() {
+        let mut settings = Settings::default();
+        settings
+            .set(RESOURCE_DISK_VOLUME, "/Volumes/Backup Disk")
+            .unwrap();
+        assert_eq!(
+            settings.get(RESOURCE_DISK_VOLUME).unwrap().value,
+            "/Volumes/Backup Disk",
+            "a name with a space or a comma is one volume"
+        );
+        for bad in ["Backup", "", "~/Volumes/x"] {
+            let error = settings
+                .set(RESOURCE_DISK_VOLUME, bad)
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains("not an absolute path"), "{bad:?}: {error}");
+        }
+        assert!(settings.set(RESOURCE_MEMORY, "pressure").is_ok());
+        assert!(settings.set(RESOURCE_MEMORY, "swap").is_err());
+        assert!(settings.set(RESOURCE_MEASURES, "cpu,gpu").is_err());
     }
 
     /// A fresh install looks as macOS does: its light or dark, its accent color.

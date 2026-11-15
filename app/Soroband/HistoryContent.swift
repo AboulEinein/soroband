@@ -505,7 +505,7 @@ struct HistoryContent: Equatable {
         total == 0 ? 0 : Double(bytes) / Double(total)
     }
 
-    private static func heatmap(_ cells: [HistoryData.Cell], calendar: Calendar) -> Heatmap {
+    static func heatmap(_ cells: [HistoryData.Cell], calendar: Calendar) -> Heatmap {
         var hours = Array(repeating: Array(repeating: UInt64(0), count: 24), count: 7)
         for cell in cells where (0..<7).contains(cell.weekday) && (0..<24).contains(cell.hour) {
             hours[cell.weekday][cell.hour] += cell.bytes

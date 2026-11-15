@@ -372,7 +372,16 @@ fn config_set_menu_bar_readings_takes_words_from_its_options() {
     assert_eq!(described["type"], "list");
     assert_eq!(
         described["options"],
-        json!(["total", "download", "upload", "speed_down", "speed_up"])
+        json!([
+            "total",
+            "download",
+            "upload",
+            "speed_down",
+            "speed_up",
+            "cpu",
+            "memory",
+            "disk"
+        ])
     );
     assert_eq!(described["max"], 4);
     assert_eq!(described["value"], "total");

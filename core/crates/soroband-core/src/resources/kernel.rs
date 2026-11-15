@@ -94,6 +94,7 @@ pub struct SystemResources {
     timebase: (u32, u32),
     host: libc::mach_port_t,
     pressure_mib: Vec<c_int>,
+    level_mib: Vec<c_int>,
     page_size: u64,
     pids: Vec<c_int>,
     entries: Vec<CoalitionEntry>,
@@ -127,17 +128,6 @@ impl SystemResources {
         unsafe {
             libc::mach_timebase_info(&raw mut timebase)
         };
-        let mut mib = vec![0; 8];
-        let mut len = mib.len();
-        // SAFETY: `mib` holds `len` ints and the name is NUL-terminated.
-        let found = unsafe {
-            libc::sysctlnametomib(
-                c"kern.memorystatus_vm_pressure_level".as_ptr(),
-                mib.as_mut_ptr(),
-                &raw mut len,
-            )
-        } == 0;
-        mib.truncate(if found { len } else { 0 });
         // SAFETY: `sysconf` has no preconditions.
         let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
         Self {
@@ -153,13 +143,46 @@ impl SystemResources {
             // SAFETY: `mach_host_self` has no preconditions.
             #[allow(deprecated)]
             host: unsafe { libc::mach_host_self() },
-            pressure_mib: mib,
+            pressure_mib: sysctl_mib(c"kern.memorystatus_vm_pressure_level"),
+            level_mib: sysctl_mib(c"kern.memorystatus_level"),
             page_size: u64::try_from(page_size).unwrap_or(4096),
             // Grown to fit at the first read, and kept.
             pids: vec![0; 256],
             entries: vec![CoalitionEntry::default(); 64],
         }
     }
+}
+
+/// The mib of the sysctl `name`, or none when this kernel has no such name.
+fn sysctl_mib(name: &CStr) -> Vec<c_int> {
+    let mut mib = vec![0; 8];
+    let mut len = mib.len();
+    // SAFETY: `mib` holds `len` ints and the name is NUL-terminated.
+    let found =
+        unsafe { libc::sysctlnametomib(name.as_ptr(), mib.as_mut_ptr(), &raw mut len) } == 0;
+    mib.truncate(if found { len } else { 0 });
+    mib
+}
+
+/// The integer sysctl at `mib`, or `None` when there is none or the read fails.
+fn read_int(mib: &mut [c_int]) -> Option<c_int> {
+    if mib.is_empty() {
+        return None;
+    }
+    let mut value: c_int = 0;
+    let mut len = size_of::<c_int>();
+    // SAFETY: `value` is writable for `len` bytes; the mib came from `sysctlnametomib`.
+    let ok = unsafe {
+        libc::sysctl(
+            mib.as_mut_ptr(),
+            u32::try_from(mib.len()).unwrap_or(0),
+            (&raw mut value).cast(),
+            &raw mut len,
+            std::ptr::null_mut(),
+            0,
+        )
+    } == 0;
+    ok.then_some(value)
 }
 
 impl ResourceHost for SystemResources {
@@ -311,20 +334,8 @@ impl ResourceHost for SystemResources {
                 0,
             )
         } == 0;
-        let mut pressure: c_int = 0;
-        let mut len = size_of::<c_int>();
-        // SAFETY: `pressure` is writable for `len` bytes; the mib came from `sysctlnametomib`.
-        let pressure_ok = !self.pressure_mib.is_empty()
-            && unsafe {
-                libc::sysctl(
-                    self.pressure_mib.as_mut_ptr(),
-                    u32::try_from(self.pressure_mib.len()).unwrap_or(0),
-                    (&raw mut pressure).cast(),
-                    &raw mut len,
-                    std::ptr::null_mut(),
-                    0,
-                )
-            } == 0;
+        let pressure = read_int(&mut self.pressure_mib);
+        let level = read_int(&mut self.level_mib);
         Gauges {
             cpu_ticks: cpu_ok.then_some([
                 u64::from(cpu.cpu_ticks[libc::CPU_STATE_USER as usize]),
@@ -340,7 +351,10 @@ impl ResourceHost for SystemResources {
             }),
             memory_compressed: vm_ok.then(|| pages(vm.compressor_page_count)),
             swap_used: swap_ok.then_some(swap.used),
-            pressure: pressure_ok.then(|| u8::try_from(pressure).unwrap_or(u8::MAX)),
+            pressure: pressure.map(|p| u8::try_from(p).unwrap_or(u8::MAX)),
+            memory_level: level
+                .and_then(|l| u8::try_from(l).ok())
+                .filter(|&l| l <= 100),
         }
     }
 
@@ -410,5 +424,12 @@ mod tests {
         );
         meter.read(CHECK_INTERVAL);
         assert_eq!(meter.source(), &Source::Coalitions);
+    }
+
+    /// The memory level is a percent; the app shows its complement as the memory pressure.
+    #[test]
+    fn the_gauges_read_this_macs_memory_level_as_a_percent() {
+        let level = SystemResources::new().gauges().memory_level;
+        assert!(level.is_some_and(|l| l <= 100), "{level:?}");
     }
 }
