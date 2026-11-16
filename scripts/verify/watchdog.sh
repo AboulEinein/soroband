@@ -30,6 +30,12 @@ while kill -0 $command_pid 2>/dev/null; do
       sample $pid 5 -file /dev/stdout 2>&1
     done
     kill $command_pid $hosts 2>/dev/null
+    # A process that ignores the stop is killed after 10 s, so the watchdog always returns.
+    for _ in {1..10}; do
+      kill -0 $command_pid $hosts 2>/dev/null || break
+      sleep 1
+    done
+    kill -KILL $command_pid $hosts 2>/dev/null
     wait $command_pid
     exit 124
   fi
