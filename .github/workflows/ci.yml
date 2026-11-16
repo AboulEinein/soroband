@@ -97,6 +97,7 @@ jobs:
       - run: xcodebuild -version
       - run: xcrun swift-format lint --strict --recursive app
       - run: scripts/verify/install-guard.sh
+      - run: scripts/verify/watchdog-guard.sh
       - run: scripts/build-core.sh
       # Snapshot tests stay local: their rendering depends on the runner's macOS and fonts. A run
       # still going after 8 minutes (about 3 minutes at most when it passes) is hung: the watchdog

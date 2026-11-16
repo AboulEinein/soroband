@@ -18,6 +18,8 @@ shift
 print "watchdog: ${limit} s limit, $(sysctl -n hw.ncpu) CPUs"
 "$@" &
 command_pid=$!
+# A watchdog that is stopped (Ctrl-C, a cancelled job) stops its command too.
+trap 'kill $command_pid 2>/dev/null; exit 130' INT TERM
 start=$SECONDS
 while kill -0 $command_pid 2>/dev/null; do
   if (( SECONDS - start >= limit )); then
@@ -32,7 +34,9 @@ while kill -0 $command_pid 2>/dev/null; do
     kill $command_pid $hosts 2>/dev/null
     # A process that ignores the stop is killed after 10 s, so the watchdog always returns.
     for _ in {1..10}; do
-      kill -0 $command_pid $hosts 2>/dev/null || break
+      running=0
+      for pid in $command_pid $hosts; do kill -0 $pid 2>/dev/null && running=1; done
+      (( running )) || break
       sleep 1
     done
     kill -KILL $command_pid $hosts 2>/dev/null
