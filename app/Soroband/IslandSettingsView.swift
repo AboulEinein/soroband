@@ -6,6 +6,7 @@ import SwiftUI
 struct IslandSettingsView: View {
     let settings: IslandSettings
     let set: (String, String) -> Void
+    let showTestMoment: () -> Void
 
     var body: some View {
         SettingsPage(
@@ -28,6 +29,13 @@ struct IslandSettingsView: View {
                                 Text("Keep menu bar clear").tag(IslandSettings.Style.clear.rawValue)
                             }
                             .labelsHidden().pickerStyle(.segmented).fixedSize()
+                        }
+                        Divider().padding(.leading, 14)
+                        SettingsRow(
+                            title: "Test the island",
+                            detail: "Shows a sample moment on each display the island is on."
+                        ) {
+                            Button("Show test moment", action: showTestMoment)
                         }
                     } else {
                         SettingsRow(

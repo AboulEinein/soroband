@@ -84,6 +84,8 @@ enum UIEvent: Codable, Equatable {
     case reloadRegistry
     case refreshNetwork
     case refreshUntilNamed
+    /// Settings › Island's test button: the island shows a sample moment.
+    case showTestMoment
     /// The popover's Quit button: Soroband quits, and the UI process with it.
     case quit
     /// A `soroband-debug://` URL macOS handed to the UI process instead.
@@ -430,6 +432,7 @@ final class UIProcess {
         case .reloadRegistry: usage.reloadRegistry()
         case .refreshNetwork: NetworkMonitor.shared.refresh()
         case .refreshUntilNamed: NetworkMonitor.shared.refreshUntilNamed()
+        case .showTestMoment: IslandController.shared.showTestMoment()
         case .quit: NSApp.terminate(nil)
         case .url(let text):
             #if DEBUG

@@ -123,6 +123,21 @@ final class IslandController {
         }
     }
 
+    /// Shows a sample Network joined moment on every display the island is on, for Settings ›
+    /// Island's test button. It shows even with Network joined turned off, so the style and the
+    /// displays can be tried before any real moment comes. A press while it is open or waiting
+    /// adds nothing.
+    func showTestMoment() {
+        guard settings.enabled, !panels.isEmpty, !queue.holds(Self.testMoment) else { return }
+        queue.post(Self.testMoment, now: now)
+        record(Self.testMoment, source: "test")
+        render()
+    }
+
+    private static let testMoment = MomentContent.joined(
+        network: Network(id: 0, key: "", name: "Test network", kind: .wifi), week: 1_200_000_000,
+        today: 412_000_000, lastSeen: nil)
+
     /// The network changed: reopens paused apps once off a hotspot, and shows or hides the
     /// hotspot meter.
     func networkChanged() {

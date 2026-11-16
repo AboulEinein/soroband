@@ -342,7 +342,7 @@ struct UIProcessTests {
     @Test func changesMadeInTheUIProcessReachTheMenuBarProcess() async throws {
         let changes: [UIEvent] = [
             .live(true), .setResetHour(4), .updateNetwork(id: 2, name: "Desk", kind: .ethernet),
-            .setNetworkColor(id: 2, color: nil),
+            .setNetworkColor(id: 2, color: nil), .showTestMoment,
         ]
         let standIn = try StandIn(events: [.ready] + changes)
         var handled: [UIEvent] = []
