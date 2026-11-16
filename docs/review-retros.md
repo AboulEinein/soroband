@@ -1073,3 +1073,18 @@ Planned rounds: 1. Ran: 2 CodeRabbit CLI reviews (the first lost its connection)
 - **Cause:** the renderer tests compared the renderer with a reference image made in the same wrong order, so a byte-for-byte match said nothing about scale; M9's reviews compared captures with the mockups without judging the readings' size on the real menu bar.
 - **Would have prevented it:** one check against a value fixed outside both code paths (the 1x drawing scaled by two), and comparing the real menu bar item with the system's own items in a capture.
 - **Rule:** none; `aRetinaItemIsDrawnAtTwoPixelsAPoint` now holds the scale.
+
+## [#84](https://github.com/AboulEinein/soroband/pull/84) ci: package a pull request's release dry run without rerunning CI (2026-11-16)
+
+Planned rounds: 1. Ran: 1 CodeRabbit CLI review, 1 blind round, 1 direct review. The hosted CodeRabbit review was left to the user, as they asked.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 2 Major | `first look`: the package job took a skipped `ci` as passing on any event, so a tag could package without CI if `ci` were ever skipped (e8ee8df). Not valid: CI missing for a release-only pull request; `ci.yml` runs on every pull request. | none |
+| 1 | Opus | 1 Medium | `new evidence`: no passing dry run: GitHub assigned the package job no runner for 31 min 46 s, and the Evidence line was a TODO. Answered with the rerun, Release run 43890559766, no code change. | none |
+| direct | Sonnet | none | Confirmed the rerun on the head commit and the Evidence line; resolved the thread. | none |
+
+**Retro.** Planned 1; took 1.
+- **Cause:** none; the one finding was evidence still waiting on a busy runner queue, not a defect.
+- **Would have prevented it:** starting the round after the PR's own dry run had passed.
+- **Rule:** none.
