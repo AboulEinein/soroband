@@ -273,9 +273,9 @@ private struct LivePopover: View {
         ) {
             guard usage.status.state != .starting else { return }
             let (network, history, todayStart) = (usage.status.networkID, historyNetwork, usage.status.todayStart)
-            summary = await Task.detached(priority: .userInitiated) {
+            summary = await BlockingWork.run {
                 PopoverSummary.load(network: network, historyNetwork: history, todayStart: todayStart)
-            }.value
+            }
         }
         .task(id: resourcesKey) {
             guard let key = resourcesKey else { return }
@@ -288,7 +288,7 @@ private struct LivePopover: View {
                         ?? key.todayStart.addingTimeInterval(86_400)),
                 previous: nil, step: .hour,
                 measure: key.measure)
-            let answer = await Task.detached(priority: .userInitiated) { Core.resourceHistory(query) }.value
+            let answer = await BlockingWork.run { Core.resourceHistory(query) }
             // A newer read took this one's place while it ran: its answer is stale.
             guard !Task.isCancelled else { return }
             resourcesToday = answer
