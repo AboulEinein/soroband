@@ -12,9 +12,8 @@ final class PopoverController: NSObject, NSPopoverDelegate {
 
     private let popover = NSPopover()
     private var anchor: NSPanel?
-    /// When AppKit last closed the popover by itself (`PopoverToggle`); closes this controller
-    /// asks for leave it as it was.
-    private var lastTransientClose = Date.distantPast
+    /// What a click on the item does, after the closes so far.
+    private var clicks = PopoverToggle()
     /// Whether the close under way is one this controller asked for (`closePopover()`).
     private var closeAsked = false
     /// Between `popoverWillClose` and `popoverDidClose`, while the close animates.
@@ -59,14 +58,11 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     }
 
     func toggle(_ request: PopoverRequest) {
-        switch PopoverToggle.decide(
-            isShown: popover.isShown, isClosing: isClosing, lastTransientClose: lastTransientClose, now: .now)
-        {
+        switch clicks.click(isShown: popover.isShown, isClosing: isClosing, now: .now) {
         case .close: closePopover()
         case .open: show(request)
         case .openAfterClose: openAfterClose = request
-        // The click that AppKit's close came from is ignored once; the next click is a new one.
-        case .ignore: lastTransientClose = .distantPast
+        case .ignore: break
         }
     }
 
@@ -202,15 +198,15 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     }
 
     /// Whether a mouse-down outside this process closes the popover: anywhere but on the menu bar
-    /// item, whose own toggle closes it on the mouse-up. Closing on the item's mouse-down would let
-    /// a press held past `PopoverToggle`'s 0.3 s reopen it on release.
+    /// item, whose click reaches the toggle on its mouse-up. AppKit itself closes the transient
+    /// popover on the item's mouse-down; `PopoverToggle` then ignores that click's toggle.
     nonisolated static func closesOnMouseDown(at point: CGPoint, item: CGRect?) -> Bool {
         !(item?.contains(point) ?? false)
     }
 
     /// Set as the close starts, not after its animation, which can end after the click's toggle.
     func popoverWillClose(_ notification: Notification) {
-        if !closeAsked { lastTransientClose = .now }
+        clicks.closing(asked: closeAsked, at: .now)
         closeAsked = false
         isClosing = true
         let window = popover.contentViewController?.view.window

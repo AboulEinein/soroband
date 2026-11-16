@@ -389,36 +389,49 @@ struct UIProcessTests {
 struct UIHostTests {
     @Test func aClickOnTheItemTogglesThePopover() {
         let now = Date(timeIntervalSince1970: 1_793_000_000)
-        func decide(isShown: Bool, isClosing: Bool = false, transientCloseAgo: TimeInterval? = nil) -> PopoverToggle {
-            PopoverToggle.decide(
-                isShown: isShown, isClosing: isClosing,
-                lastTransientClose: transientCloseAgo.map { now.addingTimeInterval(-$0) } ?? .distantPast, now: now)
-        }
-        #expect(decide(isShown: true) == .close)
-        #expect(decide(isShown: false) == .open)
+        var clicks = PopoverToggle()
+        #expect(clicks.click(isShown: true, isClosing: false, now: now) == .close)
+        #expect(clicks.click(isShown: false, isClosing: false, now: now) == .open)
+    }
+
+    /// What the real clicks showed: AppKit closes the popover on the item's mouse-down, about
+    /// 40 ms before that click's toggle arrives.
+    @Test func theClickAppKitClosedThePopoverOnIsIgnoredOnceAndTheNextOneOpensIt() {
+        let close = Date(timeIntervalSince1970: 1_793_000_000)
+        var clicks = PopoverToggle()
+        clicks.closing(asked: false, at: close)
         #expect(
-            decide(isShown: false, transientCloseAgo: 0.1) == .ignore,
-            "AppKit closed the popover on this click's mouse-down; the click meant close")
+            clicks.click(isShown: false, isClosing: false, now: close.addingTimeInterval(0.04)) == .ignore,
+            "the toggle of the click whose mouse-down closed it meant close")
         #expect(
-            decide(isShown: true, isClosing: true, transientCloseAgo: 0.1) == .ignore,
-            "AppKit's close on this click's mouse-down is still animating; the click meant close")
-        #expect(decide(isShown: false, transientCloseAgo: 1) == .open)
+            clicks.click(isShown: false, isClosing: false, now: close.addingTimeInterval(0.14)) == .open,
+            "the next click, 0.1 s later, is a new one and opens it")
+
+        clicks.closing(asked: false, at: close)
+        #expect(
+            clicks.click(isShown: true, isClosing: true, now: close.addingTimeInterval(0.04)) == .ignore,
+            "also while AppKit still closes it")
+        #expect(clicks.click(isShown: false, isClosing: false, now: close.addingTimeInterval(0.1)) == .open)
+
+        clicks.closing(asked: false, at: close)
+        #expect(
+            clicks.click(isShown: false, isClosing: false, now: close.addingTimeInterval(1)) == .open,
+            "a close with no click behind it (Escape, another app) ignores nothing a second later")
     }
 
     @Test func aClickRightAfterTheItemClosedThePopoverOpensItAgain() {
-        // The first click closed it through the toggle, which leaves `lastTransientClose` alone,
-        // so a second click right after is a new "open", not the first one's echo.
-        let now = Date(timeIntervalSince1970: 1_793_000_000)
+        // The toggle closed it, so the close was asked for and arms nothing.
+        let close = Date(timeIntervalSince1970: 1_793_000_000)
+        var clicks = PopoverToggle()
+        clicks.closing(asked: true, at: close)
         #expect(
-            PopoverToggle.decide(isShown: true, isClosing: true, lastTransientClose: .distantPast, now: now)
-                == .openAfterClose,
-            "a click while the close animates opens the popover once the close ends")
+            clicks.click(isShown: true, isClosing: true, now: close.addingTimeInterval(0.05)) == .openAfterClose,
+            "a click while the close is under way opens the popover once the close ends")
         #expect(
-            PopoverToggle.decide(isShown: false, isClosing: true, lastTransientClose: .distantPast, now: now)
-                == .openAfterClose,
+            clicks.click(isShown: false, isClosing: true, now: close.addingTimeInterval(0.05)) == .openAfterClose,
             "whether AppKit already reports the closing popover as hidden")
         #expect(
-            PopoverToggle.decide(isShown: false, isClosing: false, lastTransientClose: .distantPast, now: now) == .open,
+            clicks.click(isShown: false, isClosing: false, now: close.addingTimeInterval(0.1)) == .open,
             "a click once the close ended opens it at once")
     }
 
