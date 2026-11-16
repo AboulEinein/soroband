@@ -1061,12 +1061,13 @@ Planned rounds: 3. Ran: 4 blind rounds, 6 CodeRabbit CLI runs, 1 CodeRabbit revi
 
 ## [#78](https://github.com/AboulEinein/soroband/pull/78) fix(menu-bar): draw the item at the display's scale on Retina (2026-11-16)
 
-Planned rounds: 1. Ran: 2 CodeRabbit CLI reviews (the first lost its connection), 1 blind round.
+Planned rounds: 1. Ran: 2 CodeRabbit CLI reviews (the first lost its connection), 1 blind round, 1 CodeRabbit review.
 
 | Review | Model | Findings | Origins | Caught earlier by |
 | --- | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | none | | none |
 | 1 | Opus | 2 Low | Handed back before posting, so no thread. `first look`: the Reach list missed `MenuBarDisplayTests`' call to `rasterized`; the Performance section claimed no cost without a measurement. Both fixed in the PR body: the caller added, and idle CPU measured side by side with `main` (+0.009%). | 2 Reach list |
+| CodeRabbit | CodeRabbit | none | On 16f34a8. | none |
 
 **Retro.** Planned 1; took 1. The user found the defect in the installed build: the menu bar's readings drew at half size on Retina from 7d7465d onward, and M9's gauges made it the look of every resource reading.
 - **Cause:** the renderer tests compared the renderer with a reference image made in the same wrong order, so a byte-for-byte match said nothing about scale; M9's reviews compared captures with the mockups without judging the readings' size on the real menu bar.
