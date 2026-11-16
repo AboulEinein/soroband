@@ -77,7 +77,7 @@ The user runs these, on a build of `main` (`scripts/install.sh`, or `scripts/ver
 1. **History from the popover.** Click the menu bar item, then History…: the History window opens in front, on this month, and takes the keyboard (agents can only open it in the background).
 2. **Ranges and networks by hand.** Click Day, Week, Month, Year, All Time, previous, Today and next; pick a network in the sidebar and All Networks again; hover a bar (tooltip) and a heatmap cell (its value in the card's header); click an app to see its network split.
 3. **Export CSV.** Click the export button, save, and open the file: one line per hour, network and app of the range shown.
-4. **It goes away.** Close the window: after the linger (`ui_linger`) this build's UI process is gone (`pgrep -fl -- '--ui'` lists no process from this build's path; an installed or other worktree build may run its own).
+4. **It goes away.** With `ui_linger` on a time (not `always`), close the window: after the linger this build's UI process is gone (`pgrep -fl -- '--ui'` lists no process from this build's path; an installed or other worktree build may run its own).
 
 ### M0 hand checklist
 
