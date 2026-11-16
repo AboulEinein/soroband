@@ -21,7 +21,7 @@ Each test guards a behavior that a user or the performance budget depends on, an
 
 ## Before pushing
 
-CI builds with Xcode 26 (the newest on GitHub's `macos-latest` runners), while the app is developed with Xcode 27. An older Swift rejects some code a newer one accepts, so a local pass does not prove CI's: CI is the authority, and no review round starts before it passes (`review.md`).
+CI builds with Xcode 26 (the newest on GitHub's `macos-latest` runners), while the app is developed with Xcode 27. An older Swift rejects some code a newer one accepts, so a local pass does not prove CI's: CI is the authority; required checks must pass before delivery (`review.md`).
 
 - **`scripts/verify/prepush.sh`** before every push: CI's checks for this Mac's architecture in Debug, plus the snapshots CI skips; each check is named in the script as it runs. CI's universal Release build, and its build and tests of the core on the `rust-version` `core/Cargo.toml` declares, run only in CI. It warns when this Mac's Xcode major differs from CI's.
 - **Reach list and siblings:** steps 2 and 3 of [`checklist.md`](checklist.md).

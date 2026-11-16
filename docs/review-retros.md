@@ -1,6 +1,6 @@
 # Review retros
 
-One entry per pull request. Which rows it gets and when each part is committed is in [`review.md`](review.md) (Rounds step 3, CodeRabbit steps 6 to 9). Together with [`coderabbit-findings.md`](coderabbit-findings.md), these show why reviews take the rounds they do.
+Historical records of the former review workflow. Current reviews use Council only on explicit user request ([`review.md`](review.md)). Do not create an entry when no review was requested. Keep the existing entries and their format below; they record reviews that actually ran.
 
 Each entry has:
 - **A heading:** the pull request, its title and the date it opened.

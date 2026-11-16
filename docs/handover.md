@@ -2,6 +2,8 @@
 
 The state of the project for whoever picks it up next. Read this file, then the ledger in [`plan.md`](plan.md), before starting work. At the end of a session, update **Current state**, **Next action** and the ledger.
 
+Review policy: no review runs automatically. Use Council only on an explicit user request ([`review.md`](review.md)). Past review records and dated decisions below are historical evidence, not instructions to restart the retired review loops.
+
 ## Current state (2026-11-06)
 
 - M0–M6, the fix in [#14](https://github.com/AboulEinein/soroband/pull/14), the work after the first install ([#17](https://github.com/AboulEinein/soroband/pull/17) to [#21](https://github.com/AboulEinein/soroband/pull/21)), the CodeRabbit backlog and its follow-ups ([#23](https://github.com/AboulEinein/soroband/pull/23) to [#34](https://github.com/AboulEinein/soroband/pull/34)), and the agent-fixable follow-ups ([#40](https://github.com/AboulEinein/soroband/pull/40) to [#49](https://github.com/AboulEinein/soroband/pull/49) and [#51](https://github.com/AboulEinein/soroband/pull/51)) are merged to `main`. `scripts/verify/prepush.sh` passes on `main`. The milestones with a hand checklist stay `blocked` in the ledger until the user has run it.

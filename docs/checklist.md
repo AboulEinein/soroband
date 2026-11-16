@@ -1,6 +1,6 @@
 # Developer checklist
 
-What a change needs before its pull request opens, and before each later push, so it reaches the reviewer at the reviewer's bar. Work through it in order; each step ends on its **Done when**. The full rules sit behind the links, as reference.
+What a change needs before its pull request opens, and before each later push, so the owner completes the project checks and evidence. Work through it in order; each step ends on its **Done when**. The full rules sit behind the links, as reference.
 
 ## 1. Tests go red first
 
@@ -21,7 +21,7 @@ Every fix, to your own bug or to a review finding:
 1. Name the defect class in one phrase ("a path into `MomentQueue`'s state that skips the gap guard", "a doc restating a requirement from `plan.md`").
 2. Search the repository for its siblings: the same pattern elsewhere (`git grep`, the callers, the other paths into the state).
 3. Add a test per sibling that is wrong and see it go red, then fix them all in the same commit.
-4. Write `Siblings checked: <search>, <result>` in the commit message body, and in the reply on the finding's thread when it has one (a CLI finding before the draft has none; the commit message is its record).
+4. Write `Siblings checked: <search>, <result>` in the commit message body, and in the reply on the finding's thread when it has one (a finding outside a PR has no thread; the commit message is its record).
 
 **Done when** the commit, and the reply where there is a thread, carry the `Siblings checked` line, and every sibling found has its red-then-green test.
 
@@ -37,10 +37,8 @@ Run `scripts/verify/prepush.sh`; [`verification.md`](verification.md#before-push
 
 **Done when** it ends with `prepush: all checks passed`.
 
-## 6. CodeRabbit CLI
+## 6. Requested reviews
 
-Run `coderabbit review --agent --base <base branch>` (installed as the handover says) and handle every finding as [`review.md`](review.md#coderabbit) step 3 judges them, each fix through step 3 above. Note each finding for `coderabbit-findings.md` (miss cause `caught by the CLI`) and the run for the PR's entry in `review-retros.md`.
+Use Council only when the user explicitly requests a review, as [`review.md`](review.md#explicit-review-requests) describes. This step does not start a reviewer or require a review when none was requested.
 
-**Done when** the CLI's last run raises nothing to act on, and every finding has its verdict noted.
-
-Then open the pull request as a draft with the template's sections filled, Reach included, and run the review as [`review.md`](review.md#rounds) describes.
+Then open the pull request with the template's sections filled, Reach included. Preserve the required project checks and human approvals.

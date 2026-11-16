@@ -1,5 +1,7 @@
 # CodeRabbit findings
 
+Historical findings from the retired CodeRabbit workflow. Do not run CodeRabbit or start reviews to add rows. Current reviews use Council only on explicit user request ([`review.md`](review.md)).
+
 Every finding CodeRabbit makes on a pull request, the local CLI's included, one row each, recorded as [`review.md`](review.md#coderabbit) describes. The hosted review's valid findings show what the blind review loop misses; the CLI's show what the developer ships before review. The CLI's findings are logged from #70 on; earlier ones appear only in the retros' rows.
 
 Columns:

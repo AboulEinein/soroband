@@ -1,6 +1,6 @@
 # Plan
 
-Roadmap from prototypes to the first public release. Each milestone is one branch and one pull request, merged into `main` after review. The ledger is the single record of progress: update it when a milestone changes state.
+Roadmap from prototypes to the first public release. Each milestone is one branch and one pull request, merged into `main` after the required project checks and human approvals. The ledger is the single record of progress: update it when a milestone changes state.
 
 ## Ledger
 
@@ -125,7 +125,7 @@ Decided for M5 (2026-11-05):
 - "Network joined" reports the last 7 days rather than the calendar week, so a Monday join is not empty.
 - The daily recap fires at the reset hour only, so the scripted test (`scripts/verify/moments.sh`) leaves it to the core's test, which ends a day under the real engine on a recorded session.
 
-Review experiment: M5's first review compares the blind reviewer with CodeRabbit on one commit, to find what the `pr-review` skill misses or gets wrong. Its files stay outside the repository, in `~/soroband-review-benchmark/m5/`. It changes `review.md`'s loop only here:
+Historical M5 review experiment (completed; this does not authorize new review runs): M5's first review compares the blind reviewer with CodeRabbit on one commit, to find what the `pr-review` skill misses or gets wrong. Its files stay outside the repository, in `~/soroband-review-benchmark/m5/`. It changes `review.md`'s loop only here:
 - **Round 1 is not posted.** It runs `pr-review` with `--no-story --no-github-comments` and saves its full report to `round-1-blind.md`, with the commit it reviewed. The lead answers each finding in `round-1-answers.md` (the fix commit, or the evidence for leaving it). Round 2's brief names those two files for the re-review; from round 2 the loop runs as `review.md` describes.
 - **CodeRabbit reviews round 1's commit** before any fix is pushed: on the draft with `@coderabbitai full review` (if it skips the draft, mark it ready for the review and back to draft with `gh pr ready --undo`). Its review, inline comments and review-body findings are saved to `round-1-coderabbit.md`. Neither reviewer sees the other's findings before its report is saved. Its findings go through `review.md`'s CodeRabbit steps and into `coderabbit-findings.md` as usual, and their fixes go into round 2.
 - **The comparison** goes in `comparison.md`: one row per distinct finding across both reviewers, with file and line, severity, category, which reviewer raised it, and the lead's verdict (valid, not valid, duplicate). Then per reviewer: valid findings, findings not valid, valid findings only it raised, and its time to review. It ends with proposals for the `pr-review` skill, which lives outside this repository and changes only with the user's approval. The PR's retro links nothing from it; the final report gives the user the comparison's summary.
@@ -232,7 +232,7 @@ Data caps and alerts, per-domain usage (DNS correlation), desktop widget, CSV an
 ## How the work runs
 
 - **One milestone per session.** Start each session with the prompt below. A fresh session per milestone keeps context small; the handover carries what matters across.
-- **Orchestrator plus agents inside a session.** The session lead plans the milestone, does the coupled work itself, and spawns agents only for independent tracks (for example, in M4 the chart views and the SQL queries), for the blind reviewer of each round, for the direct review of comment or wording fixes, and for an advisor agent on a review judgment or reassessment.
+- **Orchestrator plus agents inside a session.** The session lead plans the milestone and owns the coupled work. Authorized independent tracks may use separate workers (for example, in M4 the chart views and the SQL queries). Reviews use Council only on an explicit user request; no blind reviewer, direct reviewer or review advisor starts automatically.
 - **Parallel sessions only after M3.** M0–M3 change shared interfaces (the bridge, the schema), so they run in order. M4 and M5 can run as two sessions in separate worktrees.
 
 Estimated sessions: M0 1, M1 1–2, M2 1, M3 1–2, M4 1, M5 2, M6 1, M7 1, M8 2, M9 2, M10 1, so about 15 sessions. Calendar time depends mostly on review turnaround and the M3 daily-use week.
@@ -243,15 +243,15 @@ Milestones can run overnight as a chain, one fresh thread per milestone, started
 
 - **Stacked branches.** Nothing is merged without the user, so each milestone branches from the previous milestone's branch and opens its PR against it: `m<n>-<name>` from the branch of milestone n−1, or from `main` once that milestone has merged; the first from `main`. The user merges them in order; before merging a PR, the next PR is retargeted to `main` (`gh pr edit <n> --base main`), so deleting the merged branch cannot close it.
 - **When the chain continues.** The next milestone starts only if the previous one ended `in review`, or `blocked` solely on a hand-run checklist (a permission prompt, a real hotspot, the daily-use week). Anything else stops the chain: a decision needed, repeated failures, red CI.
-- **The conductor checks the review judgment.** Each milestone thread runs its own review loop as [`review.md`](review.md#rounds) describes, then CodeRabbit's review ([`review.md`](review.md#coderabbit)). When a thread stops, the conductor checks its review record against that loop and may send work back to the same thread. It asks the user only when the way forward needs a decision.
+- **The conductor checks completion evidence.** Each milestone thread completes its owner verification and project checks. It does not start reviews automatically. When a thread stops, the conductor checks its evidence and blockers. Council runs only on an explicit user request ([`review.md`](review.md#explicit-review-requests)).
 - **Hand-run checklists** collect in each PR and in the handover; the user runs them in the morning, in milestone order.
 
 ### When a session stops
 
 A session stops in exactly one of two states, and never starts the next milestone.
 
-- **In review.** Every exit criterion is checked with evidence in an open PR, CI is green, and the review in [`review.md`](review.md), the blind loop and then CodeRabbit's review, has ended with nothing left to act on. The ledger says `in review`.
-- **Blocked.** The work needs a person (a permission prompt, a real hotspot, a decision), the same problem has failed three fixes, the work outgrows the milestone, or a review reassessment needs a decision (see [`review.md`](review.md#reassess-instead-of-another-round)), or CodeRabbit did not review (see [`review.md`](review.md#coderabbit)). The ledger says `blocked (<reason>)` and the handover lists exactly what is needed.
+- **In review.** Every exit criterion is checked with evidence in an open PR and CI is green. Any explicitly requested Council review follows [`review.md`](review.md); no review starts automatically. Actual human approvals remain required. The ledger says `in review`.
+- **Blocked.** The work needs a person (a permission prompt, a real hotspot, a decision), the same problem has failed three fixes, the work outgrows the milestone, or reassessment needs a decision (see [`review.md`](review.md#reassess-instead-of-another-round)), or a required project check or actual human approval is missing. The ledger says `blocked (<reason>)` and the handover lists exactly what is needed.
 
 In both cases, update **Current state** and **Next action** in the handover, and add any new gotcha, before the final report. The user merges the PR; the next session marks the milestone `done` after checking the merge, or, for a milestone with a hand checklist, once the user has run it.
 
@@ -264,7 +264,7 @@ Run milestone M4 of Soroband on branch m4-history, created from main, with its P
 
 Before anything else, read docs/checklist.md and follow it for every change and every push; then read docs/handover.md and the milestone in docs/plan.md. docs/verification.md and docs/review.md are the reference the checklist links to.
 
-Deliver everything listed for the milestone in plan.md, with the evidence verification.md asks for this milestone. Review it as docs/review.md describes, with any change the milestone's section makes to the loop (M5's review experiment). Stop as plan.md's "When a session stops" says, with the ledger and the handover updated.
+Deliver everything listed for the milestone in plan.md, with the evidence verification.md asks for this milestone. Do not start reviews automatically. Use Council only if the user explicitly requested a review, as docs/review.md describes. Stop as plan.md's "When a session stops" says, with the ledger and the handover updated.
 
 Report: the PR link, each exit criterion with its evidence, any checklist I need to run by hand, and anything blocked with what you need from me.
 ```
