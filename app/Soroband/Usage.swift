@@ -36,6 +36,9 @@ final class Usage {
     /// The app's icon. The menu bar process keeps the bundle's Finder icon to it (`FinderIcon`);
     /// the UI process shows it in the Dock and Settings › About (`AppIcon.applyToApp`).
     private(set) var appIcon = AppIcon.graphite
+    /// How long the UI process keeps running with no window open. The menu bar process applies it
+    /// (`UIProcess.lingerDelay`); the UI process shows it in Settings.
+    private(set) var uiLinger = UILinger.default
 
     /// Set by the popover: polls every second and publishes today's lists while true.
     var isLive = false {
@@ -116,12 +119,13 @@ final class Usage {
             appIcon = snapshot.appIcon
             appIcon.applyToApp()
         }
+        if snapshot.uiLinger != uiLinger { uiLinger = snapshot.uiLinger }
     }
 
     /// Rereads the settings the app shows, after `soroband config set` or a change in Settings.
-    /// Only a changed layout, theme, app icon or resource setting reaches the UI process at once, and
-    /// only a changed layout or resource setting redraws the menu bar; a changed reset hour reaches both with the poll the engine makes for
-    /// it.
+    /// Only a changed layout, theme, app icon, resource setting or linger reaches the UI process at
+    /// once, and only a changed layout or resource setting redraws the menu bar; a changed reset
+    /// hour reaches both with the poll the engine makes for it.
     func reloadSettings() {
         let theme = Theme(value: Core.setting)
         let appIcon = AppIcon(setting: Core.setting(AppIcon.settingKey))
@@ -137,9 +141,13 @@ final class Usage {
         let resetHour = Core.setting("reset_hour").flatMap(Int.init) ?? 0
         if resetHour != self.resetHour { self.resetHour = resetHour }
         let resources = ResourceSettings(setting: Core.setting)
+        let uiLinger = Core.setting(UILinger.settingKey).flatMap(UILinger.init(rawValue:)) ?? .default
+        UIProcess.shared.lingerDelay = uiLinger.delay
         guard
             layout != menuBarLayout || theme != self.theme || appIcon != self.appIcon || resources != self.resources
+                || uiLinger != self.uiLinger
         else { return }
+        if uiLinger != self.uiLinger { self.uiLinger = uiLinger }
         if layout != menuBarLayout { menuBarLayout = layout }
         if resources != self.resources { self.resources = resources }
         if theme != self.theme { self.theme = theme }
@@ -163,8 +171,8 @@ final class Usage {
         reloadSettings()
     }
 
-    /// Sets `key` as `soroband config set` would, for the island's, the theme's, the app icon's and
-    /// the resources' settings. A value that does not fit the setting is not saved.
+    /// Sets `key` as `soroband config set` would, for the island's, the theme's, the app icon's,
+    /// the resources' and the linger's settings. A value that does not fit the setting is not saved.
     func setSetting(_ key: String, to value: String) {
         if UIHost.forward(.setSetting(key: key, value: value)) {
             // Shown at once; the menu bar process's snapshot confirms it.
@@ -176,6 +184,7 @@ final class Usage {
                 appIcon = AppIcon(setting: value)
                 appIcon.applyToApp()
             }
+            if key == UILinger.settingKey, let linger = UILinger(rawValue: value) { uiLinger = linger }
             return
         }
         guard Core.setSetting(key, to: value) else {

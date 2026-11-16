@@ -63,21 +63,21 @@ The user runs these on a build of `main`: the installed one (`scripts/install.sh
 
 The user runs these, on a build of `main` (`scripts/install.sh`, or `scripts/verify/run-app.sh` for a Debug build).
 
-1. **Click.** Click the menu bar item: the popover opens under it; close it and click again within 10 minutes: it opens as fast as before.
-2. **Click after the linger.** Quit the UI process (`kill <pid of the --ui process>`, as after 10 idle minutes) and click the item: the popover opens, later than in step 1. Close it, quit the UI process again, and click twice quickly: it opens, and the second click closes it, as on `main`.
+1. **Click.** Click the menu bar item: the popover opens under it; close it and click again within the hour: it opens as fast as before.
+2. **Click after the linger.** Quit the UI process (`kill <pid of the --ui process>`, as after an idle hour) and click the item: the popover opens, later than in step 1. Close it, quit the UI process again, and click twice quickly: it opens, and the second click closes it, as on `main`.
 3. **Toggle and click-outside.** With the popover open, click the item: it closes and stays closed. Open it and click elsewhere (the desktop, another app's window, the empty menu bar): it closes, and an app you clicked into keeps the keyboard. Open it and press Escape: it closes, from the menu bar's overflow too.
 4. **Keyboard and focus.** Open the popover: it takes the keyboard (Escape works; Tab moves between its controls), and the app you were typing in gets the keyboard back when it closes. Starting the UI process never takes the keyboard from the app you are typing in. Opened from the menu bar's overflow it takes the keyboard too.
 5. **⌘,.** With the popover or History in front, ⌘, opens Soroband Settings. The gear in the popover opens Settings too; History… opens History in front.
 6. **Settings reach the menu bar.** In Settings › Menu Bar pick another reading and style: the menu bar item follows each change at once. Rename a network in Settings › Networks: the popover shows the new name.
 7. **The item moves.** With the popover open, change the menu bar item's width (Settings › Menu Bar, add a reading) or plug in or unplug a display: the popover stays under the item. On a Mac with several displays, click the item on each display: the popover opens on that display.
-8. **It goes away.** Close every window: about 10 minutes later the `--ui` process is gone. Quit Soroband with the popover's power button: both processes are gone.
+8. **It goes away.** Close every window: after the linger (`ui_linger`, an hour unless set) the `--ui` process is gone; with `soroband config set ui_linger always` it stays. Quit Soroband with the popover's power button: both processes are gone.
 
 ### M4 hand checklist
 
 1. **History from the popover.** Click the menu bar item, then History…: the History window opens in front, on this month, and takes the keyboard (agents can only open it in the background).
 2. **Ranges and networks by hand.** Click Day, Week, Month, Year, All Time, previous, Today and next; pick a network in the sidebar and All Networks again; hover a bar (tooltip) and a heatmap cell (its value in the card's header); click an app to see its network split.
 3. **Export CSV.** Click the export button, save, and open the file: one line per hour, network and app of the range shown.
-4. **It goes away.** Close the window: about 10 minutes later this build's UI process is gone (`pgrep -fl -- '--ui'` lists no process from this build's path; an installed or other worktree build may run its own).
+4. **It goes away.** Close the window: after the linger (`ui_linger`) this build's UI process is gone (`pgrep -fl -- '--ui'` lists no process from this build's path; an installed or other worktree build may run its own).
 
 ### M0 hand checklist
 
@@ -114,6 +114,7 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 
 | Date | Decision |
 | --- | --- |
+| 2026-11-16 | The linger is the `ui_linger` setting (Settings › General › Keep windows ready): 10m, 30m, 1h, 4h or always, an hour unless set (the user's choice of one picker over a switch and a minutes field): the UI process holds about 50 MB beside the menu bar process's 22 MB (installed build, `footprint`) while it lingers, and a click with none running took 357 ms against 100–136 ms warm (real clicks, the build with the popover's animation off). |
 | 2026-10-26 | Distribution outside the Mac App Store, so the app is not sandboxed. |
 | 2026-10-26 | Count internet traffic only: physical interfaces (Wi‑Fi, wired, cellular), local destinations excluded. |
 | 2026-10-26 | History is kept forever at hourly granularity per (network, app). The daily counter resets at a chosen hour; history is untouched. |

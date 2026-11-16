@@ -572,6 +572,25 @@ struct UIHostTests {
         #expect(quits == 1)
     }
 
+    @Test func withNoDelayItNeverQuitsUntilADelayIsSet() async throws {
+        var quits = 0
+        let linger = Linger(delay: nil) { quits += 1 }
+        #expect(!linger.isCounting, "always: no window open, and nothing counts down")
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(quits == 0)
+
+        linger.delay = .seconds(1)
+        #expect(linger.isCounting, "a delay set while no window is open starts the countdown")
+        linger.delay = nil
+        #expect(!linger.isCounting, "always again stops it")
+        try await Task.sleep(for: .milliseconds(1500))
+        #expect(quits == 0)
+
+        linger.delay = .milliseconds(50)
+        try await until { quits == 1 }
+        #expect(quits == 1)
+    }
+
     @Test func aUIProcessWhoseFirstWindowNeverOpenedQuitsToo() async throws {
         var quits = 0
         _ = Linger(delay: .milliseconds(50)) { quits += 1 }

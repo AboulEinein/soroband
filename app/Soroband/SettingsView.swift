@@ -341,6 +341,26 @@ struct GeneralSettings: View {
                     }
                 }
             }
+            SettingsSection(
+                title: "Speed and memory",
+                footer:
+                    "After you close the popover, Settings or History, Soroband keeps them ready for this long: the popover then opens in about a tenth of a second, and Soroband uses about 50 MB more memory. Afterwards the first click takes about a third of a second."
+            ) {
+                SettingsCard {
+                    SettingsRow(title: "Keep windows ready") {
+                        Picker(
+                            "Keep windows ready",
+                            selection: Binding(
+                                get: { usage.uiLinger }, set: { usage.setSetting(UILinger.settingKey, to: $0.rawValue) }
+                            )
+                        ) {
+                            ForEach(UILinger.allCases) { Text($0.label).tag($0) }
+                        }
+                        .labelsHidden()
+                        .fixedSize()
+                    }
+                }
+            }
             SettingsSection(title: "Wi‑Fi names") {
                 SettingsCard {
                     LocationRow(status: locationStatus ?? location.status, allow: { location.allow() })

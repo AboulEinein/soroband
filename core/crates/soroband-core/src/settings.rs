@@ -76,6 +76,11 @@ pub const MENU_BAR_STYLE_OPTIONS: &[&str] = &["stacked", "labeled", "inline"];
 pub const MENU_BAR_ICON: &str = "menu_bar_icon";
 /// The values of [`MENU_BAR_ICON`].
 pub const MENU_BAR_ICON_OPTIONS: &[&str] = &["network", "soroband"];
+/// Key of how long the UI process stays running after its last window closes (the linger), or
+/// `always` to keep it running.
+pub const UI_LINGER: &str = "ui_linger";
+/// The values of [`UI_LINGER`].
+pub const UI_LINGER_OPTIONS: &[&str] = &["10m", "30m", "1h", "4h", "always"];
 
 /// Key of the windows' appearance: macOS's, or always light or dark.
 pub const APPEARANCE: &str = "appearance";
@@ -318,6 +323,16 @@ pub const SCHEMA: &[Setting] = &[
         description: "The menu bar item's icon: network (the current network's kind) or soroband \
                       (the Soroband glyph). While counting has stopped it shows a warning sign \
                       either way.",
+    },
+    Setting {
+        key: UI_LINGER,
+        kind: Kind::Choice {
+            options: UI_LINGER_OPTIONS,
+            default: "1h",
+        },
+        description: "How long the process that draws the popover, Settings and History keeps \
+                      running after its last window closes: 10m, 30m, 1h or 4h, or always. While \
+                      it runs the popover opens faster, and Soroband uses about 50 MB more memory.",
     },
     Setting {
         key: APPEARANCE,
@@ -722,7 +737,8 @@ mod tests {
         ACCENT, APP_ICON, APPEARANCE, Error, ISLAND, ISLAND_IGNORED_APPS, ISLAND_MOMENTS,
         MENU_BAR_ICON, MENU_BAR_READINGS, MENU_BAR_SCOPE, MENU_BAR_STYLE, RESET_HOUR, RESOURCE_CPU,
         RESOURCE_DISK, RESOURCE_DISK_UNIT, RESOURCE_DISK_VOLUME, RESOURCE_MEASURES,
-        RESOURCE_MEMORY, RESOURCE_MEMORY_UNIT, RESOURCE_MINUTES_DAYS, RESOURCES, Settings, plain,
+        RESOURCE_MEMORY, RESOURCE_MEMORY_UNIT, RESOURCE_MINUTES_DAYS, RESOURCES, Settings,
+        UI_LINGER, plain,
     };
     use std::path::PathBuf;
 
@@ -1183,6 +1199,30 @@ mod tests {
         assert_eq!(current.value, "graphite");
         assert!(current.is_default);
         assert!(current.problem.is_some(), "says why");
+    }
+
+    /// The app maps each of these words to a delay, so any other is refused rather than stored
+    /// for the app to ignore; an hour unless set (the user's choice, 2026-11-16).
+    #[test]
+    fn ui_linger_is_an_hour_unless_set_to_one_of_its_words() {
+        let mut settings = Settings::default();
+        assert_eq!(settings.get(UI_LINGER).unwrap().value, "1h");
+        for word in ["10m", "30m", "4h", "always"] {
+            settings.set(UI_LINGER, word).unwrap();
+            assert_eq!(settings.get(UI_LINGER).unwrap().value, word);
+        }
+        for bad in ["", "60", "1H", "never", "2h"] {
+            let error = settings.set(UI_LINGER, bad).unwrap_err().to_string();
+            assert!(
+                error.contains("is not one of 10m, 30m, 1h, 4h, always"),
+                "{bad:?}: {error}"
+            );
+        }
+        assert_eq!(
+            settings.get(UI_LINGER).unwrap().value,
+            "always",
+            "a refused value changes nothing"
+        );
     }
 
     #[test]

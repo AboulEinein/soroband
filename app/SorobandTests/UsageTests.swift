@@ -68,6 +68,28 @@ struct UsageTests {
         #expect(changes == 2)
     }
 
+    /// Every linger Settings offers is one the core accepts, and `soroband config set ui_linger`
+    /// reaches the UI process's quit timer and the snapshot Settings shows. The value is put back,
+    /// as above.
+    @Test func theLingerSettingReachesTheQuitTimerAndTheSnapshot() throws {
+        let original = try #require(Core.setting(UILinger.settingKey))
+        let usage = Usage()
+        defer {
+            Core.setSetting(UILinger.settingKey, to: original)
+            usage.reloadSettings()
+        }
+        var changes = 0
+        usage.onChange = { changes += 1 }
+        for linger in UILinger.allCases where linger.rawValue != original {
+            #expect(Core.setSetting(UILinger.settingKey, to: linger.rawValue), "the core takes \(linger.rawValue)")
+            usage.reloadSettings()
+            #expect(usage.uiLinger == linger)
+            #expect(UIProcess.shared.lingerDelay == linger.delay)
+        }
+        #expect(changes == UILinger.allCases.count - 1, "each change is announced, so the snapshot carries it")
+        #expect(UILinger.always.delay == nil, "always keeps the UI process running")
+    }
+
     /// `soroband config set accent` reaches the UI process: the menu bar process's `Usage` keeps
     /// the new theme and announces it once (its `onChange` publishes the snapshot), and Settings'
     /// pick is saved where the command reads it. The values are put back, as above.
