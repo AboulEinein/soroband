@@ -2,7 +2,7 @@ name: Release
 
 # A version tag (v0.1.0) runs CI, packages Soroband.dmg and publishes it as a GitHub release with
 # its notes from CHANGELOG.md and its SHA-256 checksum. A pull request that changes the release
-# path runs the same steps up to publishing, as a dry run, and keeps the DMG as an artifact.
+# path packages the DMG as a dry run and keeps it as an artifact; its checks are its own CI run's.
 on:
   push:
     tags: ['v*']
@@ -27,11 +27,14 @@ concurrency:
 
 jobs:
   ci:
+    if: github.event_name == 'push'
     uses: ./.github/workflows/ci.yml
 
   package:
     name: Package Soroband.dmg
     needs: ci
+    # A tag packages once CI passes; a pull request, whose ci job is skipped, packages at once.
+    if: ${{ !cancelled() && (needs.ci.result == 'success' || needs.ci.result == 'skipped') }}
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
