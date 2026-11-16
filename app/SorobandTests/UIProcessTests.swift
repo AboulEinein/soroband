@@ -608,9 +608,13 @@ struct UIHostTests {
         try await Task.sleep(for: .milliseconds(1500))
         #expect(quits == 0)
 
-        linger.delay = .milliseconds(50)
-        try await until { quits == 1 }
-        #expect(quits == 1)
+        // Every settings reread assigns the delay again (`Usage.reloadSettings`); the same value
+        // keeps the countdown where it is.
+        linger.delay = .milliseconds(600)
+        try await Task.sleep(for: .milliseconds(400))
+        linger.delay = .milliseconds(600)
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(quits == 1, "setting the same delay again restarted the countdown")
     }
 
     @Test func aUIProcessWhoseFirstWindowNeverOpenedQuitsToo() async throws {
