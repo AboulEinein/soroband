@@ -339,6 +339,28 @@ struct UIProcessTests {
         #expect(standIn.requests.last == .quit)
     }
 
+    @Test func aUIProcessThatDiedMidCountdownLeavesItsReplacementAlone() async throws {
+        // The first UI process dies 0.4 s into a 1 s countdown; its replacement is kept with
+        // `always`, so nothing may quit it when the first countdown would have run out.
+        let standIn = try StandIn(answers: ["showPopover": .windows(open: false)])
+        let ui = UIProcess(
+            executableURL: standIn.script, snapshot: { Self.snapshot }, handle: { _ in },
+            lingerDelay: .seconds(1))
+        defer { ui.stop() }
+        ui.send(.toggle(popover()))
+        try await until { ui.phase == .ready && ui.isLingering }
+        try await Task.sleep(for: .milliseconds(400))
+        kill(try #require(ui.processIdentifier), SIGKILL)
+        try await until { ui.phase == .stopped }
+
+        ui.lingerDelay = nil
+        ui.send(.toggle(popover(1)))
+        try await until { ui.phase == .ready }
+        try await Task.sleep(for: .milliseconds(1200))
+        #expect(!standIn.requests.contains(.quit), "the dead process's countdown quit its replacement")
+        #expect(ui.phase == .ready)
+    }
+
     @Test func changesMadeInTheUIProcessReachTheMenuBarProcess() async throws {
         let changes: [UIEvent] = [
             .live(true), .setResetHour(4), .updateNetwork(id: 2, name: "Desk", kind: .ethernet),

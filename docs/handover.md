@@ -70,7 +70,7 @@ The user runs these, on a build of `main` (`scripts/install.sh`, or `scripts/ver
 5. **⌘,.** With the popover or History in front, ⌘, opens Soroband Settings. The gear in the popover opens Settings too; History… opens History in front.
 6. **Settings reach the menu bar.** In Settings › Menu Bar pick another reading and style: the menu bar item follows each change at once. Rename a network in Settings › Networks: the popover shows the new name.
 7. **The item moves.** With the popover open, change the menu bar item's width (Settings › Menu Bar, add a reading) or plug in or unplug a display: the popover stays under the item. On a Mac with several displays, click the item on each display: the popover opens on that display.
-8. **It goes away.** Close every window: after the linger (`ui_linger`, an hour unless set) the `--ui` process is gone; with `soroband config set ui_linger always` it stays. Quit Soroband with the popover's power button: both processes are gone.
+8. **It goes away.** Close every window: after the linger (`ui_linger`, an hour unless set) the `--ui` process is gone; with `ui_linger` set to `always` (`soroband config set ui_linger always`, or `core/target/debug/soroband` for a Debug build) it stays. Quit Soroband with the popover's power button: both processes are gone.
 
 ### M4 hand checklist
 

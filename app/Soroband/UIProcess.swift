@@ -399,6 +399,8 @@ final class UIProcess {
         isPopoverShown = false
         queue = UIQueue()
         sent = nil
+        // A countdown outlives its `Linger`, and would quit the next UI process.
+        linger?.cancel()
         linger = nil
         answerDebugState(nil)
     }
@@ -470,6 +472,12 @@ final class Linger {
     }
 
     var isCounting: Bool { countdown != nil }
+
+    /// Stops the countdown for good, for a UI process that is gone.
+    func cancel() {
+        countdown?.cancel()
+        countdown = nil
+    }
 
     private func update() {
         countdown?.cancel()
