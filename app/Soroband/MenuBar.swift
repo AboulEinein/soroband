@@ -563,10 +563,11 @@ struct MenuBarDisplay: Equatable {
             let bitmap = NSBitmapImageRep(
                 bitmapDataPlanes: nil, pixelsWide: Int((image.size.width * scale).rounded(.up)),
                 pixelsHigh: Int((image.size.height * scale).rounded(.up)), bitsPerSample: 8, samplesPerPixel: 4,
-                hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
-            let context = NSGraphicsContext(bitmapImageRep: bitmap)
+                hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)
         else { return image }
+        // Set before the context is made: the context takes its scale from the size it is made with.
         bitmap.size = image.size
+        guard let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return image }
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context
         image.draw(in: NSRect(origin: .zero, size: image.size))
