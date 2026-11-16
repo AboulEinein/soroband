@@ -344,7 +344,7 @@ struct GeneralSettings: View {
             SettingsSection(
                 title: "Speed and memory",
                 footer:
-                    "After you close the popover, Settings or History, Soroband keeps them ready for this long: the popover then opens in about a tenth of a second, and Soroband uses about 50 MB more memory. Afterwards the first click takes about a third of a second."
+                    "After you close the popover, Settings or History, Soroband keeps them ready for this long: the popover then opens in about a tenth of a second, and Soroband uses about 50 MB more memory. Afterwards the first click takes about half a second."
             ) {
                 SettingsCard {
                     SettingsRow(title: "Keep windows ready") {

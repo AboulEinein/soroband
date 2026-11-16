@@ -114,7 +114,7 @@ Location access is shown in **Settings › General › Wi‑Fi names**: open Set
 
 | Date | Decision |
 | --- | --- |
-| 2026-11-16 | The linger is the `ui_linger` setting (Settings › General › Keep windows ready): 10m, 30m, 1h, 4h or always, an hour unless set (the user's choice of one picker over a switch and a minutes field): the UI process holds about 50 MB beside the menu bar process's 22 MB (installed build, `footprint`) while it lingers, and a click with none running took 357 ms against 100–136 ms warm (real clicks, the build with the popover's animation off). |
+| 2026-11-16 | The linger is the `ui_linger` setting (Settings › General › Keep windows ready): 10m, 30m, 1h, 4h or always, an hour unless set (the user's choice of one picker over a switch and a minutes field): the UI process holds about 50 MB beside the menu bar process's 22 MB (installed build, `footprint`) while it lingers, and a click with none running took 367–562 ms against 102–126 ms warm (real clicks, `clicktime` after `quit-ui`, the build with the popover's animation off). |
 | 2026-10-26 | Distribution outside the Mac App Store, so the app is not sandboxed. |
 | 2026-10-26 | Count internet traffic only: physical interfaces (Wi‑Fi, wired, cellular), local destinations excluded. |
 | 2026-10-26 | History is kept forever at hourly granularity per (network, app). The daily counter resets at a chosen hour; history is untouched. |

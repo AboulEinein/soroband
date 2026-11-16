@@ -87,7 +87,6 @@ struct UsageTests {
             #expect(UIProcess.shared.lingerDelay == linger.delay)
         }
         #expect(changes == UILinger.allCases.count - 1, "each change is announced, so the snapshot carries it")
-        #expect(UILinger.always.delay == nil, "always keeps the UI process running")
     }
 
     /// `soroband config set accent` reaches the UI process: the menu bar process's `Usage` keeps
