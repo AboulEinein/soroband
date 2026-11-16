@@ -1073,3 +1073,21 @@ Planned rounds: 1. Ran: 2 CodeRabbit CLI reviews (the first lost its connection)
 - **Cause:** the renderer tests compared the renderer with a reference image made in the same wrong order, so a byte-for-byte match said nothing about scale; M9's reviews compared captures with the mockups without judging the readings' size on the real menu bar.
 - **Would have prevented it:** one check against a value fixed outside both code paths (the 1x drawing scaled by two), and comparing the real menu bar item with the system's own items in a capture.
 - **Rule:** none; `aRetinaItemIsDrawnAtTwoPixelsAPoint` now holds the scale.
+
+## [#77](https://github.com/AboulEinein/soroband/pull/77) fix(app): reopen the popover on a click right after it closed (2026-11-16)
+
+Planned rounds: 1. Ran: 2 CodeRabbit CLI runs, 2 blind rounds, 1 direct review, 1 CodeRabbit review.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | On 13af68d, before the draft. | none |
+| 1 | Opus | 1 Medium, 1 Low | `first look`: the "ignore one click" rule lived in `PopoverController`, so deleting it kept every test green (6ce33bd moved it into `PopoverToggle` with a test of the timed sequence); the open-time claim was not from paired, interleaved runs (remeasured in the body). | 1 Reach list |
+| CodeRabbit | CodeRabbit CLI | none | On 6ce33bd, before its push. | none |
+| 2 | Opus | 2 Low | `missed earlier`: the body's Reach and Evidence still named the removed `decide` (body fixed). `first look`: a press held past 0.3 s on the item reopens the popover, as on `main` (pre-existing, left to the maintainer). | none |
+| direct | Sonnet | none | Confirmed the body fix and the pre-existing call against `main`; resolved both threads. | none |
+| CodeRabbit | CodeRabbit | none | On 6ce33bd, after two rate-limited tries. | none |
+
+**Retro.** Planned 1; took 2 blind rounds and a direct review.
+- **Cause:** the fix's rule sat in a controller no test reaches, and the Reach list claimed `read:` coverage for it instead of moving it into a plain type as verification.md asks for the UI process's decisions.
+- **Would have prevented it:** mutating the fix's one assignment before writing the Reach list: a mutant that keeps every test green marks the rule as untested.
+- **Rule:** none; verification.md (M6) already asks for the popover toggle as a plain type, and checklist step 1 for a test that goes red.
