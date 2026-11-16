@@ -34,7 +34,9 @@ jobs:
     name: Package Soroband.dmg
     needs: ci
     # A tag packages once CI passes; a pull request, whose ci job is skipped, packages at once.
-    if: ${{ !cancelled() && (needs.ci.result == 'success' || needs.ci.result == 'skipped') }}
+    if: >-
+      ${{ !cancelled() && (needs.ci.result == 'success'
+      || (github.event_name == 'pull_request' && needs.ci.result == 'skipped')) }}
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
