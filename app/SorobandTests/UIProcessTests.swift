@@ -389,12 +389,37 @@ struct UIProcessTests {
 struct UIHostTests {
     @Test func aClickOnTheItemTogglesThePopover() {
         let now = Date(timeIntervalSince1970: 1_793_000_000)
-        #expect(PopoverToggle.decide(isShown: true, lastClose: .distantPast, now: now) == .close)
-        #expect(PopoverToggle.decide(isShown: false, lastClose: .distantPast, now: now) == .open)
+        func decide(isShown: Bool, isClosing: Bool = false, transientCloseAgo: TimeInterval? = nil) -> PopoverToggle {
+            PopoverToggle.decide(
+                isShown: isShown, isClosing: isClosing,
+                lastTransientClose: transientCloseAgo.map { now.addingTimeInterval(-$0) } ?? .distantPast, now: now)
+        }
+        #expect(decide(isShown: true) == .close)
+        #expect(decide(isShown: false) == .open)
         #expect(
-            PopoverToggle.decide(isShown: false, lastClose: now.addingTimeInterval(-0.1), now: now) == .ignore,
-            "the popover closed on this click's mouse-down; the click meant close")
-        #expect(PopoverToggle.decide(isShown: false, lastClose: now.addingTimeInterval(-1), now: now) == .open)
+            decide(isShown: false, transientCloseAgo: 0.1) == .ignore,
+            "AppKit closed the popover on this click's mouse-down; the click meant close")
+        #expect(
+            decide(isShown: true, isClosing: true, transientCloseAgo: 0.1) == .ignore,
+            "AppKit's close on this click's mouse-down is still animating; the click meant close")
+        #expect(decide(isShown: false, transientCloseAgo: 1) == .open)
+    }
+
+    @Test func aClickRightAfterTheItemClosedThePopoverOpensItAgain() {
+        // The first click closed it through the toggle, which leaves `lastTransientClose` alone,
+        // so a second click right after is a new "open", not the first one's echo.
+        let now = Date(timeIntervalSince1970: 1_793_000_000)
+        #expect(
+            PopoverToggle.decide(isShown: true, isClosing: true, lastTransientClose: .distantPast, now: now)
+                == .openAfterClose,
+            "a click while the close animates opens the popover once the close ends")
+        #expect(
+            PopoverToggle.decide(isShown: false, isClosing: true, lastTransientClose: .distantPast, now: now)
+                == .openAfterClose,
+            "whether AppKit already reports the closing popover as hidden")
+        #expect(
+            PopoverToggle.decide(isShown: false, isClosing: false, lastTransientClose: .distantPast, now: now) == .open,
+            "a click once the close ended opens it at once")
     }
 
     @Test func closingThePopoverGivesTheKeyboardBackOnlyToTheAppTheClickTookItFrom() {

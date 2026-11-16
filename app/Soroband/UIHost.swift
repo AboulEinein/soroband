@@ -160,14 +160,18 @@ func bringForward(_ window: NSWindow, activates: Bool) {
 
 /// What a click on the menu bar item does to the popover.
 enum PopoverToggle: Equatable {
-    case open, close, ignore
+    case open, close, openAfterClose, ignore
 
-    /// Closes an open popover and opens a closed one, unless it closed under 0.3 s ago: a
-    /// transient popover can close on the mouse-down of the click on the item, before the click
-    /// reaches the UI process, and that click meant "close".
-    static func decide(isShown: Bool, lastClose: Date, now: Date) -> PopoverToggle {
+    /// Closes an open popover and opens a closed one, unless AppKit closed it by itself under
+    /// 0.3 s ago (`lastTransientClose`): a transient popover can close on the mouse-down of the
+    /// click on the item, before the click reaches the UI process, and that click meant "close";
+    /// the caller then clears `lastTransientClose`, so only that one click is ignored.
+    /// A click while the popover's close animates (`isClosing`) opens it once the close ends.
+    static func decide(isShown: Bool, isClosing: Bool, lastTransientClose: Date, now: Date) -> PopoverToggle {
+        let closedByThisClick = now.timeIntervalSince(lastTransientClose) <= 0.3
+        if isClosing { return closedByThisClick ? .ignore : .openAfterClose }
         if isShown { return .close }
-        return now.timeIntervalSince(lastClose) > 0.3 ? .open : .ignore
+        return closedByThisClick ? .ignore : .open
     }
 }
 
