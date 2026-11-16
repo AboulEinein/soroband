@@ -29,10 +29,11 @@ final class MenuBarRenderer {
             let bitmap = NSBitmapImageRep(
                 bitmapDataPlanes: nil, pixelsWide: Int((size.width * scale).rounded(.up)),
                 pixelsHigh: Int((size.height * scale).rounded(.up)), bitsPerSample: 8, samplesPerPixel: 4,
-                hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
-            let context = NSGraphicsContext(bitmapImageRep: bitmap)
+                hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)
         else { return nil }
+        // Set before the context is made: the context takes its scale from the size it is made with.
         bitmap.size = size
+        guard let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return nil }
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context
         icon.draw(
