@@ -1058,3 +1058,36 @@ Planned rounds: 3. Ran: 4 blind rounds, 6 CodeRabbit CLI runs, 1 CodeRabbit revi
 - **Cause:** the CLI's three runs before the draft caught most of the History model's races; CodeRabbit's hosted review still found two more in the same model (a minute picked, an app expanded, each during a read), and its follow-up a third, because each fix guarded one path by the shared generation and left the others relying on it. Round 4 only reviewed the last of those fixes. Two rounds' findings were missing `Siblings checked` lines in thread replies, the lines being in the commits only.
 - **Would have prevented it:** for a model with several reads in flight, listing every read and what it is keyed by before the first fix, rather than one guard per finding; and copying the commit's Siblings line into each reply as it is written.
 - **Rule:** none; checklist step 3's sibling search covers the reads, and REVIEW.md already asks for the line in replies.
+
+## [#78](https://github.com/AboulEinein/soroband/pull/78) fix(menu-bar): draw the item at the display's scale on Retina (2026-11-16)
+
+Planned rounds: 1. Ran: 2 CodeRabbit CLI reviews (the first lost its connection), 1 blind round, 1 CodeRabbit review.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | | none |
+| 1 | Opus | 2 Low | Handed back before posting, so no thread. `first look`: the Reach list missed `MenuBarDisplayTests`' call to `rasterized`; the Performance section claimed no cost without a measurement. Both fixed in the PR body: the caller added, and idle CPU measured side by side with `main` (+0.009%). | 2 Reach list |
+| CodeRabbit | CodeRabbit | none | On 16f34a8. | none |
+
+**Retro.** Planned 1; took 1. The user found the defect in the installed build: the menu bar's readings drew at half size on Retina from 7d7465d onward, and M9's gauges made it the look of every resource reading.
+- **Cause:** the renderer tests compared the renderer with a reference image made in the same wrong order, so a byte-for-byte match said nothing about scale; M9's reviews compared captures with the mockups without judging the readings' size on the real menu bar.
+- **Would have prevented it:** one check against a value fixed outside both code paths (the 1x drawing scaled by two), and comparing the real menu bar item with the system's own items in a capture.
+- **Rule:** none; `aRetinaItemIsDrawnAtTwoPixelsAPoint` now holds the scale.
+
+## [#77](https://github.com/AboulEinein/soroband/pull/77) fix(app): reopen the popover on a click right after it closed (2026-11-16)
+
+Planned rounds: 1. Ran: 2 CodeRabbit CLI runs, 2 blind rounds, 1 direct review, 1 CodeRabbit review.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | On 13af68d, before the draft. | none |
+| 1 | Opus | 1 Medium, 1 Low | `first look`: the "ignore one click" rule lived in `PopoverController`, so deleting it kept every test green (6ce33bd moved it into `PopoverToggle` with a test of the timed sequence); the open-time claim was not from paired, interleaved runs (remeasured in the body). | 1 Reach list |
+| CodeRabbit | CodeRabbit CLI | none | On 6ce33bd, before its push. | none |
+| 2 | Opus | 2 Low | `missed earlier`: the body's Reach and Evidence still named the removed `decide` (body fixed). `first look`: a press held past 0.3 s on the item reopens the popover, as on `main` (pre-existing, left to the maintainer). | none |
+| direct | Sonnet | none | Confirmed the body fix and the pre-existing call against `main`; resolved both threads. | none |
+| CodeRabbit | CodeRabbit | none | On 6ce33bd, after two rate-limited tries. | none |
+
+**Retro.** Planned 1; took 2 blind rounds and a direct review.
+- **Cause:** the fix's rule sat in a controller no test reaches, and the Reach list claimed `read:` coverage for it instead of moving it into a plain type as verification.md asks for the UI process's decisions.
+- **Would have prevented it:** mutating the fix's one assignment before writing the Reach list: a mutant that keeps every test green marks the rule as untested.
+- **Rule:** none; verification.md (M6) already asks for the popover toggle as a plain type, and checklist step 1 for a test that goes red.
