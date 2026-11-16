@@ -146,4 +146,42 @@ struct MenuBarRendererTests {
             }
         }
     }
+
+    /// The columns and rows of `image`'s bitmap that hold any ink: from the first to the last.
+    func inked(_ image: NSImage?) throws -> (columns: ClosedRange<Int>, rows: ClosedRange<Int>) {
+        let bitmap = try #require(image?.representations.first as? NSBitmapImageRep)
+        var columns: [Int] = []
+        var rows: [Int] = []
+        for y in 0..<bitmap.pixelsHigh {
+            for x in 0..<bitmap.pixelsWide where (bitmap.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.5 {
+                columns.append(x)
+                rows.append(y)
+            }
+        }
+        return (try #require(columns.min())...columns.max()!, try #require(rows.min())...rows.max()!)
+    }
+
+    /// On a Retina display the item is drawn at 2 pixels a point: its text and icon cover twice the
+    /// pixels they cover at 1x, across the item's whole width. Drawn at 1 pixel a point instead,
+    /// they read at half the menu bar's size, packed into the left half of an item sized for full-size
+    /// text.
+    @Test func aRetinaItemIsDrawnAtTwoPixelsAPoint() throws {
+        let renderer = MenuBarRenderer()
+        for style in MenuBarStyle.allCases {
+            let display = MenuBarDisplay.make(
+                layout: MenuBarLayout(readings: [.total, .cpu, .memory, .disk], style: style),
+                status: Self.statuses[0], kind: .wifi, gauges: Self.gauges)
+            for image in [
+                { (scale: CGFloat) in renderer.image(display, debug: false, textColor: .labelColor, scale: scale) },
+                { (scale: CGFloat) in
+                    display.itemImage(debug: false).map { MenuBarDisplay.rasterized($0, scale: scale) }
+                },
+            ] {
+                let one = try inked(image(1))
+                let two = try inked(image(2))
+                #expect(abs(two.columns.upperBound - (2 * one.columns.upperBound + 1)) <= 2, "\(style)")
+                #expect(abs(two.rows.count - 2 * one.rows.count) <= 2, "\(style)")
+            }
+        }
+    }
 }
