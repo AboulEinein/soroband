@@ -12,7 +12,14 @@ final class PopoverController: NSObject, NSPopoverDelegate {
 
     private let popover = NSPopover()
     private var anchor: NSPanel?
-    private var lastClose = Date.distantPast
+    /// What a click on the item does, after the closes so far.
+    private var clicks = PopoverToggle()
+    /// Whether the close under way is one this controller asked for (`closePopover()`).
+    private var closeAsked = false
+    /// Between `popoverWillClose` and `popoverDidClose`, while the close animates.
+    private var isClosing = false
+    /// A click that arrived while the popover closed, shown once the close ends.
+    private var openAfterClose: PopoverRequest?
     /// History draws once offscreen after the first popover, so History… opens without the first
     /// layout of SwiftUI and Charts in this process.
     private var warmedHistory = false
@@ -44,15 +51,27 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     override init() {
         super.init()
         popover.behavior = .transient
+        // Animated, the popover counts as shown for about 0.5 s after it leaves the screen, and a
+        // click on the item meanwhile cannot open it again.
+        popover.animates = false
         popover.delegate = self
     }
 
     func toggle(_ request: PopoverRequest) {
-        switch PopoverToggle.decide(isShown: popover.isShown, lastClose: lastClose, now: .now) {
-        case .close: popover.performClose(nil)
+        switch clicks.click(isShown: popover.isShown, isClosing: isClosing, now: .now) {
+        case .close: closePopover()
         case .open: show(request)
+        case .openAfterClose: openAfterClose = request
         case .ignore: break
         }
+    }
+
+    /// Every close this controller makes goes through here, so `popoverWillClose` can tell it
+    /// from one AppKit makes by itself.
+    private func closePopover() {
+        guard popover.isShown, !isClosing else { return }
+        closeAsked = true
+        popover.performClose(nil)
     }
 
     /// Opens the popover on the request's tab, with the Apps tab's toggle set as it asks.
@@ -73,7 +92,7 @@ final class PopoverController: NSObject, NSPopoverDelegate {
                         HistoryOptions(
                             range: .month, network: network, current: NetworkMonitor.shared.current?.id,
                             requested: .now), activates: true)
-                    self?.popover.performClose(nil)
+                    self?.closePopover()
                 },
                 openResource: { [weak self] measure in
                     // A History already open turns to the gauge's page, as a new one opens on it.
@@ -82,12 +101,12 @@ final class PopoverController: NSObject, NSPopoverDelegate {
                         HistoryOptions(
                             range: .day, measure: measure, current: NetworkMonitor.shared.current?.id,
                             requested: .now), activates: true)
-                    self?.popover.performClose(nil)
+                    self?.closePopover()
                 },
                 openSettings: { [weak self] in
                     // Settings first, so it is key as the popover's close begins and keeps the keyboard.
                     SettingsWindow.shared.show(activates: true)
-                    self?.popover.performClose(nil)
+                    self?.closePopover()
                 },
                 quit: { UIHost.send(.quit) }
             ).themed())
@@ -98,7 +117,8 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         // The popover takes keys and clicks only once the app is active.
         if request.activates {
             let front = NSWorkspace.shared.frontmostApplication
-            previousApp = front == .current ? nil : front
+            // Soroband in front keeps the app a popover reopened during its close took it from.
+            if front != .current { previousApp = front }
             // A click on the item in the menu bar's overflow reaches the menu bar process while it
             // is not active, so its yield gives nothing and `NSApp.activate()` is refused; this
             // call, deprecated but still honored, brings Soroband forward from the overflow too.
@@ -120,7 +140,7 @@ final class PopoverController: NSObject, NSPopoverDelegate {
                 guard let self, Self.closesOnMouseDown(at: location, item: self.anchor?.frame) else {
                     return
                 }
-                self.popover.performClose(nil)
+                self.closePopover()
             }
         }
         UIHost.send(.popover(shown: true))
@@ -128,7 +148,8 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     }
 
     func close() {
-        popover.performClose(nil)
+        openAfterClose = nil
+        closePopover()
     }
 
     private func timeUntilOnScreen(_ window: NSWindow, from requested: Date) {
@@ -177,15 +198,17 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     }
 
     /// Whether a mouse-down outside this process closes the popover: anywhere but on the menu bar
-    /// item, whose own toggle closes it on the mouse-up. Closing on the item's mouse-down would let
-    /// a press held past `PopoverToggle`'s 0.3 s reopen it on release.
+    /// item, whose click reaches the toggle on its mouse-up. AppKit itself closes the transient
+    /// popover on the item's mouse-down; `PopoverToggle` then ignores that click's toggle.
     nonisolated static func closesOnMouseDown(at point: CGPoint, item: CGRect?) -> Bool {
         !(item?.contains(point) ?? false)
     }
 
     /// Set as the close starts, not after its animation, which can end after the click's toggle.
     func popoverWillClose(_ notification: Notification) {
-        lastClose = .now
+        clicks.closing(asked: closeAsked, at: .now)
+        closeAsked = false
+        isClosing = true
         let window = popover.contentViewController?.view.window
         wasKeyAtClose = window?.isKeyWindow == true
         let event = NSApp.currentEvent
@@ -214,15 +237,20 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     }
 
     func popoverDidClose(_ notification: Notification) {
+        isClosing = false
+        let reopen = openAfterClose
+        openAfterClose = nil
         if let outsideClicks { NSEvent.removeMonitor(outsideClicks) }
         outsideClicks = nil
-        returnKeyboard()
+        // A popover opening again keeps the keyboard, and the app to give it back to later.
+        if reopen == nil { returnKeyboard() }
         popover.contentViewController = nil
         anchor?.orderOut(nil)
         AppIcons.clear()
         Usage.shared.isLive = false
         UIHost.send(.popover(shown: false))
         UIHost.windowsChanged()
+        if let reopen { show(reopen) }
     }
 }
 

@@ -158,16 +158,35 @@ func bringForward(_ window: NSWindow, activates: Bool) {
     }
 }
 
-/// What a click on the menu bar item does to the popover.
-enum PopoverToggle: Equatable {
-    case open, close, ignore
+/// What a click on the menu bar item does to the popover, given the closes before it.
+struct PopoverToggle: Equatable {
+    enum Action: Equatable {
+        case open, close, openAfterClose, ignore
+    }
 
-    /// Closes an open popover and opens a closed one, unless it closed under 0.3 s ago: a
-    /// transient popover can close on the mouse-down of the click on the item, before the click
-    /// reaches the UI process, and that click meant "close".
-    static func decide(isShown: Bool, lastClose: Date, now: Date) -> PopoverToggle {
-        if isShown { return .close }
-        return now.timeIntervalSince(lastClose) > 0.3 ? .open : .ignore
+    /// When AppKit last closed the popover by itself; `distantPast` once the click that close came
+    /// from has been ignored, or when none happened.
+    private(set) var lastTransientClose = Date.distantPast
+
+    /// A close begins: `asked` when this app asked for it (the item's toggle, an outside click, a
+    /// button in the popover), otherwise AppKit closed the transient popover by itself.
+    mutating func closing(asked: Bool, at now: Date) {
+        if !asked { lastTransientClose = now }
+    }
+
+    /// Closes an open popover and opens a closed one, unless AppKit closed it by itself under
+    /// 0.3 s ago: a transient popover closes on the mouse-down of the click on the item, before
+    /// that click reaches the UI process, and that click meant "close". It is ignored once; the
+    /// next click is a new one. A click while the popover still closes (`isClosing`) opens it once
+    /// the close ends.
+    mutating func click(isShown: Bool, isClosing: Bool, now: Date) -> Action {
+        let closedByThisClick = now.timeIntervalSince(lastTransientClose) <= 0.3
+        let action: Action =
+            if isClosing { closedByThisClick ? .ignore : .openAfterClose } else if isShown { .close } else {
+                closedByThisClick ? .ignore : .open
+            }
+        if action == .ignore { lastTransientClose = .distantPast }
+        return action
     }
 }
 
