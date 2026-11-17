@@ -244,6 +244,25 @@ struct MomentQueueTests {
         #expect(queue.current == nil && queue.waiting.isEmpty)
     }
 
+    @Test func turningAMomentOffKeepsTheMomentItIsToldToKeep() {
+        // The test moment is a network joined moment that shows with Network joined off: a
+        // settings change, which drops every moment turned off, must leave it open or waiting
+        // while a real network joined moment goes.
+        let test = MomentContent.joined(network: office, week: 1, today: 1, lastSeen: nil)
+        var queue = MomentQueue()
+        queue.post(test, now: 0)
+        queue.post(joined, now: 0)
+        queue.remove(.joined, now: 1, keeping: test)
+        #expect(queue.current?.content == test)
+        #expect(queue.waiting.isEmpty, "the real network joined moment is dropped")
+
+        var behindAnAlert = MomentQueue()
+        behindAnAlert.post(hog, now: 0)
+        behindAnAlert.post(test, now: 0)
+        behindAnAlert.remove(.joined, now: 1, keeping: test)
+        #expect(behindAnAlert.waiting.map(\.content) == [test], "kept while waiting too")
+    }
+
     @Test func theQueueKeepsAtMostEightWaitingDroppingTheLeastImportant() {
         var queue = MomentQueue()
         queue.post(joined, now: 0)

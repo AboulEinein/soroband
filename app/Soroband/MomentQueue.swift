@@ -125,10 +125,11 @@ struct MomentQueue: Equatable {
         return true
     }
 
-    /// Drops every moment of `kind`, open or waiting, when it is turned off or no longer applies.
-    mutating func remove(_ kind: MomentKind, now: TimeInterval) {
-        waiting.removeAll { $0.kind == kind }
-        if current?.kind == kind { dismiss(now: now) }
+    /// Drops every moment of `kind`, open or waiting, when it is turned off or no longer applies,
+    /// but `keeping`.
+    mutating func remove(_ kind: MomentKind, now: TimeInterval, keeping: MomentContent? = nil) {
+        waiting.removeAll { $0.kind == kind && $0.content != keeping }
+        if let current, current.kind == kind, current.content != keeping { dismiss(now: now) }
         // Their ends will not come: an app's next transfer starts afresh.
         if kind == .transfer { shownTransfers.removeAll() }
     }

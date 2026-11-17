@@ -61,6 +61,7 @@ enum DebugCommands {
         case "simulate-network": simulateNetwork(url)
         case "update-network": updateNetwork(url)
         case "fire-moment": fireMoment(url)
+        case "show-test-moment": IslandController.shared.showTestMoment()
         case "hover-island": hoverIsland(url)
         default: NSLog("soroband-debug: unknown command %@", url.absoluteString)
         }

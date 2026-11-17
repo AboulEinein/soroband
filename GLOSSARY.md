@@ -303,6 +303,9 @@ The island widened sideways, between rest and a moment. The hotspot meter is the
 One short island event, each switchable: peek on hover, network joined, network left, hotspot meter, data hog, background activity, large transfer, daily recap.
 _Avoid_: notification (the fallback when the island is off); alert for any moment (it names two)
 
+**Test moment**:
+A sample network joined moment that Settings › Island shows on request, on every display the island is on, whichever moments are switched on.
+
 **Alert**:
 A moment that warns: the data hog and background activity. Alerts go first in the moment queue, may show while an app is full screen, and become notifications while the island is off.
 

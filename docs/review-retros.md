@@ -1151,3 +1151,18 @@ Planned rounds: 1. Ran: 2 CodeRabbit CLI runs, 2 blind rounds, 1 direct review, 
 - **Cause:** the fix's rule sat in a controller no test reaches, and the Reach list claimed `read:` coverage for it instead of moving it into a plain type as verification.md asks for the UI process's decisions.
 - **Would have prevented it:** mutating the fix's one assignment before writing the Reach list: a mutant that keeps every test green marks the rule as untested.
 - **Rule:** none; verification.md (M6) already asks for the popover toggle as a plain type, and checklist step 1 for a test that goes red.
+
+## [#80](https://github.com/AboulEinein/soroband/pull/80) feat(island): add a test moment button to settings (2026-11-16)
+
+Planned rounds: 1. Ran: 1 CodeRabbit CLI review, 2 blind rounds. The hosted CodeRabbit review was left to the user, as they asked.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | – | none |
+| 1 | Opus | 2 Low | `first look`: with Network joined switched off, any setting change closed the open or waiting test moment, because `reloadSettings` drops every moment `route()` no longer shows; `MomentQueue.remove` now keeps the test moment while the island is on (69fac6a). `first look`: the `soroband debug state` row in `verification.md` listed sources without the new `test` (69fac6a). | 2 Reach list |
+| 2 | Opus | none | – | none |
+
+**Retro.** Planned 1; took 2.
+- **Cause:** the Reach list covered the new entry point but not the other path into `MomentQueue`'s state, `reloadSettings`'s `queue.remove`, nor the doc copy of the moment sources the new `test` value widened.
+- **Would have prevented it:** checklist step 2 applied in full: a **Paths** line for every writer of the queue the new moment sits in, and a **Consumers** line for every list of the widened `source` value.
+- **Rule:** none.
