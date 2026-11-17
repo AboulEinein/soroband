@@ -34,6 +34,8 @@ print "== swift-format"
 xcrun swift-format lint --strict --recursive app
 print "== install guard"
 scripts/verify/install-guard.sh
+print "== watchdog guard"
+scripts/verify/watchdog-guard.sh
 print "== app (with snapshots)"
 scripts/build-core.sh "$(uname -m)" >/dev/null
 xcodebuild -project app/Soroband.xcodeproj -scheme Soroband -derivedDataPath build/DerivedData \

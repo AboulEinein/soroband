@@ -1087,3 +1087,19 @@ Planned rounds: 2. Ran: 1 CodeRabbit CLI review, 1 blind round. The hosted CodeR
 - **Cause:** none for this PR. For the hang: M9's reviews and local runs could not see it, because this Mac has 12 threads and the test needs every one held.
 - **Would have prevented it:** running the app tests with one Swift concurrency thread (`TEST_RUNNER_LIBDISPATCH_COOPERATIVE_POOL_STRICT=1`), where a blocked thread hangs every run.
 - **Rule:** none yet; running CI's and `prepush.sh`'s app tests that way is proposed as its own PR.
+
+## [#81](https://github.com/AboulEinein/soroband/pull/81) ci: bound every job and sample a hung app test run (2026-11-17)
+
+Planned rounds: 2. Ran: 1 CodeRabbit CLI review, 2 blind rounds, 1 direct review. The hosted CodeRabbit review was left to the user, as they asked.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 1 Major | `first look`: a command that ignored the watchdog's stop kept the watchdog waiting forever; it now kills it 10 s after the stop (fc00d80). | none |
+| 1 | Opus | 3 Low | `first look`: the 10 s grace ended when either stopped process exited; Ctrl-C left the command running; no test covered the watchdog's exit status, which decides CI's App result. All fixed in fe819e2, with `watchdog-guard.sh`. | none |
+| 2 | Opus | 1 Low | `first look`: `docs/verification.md` said a stopped watchdog leaves nothing running; the guard checks only the command. Reworded in 2f674f1, with the guard's header. | none |
+| direct | Sonnet | none | Confirmed the reworded docs row matches the guard and found the same claim in the guard's header, fixed in the same commit. | none |
+
+**Retro.** Planned 2; took 2.
+- **Cause:** the first version of `watchdog.sh` had no test, so its stop paths (grace, signals, exit status) were checked only by reading.
+- **Would have prevented it:** writing `watchdog-guard.sh` with the script, as `install-guard.sh` was for `install.sh`.
+- **Rule:** none; `docs/checklist.md` already asks for a test that goes red on broken behavior, and the guard now holds it.
