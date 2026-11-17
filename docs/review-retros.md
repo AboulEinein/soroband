@@ -1133,3 +1133,21 @@ Planned rounds: 1. Ran: 1 CodeRabbit CLI review, 1 blind round, 1 direct review.
 - **Cause:** the new trigger was checked against the steps it runs, not against the existing publish condition, which assumed only a push could carry a tag ref.
 - **Would have prevented it:** listing, for each trigger, what `github.ref` and `github.event_name` it sets before relying on either in a condition.
 - **Rule:** none.
+
+## [#77](https://github.com/AboulEinein/soroband/pull/77) fix(app): reopen the popover on a click right after it closed (2026-11-16)
+
+Planned rounds: 1. Ran: 2 CodeRabbit CLI runs, 2 blind rounds, 1 direct review, 1 CodeRabbit review.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | On 13af68d, before the draft. | none |
+| 1 | Opus | 1 Medium, 1 Low | `first look`: the "ignore one click" rule lived in `PopoverController`, so deleting it kept every test green (6ce33bd moved it into `PopoverToggle` with a test of the timed sequence); the open-time claim was not from paired, interleaved runs (remeasured in the body). | 1 Reach list |
+| CodeRabbit | CodeRabbit CLI | none | On 6ce33bd, before its push. | none |
+| 2 | Opus | 2 Low | `missed earlier`: the body's Reach and Evidence still named the removed `decide` (body fixed). `first look`: a press held past 0.3 s on the item reopens the popover, as on `main` (pre-existing, left to the maintainer). | none |
+| direct | Sonnet | none | Confirmed the body fix and the pre-existing call against `main`; resolved both threads. | none |
+| CodeRabbit | CodeRabbit | none | On 6ce33bd, after two rate-limited tries. | none |
+
+**Retro.** Planned 1; took 2 blind rounds and a direct review.
+- **Cause:** the fix's rule sat in a controller no test reaches, and the Reach list claimed `read:` coverage for it instead of moving it into a plain type as verification.md asks for the UI process's decisions.
+- **Would have prevented it:** mutating the fix's one assignment before writing the Reach list: a mutant that keeps every test green marks the rule as untested.
+- **Rule:** none; verification.md (M6) already asks for the popover toggle as a plain type, and checklist step 1 for a test that goes red.
