@@ -1104,6 +1104,21 @@ Planned rounds: 2. Ran: 1 CodeRabbit CLI review, 2 blind rounds, 1 direct review
 - **Would have prevented it:** writing `watchdog-guard.sh` with the script, as `install-guard.sh` was for `install.sh`.
 - **Rule:** none; `docs/checklist.md` already asks for a test that goes red on broken behavior, and the guard now holds it.
 
+## [#83](https://github.com/AboulEinein/soroband/pull/83) ci: cache cbindgen instead of building it every run (2026-11-17)
+
+Planned rounds: 2. Ran: 1 CodeRabbit CLI review, 2 blind rounds. The hosted CodeRabbit review was left to the user, as they asked.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | – | none |
+| 1 | Opus | 1 Low, 1 unrated | `first look`: the Release workflow's pull-request paths did not name the new action; `actions/cache` saved only when the whole job passed, so a hung or failed App job threw the build away. Both fixed in bf5964a (paths entry; restore and save split, saving right after the build). | none |
+| 2 | Opus | none | Confirmed both fixes and the save-then-restore evidence (jobs 133425088265 and 133441991282). | none |
+
+**Retro.** Planned 2; took 2.
+- **Cause:** `actions/cache`'s post-step save was assumed to run on every job; it runs only when the job succeeds.
+- **Would have prevented it:** reading the action's save conditions before relying on it for a job that often fails or hangs.
+- **Rule:** none.
+
 ## [#85](https://github.com/AboulEinein/soroband/pull/85) ci: run the Release workflow on tags and by hand, not on pull requests (2026-11-17)
 
 Planned rounds: 1. Ran: 1 CodeRabbit CLI review, 1 blind round, 1 direct review. The hosted CodeRabbit review was left to the user, as they asked.
