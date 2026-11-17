@@ -184,7 +184,7 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
         _ query: HistoryQuery, to file: URL,
         write: @escaping @Sendable (HistoryQuery, URL) -> Int? = Core.exportCSV
     ) async -> Int? {
-        await Task.detached(priority: .userInitiated) {
+        await BlockingWork.run {
             let files = FileManager.default
             guard
                 let directory = try? files.url(
@@ -195,7 +195,7 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
             guard let rows = write(query, temporary), (try? files.replaceItemAt(file, withItemAt: temporary)) != nil
             else { return nil }
             return rows
-        }.value
+        }
     }
 
     func close() {
@@ -338,17 +338,16 @@ final class HistoryModel {
         guard let shown = minute ?? record.minutes.last?.start else { return }
         let read = reads.minuteApps
         let generation = generation
-        Task.detached(priority: .userInitiated) {
-            let apps = read(shown)
-            await MainActor.run {
-                // The minute shown now, on the record shown now: a read for a replaced day's is dropped.
-                guard generation == self.generation,
-                    (self.selectedMinute ?? self.minuteRecord?.minutes.last?.start) == shown,
-                    self.minuteRecord?.minutes.contains(where: { $0.start == shown }) == true
-                else { return }
-                self.minuteApps = apps
-                self.updateMinutes()
-            }
+        BlockingWork.run {
+            read(shown)
+        } then: { apps in
+            // The minute shown now, on the record shown now: a read for a replaced day's is dropped.
+            guard generation == self.generation,
+                (self.selectedMinute ?? self.minuteRecord?.minutes.last?.start) == shown,
+                self.minuteRecord?.minutes.contains(where: { $0.start == shown }) == true
+            else { return }
+            self.minuteApps = apps
+            self.updateMinutes()
         }
     }
 
@@ -433,13 +432,12 @@ final class HistoryModel {
         let generation = generation
         let request = makeRequest()
         let reads = reads
-        Task.detached(priority: .userInitiated) {
-            let answer = Self.read(request, with: reads)
-            await MainActor.run {
-                guard generation == self.generation else { return }
-                self.apply(answer, for: request)
-                if self.range == .all, self.makeRequest().step != request.step { self.load() }
-            }
+        BlockingWork.run {
+            Self.read(request, with: reads)
+        } then: { answer in
+            guard generation == self.generation else { return }
+            self.apply(answer, for: request)
+            if self.range == .all, self.makeRequest().step != request.step { self.load() }
         }
     }
 
@@ -519,21 +517,21 @@ final class HistoryModel {
         let step = query.step
         let reads = reads
         let generation = generation
-        Task.detached(priority: .userInitiated) {
-            let bytes = reads.history(HistoryQuery(interval: interval, previous: nil, network: nil, step: step))
-            let resources = reads.resources(
-                ResourceQuery(interval: interval, previous: nil, step: step, measure: .cpu))
-            await MainActor.run {
-                // An app expanded on the page a newer answer replaced read that page's span.
-                guard generation == self.generation, self.expandedApp == app, self.query.interval == interval,
-                    self.query.step == step
-                else { return }
-                let shares = bytes?.apps.filter { $0.id == app }
-                let total = shares.map {
-                    $0.reduce(ByteCounts.zero) { ByteCounts(rx: $0.rx + $1.rx, tx: $0.tx + $1.tx) }
-                }
-                self.expandedMeasures = (total, resources?.apps.first { $0.id == app }?.sum ?? .zero)
+        BlockingWork.run {
+            (
+                bytes: reads.history(HistoryQuery(interval: interval, previous: nil, network: nil, step: step)),
+                resources: reads.resources(ResourceQuery(interval: interval, previous: nil, step: step, measure: .cpu))
+            )
+        } then: { read in
+            // An app expanded on the page a newer answer replaced read that page's span.
+            guard generation == self.generation, self.expandedApp == app, self.query.interval == interval,
+                self.query.step == step
+            else { return }
+            let shares = read.bytes?.apps.filter { $0.id == app }
+            let total = shares.map {
+                $0.reduce(ByteCounts.zero) { ByteCounts(rx: $0.rx + $1.rx, tx: $0.tx + $1.tx) }
             }
+            self.expandedMeasures = (total, read.resources?.apps.first { $0.id == app }?.sum ?? .zero)
         }
     }
 }
