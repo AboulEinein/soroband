@@ -244,6 +244,32 @@ struct HistoryModelTests {
         func pass() { if lock.withLock({ closed }) { opened.wait() } }
     }
 
+    /// Reads that wait (on a slow disk, or a test's gate) hold none of Swift concurrency's threads,
+    /// one per CPU: with more reads waiting than CPUs, a task still runs. On those threads, enough
+    /// waiting reads stop every task in the process, the main actor's included.
+    @Test func readsThatWaitLeaveTasksRunning() {
+        let held = ProcessInfo.processInfo.activeProcessorCount + 1
+        let arrived = DispatchSemaphore(value: 0)
+        let release = DispatchSemaphore(value: 0)
+        var reads = ResourceReader().reads
+        let minutes = reads.minutes
+        reads.minutes = { start, end, volume in
+            arrived.signal()
+            release.wait()
+            return minutes(start, end, volume)
+        }
+        let model = HistoryModel(
+            range: .day, anchor: .now, network: nil, currentNetwork: nil, registry: [], measure: .cpu, reads: reads)
+        for _ in 0..<held { model.step(-1) }
+        let waiting = (0..<held).filter { _ in arrived.wait(timeout: .now() + 5) == .success }.count
+        let ran = DispatchSemaphore(value: 0)
+        Task.detached(priority: .userInitiated) { ran.signal() }
+        let taskRan = ran.wait(timeout: .now() + 5) == .success
+        for _ in 0..<held { release.signal() }
+        #expect(waiting == held)
+        #expect(taskRan, "a task ran while \(held) reads waited")
+    }
+
     /// A minute picked while a reload is read keeps its own apps: the reload, read for the minute
     /// picked before, reads the new one's again rather than showing the old one's.
     @Test func aMinutePickedDuringAReloadKeepsItsOwnApps() async throws {
