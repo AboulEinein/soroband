@@ -1074,6 +1074,20 @@ Planned rounds: 1. Ran: 2 CodeRabbit CLI reviews (the first lost its connection)
 - **Would have prevented it:** one check against a value fixed outside both code paths (the 1x drawing scaled by two), and comparing the real menu bar item with the system's own items in a capture.
 - **Rule:** none; `aRetinaItemIsDrawnAtTwoPixelsAPoint` now holds the scale.
 
+## [#82](https://github.com/AboulEinein/soroband/pull/82) fix(app): run History's and the popover's reads on Dispatch threads (2026-11-16)
+
+Planned rounds: 2. Ran: 1 CodeRabbit CLI review, 1 blind round. The hosted CodeRabbit review was left to the user, as they asked.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | | none |
+| 1 | Opus | none | Nothing to act on; the skill posts no review without findings, so [a PR comment](https://github.com/AboulEinein/soroband/pull/82) records the round on 91fba5d. | none |
+
+**Retro.** Planned 2; took 1. The hang it fixes came in with M9's `HistoryModelTests` (3621f8d): gated reads held Swift concurrency's threads, three on CI's runner, and hung about half of the App test runs from 2026-11-14 until this fix.
+- **Cause:** none for this PR. For the hang: M9's reviews and local runs could not see it, because this Mac has 12 threads and the test needs every one held.
+- **Would have prevented it:** running the app tests with one Swift concurrency thread (`TEST_RUNNER_LIBDISPATCH_COOPERATIVE_POOL_STRICT=1`), where a blocked thread hangs every run.
+- **Rule:** none yet; running CI's and `prepush.sh`'s app tests that way is proposed as its own PR.
+
 ## [#81](https://github.com/AboulEinein/soroband/pull/81) ci: bound every job and sample a hung app test run (2026-11-17)
 
 Planned rounds: 2. Ran: 1 CodeRabbit CLI review, 2 blind rounds, 1 direct review. The hosted CodeRabbit review was left to the user, as they asked.
