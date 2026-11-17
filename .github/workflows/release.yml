@@ -1,29 +1,19 @@
 name: Release
 
 # A version tag (v0.1.0) runs CI, packages Soroband.dmg and publishes it as a GitHub release with
-# its notes from CHANGELOG.md and its SHA-256 checksum. A pull request that changes the release
-# path runs the same steps up to publishing, as a dry run, and keeps the DMG as an artifact.
+# its notes from CHANGELOG.md and its SHA-256 checksum. Run by hand (workflow_dispatch) on a
+# branch, it runs the same steps up to publishing and keeps the DMG as an artifact, for checking a
+# build before the tag.
 on:
   push:
     tags: ['v*']
-  pull_request:
-    paths:
-      - .github/workflows/release.yml
-      - .github/workflows/ci.yml
-      - scripts/build.sh
-      - scripts/build-stamp.sh
-      - scripts/build-core.sh
-      - scripts/package.sh
-      - CHANGELOG.md
-      - core/Cargo.toml
-      - app/Soroband.xcodeproj/project.pbxproj
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   ci:
