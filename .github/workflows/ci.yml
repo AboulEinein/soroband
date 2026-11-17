@@ -19,6 +19,7 @@ jobs:
   core:
     name: Core (fmt, clippy, test)
     runs-on: macos-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: core
@@ -40,6 +41,7 @@ jobs:
   rust-version:
     name: Core on rust-version (build, test)
     runs-on: macos-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: core
@@ -71,6 +73,7 @@ jobs:
   app:
     name: App (bridge tests, unsigned universal build)
     runs-on: macos-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -79,7 +82,7 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: core
-          cache-directories: core/target/tools
+      - uses: ./.github/actions/cbindgen
       # The newest Xcode on the runner, whose major docs/verification.md names; when GitHub adds a
       # newer one, this fails until the doc says so (prepush.sh reads that sentence).
       - name: Select the newest Xcode
@@ -94,9 +97,13 @@ jobs:
       - run: xcodebuild -version
       - run: xcrun swift-format lint --strict --recursive app
       - run: scripts/verify/install-guard.sh
+      - run: scripts/verify/watchdog-guard.sh
       - run: scripts/build-core.sh
-      # Snapshot tests stay local: their rendering depends on the runner's macOS and fonts.
+      # Snapshot tests stay local: their rendering depends on the runner's macOS and fonts. A run
+      # still going after 8 minutes (about 3 minutes at most when it passes) is hung: the watchdog
+      # prints the test host's stacks and stops it.
       - run: >
+          scripts/verify/watchdog.sh 480
           xcodebuild -project app/Soroband.xcodeproj -scheme Soroband
           -derivedDataPath build/DerivedData -destination "platform=macOS,arch=$(uname -m)"
           test -skip-testing:SorobandTests/SnapshotTests
