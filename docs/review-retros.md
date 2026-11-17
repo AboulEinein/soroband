@@ -1073,3 +1073,19 @@ Planned rounds: 1. Ran: 2 CodeRabbit CLI reviews (the first lost its connection)
 - **Cause:** the renderer tests compared the renderer with a reference image made in the same wrong order, so a byte-for-byte match said nothing about scale; M9's reviews compared captures with the mockups without judging the readings' size on the real menu bar.
 - **Would have prevented it:** one check against a value fixed outside both code paths (the 1x drawing scaled by two), and comparing the real menu bar item with the system's own items in a capture.
 - **Rule:** none; `aRetinaItemIsDrawnAtTwoPixelsAPoint` now holds the scale.
+
+## [#81](https://github.com/AboulEinein/soroband/pull/81) ci: bound every job and sample a hung app test run (2026-11-17)
+
+Planned rounds: 2. Ran: 1 CodeRabbit CLI review, 2 blind rounds, 1 direct review. The hosted CodeRabbit review was left to the user, as they asked.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 1 Major | `first look`: a command that ignored the watchdog's stop kept the watchdog waiting forever; it now kills it 10 s after the stop (fc00d80). | none |
+| 1 | Opus | 3 Low | `first look`: the 10 s grace ended when either stopped process exited; Ctrl-C left the command running; no test covered the watchdog's exit status, which decides CI's App result. All fixed in fe819e2, with `watchdog-guard.sh`. | none |
+| 2 | Opus | 1 Low | `first look`: `docs/verification.md` said a stopped watchdog leaves nothing running; the guard checks only the command. Reworded in 2f674f1, with the guard's header. | none |
+| direct | Sonnet | none | Confirmed the reworded docs row matches the guard and found the same claim in the guard's header, fixed in the same commit. | none |
+
+**Retro.** Planned 2; took 2.
+- **Cause:** the first version of `watchdog.sh` had no test, so its stop paths (grace, signals, exit status) were checked only by reading.
+- **Would have prevented it:** writing `watchdog-guard.sh` with the script, as `install-guard.sh` was for `install.sh`.
+- **Rule:** none; `docs/checklist.md` already asks for a test that goes red on broken behavior, and the guard now holds it.
