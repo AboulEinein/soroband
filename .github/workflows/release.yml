@@ -104,7 +104,8 @@ jobs:
   publish:
     name: Publish the GitHub release
     needs: package
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Only a pushed tag publishes: a hand run, even on a tag, stops at the artifact.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
