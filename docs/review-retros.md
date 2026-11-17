@@ -1133,3 +1133,18 @@ Planned rounds: 1. Ran: 1 CodeRabbit CLI review, 1 blind round, 1 direct review.
 - **Cause:** the new trigger was checked against the steps it runs, not against the existing publish condition, which assumed only a push could carry a tag ref.
 - **Would have prevented it:** listing, for each trigger, what `github.ref` and `github.event_name` it sets before relying on either in a condition.
 - **Rule:** none.
+
+## [#80](https://github.com/AboulEinein/soroband/pull/80) feat(island): add a test moment button to settings (2026-11-16)
+
+Planned rounds: 1. Ran: 1 CodeRabbit CLI review, 2 blind rounds. The hosted CodeRabbit review was left to the user, as they asked.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | – | none |
+| 1 | Opus | 2 Low | `first look`: with Network joined switched off, any setting change closed the open or waiting test moment, because `reloadSettings` drops every moment `route()` no longer shows; `MomentQueue.remove` now keeps the test moment while the island is on (69fac6a). `first look`: the `soroband debug state` row in `verification.md` listed sources without the new `test` (69fac6a). | 2 Reach list |
+| 2 | Opus | none | – | none |
+
+**Retro.** Planned 1; took 2.
+- **Cause:** the Reach list covered the new entry point but not the other path into `MomentQueue`'s state, `reloadSettings`'s `queue.remove`, nor the doc copy of the moment sources the new `test` value widened.
+- **Would have prevented it:** checklist step 2 applied in full: a **Paths** line for every writer of the queue the new moment sits in, and a **Consumers** line for every list of the widened `source` value.
+- **Rule:** none.
