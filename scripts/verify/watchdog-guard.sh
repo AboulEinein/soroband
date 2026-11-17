@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Checks scripts/verify/watchdog.sh, which decides whether CI's app tests pass: it runs a copy of
 # the script in a scratch checkout with a stand-in test host, and checks each exit status and that
-# nothing it started is left running.
+# no command it started is left running.
 set -uo pipefail
 
 root=${0:A:h:h:h}
