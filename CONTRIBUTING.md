@@ -19,7 +19,7 @@ scripts/install.sh          # build, sign, install into /Applications and ~/.loc
 scripts/package.sh          # universal, ad hoc signed build/Soroband.dmg and its checksum, as a release ships
 ```
 
-A release is a version tag (`v0.1.0`) pushed by the maintainer: `.github/workflows/release.yml` runs CI, `scripts/package.sh`, and publishes the DMG with the version's section of [`CHANGELOG.md`](CHANGELOG.md) as its notes. The tag, `core/Cargo.toml`'s version and the app's `MARKETING_VERSION` must agree.
+A release is a version tag (`v0.1.0`) pushed by the maintainer: `.github/workflows/release.yml` runs CI, `scripts/package.sh`, and publishes the DMG with the version's section of [`CHANGELOG.md`](CHANGELOG.md) as its notes. The tag, `core/Cargo.toml`'s version and the app's `MARKETING_VERSION` must agree. To check a build before the tag, run the workflow by hand (Actions › Release › Run workflow, or `gh workflow run release.yml --ref <branch>`): it stops before publishing and keeps the DMG as an artifact. Pull requests run CI only.
 
 For development, `scripts/verify/run-app.sh` builds and launches the Debug app and prints its PID; `soroband debug state --json` (from `core/target/debug/soroband`) shows what it displays. The full set of verification tools is in [`docs/verification.md`](docs/verification.md#running-the-app).
 

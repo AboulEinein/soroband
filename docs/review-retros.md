@@ -1118,3 +1118,18 @@ Planned rounds: 2. Ran: 1 CodeRabbit CLI review, 2 blind rounds. The hosted Code
 - **Cause:** `actions/cache`'s post-step save was assumed to run on every job; it runs only when the job succeeds.
 - **Would have prevented it:** reading the action's save conditions before relying on it for a job that often fails or hangs.
 - **Rule:** none.
+
+## [#85](https://github.com/AboulEinein/soroband/pull/85) ci: run the Release workflow on tags and by hand, not on pull requests (2026-11-17)
+
+Planned rounds: 1. Ran: 1 CodeRabbit CLI review, 1 blind round, 1 direct review. The hosted CodeRabbit review was left to the user, as they asked.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | – | none |
+| 1 | Opus | 1 Low | `first look`: a hand run started on a tag (`--ref v0.1.0`) passed the publish job's tag check and would publish; the job now also requires a push event (71ec057). | none |
+| direct | Sonnet | none | Confirmed a hand run on a tag stops at the artifact and a tag push, or a re-run of one, still publishes. | none |
+
+**Retro.** Planned 1; took 1.
+- **Cause:** the new trigger was checked against the steps it runs, not against the existing publish condition, which assumed only a push could carry a tag ref.
+- **Would have prevented it:** listing, for each trigger, what `github.ref` and `github.event_name` it sets before relying on either in a condition.
+- **Rule:** none.
