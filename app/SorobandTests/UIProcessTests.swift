@@ -349,6 +349,7 @@ struct UIProcessTests {
         defer { ui.stop() }
         ui.send(.toggle(popover()))
         try await until { ui.phase == .ready && ui.isLingering }
+        try #require(ui.phase == .ready && ui.isLingering, "no countdown ran, so the kill would cancel nothing")
         kill(try #require(ui.processIdentifier, "the countdown ran out before the kill"), SIGKILL)
         try await until { ui.phase == .stopped }
 
@@ -610,11 +611,16 @@ struct UIHostTests {
         // Every settings reread assigns the delay again (`Usage.reloadSettings`); the same value
         // keeps the countdown where it is.
         // Set again 1 s into 2 s, checked at 2.5 s: before a restarted countdown's 3 s.
+        let clock = ContinuousClock()
+        let set = clock.now
         linger.delay = .seconds(2)
         try await Task.sleep(for: .seconds(1))
         try #require(quits == 0, "the sleep ran past the deadline, so this step would prove nothing")
         linger.delay = .seconds(2)
         try await Task.sleep(for: .milliseconds(1500))
+        try #require(
+            clock.now - set < .seconds(3),
+            "the sleep ran past a restarted countdown's deadline, so this step would prove nothing")
         #expect(quits == 1, "setting the same delay again restarted the countdown")
     }
 
