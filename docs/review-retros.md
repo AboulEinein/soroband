@@ -1074,6 +1074,66 @@ Planned rounds: 1. Ran: 2 CodeRabbit CLI reviews (the first lost its connection)
 - **Would have prevented it:** one check against a value fixed outside both code paths (the 1x drawing scaled by two), and comparing the real menu bar item with the system's own items in a capture.
 - **Rule:** none; `aRetinaItemIsDrawnAtTwoPixelsAPoint` now holds the scale.
 
+## [#82](https://github.com/AboulEinein/soroband/pull/82) fix(app): run History's and the popover's reads on Dispatch threads (2026-11-16)
+
+Planned rounds: 2. Ran: 1 CodeRabbit CLI review, 1 blind round. The hosted CodeRabbit review was left to the user, as they asked.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | | none |
+| 1 | Opus | none | Nothing to act on; the skill posts no review without findings, so [a PR comment](https://github.com/AboulEinein/soroband/pull/82) records the round on 91fba5d. | none |
+
+**Retro.** Planned 2; took 1. The hang it fixes came in with M9's `HistoryModelTests` (3621f8d): gated reads held Swift concurrency's threads, three on CI's runner, and hung about half of the App test runs from 2026-11-14 until this fix.
+- **Cause:** none for this PR. For the hang: M9's reviews and local runs could not see it, because this Mac has 12 threads and the test needs every one held.
+- **Would have prevented it:** running the app tests with one Swift concurrency thread (`TEST_RUNNER_LIBDISPATCH_COOPERATIVE_POOL_STRICT=1`), where a blocked thread hangs every run.
+- **Rule:** none yet; running CI's and `prepush.sh`'s app tests that way is proposed as its own PR.
+
+## [#81](https://github.com/AboulEinein/soroband/pull/81) ci: bound every job and sample a hung app test run (2026-11-17)
+
+Planned rounds: 2. Ran: 1 CodeRabbit CLI review, 2 blind rounds, 1 direct review. The hosted CodeRabbit review was left to the user, as they asked.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 1 Major | `first look`: a command that ignored the watchdog's stop kept the watchdog waiting forever; it now kills it 10 s after the stop (fc00d80). | none |
+| 1 | Opus | 3 Low | `first look`: the 10 s grace ended when either stopped process exited; Ctrl-C left the command running; no test covered the watchdog's exit status, which decides CI's App result. All fixed in fe819e2, with `watchdog-guard.sh`. | none |
+| 2 | Opus | 1 Low | `first look`: `docs/verification.md` said a stopped watchdog leaves nothing running; the guard checks only the command. Reworded in 2f674f1, with the guard's header. | none |
+| direct | Sonnet | none | Confirmed the reworded docs row matches the guard and found the same claim in the guard's header, fixed in the same commit. | none |
+
+**Retro.** Planned 2; took 2.
+- **Cause:** the first version of `watchdog.sh` had no test, so its stop paths (grace, signals, exit status) were checked only by reading.
+- **Would have prevented it:** writing `watchdog-guard.sh` with the script, as `install-guard.sh` was for `install.sh`.
+- **Rule:** none; `docs/checklist.md` already asks for a test that goes red on broken behavior, and the guard now holds it.
+
+## [#83](https://github.com/AboulEinein/soroband/pull/83) ci: cache cbindgen instead of building it every run (2026-11-17)
+
+Planned rounds: 2. Ran: 1 CodeRabbit CLI review, 2 blind rounds. The hosted CodeRabbit review was left to the user, as they asked.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | – | none |
+| 1 | Opus | 1 Low, 1 unrated | `first look`: the Release workflow's pull-request paths did not name the new action; `actions/cache` saved only when the whole job passed, so a hung or failed App job threw the build away. Both fixed in bf5964a (paths entry; restore and save split, saving right after the build). | none |
+| 2 | Opus | none | Confirmed both fixes and the save-then-restore evidence (jobs 133425088265 and 133441991282). | none |
+
+**Retro.** Planned 2; took 2.
+- **Cause:** `actions/cache`'s post-step save was assumed to run on every job; it runs only when the job succeeds.
+- **Would have prevented it:** reading the action's save conditions before relying on it for a job that often fails or hangs.
+- **Rule:** none.
+
+## [#85](https://github.com/AboulEinein/soroband/pull/85) ci: run the Release workflow on tags and by hand, not on pull requests (2026-11-17)
+
+Planned rounds: 1. Ran: 1 CodeRabbit CLI review, 1 blind round, 1 direct review. The hosted CodeRabbit review was left to the user, as they asked.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | none | – | none |
+| 1 | Opus | 1 Low | `first look`: a hand run started on a tag (`--ref v0.1.0`) passed the publish job's tag check and would publish; the job now also requires a push event (71ec057). | none |
+| direct | Sonnet | none | Confirmed a hand run on a tag stops at the artifact and a tag push, or a re-run of one, still publishes. | none |
+
+**Retro.** Planned 1; took 1.
+- **Cause:** the new trigger was checked against the steps it runs, not against the existing publish condition, which assumed only a push could carry a tag ref.
+- **Would have prevented it:** listing, for each trigger, what `github.ref` and `github.event_name` it sets before relying on either in a condition.
+- **Rule:** none.
+
 ## [#77](https://github.com/AboulEinein/soroband/pull/77) fix(app): reopen the popover on a click right after it closed (2026-11-16)
 
 Planned rounds: 1. Ran: 2 CodeRabbit CLI runs, 2 blind rounds, 1 direct review, 1 CodeRabbit review.
