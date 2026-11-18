@@ -14,6 +14,15 @@ enum Snapshot {
     static let channelTolerance = 2
     /// Snapshots are rendered and compared in this color space, whatever the display's.
     nonisolated static let colorSpace = NSColorSpace.displayP3
+    /// Snapshots are rendered in this time zone, whatever the Mac's: a chart places a day's bar
+    /// by its start, which moves with the zone. UTC+4 with no daylight saving time.
+    static let timeZone = TimeZone(identifier: "Asia/Dubai")!
+    /// The calendar to build a snapshot's dates with, in `timeZone`.
+    static let calendar = {
+        var calendar = Calendar.current
+        calendar.timeZone = timeZone
+        return calendar
+    }()
 
     /// Renders `view` in dark mode, or in `scheme`, at its fitting size, or at `size`, hosted in a
     /// window as the app shows it: `ImageRenderer` leaves out AppKit-backed controls such as
@@ -51,7 +60,9 @@ enum Snapshot {
     static func render(
         _ view: some View, size: CGSize?, scheme: ColorScheme = .dark, windowColorSpace: NSColorSpace? = nil
     ) -> CGImage? {
-        withScreensInSnapshotColorSpace { draw(view, size: size, scheme: scheme, windowColorSpace: windowColorSpace) }
+        withScreensInSnapshotColorSpace {
+            inSnapshotTimeZone { draw(view, size: size, scheme: scheme, windowColorSpace: windowColorSpace) }
+        }
     }
 
     private static func draw(
@@ -93,6 +104,22 @@ enum Snapshot {
         let pinned = class_getInstanceMethod(NSScreen.self, #selector(getter: NSScreen.snapshotColorSpace))!
         method_exchangeImplementations(real, pinned)
         defer { method_exchangeImplementations(real, pinned) }
+        return body()
+    }
+
+    /// Views read `Calendar.current`, `TimeZone.current` and the default date formats while they
+    /// draw, and only the `TZ` variable moves all three (`NSTimeZone.default` moves the calendar
+    /// alone), so while `body` runs the process's time zone is `timeZone`. `body` runs on the main
+    /// actor without suspending, and every test that reads the current time zone runs on the main
+    /// actor, so none sees it.
+    private static func inSnapshotTimeZone<T>(_ body: () -> T) -> T {
+        let real = getenv("TZ").map { String(cString: $0) }
+        setenv("TZ", timeZone.identifier, 1)
+        NSTimeZone.resetSystemTimeZone()
+        defer {
+            if let real { setenv("TZ", real, 1) } else { unsetenv("TZ") }
+            NSTimeZone.resetSystemTimeZone()
+        }
         return body()
     }
 

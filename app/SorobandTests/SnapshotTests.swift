@@ -68,11 +68,11 @@ struct SnapshotTests {
             ])
     }()
 
-    /// 21:30 local time on 2026-10-27, and the day's hours before it on Home-5G: quiet at night,
+    /// 21:30 in the snapshots' time zone on 2026-10-27, and the day's hours before it on Home-5G: quiet at night,
     /// busy through the day; the hour in progress comes from the live total.
-    static let now = Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 21, minute: 30))!
+    static let now = Snapshot.calendar.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 21, minute: 30))!
     static let summary = PopoverSummary(
-        todayStart: Calendar.current.startOfDay(for: now),
+        todayStart: Snapshot.calendar.startOfDay(for: now),
         storedHours: [4, 2, 1, 1, 0, 1, 3, 12, 40, 80, 100, 74, 52, 60, 96, 122, 84, 70, 52, 60, 34, 0, 0, 0]
             .map { UInt64($0) * 1_000_000 },
         week: [6.1, 8.4, 7.2, 9.8, 8.8, 10.4, 1.5].map { UInt64($0 * 1_000_000_000) },
@@ -92,8 +92,8 @@ struct SnapshotTests {
     ) -> some View {
         let content = PopoverContent.make(
             status: status, today: Self.today, registry: Self.registry, current: current,
-            // 18:00 local time on 2026-10-27.
-            connectedSince: Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 18)),
+            // 18:00 in the snapshots' time zone on 2026-10-27.
+            connectedSince: Snapshot.calendar.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 18)),
             allNetworks: allNetworks, locationAllowed: locationAllowed, summary: Self.summary, now: Self.now)
         return PopoverView(
             content: content, tab: .constant(tab), allNetworks: .constant(allNetworks), animatesOpen: false
@@ -270,7 +270,7 @@ struct SnapshotTests {
     ]
 
     static let october: HistoryData = {
-        let calendar = Calendar.current
+        let calendar = Snapshot.calendar
         let start = calendar.date(from: DateComponents(year: 2026, month: 10, day: 1))!
         var bars: [HistoryData.Bar] = []
         var perNetwork: [Int64: UInt64] = [:]
@@ -326,7 +326,7 @@ struct SnapshotTests {
     func history(_ range: HistoryRange, network: Int64? = nil, expandedApp: String? = nil, hover: Date? = nil)
         -> some View
     {
-        let calendar = Calendar.current
+        let calendar = Snapshot.calendar
         let now = calendar.date(from: DateComponents(year: 2026, month: 10, day: 28))!
         let anchor = calendar.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 9))!
         let query = HistoryQuery.make(
@@ -346,7 +346,7 @@ struct SnapshotTests {
     }
 
     @Test func historyMonthWithAnAppOpenAndADayHovered() throws {
-        let hover = Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 19, hour: 12))
+        let hover = Snapshot.calendar.date(from: DateComponents(year: 2026, month: 10, day: 19, hour: 12))
         try Snapshot.verify(
             history(.month, expandedApp: "process:huddle", hover: hover), named: "history-month-expanded",
             size: CGSize(width: 780, height: 1180))
@@ -380,7 +380,7 @@ struct SnapshotTests {
     @Test func popoverResources() throws {
         let content = PopoverContent.make(
             status: Self.status, today: Self.today, registry: Self.registry, current: Self.home,
-            connectedSince: Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 18)),
+            connectedSince: Snapshot.calendar.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 18)),
             allNetworks: false, locationAllowed: true, summary: Self.summary, now: Self.now)
         let today = ResourceHistoryData(
             firstHour: 0, total: .zero, previous: nil, bars: [], apps: Self.resourceApps, busiestDay: nil, days: 1,
@@ -404,7 +404,7 @@ struct SnapshotTests {
 
     /// October's CPU, a day per bar, from the data page's October shape.
     func resourceHistory(_ measure: ResourceMeasure) -> some View {
-        let calendar = Calendar.current
+        let calendar = Snapshot.calendar
         let now = calendar.date(from: DateComponents(year: 2026, month: 10, day: 28))!
         let anchor = calendar.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 9))!
         let query = ResourceQuery.make(
@@ -458,7 +458,7 @@ struct SnapshotTests {
     /// A Day page minute by minute, at 15:04 (`docs/mockups/resources.html`, 3A): a CPU spike from
     /// 15:00 to 15:15 under memory pressure.
     @Test func historyCPUDayByTheMinute() throws {
-        let calendar = Calendar.current
+        let calendar = Snapshot.calendar
         let day = calendar.date(from: DateComponents(year: 2026, month: 11, day: 12))!
         let start = Int64(day.timeIntervalSince1970)
         let minutes = (0..<1440).map { m -> MinuteRecord.Minute in
