@@ -112,6 +112,7 @@ struct UISnapshot: Codable, Equatable {
     var island = IslandSettings()
     var theme = Theme()
     var appIcon = AppIcon.graphite
+    var uiLinger = UILinger.default
 
     @MainActor
     static func current() -> UISnapshot {
@@ -121,7 +122,7 @@ struct UISnapshot: Codable, Equatable {
             menuBarLayout: usage.menuBarLayout, resources: usage.resources, gauges: usage.gauges,
             resetHour: usage.resetHour, current: NetworkMonitor.shared.current,
             connectedSince: NetworkMonitor.shared.connectedSince, island: IslandController.shared.settings,
-            theme: usage.theme, appIcon: usage.appIcon)
+            theme: usage.theme, appIcon: usage.appIcon, uiLinger: usage.uiLinger)
     }
 }
 
@@ -179,8 +180,9 @@ extension UIRequest {
 /// The UI process, from the menu bar process: a second instance of Soroband.app started with
 /// `--ui`, which shows the popover, Settings, History and the Welcome window, so the menu bar
 /// process never holds a window and keeps its launch footprint. It starts at the first request for
-/// a window. This process quits it 10 minutes after its last window closed (`Linger`), and it quits
-/// by itself when this process quits and its standard input closes.
+/// a window. This process quits it once its last window has been closed for the time the
+/// `ui_linger` setting gives (`Linger`), or never with `always`, and it quits by itself when this
+/// process quits and its standard input closes.
 @MainActor
 final class UIProcess {
     static let shared = UIProcess()
@@ -210,7 +212,10 @@ final class UIProcess {
 
     /// Counts down to quitting the UI process while none of its windows is open (`Linger`).
     private var linger: Linger?
-    private let lingerDelay: Duration
+    /// How long the UI process runs with no window open (`UILinger`); nil keeps it running.
+    var lingerDelay: Duration? {
+        didSet { linger?.delay = lingerDelay }
+    }
     private let debugStateWait: Duration
     private let executableURL: URL?
     private let snapshot: @MainActor () -> UISnapshot
@@ -224,7 +229,7 @@ final class UIProcess {
         executableURL: URL? = Bundle.main.executableURL,
         snapshot: @escaping @MainActor () -> UISnapshot = UISnapshot.current,
         handle: @escaping @MainActor (UIEvent) -> Void = UIProcess.apply,
-        lingerDelay: Duration = .seconds(600),
+        lingerDelay: Duration? = UILinger.default.delay,
         debugStateWait: Duration = .seconds(1)
     ) {
         self.lingerDelay = lingerDelay
@@ -396,6 +401,8 @@ final class UIProcess {
         isPopoverShown = false
         queue = UIQueue()
         sent = nil
+        // A countdown outlives its `Linger`, and would quit the next UI process.
+        linger?.cancel()
         linger = nil
         answerDebugState(nil)
     }
@@ -445,19 +452,23 @@ final class UIProcess {
     }
 }
 
-/// When the UI process quits: `delay` after the last of its windows closed. The menu bar process
-/// runs it, so a request it sends can never meet a UI process that already decided to quit.
+/// When the UI process quits: `delay` after the last of its windows closed, or never while
+/// `delay` is nil. The menu bar process runs it, so a request it sends can never meet a UI process
+/// that already decided to quit.
 @MainActor
 final class Linger {
     var windowsOpen = false {
         didSet { if windowsOpen != oldValue { update() } }
     }
-    private let delay: Duration
+    /// A new delay counts in full from the change.
+    var delay: Duration? {
+        didSet { if delay != oldValue { update() } }
+    }
     private let quit: () -> Void
     private var countdown: Task<Void, Never>?
 
     /// Counts from the start: a UI process whose first window never opened quits too.
-    init(delay: Duration, quit: @escaping () -> Void) {
+    init(delay: Duration?, quit: @escaping () -> Void) {
         self.delay = delay
         self.quit = quit
         update()
@@ -465,14 +476,57 @@ final class Linger {
 
     var isCounting: Bool { countdown != nil }
 
+    /// Stops the countdown for good, for a UI process that is gone.
+    func cancel() {
+        countdown?.cancel()
+        countdown = nil
+    }
+
     private func update() {
         countdown?.cancel()
         countdown = nil
-        guard !windowsOpen else { return }
-        countdown = Task { [delay, quit] in
+        guard !windowsOpen, let delay else { return }
+        countdown = Task { [quit] in
             try? await Task.sleep(for: delay)
             guard !Task.isCancelled else { return }
             quit()
+        }
+    }
+}
+
+/// How long the UI process keeps running after its last window closes: the core's `ui_linger`.
+enum UILinger: String, Codable, CaseIterable, Identifiable {
+    case tenMinutes = "10m"
+    case thirtyMinutes = "30m"
+    case oneHour = "1h"
+    case fourHours = "4h"
+    /// The UI process runs until Soroband quits.
+    case always
+
+    static let settingKey = "ui_linger"
+    /// The core's default.
+    static let `default` = UILinger.oneHour
+
+    var id: String { rawValue }
+
+    /// Nil for `always`.
+    var delay: Duration? {
+        switch self {
+        case .tenMinutes: .seconds(600)
+        case .thirtyMinutes: .seconds(1800)
+        case .oneHour: .seconds(3600)
+        case .fourHours: .seconds(14_400)
+        case .always: nil
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .tenMinutes: "10 minutes"
+        case .thirtyMinutes: "30 minutes"
+        case .oneHour: "1 hour"
+        case .fourHours: "4 hours"
+        case .always: "Always"
         }
     }
 }

@@ -265,7 +265,7 @@ A second instance of Soroband.app, started with `--ui` by the menu bar process, 
 _Avoid_: helper, History process (its earlier, History-only form)
 
 **Linger**:
-The 10 minutes the menu bar process lets a UI process wait after its last window closed before it quits it. A popover opened within it opens warm.
+The time the menu bar process lets a UI process wait after its last window closed before it quits it: the `ui_linger` setting, an hour unless set, or never with `always`. A popover opened within it opens warm.
 _Avoid_: keep-alive, grace period
 
 **Theme**:

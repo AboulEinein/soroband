@@ -339,6 +339,28 @@ struct UIProcessTests {
         #expect(standIn.requests.last == .quit)
     }
 
+    @Test func aUIProcessThatDiedMidCountdownLeavesItsReplacementAlone() async throws {
+        // The first UI process dies as soon as its 3 s countdown runs; its replacement is kept
+        // with `always`, so nothing may quit it when the first countdown would have run out.
+        let standIn = try StandIn(answers: ["showPopover": .windows(open: false)])
+        let ui = UIProcess(
+            executableURL: standIn.script, snapshot: { Self.snapshot }, handle: { _ in },
+            lingerDelay: .seconds(3))
+        defer { ui.stop() }
+        ui.send(.toggle(popover()))
+        try await until { ui.phase == .ready && ui.isLingering }
+        try #require(ui.phase == .ready && ui.isLingering, "no countdown ran, so the kill would cancel nothing")
+        kill(try #require(ui.processIdentifier, "the countdown ran out before the kill"), SIGKILL)
+        try await until { ui.phase == .stopped }
+
+        ui.lingerDelay = nil
+        ui.send(.toggle(popover(1)))
+        try await until { ui.phase == .ready }
+        try await Task.sleep(for: .milliseconds(3500))
+        #expect(!standIn.requests.contains(.quit), "the dead process's countdown quit its replacement")
+        #expect(ui.phase == .ready)
+    }
+
     @Test func changesMadeInTheUIProcessReachTheMenuBarProcess() async throws {
         let changes: [UIEvent] = [
             .live(true), .setResetHour(4), .updateNetwork(id: 2, name: "Desk", kind: .ethernet),
@@ -570,6 +592,39 @@ struct UIHostTests {
         #expect(quits == 0, "closing it starts the full linger again")
         try await until { quits == 1 }
         #expect(quits == 1)
+    }
+
+    @Test func withNoDelayItNeverQuitsUntilADelayIsSet() async throws {
+        let clock = ContinuousClock()
+        var quits = 0
+        var quitAt: ContinuousClock.Instant?
+        let linger = Linger(delay: nil) {
+            quits += 1
+            quitAt = clock.now
+        }
+        #expect(!linger.isCounting, "always: no window open, and nothing counts down")
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(quits == 0)
+
+        linger.delay = .seconds(1)
+        #expect(linger.isCounting, "a delay set while no window is open starts the countdown")
+        linger.delay = nil
+        #expect(!linger.isCounting, "always again stops it")
+        try await Task.sleep(for: .milliseconds(1500))
+        #expect(quits == 0)
+
+        // Every settings reread assigns the delay again (`Usage.reloadSettings`); the same value
+        // keeps the countdown where it is.
+        // Set again 1 s into 2 s: the quit comes at 2 s, a restarted countdown's at 3 s at the
+        // earliest, however late this test's own sleeps wake.
+        let set = clock.now
+        linger.delay = .seconds(2)
+        try await Task.sleep(for: .seconds(1))
+        try #require(quits == 0, "the sleep ran past the deadline, so this step would prove nothing")
+        linger.delay = .seconds(2)
+        try await until { quits == 1 }
+        let quit = try #require(quitAt, "the countdown never ran out")
+        #expect(quit - set < .seconds(3), "setting the same delay again restarted the countdown")
     }
 
     @Test func aUIProcessWhoseFirstWindowNeverOpenedQuitsToo() async throws {
