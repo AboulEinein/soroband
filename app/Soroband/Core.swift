@@ -21,16 +21,22 @@ enum Core {
     }()
 
     #if DEBUG
-    /// `xcodebuild test` launches the Debug app as its test host. Unless `SOROBAND_DATA_DIR` is
-    /// set, points it at a new directory under the temporary directory, so its engine and its
-    /// tests' settings stay out of the running Debug app's data, and test runs in other worktrees
-    /// stay out of each other's. Call before anything reads the data directory: the environment
-    /// carries it to `SettingsListener` and to a UI process the test host starts.
+    /// The test host's time zone, whatever the Mac's: UTC+4 with no daylight saving time, the
+    /// zone the snapshots in `tests/snapshots/` were recorded in. A chart places a day's bar by
+    /// its start and a view formats times in the current zone, so both move with it.
+    static let testHostTimeZone = "Asia/Dubai"
+
+    /// `xcodebuild test` launches the Debug app as its test host. Sets its time zone to
+    /// `testHostTimeZone`, and unless `SOROBAND_DATA_DIR` is set, points it at a new directory
+    /// under the temporary directory, so its engine and its tests' settings stay out of the
+    /// running Debug app's data, and test runs in other worktrees stay out of each other's. Call
+    /// before anything reads the time zone or the data directory: the environment carries both to
+    /// a UI process the test host starts, and the data directory to `SettingsListener`.
     static func isolateTestHost() {
         let environment = ProcessInfo.processInfo.environment
-        guard environment["XCTestConfigurationFilePath"] != nil,
-            environment["SOROBAND_DATA_DIR"]?.isEmpty ?? true
-        else { return }
+        guard environment["XCTestConfigurationFilePath"] != nil else { return }
+        setenv("TZ", testHostTimeZone, 1)
+        guard environment["SOROBAND_DATA_DIR"]?.isEmpty ?? true else { return }
         let dir = FileManager.default.temporaryDirectory.appending(
             path: "Soroband Tests \(UUID().uuidString)", directoryHint: .isDirectory)
         setenv("SOROBAND_DATA_DIR", dir.path, 1)
