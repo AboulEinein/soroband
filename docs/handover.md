@@ -63,7 +63,7 @@ The user runs these on a build of `main`: the installed one (`scripts/install.sh
 
 The user runs these, on a build of `main` (`scripts/install.sh`, or `scripts/verify/run-app.sh` for a Debug build).
 
-1. **Click.** Click the menu bar item: the popover opens under it; close it and click again within the hour: it opens as fast as before.
+1. **Click.** Click the menu bar item: the popover opens under it; close it and click again before the linger runs out (an hour unless `ui_linger` is set): it opens as fast as before.
 2. **Click after the linger.** Quit the UI process (`kill <pid of the --ui process>`, as after an idle hour) and click the item: the popover opens, later than in step 1. Close it, quit the UI process again, and click twice quickly: it opens, and the second click closes it, as on `main`.
 3. **Toggle and click-outside.** With the popover open, click the item: it closes and stays closed. Open it and click elsewhere (the desktop, another app's window, the empty menu bar): it closes, and an app you clicked into keeps the keyboard. Open it and press Escape: it closes, from the menu bar's overflow too.
 4. **Keyboard and focus.** Open the popover: it takes the keyboard (Escape works; Tab moves between its controls), and the app you were typing in gets the keyboard back when it closes. Starting the UI process never takes the keyboard from the app you are typing in. Opened from the menu bar's overflow it takes the keyboard too.
@@ -77,7 +77,7 @@ The user runs these, on a build of `main` (`scripts/install.sh`, or `scripts/ver
 1. **History from the popover.** Click the menu bar item, then History…: the History window opens in front, on this month, and takes the keyboard (agents can only open it in the background).
 2. **Ranges and networks by hand.** Click Day, Week, Month, Year, All Time, previous, Today and next; pick a network in the sidebar and All Networks again; hover a bar (tooltip) and a heatmap cell (its value in the card's header); click an app to see its network split.
 3. **Export CSV.** Click the export button, save, and open the file: one line per hour, network and app of the range shown.
-4. **It goes away.** With `ui_linger` on a time (not `always`), close the window: after the linger this build's UI process is gone (`pgrep -fl -- '--ui'` lists no process from this build's path; an installed or other worktree build may run its own).
+4. **It goes away.** With `ui_linger` on a time (not `always`), close every Soroband window: after the linger this build's UI process is gone (`pgrep -fl -- '--ui'` lists no process from this build's path; an installed or other worktree build may run its own).
 
 ### M0 hand checklist
 

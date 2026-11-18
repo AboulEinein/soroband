@@ -80,13 +80,17 @@ struct UsageTests {
         }
         var changes = 0
         usage.onChange = { changes += 1 }
-        for linger in UILinger.allCases where linger.rawValue != original {
+        // The original value goes last, written after another one, so the default `1h` is saved
+        // explicitly too.
+        let lingers =
+            UILinger.allCases.filter { $0.rawValue != original } + [try #require(UILinger(rawValue: original))]
+        for linger in lingers {
             #expect(Core.setSetting(UILinger.settingKey, to: linger.rawValue), "the core takes \(linger.rawValue)")
             usage.reloadSettings()
             #expect(usage.uiLinger == linger)
             #expect(UIProcess.shared.lingerDelay == linger.delay)
         }
-        #expect(changes == UILinger.allCases.count - 1, "each change is announced, so the snapshot carries it")
+        #expect(changes == UILinger.allCases.count, "each change is announced, so the snapshot carries it")
     }
 
     /// `soroband config set accent` reaches the UI process: the menu bar process's `Usage` keeps
