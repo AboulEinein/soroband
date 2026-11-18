@@ -1161,6 +1161,7 @@ Planned rounds: 1. Ran: 1 CodeRabbit CLI review, 2 blind rounds. The hosted Code
 | CodeRabbit | CodeRabbit CLI | none | – | none |
 | 1 | Opus | 2 Low | `first look`: with Network joined switched off, any setting change closed the open or waiting test moment, because `reloadSettings` drops every moment `route()` no longer shows; `MomentQueue.remove` now keeps the test moment while the island is on (69fac6a). `first look`: the `soroband debug state` row in `verification.md` listed sources without the new `test` (69fac6a). | 2 Reach list |
 | 2 | Opus | none | – | none |
+| CodeRabbit | CodeRabbit | none | On 67934cd, asked for with `@coderabbitai review`: the repository gets no automatic reviews under 10 stars. | none |
 
 **Retro.** Planned 1; took 2.
 - **Cause:** the Reach list covered the new entry point but not the other path into `MomentQueue`'s state, `reloadSettings`'s `queue.remove`, nor the doc copy of the moment sources the new `test` value widened.
@@ -1169,7 +1170,7 @@ Planned rounds: 1. Ran: 1 CodeRabbit CLI review, 2 blind rounds. The hosted Code
 
 ## [#86](https://github.com/AboulEinein/soroband/pull/86) fix(test): pin snapshots' time zone and re-record for macOS 27.2.1 (2026-11-18)
 
-Planned rounds: 1. Ran: 2 CodeRabbit CLI runs, 2 blind rounds. The hosted CodeRabbit review is left to the user.
+Planned rounds: 1. Ran: 2 CodeRabbit CLI runs, 2 blind rounds, 1 CodeRabbit review.
 
 | Review | Model | Findings | Origins | Caught earlier by |
 | --- | --- | --- | --- | --- |
@@ -1177,6 +1178,7 @@ Planned rounds: 1. Ran: 2 CodeRabbit CLI runs, 2 blind rounds. The hosted CodeRa
 | 1 | Opus | 1 Low | `first look`: the comment on `inSnapshotTimeZone` said no other code saw the swapped `TZ`, but the test host's meter engine reads the zone with `localtime_r` on its own thread, so a tick during a draw took another start of day; 92ee351 sets `TZ` once in `Core.isolateTestHost` instead. | 1 Reach list |
 | CodeRabbit | CodeRabbit CLI | 1 Major | `first look`: whether Foundation caches the Mac's zone before `isolateTestHost` sets `TZ`; not valid (nothing before it reads the zone, and `theTestHostRunsInItsOwnTimeZone` passes in three host zones). | none |
 | 2 | Opus | none | – | none |
+| CodeRabbit | CodeRabbit | none | On 67934cd, asked for with `@coderabbitai review`: the repository gets no automatic reviews under 10 stars. | none |
 
 **Retro.** Planned 1; took 2.
 - **Cause:** the first fix swapped `TZ`, process-wide state, around each snapshot draw, and the Reach list's Paths line counted only the Swift tests as its readers, missing the meter engine's thread in the same test host.
