@@ -1166,3 +1166,11 @@ Planned rounds: 1. Ran: 1 CodeRabbit CLI review, 2 blind rounds. The hosted Code
 - **Cause:** the Reach list covered the new entry point but not the other path into `MomentQueue`'s state, `reloadSettings`'s `queue.remove`, nor the doc copy of the moment sources the new `test` value widened.
 - **Would have prevented it:** checklist step 2 applied in full: a **Paths** line for every writer of the queue the new moment sits in, and a **Consumers** line for every list of the widened `source` value.
 - **Rule:** none.
+
+## [#86](https://github.com/AboulEinein/soroband/pull/86) fix(test): pin snapshots' time zone and re-record for macOS 27.2.1 (2026-11-18)
+
+Planned rounds: 1.
+
+| Review | Model | Findings | Origins | Caught earlier by |
+| --- | --- | --- | --- | --- |
+| CodeRabbit | CodeRabbit CLI | 1 Major | `first look`: whether `PopoverContent.make`, run before the zone scope, captures the host zone; not valid (no calendar or formatting in it; the popover snapshots pass in three zones). | none |
