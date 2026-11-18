@@ -1169,10 +1169,16 @@ Planned rounds: 1. Ran: 1 CodeRabbit CLI review, 2 blind rounds. The hosted Code
 
 ## [#86](https://github.com/AboulEinein/soroband/pull/86) fix(test): pin snapshots' time zone and re-record for macOS 27.2.1 (2026-11-18)
 
-Planned rounds: 1.
+Planned rounds: 1. Ran: 2 CodeRabbit CLI runs, 2 blind rounds. The hosted CodeRabbit review is left to the user.
 
 | Review | Model | Findings | Origins | Caught earlier by |
 | --- | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | 1 Major | `first look`: whether `PopoverContent.make`, run before the zone scope, captures the host zone; not valid (no calendar or formatting in it; the popover snapshots pass in three zones). | none |
 | 1 | Opus | 1 Low | `first look`: the comment on `inSnapshotTimeZone` said no other code saw the swapped `TZ`, but the test host's meter engine reads the zone with `localtime_r` on its own thread, so a tick during a draw took another start of day; 92ee351 sets `TZ` once in `Core.isolateTestHost` instead. | 1 Reach list |
 | CodeRabbit | CodeRabbit CLI | 1 Major | `first look`: whether Foundation caches the Mac's zone before `isolateTestHost` sets `TZ`; not valid (nothing before it reads the zone, and `theTestHostRunsInItsOwnTimeZone` passes in three host zones). | none |
+| 2 | Opus | none | – | none |
+
+**Retro.** Planned 1; took 2.
+- **Cause:** the first fix swapped `TZ`, process-wide state, around each snapshot draw, and the Reach list's Paths line counted only the Swift tests as its readers, missing the meter engine's thread in the same test host.
+- **Would have prevented it:** checklist step 2's Paths group applied to process state: every reader of a changed environment variable, other threads and the Rust core included.
+- **Rule:** none.
