@@ -1174,3 +1174,5 @@ Planned rounds: 1.
 | Review | Model | Findings | Origins | Caught earlier by |
 | --- | --- | --- | --- | --- |
 | CodeRabbit | CodeRabbit CLI | 1 Major | `first look`: whether `PopoverContent.make`, run before the zone scope, captures the host zone; not valid (no calendar or formatting in it; the popover snapshots pass in three zones). | none |
+| 1 | Opus | 1 Low | `first look`: the comment on `inSnapshotTimeZone` said no other code saw the swapped `TZ`, but the test host's meter engine reads the zone with `localtime_r` on its own thread, so a tick during a draw took another start of day; 92ee351 sets `TZ` once in `Core.isolateTestHost` instead. | 1 Reach list |
+| CodeRabbit | CodeRabbit CLI | 1 Major | `first look`: whether Foundation caches the Mac's zone before `isolateTestHost` sets `TZ`; not valid (nothing before it reads the zone, and `theTestHostRunsInItsOwnTimeZone` passes in three host zones). | none |
