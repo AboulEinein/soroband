@@ -595,8 +595,13 @@ struct UIHostTests {
     }
 
     @Test func withNoDelayItNeverQuitsUntilADelayIsSet() async throws {
+        let clock = ContinuousClock()
         var quits = 0
-        let linger = Linger(delay: nil) { quits += 1 }
+        var quitAt: ContinuousClock.Instant?
+        let linger = Linger(delay: nil) {
+            quits += 1
+            quitAt = clock.now
+        }
         #expect(!linger.isCounting, "always: no window open, and nothing counts down")
         try await Task.sleep(for: .milliseconds(200))
         #expect(quits == 0)
@@ -610,18 +615,16 @@ struct UIHostTests {
 
         // Every settings reread assigns the delay again (`Usage.reloadSettings`); the same value
         // keeps the countdown where it is.
-        // Set again 1 s into 2 s, checked at 2.5 s: before a restarted countdown's 3 s.
-        let clock = ContinuousClock()
+        // Set again 1 s into 2 s: the quit comes at 2 s, a restarted countdown's at 3 s at the
+        // earliest, however late this test's own sleeps wake.
         let set = clock.now
         linger.delay = .seconds(2)
         try await Task.sleep(for: .seconds(1))
         try #require(quits == 0, "the sleep ran past the deadline, so this step would prove nothing")
         linger.delay = .seconds(2)
-        try await Task.sleep(for: .milliseconds(1500))
-        try #require(
-            clock.now - set < .seconds(3),
-            "the sleep ran past a restarted countdown's deadline, so this step would prove nothing")
-        #expect(quits == 1, "setting the same delay again restarted the countdown")
+        try await until { quits == 1 }
+        let quit = try #require(quitAt, "the countdown never ran out")
+        #expect(quit - set < .seconds(3), "setting the same delay again restarted the countdown")
     }
 
     @Test func aUIProcessWhoseFirstWindowNeverOpenedQuitsToo() async throws {
