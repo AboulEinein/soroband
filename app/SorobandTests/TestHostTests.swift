@@ -11,6 +11,12 @@ struct TestHostTests {
         #expect(Core.dataDirectory.standardizedFileURL.path != debugApp.standardizedFileURL.path)
     }
 
+    /// Snapshots and the tests that read `Calendar.current` see one zone on every Mac.
+    @Test func theTestHostRunsInItsOwnTimeZone() {
+        #expect(TimeZone.current.identifier == Core.testHostTimeZone)
+        #expect(ProcessInfo.processInfo.environment["TZ"] == Core.testHostTimeZone)
+    }
+
     /// A UI process the test host starts inherits its environment, and `SettingsListener` names
     /// its notification after `SOROBAND_DATA_DIR`, so both must find the directory there.
     @Test func theTestHostsDataDirectoryIsInItsEnvironment() throws {

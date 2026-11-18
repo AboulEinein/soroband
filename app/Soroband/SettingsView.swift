@@ -148,7 +148,9 @@ struct SettingsView: View {
             case .menuBar:
                 MenuBarSettings(usage: usage)
             case .island:
-                IslandSettingsView(settings: usage.island, set: { usage.setSetting($0, to: $1) })
+                IslandSettingsView(
+                    settings: usage.island, set: { usage.setSetting($0, to: $1) },
+                    showTestMoment: { usage.showTestMoment() })
             case .resources:
                 ResourceSettingsView(
                     settings: usage.resources, gauges: usage.gauges, set: { usage.setSetting($0, to: $1) })

@@ -95,6 +95,12 @@ final class Usage {
         registryRereads = 2
     }
 
+    /// Shows a sample moment on the island, from Settings › Island.
+    func showTestMoment() {
+        if UIHost.forward(.showTestMoment) { return }
+        IslandController.shared.showTestMoment()
+    }
+
     func reloadRegistry() {
         if UIHost.forward(.reloadRegistry) { return }
         registry = Core.networks()

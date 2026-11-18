@@ -75,7 +75,7 @@ final class IslandController {
         Core.watchMoments(settings.watches)
         Core.watchTopApps(settings.shows(.peek))
         for kind in MomentKind.allCases where !settings.shows(kind) {
-            queue.remove(kind, now: now)
+            queue.remove(kind, now: now, keeping: settings.enabled ? Self.testMoment : nil)
         }
         if settings.enabled != old.enabled || settings.displays != old.displays || (settings.enabled && panels.isEmpty)
         {
@@ -122,6 +122,21 @@ final class IslandController {
             break
         }
     }
+
+    /// Shows a sample Network joined moment on every display the island is on, for Settings ›
+    /// Island's test button. It shows even with Network joined turned off, so the style and the
+    /// displays can be tried before any real moment comes; a settings change redraws it rather
+    /// than closing it. A press while it is open or waiting adds nothing.
+    func showTestMoment() {
+        guard settings.enabled, !panels.isEmpty, !queue.holds(Self.testMoment) else { return }
+        queue.post(Self.testMoment, now: now)
+        record(Self.testMoment, source: "test")
+        render()
+    }
+
+    private static let testMoment = MomentContent.joined(
+        network: Network(id: 0, key: "", name: "Test network", kind: .wifi), week: 1_200_000_000,
+        today: 412_000_000, lastSeen: nil)
 
     /// The network changed: reopens paused apps once off a hotspot, and shows or hides the
     /// hotspot meter.
@@ -444,7 +459,8 @@ final class IslandController {
     struct DebugState: Encodable {
         struct Fired: Encodable {
             let kind: String
-            /// `engine` (real traffic or a network change), `hover`, or `debug` (`fire-moment`).
+            /// `engine` (real traffic or a network change), `hover`, `debug` (`fire-moment`), or
+            /// `test` (Settings › Island's test button and `show-test-moment`).
             let source: String
             /// A transfer's end.
             let ended: Bool
